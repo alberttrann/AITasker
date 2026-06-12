@@ -1,3 +1,4 @@
+import { UserRoleItem } from '@common/enums/user-role-item.enum';
 import {
   IsEmail,
   IsNotEmpty,
@@ -6,6 +7,7 @@ import {
   MaxLength,
   IsOptional,
   MinLength,
+  IsEnum,
 } from 'class-validator';
 
 export class RegisterUserDto {
@@ -25,5 +27,7 @@ export class RegisterUserDto {
   @IsOptional()
   phone: string;
 
-  roles: JsonWebKey
+  @IsNotEmpty()
+  @IsEnum(UserRoleItem)
+  roles: UserRoleItem;
 }
