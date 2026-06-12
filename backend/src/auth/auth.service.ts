@@ -5,10 +5,10 @@ import * as bcrypt from 'bcrypt';
 import { UserRoleItem } from '@common/enums/user-role-item.enum';
 import { ActiveRole } from '@common/enums/active-role.enum';
 import { ClientSubType } from '@common/enums/client-subtype.enum';
+import { LoginUserDto } from './dto/login.dto';
 @Injectable()
 export class AuthService {
   constructor(private prisma: PrismaService) {}
-
   async register(registerDto: RegisterUserDto) {
     const existingEmailCheck = await this.prisma.user.findUnique({
       where: {
@@ -53,7 +53,12 @@ export class AuthService {
           userId: user.id,
         },
       });
-      return user;
+      return {
+        id: user.id,
+        email: user.email,
+      };
     });
   }
+
+  async login(loginDto: LoginUserDto) {}
 }
