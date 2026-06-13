@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  # NestJS backend 
+  backend:
+    name: Backend — build & lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          # Dummy URL — prisma generate only reads schema.prisma, never connects
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (TypeScript compile)
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test -- --passWithNoTests
+
+  # FastAPI ai-service 
+  ai-service:
+    name: AI Service — build & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+        env:
+          ANTHROPIC_API_KEY: test-key-ci
+          ENV: test
+
+  #  React frontend 
+  frontend:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Vite + TypeScript)
+        run: npm run build

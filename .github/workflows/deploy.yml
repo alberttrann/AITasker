@@ -1,0 +1,58 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # Verify all Docker images build cleanly
+  docker-build:
+    name: Docker — build all images
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          tags: aitasker-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build ai-service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai-service
+          push: false
+          tags: aitasker-ai-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: false
+          tags: aitasker-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Placeholder: push to registry and deploy 
+  #
+  # deploy-staging:
+  #   needs: docker-build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Push to Docker Hub
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         push: true
+  #         tags: ${{ secrets.DOCKERHUB_USERNAME }}/aitasker-backend:latest
+  #     - name: SSH deploy
+  #       run: ssh user@your-server "docker compose pull && docker compose up -d"

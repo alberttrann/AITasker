@@ -23,7 +23,7 @@
       "@features/*":   ["src/features/*"],
       "@hooks/*":      ["src/hooks/*"],
       "@store/*":      ["src/store/*"],
-      "@types/*":      ["src/types/*"]
+      "@t/*":          ["src/types/*"]
     }
   },
   "include":    ["src"],
