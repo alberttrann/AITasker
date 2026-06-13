@@ -1,0 +1,47 @@
+# Uses a LOCAL postgres so tests are isolated from Neon and can be wiped freely.
+# Run: docker compose -f docker-compose.test.yml up -d
+#      then: cd backend && npm run test:e2e
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: aitasker-postgres-test
+    environment:
+      POSTGRES_USER:     aitasker_test
+      POSTGRES_PASSWORD: aitasker_test
+      POSTGRES_DB:       aitasker_test
+    ports:
+      - "5433:5432"   # port 5433 để tránh clashing với local postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aitasker_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /var/lib/postgresql/data  # in-memory - wiped on container stop
+
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aitasker-backend-test
+    environment:
+      DATABASE_URL: postgresql://aitasker_test:aitasker_test@postgres-test:5432/aitasker_test
+      DIRECT_URL:   postgresql://aitasker_test:aitasker_test@postgres-test:5432/aitasker_test
+      JWT_SECRET:   test-jwt-secret-not-for-production
+      NODE_ENV:     test
+      FASTAPI_URL:  http://ai-service-test:8000
+      PLATFORM_SETTINGS_ID: 00000000-0000-0000-0000-000000000004
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    command: ["node", "dist/main"]
+
+  ai-service-test:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: aitasker-ai-service-test
+    environment:
+      ANTHROPIC_API_KEY: test-key
+      ENV: test
