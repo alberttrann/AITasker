@@ -12,10 +12,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: process.env.JWT_SECRET,
       // If token expired -> blocked
       ignoreExpiration: false,
+      // Calling prisma service to validate user still exist in db
     });
   }
 
   async validate(payload: any) {
+    // Consider validation
     return {
       userId: payload.sub,
       email: payload.email,
