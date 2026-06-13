@@ -153,3 +153,6 @@ static/uploads/
 ADMIN_CREDENTIALS.txt
 SEED_PASSWORDS.txt
 *.credentials.txt
+
+backend/dist/
+node_modules/
