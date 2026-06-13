@@ -10,8 +10,13 @@ async function bootstrap() {
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin:      allowedOrigins,
     credentials: true,
   });
 
@@ -28,6 +33,7 @@ async function bootstrap() {
   console.log(`  Backend running on http://localhost:${port}`);
   console.log(`  Swagger docs at http://localhost:${port}/api`);
   console.log(`  Health check at http://localhost:${port}/health`);
+  console.log(`  CORS allowed: ${allowedOrigins.join(', ')}`);
 }
 
 bootstrap();
