@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './database/prisma.module';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import configuration from './config/configuration';
     }),
     PrismaModule,
     // ─── M1 modules (Chí Nhân) ────────────────────────────────────────────
-    // AuthModule,
+    AuthModule
     // UsersModule,
     // WalletModule,
     // PaymentsModule,
