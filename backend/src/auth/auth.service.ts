@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -6,9 +6,13 @@ import { UserRoleItem } from '@common/enums/user-role-item.enum';
 import { ActiveRole } from '@common/enums/active-role.enum';
 import { ClientSubType } from '@common/enums/client-subtype.enum';
 import { LoginUserDto } from './dto/login.dto';
+import { JwtService } from '@nestjs/jwt';
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
   async register(registerDto: RegisterUserDto) {
     const existingEmailCheck = await this.prisma.user.findUnique({
       where: {
@@ -61,6 +65,34 @@ export class AuthService {
   }
 
   async login(loginDto: LoginUserDto) {
-    
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: loginDto.email,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials!');
+    }
+
+    const userInputPassword = loginDto.password;
+    const userPasswordHash = user.passwordHash;
+    const isMatch = await bcrypt.compare(userInputPassword, userPasswordHash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid credentials!');
+    }
+
+    // JWT Service
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      roles: user.activeRole,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    return {
+      access_token: accessToken,
+    };
   }
 }
