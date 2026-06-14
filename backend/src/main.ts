@@ -16,7 +16,7 @@ async function bootstrap() {
     .filter(Boolean);
 
   app.enableCors({
-    origin:      allowedOrigins,
+    origin: allowedOrigins,
     credentials: true,
   });
 
