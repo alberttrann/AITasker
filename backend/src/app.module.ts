@@ -6,6 +6,7 @@ import configuration from './config/configuration';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
+import { ElicitationModule } from './elicitation/elicitation.module';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { WalletModule } from './wallet/wallet.module';
     WalletModule,
     // PaymentsModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
-    // ElicitationModule,
+    ElicitationModule,
     // ProjectsModule,
     // ExpertProfilesModule,
     // ListingsModule,
