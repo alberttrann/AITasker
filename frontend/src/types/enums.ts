@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-export enum UserRole {
-  CLIENT = 'CLIENT',
-  EXPERT = 'EXPERT'
-}
-    
-=======
 export type ActiveRole   = 'CLIENT' | 'EXPERT' | 'ADMIN';
 export type ClientSubtype = 'CEO' | 'TECH_TEAM';
 export type SubscriptionTier = 'free' | 'pro';
@@ -101,4 +94,3 @@ export type DecisionType =
   | 'PORTFOLIO_EVAL'
   | 'DISPUTE_L1_EVAL'
   | 'CRITERION_QUALITY_GATE';
->>>>>>> 78a84ed4a03087d2743694d5c421131258af41ad

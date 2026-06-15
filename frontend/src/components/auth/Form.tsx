@@ -2,6 +2,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useAuthStore } from '@store/auth.store';
 import { RoleSwitcher } from '@components/layout/RoleSwitcher';
+import apiClient from '@/lib/api-client';
 
 const loginSchema = Yup.object({
   email: Yup.string()
@@ -22,7 +23,7 @@ export function LoginForm() {
     validationSchema: loginSchema,
     onSubmit: async ({ email, password }, { setFieldError }) => {
       try {
-        const { data } = await api.post('/auth/login', { email, password });
+        const { data } = await apiClient.post('/auth/login', { email, password });
         setTokens(data.access_token, data.refresh_token);
         setUser(data.user);
       } catch {
