@@ -1,25 +1,15 @@
-import { useAuthStore } from '@store/auth.store';
-import { LoginForm } from '@components/auth/LoginForm';
-import { Dashboard } from '@components/layout/AppShell';
+import { Route, Routes } from "react-router-dom";
+import ErrorPage from "@components/pages/ErrorPage";
+import { LoginForm } from "@components/auth/Form";
 
 export default function App() {
-  const { isAuthenticated, user, activeRole, logout } = useAuthStore();
-
-  if (!isAuthenticated) {
-    return (
-      <div className="bg-surface-container-low min-h-screen flex flex-col font-body-md text-on-surface">
-        <main className="flex-grow flex items-center justify-center p-md">
-          <LoginForm />
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-surface-container-low min-h-screen flex flex-col font-body-md text-on-surface">
-      <main className="flex-grow flex items-center justify-center p-md">
-        <Dashboard/>
-      </main>
-    </div>
-  );
+    <>
+    <Routes>
+      <Route path="/home"></Route>
+      <Route path="/*" element={<ErrorPage />}></Route>
+    </Routes>
+    
+    </>
+  )
 }

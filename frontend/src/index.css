@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @import "tailwindcss";
 
 @theme {
@@ -46,3 +47,8 @@ body {
   background-color: var(--color-background);
   color: var(--color-on-background);
 }
+=======
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+>>>>>>> 78a84ed4a03087d2743694d5c421131258af41ad
