@@ -4,6 +4,8 @@ import { PrismaModule } from './database/prisma.module';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -14,9 +16,9 @@ import { AuthModule } from './auth/auth.module';
     }),
     PrismaModule,
     // ─── M1 modules (Chí Nhân) ────────────────────────────────────────────
-    AuthModule
-    // UsersModule,
-    // WalletModule,
+    AuthModule,
+    UsersModule,
+    WalletModule,
     // PaymentsModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
     // ElicitationModule,
