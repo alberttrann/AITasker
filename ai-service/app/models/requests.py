@@ -23,6 +23,7 @@ class MatchingRequest(BaseModel):
     required_seams_json:   list[dict]
     required_domains_json: list[dict]
     expert_profiles:       list[dict]
+    project_archetype:     str | None = None   # optional — enables archetype history scoring
 
 
 class DisputeEvalRequest(BaseModel):
@@ -38,4 +39,3 @@ class CriterionCheckRequest(BaseModel):
 class ServiceGenerateRequest(BaseModel):
     expert_capabilities: list[str]
     target_use_cases:    list[str]
-
