@@ -43,6 +43,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) =>
         set({
           user,
+          isAuthenticated: true,
           activeRole:    user.active_role,
           clientSubtype: user.client_subtype ?? null,
         }),

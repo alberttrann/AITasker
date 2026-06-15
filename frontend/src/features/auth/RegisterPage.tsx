@@ -1,3 +1,7 @@
 export default function RegisterPage() {
-  return <div>Register — Tuấn Khang implements</div>;
+  return ( 
+    <>
+      <div>Register — Tuấn Khang implements</div>;
+    </>
+    )
 }

@@ -31,4 +31,3 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>
 );
->>>>>>> 78a84ed4a03087d2743694d5c421131258af41ad
