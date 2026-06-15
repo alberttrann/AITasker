@@ -18,7 +18,7 @@ export interface Stage1Response {
 }
 
 export interface Stage5Request {
-  elicitation_session_id: string;
+  session_id: string;
   stage1_symptoms: string[];
   stage2_archetype: string;
   stage3_probes: Record<string, unknown>;
@@ -37,7 +37,7 @@ export interface Stage5Response {
 
 export interface PortfolioEvalRequest {
   project_description: string;
-  decision_points: string[] | string;
+  decision_points: string;
   seam_code: string;
 }
 
@@ -50,7 +50,6 @@ export interface PortfolioEvalResponse {
 export interface MatchingRequest {
   required_seams_json: Array<Record<string, unknown>>;
   required_domains_json: Array<Record<string, unknown>>;
-  required_tier?: string;
   expert_profiles: Array<Record<string, unknown>>;
 }
 
