@@ -51,6 +51,7 @@ export interface MatchingRequest {
   required_seams_json: Array<Record<string, unknown>>;
   required_domains_json: Array<Record<string, unknown>>;
   expert_profiles: Array<Record<string, unknown>>;
+  project_archetype?: string;
 }
 
 export interface GapMapItem {
