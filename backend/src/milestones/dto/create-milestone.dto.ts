@@ -4,7 +4,7 @@ import { IsString, IsNotEmpty, IsNumber, IsEnum, IsUUID, IsBoolean, IsArray, Val
 export class CreateCriteriationDto {
     @IsString()
     @IsNotEmpty()
-    criterion_content : string;
+    criterion_text : string;
 
     @IsNotEmpty()
     @IsBoolean()
