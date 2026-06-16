@@ -1,7 +1,8 @@
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 /**
- * DTO for Stage 2 elicitation: Archetype locked
+ * DTO for Stage 2 elicitation: Archetype selection + void injection acknowledgments.
+ * CEO acknowledges each detected void; accepted ones are marked injected: true in void_list_json.
  */
 export class Stage2Dto {
   @IsString()
@@ -10,5 +11,5 @@ export class Stage2Dto {
 
   @IsOptional()
   @IsArray()
-  voidInjections?: Array<Record<string, unknown>>;
+  acknowledgedVoidCodes?: string[]; // list of void_code strings the CEO accepted
 }

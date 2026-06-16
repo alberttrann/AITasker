@@ -57,7 +57,7 @@ export class ElicitationService {
       where: { id: sessionId },
       data: {
         currentStage: 2,
-        voidListJson: aiResponse as any,
+        voidListJson: aiResponse.voids as any,
         updatedAt: new Date(),
       },
     });
@@ -65,11 +65,7 @@ export class ElicitationService {
     return updatedSession;
   }
 
-  async proccessStage2(
-    sessionId: string,
-    archetype: string,
-    voidInjections?: Array<Record<string, unknown>>,
-  ) {
+  async processStage2(sessionId: string, archetype: string, acknowledgedVoidCodes?: string[]) {
     const session = await this.prisma.elicitationSession.findUnique({
       where: { id: sessionId },
     });
@@ -82,16 +78,24 @@ export class ElicitationService {
       throw new BadRequestException('Session is not at stage 2.');
     }
 
-    const aiResponse = await this.prisma.elicitationSession.update({
+    // Mark acknowledged voids as injected: true inside void_list_json
+    let updatedVoidList = session.voidListJson as Array<{ void_code: string; injected?: boolean }>;
+
+    if (acknowledgedVoidCodes && acknowledgedVoidCodes.length > 0) {
+      updatedVoidList = updatedVoidList.map((v) => ({
+        ...v,
+        injected: acknowledgedVoidCodes.includes(v.void_code) ? true : v.injected,
+      }));
+    }
+
+    return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        currentStage: 3,
         archetype: archetype,
-        ...(voidInjections ? { voidInjectionsJson: voidInjections } : {}),
+        voidListJson: updatedVoidList as any,
+        currentStage: 3,
         updatedAt: new Date(),
       },
     });
-
-    return aiResponse;
   }
 }
