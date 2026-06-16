@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { HmacVerifierService } from './hmac-verifier.service';
 import { IpnHandlerService } from './ipn-handler.service';
+import { log } from 'console';
 
 @Controller('webhooks/sepay')
 export class WebhooksController {
@@ -29,7 +30,7 @@ export class WebhooksController {
     }
 
     const data = req.body;
-    return await this.ipnHandlerService.handleIpn(req.body);
+    return this.ipnHandlerService.handleIpn(data);
   }
 
   @Post('chi-ho-credit')

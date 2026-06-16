@@ -1,7 +1,8 @@
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';
 
 @Controller('wallets')
 export class WalletController {
@@ -21,5 +22,12 @@ export class WalletController {
   @Get('me/transactions')
   getWalletTransaction(@Req() req: any) {
     return this.walletService.getWalletTransaction(req.user.id);
+  }
+
+  @ApiBearerAuth('JWT')
+  @UseGuards(JwtAuthGuard)
+  @Post('virtual-accounts/topup')
+  getTopupWallet(@Req() req: any, @Body() walletDto: WalletTopupAmmountDto) {
+    return this.walletService.getTopupWallet(req.user.id, walletDto);
   }
 }
