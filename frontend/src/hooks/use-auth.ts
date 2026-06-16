@@ -14,6 +14,24 @@ export function useAuth() {
   const queryClient  = useQueryClient();
   const store        = useAuthStore();
 
+// Register
+  const register = useMutation({
+    mutationFn: async (creds: { fullname: string; email: string; phone?: string ;password: string ; role: ActiveRole}) => {
+      // Assuming your backend returns the same auth payload (tokens + user) upon registration
+      const { data } = await apiClient.post<AuthTokens & { user: UserDto }>(
+        '/auth/register',
+        creds
+      );
+      return data;
+    },
+    onSuccess: (data) => {
+      // Auto-login the user right after successful registration
+      store.setTokens(data.access_token, data.refresh_token);
+      store.setUser(data.user);
+      redirectByRole(data.user.active_role, data.user.client_subtype ?? undefined, navigate);
+    },
+  });
+ 
   // Login 
   const login = useMutation({
     mutationFn: async (creds: { email: string; password: string }) => {
@@ -58,6 +76,7 @@ export function useAuth() {
     clientSubtype:   store.clientSubtype,
 
     // Actions
+    register,
     login,
     logout,
     switchRole,

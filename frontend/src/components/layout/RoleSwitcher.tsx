@@ -7,7 +7,7 @@ export function RoleSwitcher() {
   const switchRole  = useAuthStore((s) => s.switchRole);
 
   return (
-    <div className="flex p-base bg-surface-container rounded-lg mb-lg relative">
+    <div className="flex p-base bg-surface-container rounded-lg mb-md relative">
       <button
         type="button"
         onClick={() => switchRole('CLIENT' as ActiveRole)}

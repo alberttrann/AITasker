@@ -7,19 +7,11 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
-  // Add this to make the bearer of Swagger work
-  @ApiBearerAuth('JWT')
+  @ApiBearerAuth('JWT') // Add this to make the bearer of Swagger work
   @UseGuards(JwtAuthGuard)
   @Get('me')
   // @Req: taking request from client-side
   getWalletBalance(@Req() req: any) {
     return this.walletService.getWalletBalance(req.user.id);
-  }
-
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
-  @Get('me/transactions')
-  getWalletTransaction(@Req() req: any) {
-    return this.walletService.getWalletTransaction(req.user.id);
   }
 }

@@ -1,12 +1,12 @@
-export function AdminDashboard() {
+export default function AdminDashboard() {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center p-6">
-      <div className="w-full max-w-md text-center rounded-xl bg-surface border border-outline-variant p-8 shadow-sm">
-        <h2 className="text-headline-lg font-headline-lg text-primary mb-2">
-          Coming Soon
-        </h2>
-        <p className="text-body-md font-body-md text-on-surface-variant">
-          We are currently working hard on this feature. Check back soon!
+    <div className="p-md sm:p-lg bg-background min-h-screen">
+      <div className="bg-surface rounded-xl border border-outline-variant p-md shadow-sm">
+        <h1 className="font-headline-md text-headline-md text-primary mb-xs">
+          Admin Dashboard
+        </h1>
+        <p className="font-body-md text-body-md text-on-surface-variant">
+          You are currently viewing the Expert overview page.
         </p>
       </div>
     </div>

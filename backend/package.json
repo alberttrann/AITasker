@@ -46,7 +46,6 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "sepay-pg-node": "^1.0.0",
     "socket.io": "^4.7.4",
     "swagger-ui-express": "^5.0.0",
     "zod": "^3.22.4"

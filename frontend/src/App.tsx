@@ -6,7 +6,6 @@ import { GuestRoute, ProtectedRoute, RoleRoute } from '@lib/route-guards';
 // Public pages
 import LandingPage        from '@components/pages/LandingPage';
 import ErrorPage            from '@components/pages/ErrorPage';
-import { EmailVerify }      from '@components/auth/EmailVerify';
 
 // Guest-only auth pages
 import LoginPage        from '@features/auth/LoginPage';
@@ -17,10 +16,10 @@ import { HandoffRegister }  from '@features/tech-team/auth/HandoffRegister';
 import { LinkExpiredError } from '@features/tech-team/auth/LinkExpiredError';
 
 // Dashboards — stub shells now, built out screen by screen
-import { CeoDashboard }      from '@features/ceo/CeoDashboard';
-import { ExpertDashboard }   from '@features/expert/ExpertDashboard';
-import { TechTeamDashboard } from '@features/tech-team/TechTeamDashboard';
-import { AdminDashboard }    from '@features/admin/AdminDashboard';
+import CeoDashboard     from '@features/ceo/CeoDashboard';
+import ExpertDashboard   from '@features/expert/ExpertDashboard';
+import TechTeamDashboard from '@features/tech-team/TechTeamDashboard';
+import AdminDashboard    from '@features/admin/AdminDashboard';
 
 export default function App() {
   return (
@@ -28,7 +27,6 @@ export default function App() {
 
       {/* ── Public ─────────────────────────────────────────────────────── */}
       <Route path="/"                         element={<LandingPage />} />
-      <Route path="/verify-email"             element={<EmailVerify />} />
       {/* Handoff link lands here — public so TECH_TEAM can register */}
       <Route path="/register/handoff/:token"  element={<HandoffRegister />} />
       <Route path="/register/handoff/expired" element={<LinkExpiredError />} />

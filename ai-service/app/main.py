@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import elicitation, portfolio, matching, disputes, criteria, service_gen, artifact_b
+from app.routers import elicitation, portfolio, matching, disputes, criteria, service_gen, artifact_b
 
 app = FastAPI(
     title="AITasker LLM Service",
