@@ -1,6 +1,7 @@
-import { Controller, Post, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Put, Param, Body, Request } from '@nestjs/common';
+// import { UseGuards } from '@nestjs/common';
 import { ElicitationService } from './elicitation.service';
-
+import { Stage1Dto } from './dto/stage1.dto';
 @Controller('elicitation')
 export class ElicitationController {
   constructor(private readonly elicitationService: ElicitationService) {}
@@ -14,9 +15,9 @@ export class ElicitationController {
   }
 
   @Put('sessions/:id/stage1')
-  // @UseGuards(AuthGuard) later
+  // @UseGuards(JwtAuthGuard, RolesGuard)
   // @Roles(ActiveRole.CLIENT)
-  async processStage1(@Param('id') id: string, @Body() body: { symptomText: string }) {
+  async processStage1(@Param('id') id: string, @Body() body: Stage1Dto) {
     return this.elicitationService.processStage1(id, body.symptomText);
   }
 }

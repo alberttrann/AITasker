@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { FastapiClient } from './fastapi.client';
 
@@ -39,11 +39,11 @@ export class ElicitationService {
     });
 
     if (!session) {
-      throw new Error('Session not found.');
+      throw new NotFoundException('Session not found.');
     }
 
     if (session.currentStage !== 1) {
-      throw new Error('Session is not at stage 1.');
+      throw new BadRequestException('Session is not at stage 1.');
     }
 
     // call fastapi wrapper
