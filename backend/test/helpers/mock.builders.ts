@@ -1,35 +1,46 @@
-import { CreateMilestoneDto } from '../../src/milestones/dto/create-milestone.dto';
+import { CreateMilestoneDto, CreateCriterionDto } from '../../src/milestones/dto/create-milestone.dto';
 
 export class MilestoneBuilder {
-  private dto: CreateMilestoneDto = {
-    engagement_id: '00000000-0000-0000-0000-000000000001',
-    deliverable_statement: 'Xay dung hoan thien pipeline MLOps dung Docker',
-    sign_off_authority: 'TECH_TEAM',
-    payment_amount_vnd: 5000000,
-    criteria: [
-      {
-        criterion_text: 'Pipeline chay khong loi voi response code 200',
-        is_required: true,
-      },
-    ],
-  };
+  private engagementId         = '00000000-0000-0000-0000-000000000001';
+  private deliverableStatement = 'Build and validate the MLOps pipeline with Docker';
+  private signOffAuthority: 'TECH_TEAM' | 'CEO' | 'JOINT' = 'TECH_TEAM';
+  private paymentAmountVnd     = 5_000_000;
+  private criteria: CreateCriterionDto[] = [
+    {
+      criterion_text: 'Pipeline completes without error with HTTP 200',
+      is_required:    true,
+    },
+  ];
 
-  withEngagementId(id: string) {
-    this.dto.engagement_id = id;
+  withEngagementId(id: string): this {
+    this.engagementId = id;
     return this;
   }
 
-  withPaymentAmount(amount: number) {
-    this.dto.payment_amount_vnd = amount;
+  withPaymentAmount(amount: number): this {
+    this.paymentAmountVnd = amount;
     return this;
   }
 
-  withCriteria(criteria: any[]) {
-    this.dto.criteria = criteria;
+  withSignOffAuthority(authority: 'TECH_TEAM' | 'CEO' | 'JOINT'): this {
+    this.signOffAuthority = authority;
     return this;
   }
 
+  // NOTE: fixed `any[]` → `CreateCriterionDto[]`
+  withCriteria(criteria: CreateCriterionDto[]): this {
+    this.criteria = criteria;
+    return this;
+  }
+
+  // Returns a fresh object every call — no shared reference mutation between tests.
   build(): CreateMilestoneDto {
-    return this.dto;
+    return {
+      engagement_id:         this.engagementId,
+      deliverable_statement: this.deliverableStatement,
+      sign_off_authority:    this.signOffAuthority,
+      payment_amount_vnd:    this.paymentAmountVnd,
+      criteria:              this.criteria.map((c) => ({ ...c })),
+    };
   }
 }

@@ -1,17 +1,23 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-import { MilestonesService } from './milestones.service';
+import { MilestonesService }  from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+
+// FIX [BLOCK-1]: guards/decorators live in common/, not auth/
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard }   from '../common/guards/roles.guard';
+import { Roles }        from '../common/decorators/roles.decorator';
 
 @Controller('milestones')
-@UseGuards(JwtAuthGuard, RolesGuard) //đã đăng nhập mới được gọi API này
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class MilestonesController {
-    constructor(private milestonesService: MilestonesService) {}
+  constructor(private readonly milestonesService: MilestonesService) {}
 
-    @Post()
-    @Roles('TECH_TEAM', 'CEO') //chỉ TECH_TEAM và CEO mới được gọi API này
-    async createMilestone(@Body() dto: CreateMilestoneDto) {
+  @Post()
+  // FIX [BLOCK-2]: 'TECH_TEAM' / 'CEO' are clientSubtype values, not activeRole.
+  // Both CEO and TECH_TEAM users carry activeRole = 'CLIENT' in their JWT.
+  // RolesGuard checks user.activeRole — so the correct value is 'CLIENT'.
+  @Roles('CLIENT')
+  async createMilestone(@Body() dto: CreateMilestoneDto) {
     return this.milestonesService.createMilestone(dto);
-    }
+  }
+}
