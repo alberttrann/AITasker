@@ -1,3 +1,10 @@
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.development
+**/.env.production
+**/.env.test
+**/*.local.env
 .env
 .env.local
 .env.*.local
@@ -7,6 +14,7 @@
 *.local.env
 
 !.env.example
+!**/.env.example
 
 node_modules/
 npm-debug.log*
@@ -154,5 +162,4 @@ ADMIN_CREDENTIALS.txt
 SEED_PASSWORDS.txt
 *.credentials.txt
 
-backend/dist/
-node_modules/
+ai-service/simulations/reports/*.json
