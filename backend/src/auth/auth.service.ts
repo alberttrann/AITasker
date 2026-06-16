@@ -7,6 +7,9 @@ import { ActiveRole } from '@common/enums/active-role.enum';
 import { ClientSubType } from '@common/enums/client-subtype.enum';
 import { LoginUserDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
+import { VAEntityType } from '@common/enums/va-entity-type.enum';
+import { nanoid } from 'nanoid';
+import { VAStatus } from '@common/enums/va-status.enum';
 @Injectable()
 export class AuthService {
   constructor(
@@ -57,6 +60,18 @@ export class AuthService {
           userId: user.id,
         },
       });
+
+      // Create and assign VA to user
+      const virtualAccount = await tx.virtualAccount.create({
+        data: {
+          entityType: VAEntityType.WALLET_TOPUP,
+          entityId: user.id,
+          vaNumber: `${VAEntityType.WALLET_TOPUP}_${nanoid(8)}`,
+          fixedAmount: null,
+          status: VAStatus.ACTIVE,
+        },
+      });
+
       return {
         id: user.id,
         email: user.email,
