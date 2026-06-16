@@ -58,9 +58,40 @@ export class ElicitationService {
       data: {
         currentStage: 2,
         voidListJson: aiResponse as any,
+        updatedAt: new Date(),
       },
     });
 
     return updatedSession;
+  }
+
+  async proccessStage2(
+    sessionId: string,
+    archetype: string,
+    voidInjections?: Array<Record<string, unknown>>,
+  ) {
+    const session = await this.prisma.elicitationSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found.');
+    }
+
+    if (session.currentStage !== 2) {
+      throw new BadRequestException('Session is not at stage 2.');
+    }
+
+    const aiResponse = await this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: {
+        currentStage: 3,
+        archetype: archetype,
+        ...(voidInjections ? { voidInjectionsJson: voidInjections } : {}),
+        updatedAt: new Date(),
+      },
+    });
+
+    return aiResponse;
   }
 }
