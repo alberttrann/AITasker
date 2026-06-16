@@ -8,7 +8,7 @@ import { ClientSubType } from '@common/enums/client-subtype.enum';
 import { LoginUserDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
-import { nanoid } from 'nanoid';
+import { customAlphabet, nanoid } from 'nanoid';
 import { VAStatus } from '@common/enums/va-status.enum';
 @Injectable()
 export class AuthService {
@@ -61,12 +61,20 @@ export class AuthService {
         },
       });
 
+      // Create custom nanoid for generating VANumber
+      const nanoid = customAlphabet(
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+        8,
+      );
+
+      const normalizeVANumber = (VAEntityType.WALLET_TOPUP + nanoid()).replaceAll('_', '');
+
       // Create and assign VA to user
       const virtualAccount = await tx.virtualAccount.create({
         data: {
           entityType: VAEntityType.WALLET_TOPUP,
           entityId: user.id,
-          vaNumber: `${VAEntityType.WALLET_TOPUP}${nanoid(8)}`,
+          vaNumber: normalizeVANumber,
           fixedAmount: null,
           status: VAStatus.ACTIVE,
         },

@@ -30,7 +30,7 @@ export class WebhooksController {
     }
 
     const data = req.body;
-    console.log(data);
+    return this.ipnHandlerService.handleIpn(data);
   }
 
   @Post('chi-ho-credit')

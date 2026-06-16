@@ -65,7 +65,7 @@ export class WalletService {
       throw new NotFoundException('Wallet topup virtual account not found!');
     }
 
-    const vaNumber: string = userVirtualAccount.vaNumber;
+    const vaNumber: string = userVirtualAccount.vaNumber.replaceAll('_', '');
     const amount: number = walletDto.amount;
 
     const qrCodeUrl: string = `https://qr.sepay.vn/img?bank=MBBank&acc=0394654576&template=compact&amount=${amount}&des=${vaNumber}`;
