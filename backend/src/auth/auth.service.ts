@@ -66,7 +66,7 @@ export class AuthService {
         data: {
           entityType: VAEntityType.WALLET_TOPUP,
           entityId: user.id,
-          vaNumber: `${VAEntityType.WALLET_TOPUP}_${nanoid(8)}`,
+          vaNumber: `${VAEntityType.WALLET_TOPUP}${nanoid(8)}`,
           fixedAmount: null,
           status: VAStatus.ACTIVE,
         },
