@@ -1,6 +1,5 @@
 import { TransactionType } from '@common/enums/transaction-type.enum';
 import { ConflictException, Injectable } from '@nestjs/common';
-import { log } from 'console';
 import { PrismaService } from 'prisma/prisma.service';
 @Injectable()
 export class IpnHandlerService {

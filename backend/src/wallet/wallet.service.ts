@@ -7,6 +7,13 @@ import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';
 @Injectable()
 export class WalletService {
   constructor(private prisma: PrismaService) {}
+  // Helper function
+  async getWalletId(userId: string) {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId: userId } });
+
+    return wallet.id;
+  }
+
   async getWalletBalance(userId: string) {
     const wallet = await this.prisma.wallet.findUnique({
       where: {
