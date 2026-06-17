@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 import {
   Body,
   Controller,
@@ -45,4 +43,3 @@ export class WebhooksController {
     return { success: true };
   }
 }
->>>>>>> cf595c724e01b072262790bda30aeaa9757b703c

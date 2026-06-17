@@ -15,8 +15,6 @@ export class WalletController {
   getWalletBalance(@Req() req: any) {
     return this.walletService.getWalletBalance(req.user.id);
   }
-<<<<<<< HEAD
-=======
 
   @ApiBearerAuth('JWT')
   @UseGuards(JwtAuthGuard)
@@ -31,5 +29,4 @@ export class WalletController {
   getTopupWallet(@Req() req: any, @Body() walletDto: WalletTopupAmmountDto) {
     return this.walletService.getTopupWallet(req.user.id, walletDto);
   }
->>>>>>> cf595c724e01b072262790bda30aeaa9757b703c
 }
