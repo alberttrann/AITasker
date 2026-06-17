@@ -180,6 +180,10 @@ model ElicitationSession {
   archetype    String?
   scenarioType String?  @map("scenario_type")
   voidListJson Json     @default("[]") @map("void_list_json")
+  // Stage payload columns — persisted per stage, assembled for Stage 5 
+  stage1SymptomsJson   Json?    @map("stage1_symptoms_json")   
+  stage3ProbesJson     Json?    @map("stage3_probes_json")     
+  stage4TechInputsJson Json?    @map("stage4_tech_inputs_json") 
   state        String   @default("IN_PROGRESS")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)

@@ -1,0 +1,26 @@
+# Isolated PostgreSQL for NestJS integration tests.
+# - Port 5433 (not 5432) so it never conflicts with your local dev Postgres.
+# - tmpfs mount: the entire DB lives in RAM. Zero residual data after `docker compose down`.
+# - Never pointed at Neon — this is test-only infrastructure.
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d    # start before tests
+#   docker compose -f docker-compose.test.yml down      # stop + wipe after tests
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: aitasker-test-db
+    environment:
+      POSTGRES_USER:     testuser
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB:       aitasker_test
+    ports:
+      - "5433:5432"         # host 5433 → container 5432
+    tmpfs:
+      - /var/lib/postgresql/data   # in-memory: instant wipe on container stop
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d aitasker_test"]
+      interval: 2s
+      timeout:  5s
+      retries:  10
