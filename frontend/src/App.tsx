@@ -1,133 +1,70 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { useAuthStore } from '@store/auth.store';
-import { useAuthContext } from '@lib/auth-context';
-import type { ActiveRole, ClientSubtype } from '@t/enums';
+import { Route, Routes } from 'react-router-dom';
 
-//  Lazy-load dashboard layouts (split by role for bundle efficiency) 
-// Tuấn Khang + Minh Thức fill these in as screens are built in Phase 5–7.
-import CeoDashboard       from '@features/ceo/CeoDashboard';
-import ExpertDashboard    from '@features/expert/ExpertDashboard';
-import TechTeamDashboard  from '@features/tech-team/TechTeamDashboard';
-import AdminDashboard     from '@features/admin/AdminDashboard';
+// Guards
+import { GuestRoute, ProtectedRoute, RoleRoute } from '@lib/route-guards';
 
-// Auth screens (Tuấn Khang, Phase 1–2)
-import LoginPage    from '@features/auth/LoginPage';
-import RegisterPage from '@features/auth/RegisterPage';
+// Public pages
+import LandingPage        from '@components/pages/LandingPage';
+import ErrorPage            from '@components/pages/ErrorPage';
 
-// Spinner shown while AuthProvider checks the token 
-function FullPageSpinner() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
-    </div>
-  );
-}
+// Guest-only auth pages
+import LoginPage        from '@features/auth/LoginPage';
+import RegisterPage     from '@features/auth/RegisterPage';
 
-// Protected route — redirects to /login if not authenticated 
-function Protected({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
-}
+// Tech Team has a public registration route (no auth, link-based)
+import { HandoffRegister }  from '@features/tech-team/auth/HandoffRegister';
+import { LinkExpiredError } from '@features/tech-team/auth/LinkExpiredError';
 
-// Role guard — redirects to / if the user's role doesn't match 
-function RoleGuard({
-  children,
-  role,
-  subtype,
-}: {
-  children:  React.ReactNode;
-  role?:     ActiveRole;
-  subtype?:  ClientSubtype;
-}) {
-  const activeRole    = useAuthStore((s) => s.activeRole);
-  const clientSubtype = useAuthStore((s) => s.clientSubtype);
+// Dashboards — stub shells now, built out screen by screen
+import CeoDashboard     from '@features/ceo/CeoDashboard';
+import ExpertDashboard   from '@features/expert/ExpertDashboard';
+import TechTeamDashboard from '@features/tech-team/TechTeamDashboard';
+import AdminDashboard    from '@features/admin/AdminDashboard';
 
-  const roleOk    = !role    || activeRole    === role;
-  const subtypeOk = !subtype || clientSubtype === subtype;
-
-  return roleOk && subtypeOk ? <>{children}</> : <Navigate to="/" replace />;
-}
-
-// Root redirect — sends user to their dashboard on login 
-function RootRedirect() {
-  const activeRole    = useAuthStore((s) => s.activeRole);
-  const clientSubtype = useAuthStore((s) => s.clientSubtype);
-  const isAuth        = useAuthStore((s) => s.isAuthenticated);
-
-  if (!isAuth)               return <Navigate to="/login"     replace />;
-  if (activeRole === 'ADMIN')  return <Navigate to="/admin"     replace />;
-  if (activeRole === 'EXPERT') return <Navigate to="/expert"    replace />;
-  if (clientSubtype === 'CEO')       return <Navigate to="/ceo"       replace />;
-  if (clientSubtype === 'TECH_TEAM') return <Navigate to="/tech-team" replace />;
-  return <Navigate to="/login" replace />;
-}
-
-// App 
 export default function App() {
-  const { isLoading } = useAuthContext();
-
-  // Hold all rendering until the token check completes — prevents flash of login page on refresh for already-authenticated users.
-  if (isLoading) return <FullPageSpinner />;
-
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/login"    element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
 
-      {/* Root — redirect based on role */}
-      <Route path="/" element={<RootRedirect />} />
+      {/* ── Public ─────────────────────────────────────────────────────── */}
+      <Route path="/"                         element={<LandingPage />} />
+      {/* Handoff link lands here — public so TECH_TEAM can register */}
+      <Route path="/register/handoff/:token"  element={<HandoffRegister />} />
+      <Route path="/register/handoff/expired" element={<LinkExpiredError />} />
 
-      {/* CEO dashboard */}
-      <Route
-        path="/ceo/*"
-        element={
-          <Protected>
-            <RoleGuard role="CLIENT" subtype="CEO">
-              <CeoDashboard />
-            </RoleGuard>
-          </Protected>
-        }
-      />
+      {/* ── Guest only (logged-in users are redirected away) ─────────── */}
+      <Route element={<GuestRoute />}>
+        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Route>
 
-      {/* Expert dashboard */}
-      <Route
-        path="/expert/*"
-        element={
-          <Protected>
-            <RoleGuard role="EXPERT">
-              <ExpertDashboard />
-            </RoleGuard>
-          </Protected>
-        }
-      />
+      {/* ── Authenticated ────────────────────────────────────────────── */}
+      <Route element={<ProtectedRoute />}>
 
-      {/* TECH_TEAM dashboard */}
-      <Route
-        path="/tech-team/*"
-        element={
-          <Protected>
-            <RoleGuard role="CLIENT" subtype="TECH_TEAM">
-              <TechTeamDashboard />
-            </RoleGuard>
-          </Protected>
-        }
-      />
+        <Route element={<RoleRoute requiredSubtype="CEO" />}>
+          {/* /ceo/* — all CEO screens will nest here */}
+          <Route path="/ceo/*" element={<CeoDashboard />} />
+        </Route>
 
-      {/* Admin dashboard */}
-      <Route
-        path="/admin/*"
-        element={
-          <Protected>
-            <RoleGuard role="ADMIN">
-              <AdminDashboard />
-            </RoleGuard>
-          </Protected>
-        }
-      />
+        <Route element={<RoleRoute requiredRole="EXPERT" />}>
+          {/* /expert/* — all Expert screens will nest here */}
+          <Route path="/expert/*" element={<ExpertDashboard />} />
+        </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+        <Route element={<RoleRoute requiredSubtype="TECH_TEAM" />}>
+          {/* /tech-team/* — scoped to one linked project forever */}
+          <Route path="/tech-team/*" element={<TechTeamDashboard />} />
+        </Route>
+
+        <Route element={<RoleRoute requiredRole="ADMIN" />}>
+          {/* /admin/* — all Admin screens will nest here */}
+          <Route path="/admin/*" element={<AdminDashboard />} />
+        </Route>
+
+      </Route>
+
+      {/* ── 404 ──────────────────────────────────────────────────────── */}
+      <Route path="/*" element={<ErrorPage />} />
+
     </Routes>
   );
 }

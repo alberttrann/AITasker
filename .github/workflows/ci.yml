@@ -5,7 +5,7 @@ on:
     branches: [dev, main]
 
 jobs:
-  # NestJS backend
+  # NestJS backend 
   backend:
     name: Backend — build & lint
     runs-on: ubuntu-latest
@@ -28,6 +28,7 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
         env:
+          # Dummy URL — prisma generate only reads schema.prisma, never connects
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
       - name: Lint
@@ -40,23 +41,8 @@ jobs:
         run: npm test -- --passWithNoTests
 
   # FastAPI ai-service 
-  # ONLY UNIT TESTS IN CI
-  # --------------------------
-  # ai-service tests are split into two tiers by pytest marks:
-  #
-  #   Unit tests   (-m "not integration"):  117 tests, mock LLM, ~0.4s, FREE
-  #   Integration  (-m integration):         14 tests, real Gemini API, ~90s, costs money
-  #
-  # CI runs unit tests only. Integration tests are skipped automatically when
-  # ANTHROPIC_API_KEY starts with "test-" (settings.is_test_mode = True).
-  #
-  # The integration + quality gate is covered by the simulation suite, which is run manually before pushing:
-  #   python simulations/runner.py all
-  #
-  # To run integration tests locally:
-  #   pytest tests/ -m integration -v -s   (requires real key in ai-service/.env)
   ai-service:
-    name: AI Service — unit tests
+    name: AI Service — build & test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,13 +59,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Unit tests (mocked LLM, no API key needed)
-        run: pytest tests/ -m "not integration" -v --tb=short
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
         env:
-          ANTHROPIC_API_KEY: test-key-ci   # triggers is_test_mode=True, skips integration tests
+          ANTHROPIC_API_KEY: test-key-ci
           ENV: test
 
-  # React frontend
+  #  React frontend 
   frontend:
     name: Frontend — build
     runs-on: ubuntu-latest

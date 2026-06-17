@@ -8,8 +8,7 @@ import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
-  // Add this to make the bearer of Swagger work
-  @ApiBearerAuth('JWT')
+  @ApiBearerAuth('JWT') // Add this to make the bearer of Swagger work
   @UseGuards(JwtAuthGuard)
   @Get('me')
   // @Req: taking request from client-side
