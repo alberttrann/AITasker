@@ -21,7 +21,7 @@ import { ElicitationModule } from './elicitation/elicitation.module';
     AuthModule,
     UsersModule,
     WalletModule,
-    // PaymentsModule,
+    PaymentsModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
     ElicitationModule,
     // ProjectsModule,

@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { HmacVerifierService } from './hmac-verifier.service';
 import { IpnHandlerService } from './ipn-handler.service';
-import { log } from 'console';
 
 @Controller('webhooks/sepay')
 export class WebhooksController {
