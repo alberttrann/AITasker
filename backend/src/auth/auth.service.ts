@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -10,8 +15,16 @@ import { JwtService } from '@nestjs/jwt';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { customAlphabet, nanoid } from 'nanoid';
 import { VAStatus } from '@common/enums/va-status.enum';
+import { User } from '@prisma/client';
+import { SwitchRoleUserDto } from './dto/switch-role.dto';
 @Injectable()
 export class AuthService {
+  // Mapping roles to active roles
+  private readonly roleMapping = {
+    [ActiveRole.CLIENT]: UserRoleItem.CLIENT_CEO,
+    [ActiveRole.EXPERT]: UserRoleItem.EXPERT,
+  };
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -106,16 +119,57 @@ export class AuthService {
     }
 
     // JWT Service
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      roles: user.activeRole,
-    };
 
-    const accessToken = await this.jwtService.signAsync(payload);
+    const accessToken = await this.jwtGeneratePayload(user);
 
     return {
       access_token: accessToken,
     };
+  }
+
+  async switchRole(userId: string, switchRoleDto: SwitchRoleUserDto) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check to see if the new active roles is existed inside the roles json or not
+    // Cast json back to string of user's roles
+    const roles = user.roles as string[];
+
+    const requiredRole = this.roleMapping[switchRoleDto.activeRole];
+    const isRoleValid = roles.includes(requiredRole);
+
+    if (!isRoleValid) {
+      throw new UnauthorizedException('You do not have permission to switch to this role!');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { activeRole: switchRoleDto.activeRole },
+    });
+
+    return {
+      access_token: await this.jwtGeneratePayload(updatedUser),
+    };
+  }
+
+  async jwtGeneratePayload(user: User) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      activeRole: user.activeRole,
+      clientSubType: user.clientSubtype,
+      subscriptionClientTier: user.subscriptionClientTier,
+      subscriptionExpertTier: user.subscriptionExpertTier,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload);
+    return accessToken;
   }
 }
