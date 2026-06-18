@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Put, Param } from '@nestjs/common';
 import { MilestonesService }  from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 
@@ -19,5 +19,11 @@ export class MilestonesController {
   @Roles('CLIENT')
   async createMilestone(@Body() dto: CreateMilestoneDto) {
     return this.milestonesService.createMilestone(dto);
+  }
+
+  @Put(':id/fund')       // API: PUT /milestones/:id/fund
+  @Roles('CLIENT')
+  async fundMilestone(@Param('id') id: string) {
+    return this.milestonesService.initiateFunding(id);  
   }
 }

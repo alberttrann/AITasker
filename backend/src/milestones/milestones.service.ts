@@ -4,6 +4,7 @@ import { CreateMilestoneDto } from './dto/create-milestone.dto';
 
 @Injectable()
 export class MilestonesService {
+  // Inject PrismaService để thao tác với các bảng dữ liệu
   constructor(private readonly prisma: PrismaService) {}
 
   async createMilestone(dto: CreateMilestoneDto) {
@@ -58,4 +59,39 @@ export class MilestonesService {
       });
     });
   }
-}
+
+
+  async initiateFunding(milestoneId: string) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id : milestoneId },
+    });
+
+    if (!milestone ) {
+      throw new BadRequestException('Milestone cannot be found');
+    }
+
+    // Tạo một Mã tài khoản ảo VA (có 6 chữ số) cố định số tiền thông qua SePay 
+    const vaNumber = `VA-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // Tạo bản ghi trong bảng virtual_accounts để SePay IPN đối khớp sau này
+    await this.prisma.virtualAccount.create({
+      data: {
+        entityType: 'MILESTONE',
+        entityId: milestoneId,
+        vaNumber: vaNumber,
+        amountVnd: milestone.paymentAmountVnd,
+        expiresAt : new Date(Date.now() + 24 * 60 * 60 * 1000), // Hết hạn sau 24 giờ
+        status : 'ACTIVE',
+      },
+    });
+
+    return this.prisma.milestone.update({
+      where: { id: milestoneId },
+      data: {
+        state : 'AWAITING_PAYMENT',
+        vaNumber: vaNumber,
+        va_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), 
+      },
+    });
+  }
+  }
