@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
+import { ProjectsModule } from './projects/projects.module';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { ElicitationModule } from './elicitation/elicitation.module';
     PaymentsModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
     ElicitationModule,
-    // ProjectsModule,
+    ProjectsModule,
     // ExpertProfilesModule,
     // ListingsModule,
     // EngagementsModule,

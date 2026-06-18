@@ -174,19 +174,19 @@ model PlatformSettings {
 // CLUSTER 3 — Elicitation & Projects
 
 model ElicitationSession {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  currentStage Int      @default(1) @map("current_stage")
-  archetype    String?
-  scenarioType String?  @map("scenario_type")
-  voidListJson Json     @default("[]") @map("void_list_json")
-  // Stage payload columns — persisted per stage, assembled for Stage 5 
-  stage1SymptomsJson   Json?    @map("stage1_symptoms_json")   
-  stage3ProbesJson     Json?    @map("stage3_probes_json")     
-  stage4TechInputsJson Json?    @map("stage4_tech_inputs_json") 
-  state        String   @default("IN_PROGRESS")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String   @map("user_id") @db.Uuid
+  currentStage         Int      @default(1) @map("current_stage")
+  archetype            String?
+  scenarioType         String?  @map("scenario_type")
+  voidListJson         Json     @default("[]") @map("void_list_json")
+  // Stage payload columns — persisted per stage, assembled for Stage 5
+  stage1SymptomsJson   Json?    @map("stage1_symptoms_json")
+  stage3ProbesJson     Json?    @map("stage3_probes_json")
+  stage4TechInputsJson Json?    @map("stage4_tech_inputs_json")
+  state                String   @default("IN_PROGRESS")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user    User     @relation(fields: [userId], references: [id])
   project Project?
