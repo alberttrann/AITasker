@@ -5,7 +5,6 @@ import { useAuthStore } from '@store/auth.store';
 import { RoleSwitcher } from '@components/layout/RoleSwitcher';
 import { useAuth } from '@hooks/use-auth';
 import type { ActiveRole } from '@t/enums';
-import { AuthBackground } from '@/components/layout/Background';
 
 const registerSchema = Yup.object({
   fullName: Yup.string()
@@ -46,7 +45,6 @@ export default function RegisterPage() {
 
   return (
     <>
-    <AuthBackground />
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-[448px] bg-surface rounded-xl border border-outline-variant shadow-sm p-md sm:p-lg relative z-10 hover:shadow transition-shadow">
         <div className="text-center mb-sm">

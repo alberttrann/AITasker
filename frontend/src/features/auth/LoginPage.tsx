@@ -1,7 +1,7 @@
+import { useState } from 'react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '@hooks/use-auth';
-import { AuthBackground } from '@/components/layout/Background';
 
 const loginSchema = Yup.object({
   email: Yup.string()
@@ -13,6 +13,7 @@ const loginSchema = Yup.object({
 });
 
 export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
 
   // Use the hook instead of direct API calls
   const { login } = useAuth();
@@ -24,13 +25,11 @@ export default function LoginPage() {
 
   return (
     <>
-    <AuthBackground />
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-[448px] bg-surface rounded-xl border border-outline-variant shadow-sm p-md sm:p-lg relative z-10 hover:shadow transition-shadow">
         <div className="text-center mb-sm">
           <h1 className="font-headline-md text-headline-md text-primary mb-xs">AITasker</h1>
         </div>
-
 
         {/* Replaced <form> with Formik's wrapper components */}
         <Formik
@@ -76,18 +75,36 @@ export default function LoginPage() {
                 </label>
                 <Field name="password">
                   {({ field, meta }: any) => (
-                    <input
-                      {...field}
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      disabled={login.isPending}
-                      className={`w-full bg-surface border border-outline-variant rounded py-xs px-sm font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                        meta.touched && meta.error
-                          ? 'border-error focus:border-error focus:ring-error'
-                          : ''
-                      }`}
-                    />
+                    <div className="relative">
+                      <input
+                        {...field}
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        disabled={login.isPending}
+                        className={`w-full bg-surface border border-outline-variant rounded py-xs pl-sm pr-10 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
+                          meta.touched && meta.error
+                            ? 'border-error focus:border-error focus:ring-error'
+                            : ''
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                      >
+                        {showPassword ? (
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   )}
                 </Field>
                 <ErrorMessage name="password" component="p" className="mt-1 text-xs font-semibold text-error" />
@@ -111,7 +128,7 @@ export default function LoginPage() {
 
               {/* Display Backend Errors */}
               {serverError && (
-                <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center">
+                <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">
                   {serverError}
                 </div>
               )}
