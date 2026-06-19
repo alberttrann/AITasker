@@ -23,8 +23,8 @@ export default function TopNav() {
   const unreadMessages = 0;
 
   // Safely grab the first letter of the name
-  const initial = user?.full_name ? user.full_name.charAt(0).toUpperCase() : '?';
-  const roleDisplay = user?.active_role ? user.active_role.replace('_', ' ').toUpperCase() : 'USER';
+  const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
+  const roleDisplay = user?.activeRole ? user.activeRole.replace('_', ' ').toUpperCase() : 'USER';
 
   const handleSignOut = () => {
     logout(); // Clears Zustand state
@@ -102,8 +102,8 @@ export default function TopNav() {
                 {isProfileMenuOpen && (
                   <div className="absolute right-0 mt-4 w-48 bg-[var(--dropdown-bg,#ffffff)] border border-[var(--icon-stroke-and-divider,#252B31)]/20 shadow-lg rounded-lg py-2 flex flex-col z-50">
                     <Link
-                      to="/profile"
-                      onClick={() => setIsProfileMenuOpen(false)}
+                      to="/profile" 
+                      onClick={() => setIsProfileMenuOpen(false)} 
                       className="px-4 py-2 text-sm text-[var(--text-primary,#111C2D)] hover:bg-[var(--hover-bg,rgba(0,0,0,0.05))] transition-colors"
                     >
                       Profile

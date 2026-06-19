@@ -5,6 +5,7 @@ export default function LandingPage() {
   return (
     <>
         <Navbar />
+        <h1>Landing Page content</h1>
     </>
   );
 }
