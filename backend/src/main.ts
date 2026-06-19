@@ -5,7 +5,9 @@ import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
 
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new HttpExceptionFilter());
@@ -16,7 +18,7 @@ async function bootstrap() {
     .filter(Boolean);
 
   app.enableCors({
-    origin:      allowedOrigins,
+    origin: allowedOrigins,
     credentials: true,
   });
 

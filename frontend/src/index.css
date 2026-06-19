@@ -1,3 +1,48 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-tertiary: #252b31;
+  --color-on-surface-variant: #404943;
+  --color-secondary: #5c5f61;
+  --color-inverse-surface: #263143;
+  --color-background: #f9f9ff;
+  --color-surface-container: #e7eeff;
+  --color-primary-container: #0d4a33;
+  --color-on-surface: #111c2d;
+  --color-outline-variant: #c0c9c1;
+  --color-primary: #003220;
+  --color-on-primary: #ffffff;
+  --color-on-secondary: #ffffff;
+  --color-surface: #f9f9ff;
+  --color-surface-container-low: #f0f3ff;
+  --color-outline: #707973;
+  --color-surface-variant: #d8e3fb;
+  --color-on-primary-container: #80b99b;
+  --color-error: #ba1a1a;
+
+  --spacing-base: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 16px;
+  --spacing-md: 24px;
+  --spacing-lg: 48px;
+  --spacing-xl: 80px;
+
+--font-body-md: Futura, "Futura Medium", system-ui, sans-serif;
+--font-label-md: Futura, "Futura Medium", system-ui, sans-serif;
+--font-label-sm: Futura, "Futura Medium", system-ui, sans-serif;
+--font-headline-md: Futura, "Futura Bold", "Futura-Bold", system-ui, sans-serif;
+
+  --text-label-sm: 12px;
+  --text-label-sm--line-height: 16px;
+  --text-label-md: 14px;
+  --text-label-md--line-height: 20px;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+}

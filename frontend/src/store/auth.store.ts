@@ -43,6 +43,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) =>
         set({
           user,
+          isAuthenticated: true,
           activeRole:    user.active_role,
           clientSubtype: user.client_subtype ?? null,
         }),
@@ -66,7 +67,6 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'aitasker-auth',
-      // Only persist tokens — user object is re-fetched on load
       partialize: (s) => ({
         accessToken:  s.accessToken,
         refreshToken: s.refreshToken,

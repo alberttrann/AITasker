@@ -3,6 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './database/prisma.module';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { WalletModule } from './wallet/wallet.module';
+import { PaymentsModule } from './payments/payments.module';
+import { ElicitationModule } from './elicitation/elicitation.module';
 
 @Module({
   imports: [
@@ -13,12 +18,12 @@ import configuration from './config/configuration';
     }),
     PrismaModule,
     // ─── M1 modules (Chí Nhân) ────────────────────────────────────────────
-    // AuthModule,
-    // UsersModule,
-    // WalletModule,
-    // PaymentsModule,
+    AuthModule,
+    UsersModule,
+    WalletModule,
+    PaymentsModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
-    // ElicitationModule,
+    ElicitationModule,
     // ProjectsModule,
     // ExpertProfilesModule,
     // ListingsModule,
