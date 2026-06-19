@@ -1,6 +1,9 @@
 import { Controller, Get, Param, UseGuards, Request } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 // Projects controller
 // Guard order mirrors the elicitation module convention:
@@ -16,6 +19,9 @@ export class ProjectsController {
   // GET /projects/:id
   // Returns project detail (excluding artifactBJson) for any project member.
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
   async getProjectDetails(@Param('id') projectId: string, @Request() req: any) {
     // extract
     const userId = req.user.id;
@@ -28,6 +34,9 @@ export class ProjectsController {
   // GET /projects/:id/artifact-a
   // Public within platform for shortlisted experts, owner, and linked tech team.
   @Get(':id/artifact-a')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT', 'EXPERT')
+  @ApiBearerAuth('JWT')
   async getProjectArtifactA(@Param('id') projectId: string, @Request() req: any) {
     // extract
     const userId = req.user.id;
