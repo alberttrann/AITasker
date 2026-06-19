@@ -24,4 +24,16 @@ export class ProjectsController {
 
     return this.projectsService.findProject(projectId, userId, activeRole, clientSubtype);
   }
+
+  // GET /projects/:id/artifact-a
+  // Public within platform for shortlisted experts, owner, and linked tech team.
+  @Get(':id/artifact-a')
+  async getProjectArtifactA(@Param('id') projectId: string, @Request() req: any) {
+    // extract
+    const userId = req.user.id;
+    const activeRole = req.user.activeRole; // 'CLIENT', 'EXPERT', 'ADMIN'
+    const clientSubtype = req.user.clientSubtype;
+
+    return this.projectsService.findProjectArtifactA(projectId, userId, activeRole, clientSubtype);
+  }
 }
