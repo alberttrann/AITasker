@@ -1,5 +1,6 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { ExpertProfileService } from './expert-profiles.service';
+import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
@@ -16,5 +17,11 @@ export class ExpertProfilesController {
   @ApiBearerAuth('JWT')
   async getMyProfile(@CurrentUser() user: { id: string }) {
     return this.expertService.getMyProfile(user.id);
+  }
+
+  @Put('me')
+  @ApiBearerAuth('JWT')
+  async updateMyProfile(@CurrentUser() user: { id: string }, @Body() dto: UpdateExpertProfileDto) {
+    return this.expertService.updateMyProfile(user.id, dto);
   }
 }
