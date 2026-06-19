@@ -5,8 +5,11 @@ import { DodService } from "./dod.service";
 import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
 import { Roles } from "@common/decorators/roles.decorator";
 import { CreateDodItemDto } from "./dto/create-dod-item.dto";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 
 
+@ApiTags('DoD Checklist') 
+@ApiBearerAuth('JWT')
 @Controller('milestones/:id/dod')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DodController {
@@ -14,6 +17,7 @@ export class DodController {
 
     @Post('items') 
     @Roles('EXPERT', 'CLIENT') 
+    @ApiOperation({ summary: 'Add a new item to the DoD checklist' })
     async createDodItem(
     @Param('id') milestoneId: string,
     @Body() dto: CreateDodItemDto,
