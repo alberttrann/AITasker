@@ -10,6 +10,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   controllers: [AuthController],
   providers: [AuthService, PrismaService, JwtStrategy],
 
+  // Export section
+  exports: [JwtStrategy, PassportModule],
+
   // Import section
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
