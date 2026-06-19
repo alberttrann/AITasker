@@ -24,7 +24,7 @@ import { ElicitationModule } from './elicitation/elicitation.module';
     PaymentsModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
     ElicitationModule,
-    // ProjectsModule,
+    ProjectsModule,
     // ExpertProfilesModule,
     // ListingsModule,
     // EngagementsModule,
