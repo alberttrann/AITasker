@@ -26,6 +26,14 @@ export class SubscriptionService {
       throw new UnauthorizedException('User not found!');
     }
 
+    const userCurrentActiveRole = activateSubscriptionDto.activeRole;
+
+    if (user.activeRole !== userCurrentActiveRole) {
+      throw new ConflictException(
+        'You must switch to the target role before activating subscription!',
+      );
+    }
+
     /*
       Method using here: Dynamic Access
       - Instead of using user.subscriptionClientTier or user.subscriptionExpertTier to access the tier or the expired time -> this cause the code to be longer and hard to maintain logic
@@ -34,8 +42,6 @@ export class SubscriptionService {
       - By using this, we only need to process what is the value of the key so that we can shortly access to the value of the column we want (this equals to user.subscriptionClientTier if the key is equals to subscriptionClientTier) avoiding the condition overcheck
     
     */
-
-    const userCurrentActiveRole = activateSubscriptionDto.activeRole;
 
     const tierKey =
       userCurrentActiveRole === ActiveRole.CLIENT
