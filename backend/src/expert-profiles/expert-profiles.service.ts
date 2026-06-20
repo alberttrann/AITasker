@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
+import { UpsertDomainDepthDto } from './dto/upsert-domain-depth.dto';
 
 @Injectable()
 export class ExpertProfileService {
@@ -66,6 +67,44 @@ export class ExpertProfileService {
     return this.prisma.expertProfile.update({
       where: { userId },
       data,
+    });
+  }
+
+  // /expert-domain-depths/
+  // duplicate -> 409
+  // `domain_code` not in `DOMAIN_CODE` -> 422 (added errorHttpStatusCode: 422 in validation pipe in main.ts)
+  async createDomainDepth(userId: string, dto: UpsertDomainDepthDto) {
+    try {
+      return this.prisma.expertDomainDepth.create({
+        data: {
+          expertId: userId,
+          domainCode: dto.domainCode,
+          depthLevel: dto.depthLevel,
+        },
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation on @@unique([expertId, domainCode])
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(
+          'A depth claim for this domain already exists. Use PUT to update.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  // no found domain depth -> 404
+  async updateDomainDepth(userId: string, id: string, depthLevel: string) {
+    const exist = await this.prisma.expertDomainDepth.findUnique({
+      where: { id },
+      select: { expertId: true },
+    });
+
+    if (!exist) throw new NotFoundException('Domain depth not found.');
+
+    return this.prisma.expertDomainDepth.update({
+      where: { id },
+      data: { depthLevel },
     });
   }
 }
