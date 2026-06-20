@@ -3,9 +3,13 @@ import type { ActiveRole } from '@t/enums';
 import { cn } from '@lib/utils';
 
 export function RoleSwitcher() {
-  const activeRole  = useAuthStore((s) => s.activeRole);
-  const switchRole  = useAuthStore((s) => s.switchRole);
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const switchRole = useAuthStore((s) => s.switchRole);
 
+  const handleSwitch = (e: React.MouseEvent, role: ActiveRole) => {
+    e.preventDefault();
+    switchRole(role);
+  };
   return (
     <div className="flex p-base bg-surface-container rounded-lg mb-md relative">
       <button

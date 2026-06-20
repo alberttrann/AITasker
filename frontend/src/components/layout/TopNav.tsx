@@ -24,8 +24,13 @@ export default function TopNav() {
 
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
-  const roleDisplay = user?.activeRole ? user.activeRole.replace('_', ' ').toUpperCase() : 'USER';
+// 1. Decide which raw string to use
+  const rawRole = user?.activeRole === 'CLIENT' && user?.clientSubtype
+  ? user.clientSubtype 
+  : user?.activeRole;
 
+// 2. Format it for display
+const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN';
   const handleSignOut = () => {
     logout(); // Clears Zustand state
     navigate('/');
