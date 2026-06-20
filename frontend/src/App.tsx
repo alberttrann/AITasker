@@ -17,6 +17,7 @@ import ExpertDashboard   from '@features/expert/ExpertDashboard';
 import TechTeamDashboard from '@features/tech-team/TechTeamDashboard';
 import AdminDashboard    from '@features/admin/AdminDashboard';
 import ProfilePage from './components/pages/UserProfilePage';
+import ProfileSettingPage from './components/pages/ProfileSettingPage';
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/admin/*" element={<AdminDashboard />} />
         </Route>
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/account-setting" element={<ProfileSettingPage />} />
       </Route>
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}

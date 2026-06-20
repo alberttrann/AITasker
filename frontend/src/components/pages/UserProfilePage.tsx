@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuthStore } from '@store/auth.store';
 import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles } from 'lucide-react';
+import TopNav from '../layout/TopNav';
+import { Link } from 'react-router-dom';
 
 export default function ProfilePage() {
   const { user, logout } = useAuthStore();
@@ -9,12 +11,33 @@ export default function ProfilePage() {
   const [showEmail, setShowEmail] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
 
-  // Masking helper: Replaces all but the last 3 characters with '*'
-  const maskData = (data: string | null | undefined) => {
-    if (!data) return 'N/A';
-    if (data.length <= 3) return data;
-    return '*'.repeat(data.length - 3) + data.slice(-3);
-  };
+const maskData = (data: string | null | undefined) => {
+  if (!data) return 'N/A';
+
+  // 1. Email Masking Logic
+  if (data.includes('@')) {
+    const [localPart, ...domainParts] = data.split('@');
+    const domain = domainParts.join('@'); // Rejoin in case of multiple @ (rare but possible)
+
+    // If the part before the @ is 3 characters or shorter, just mask the whole local part
+    if (localPart.length <= 4) {
+      return '*'.repeat(localPart.length) + '@' + domain;
+    }
+    
+    // Otherwise, keep everything except the last 3 characters of the local part
+    return localPart.slice(0, -4) + '**@' + domain;
+  }
+
+  // 2. Phone Number Masking Logic (for anything without an '@')
+  // If the data is 6 characters or shorter, there isn't enough to mask
+  if (data.length <= 6) return data;
+
+  const firstPart = data.slice(0, 4);
+  const lastPart = data.slice(-2);
+  const maskLength = data.length - 6;
+
+  return firstPart + '*'.repeat(maskLength) + lastPart;
+};
 
   // Safe data extraction based on the backend DTO structure
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
@@ -26,6 +49,7 @@ export default function ProfilePage() {
     : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
+    <>
     <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
       
       {/* ── Page Header ── */}
@@ -72,9 +96,14 @@ export default function ProfilePage() {
               </div>
 
               {/* Edit Button */}
-              <button className="text-primary font-medium text-sm hover:underline hover:underline-offset-4 transition-all">
+              
+              <Link 
+                to="/account-setting"
+                className="text-primary font-medium text-sm hover:underline hover:underline-offset-4 transition-all"
+              >
                 Edit profile
-              </button>
+              </Link>
+              
             </div>
 
             {/* Masked Contact Details */}
@@ -179,5 +208,6 @@ export default function ProfilePage() {
 
       </div>
     </div>
+    </>
   );
 }
