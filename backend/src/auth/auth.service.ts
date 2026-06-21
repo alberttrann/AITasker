@@ -159,6 +159,21 @@ export class AuthService {
     };
   }
 
+  async refreshToken(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found!');
+    }
+
+    const accessToken = this.jwtGeneratePayload(user);
+    return { access_token: accessToken };
+  }
+
   async jwtGeneratePayload(user: User) {
     const payload = {
       sub: user.id,

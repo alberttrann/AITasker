@@ -32,4 +32,11 @@ export class AuthController {
   switchRole(@CurrentUser() user: AuthUser, @Body() switchRoleDto: SwitchRoleUserDto) {
     return this.authService.switchRole(user.id, switchRoleDto);
   }
+
+  @ApiBearerAuth('JWT')
+  @UseGuards(JwtAuthGuard)
+  @Post('refresh')
+  refreshToken(@CurrentUser() user: AuthUser) {
+    return this.authService.refreshToken(user.id);
+  }
 }

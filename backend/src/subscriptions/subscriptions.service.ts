@@ -2,7 +2,12 @@ import { ActiveRole } from '@common/enums/active-role.enum';
 import { SubscriptionTier } from '@common/enums/subscription-tier';
 import { SubscriptionPrice } from '@common/enums/subscription-price.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { ActivateSubscriptionDto } from 'src/subscriptions/dto/activate-subscription.dto';
 import { addMonths } from 'date-fns';
@@ -106,5 +111,34 @@ export class SubscriptionService {
     const access_token = await this.authService.jwtGeneratePayload(updatedUser);
 
     return { access_token };
+  }
+
+  async getSubscriptionStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found!');
+    }
+
+    // Using casting to const will tell TS that the string is the literal key of the user, therefore we don't need to cast the user to any to use the dynamic access method
+
+    const tierKey =
+      user.activeRole === ActiveRole.CLIENT
+        ? ('subscriptionClientTier' as const)
+        : ('subscriptionExpertTier' as const);
+
+    const expiresKey =
+      user.activeRole === ActiveRole.CLIENT
+        ? ('subClientExpiresAt' as const)
+        : ('subExpertExpiresAt' as const);
+
+    return {
+      subscriptionTier: user[tierKey],
+      subscriptionExpires: user[expiresKey],
+    };
   }
 }

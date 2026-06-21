@@ -1,6 +1,6 @@
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthUser } from 'src/auth/strategies/jwt.strategy';
 import { AddRoleDto } from './dto/add-role.dto';
@@ -27,9 +27,17 @@ export class UserController {
     return this.userService.getUserProfile(user.id);
   }
 
+  // Get the profile of the current user active role
   @ApiBearerAuth('JWT')
   @Put('me')
   updateUserProfile(@CurrentUser() user: AuthUser, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.updateUserProfile(user.id, updateUserDto);
+  }
+
+  // Get the public profile of expert
+  @ApiBearerAuth('JWT')
+  @Get(':userId/public-profile')
+  getPublicProfile(@Param('userId') userId: string) {
+    return this.userService.getPublicProfile(userId);
   }
 }

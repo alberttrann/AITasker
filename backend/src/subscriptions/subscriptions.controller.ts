@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { SubscriptionService } from './subscriptions.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -21,5 +21,11 @@ export class SubscriptionController {
     @Body() activateSubscriptionDto: ActivateSubscriptionDto,
   ) {
     return this.subscriptionService.activateSubscription(user.id, activateSubscriptionDto);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get('status')
+  getSubscriptionStatus(@CurrentUser() user: AuthUser) {
+    return this.subscriptionService.getSubscriptionStatus(user.id);
   }
 }
