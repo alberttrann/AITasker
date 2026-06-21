@@ -7,6 +7,8 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { AuthUser } from './strategies/jwt.strategy';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 
 @Controller('auth') // Define end points
 export class AuthController {
@@ -24,7 +26,8 @@ export class AuthController {
   }
 
   @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT', 'EXPERT')
   @Put('switch-role')
   switchRole(@CurrentUser() user: AuthUser, @Body() switchRoleDto: SwitchRoleUserDto) {
     return this.authService.switchRole(user.id, switchRoleDto);

@@ -5,13 +5,16 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { AuthUser } from 'src/auth/strategies/jwt.strategy';
 import { ActivateSubscriptionDto } from './dto/activate-subscription.dto';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 
 @Controller('subscriptions')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('CLIENT', 'EXPERT')
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
   @Post('activate')
   activateSubscription(
     @CurrentUser() user: AuthUser,

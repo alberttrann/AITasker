@@ -105,6 +105,6 @@ export class SubscriptionService {
     // Reissue the new JWT
     const access_token = await this.authService.jwtGeneratePayload(updatedUser);
 
-    return access_token;
+    return { access_token };
   }
 }
