@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
@@ -145,8 +150,7 @@ export class ExpertProfileService {
    * Per §0.11.I: caller must be the owner of the depth claim (403 otherwise).
    *
    * - 404 if row missing.
-   * - 403 if caller is not the owner. (TODO: ownership check not yet
-   *   implemented — see service code; the `userId` param is currently unused.)
+   * - 403 if caller is not the owner.
    */
   async updateDomainDepth(userId: string, id: string, depthLevel: string) {
     const exist = await this.prisma.expertDomainDepth.findUnique({
@@ -155,6 +159,10 @@ export class ExpertProfileService {
     });
 
     if (!exist) throw new NotFoundException('Domain depth not found.');
+
+    if (exist.expertId !== userId) {
+      throw new ForbiddenException('You are not the owner of this domain depth');
+    }
 
     return this.prisma.expertDomainDepth.update({
       where: { id },
