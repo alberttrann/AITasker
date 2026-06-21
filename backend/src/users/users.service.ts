@@ -111,7 +111,7 @@ export class UserService {
     // Using aggreaget to perform mathematical operations such as sum, average, min, max...
     const reputation = await this.prisma.review.aggregate({
       where: {
-        reviewerId: user.id,
+        targetId: user.id,
       },
       _avg: { rating: true },
       _count: true,

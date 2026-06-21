@@ -170,7 +170,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found!');
     }
 
-    const accessToken = this.jwtGeneratePayload(user);
+    const accessToken = await this.jwtGeneratePayload(user);
     return { access_token: accessToken };
   }
 
