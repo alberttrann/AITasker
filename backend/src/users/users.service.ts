@@ -89,7 +89,41 @@ export class UserService {
   }
 
   async updateUserProfile(userId: string, updateUserDto: UpdateUserDto) {
-    throw new Error('Method not implemented.');
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        clientProfile: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found!');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          fullName: updateUserDto.fullName,
+          phone: updateUserDto.phone,
+        },
+      });
+
+      if (user.activeRole === ActiveRole.CLIENT && user.clientProfile) {
+        await tx.clientProfile.update({
+          where: {
+            userId: user.id,
+          },
+          data: {
+            companyName: updateUserDto.companyName,
+            industry: updateUserDto.industry,
+            ceoName: updateUserDto.ceoName,
+          },
+        });
+      }
+    });
+
+    return { success: true };
   }
 
   async getPublicProfile(userId: string) {
