@@ -43,6 +43,7 @@ async function run({ baseUrl }) {
 
     const milestoneRes = await http.post('/milestones', {
       engagement_id: engagement.id,
+      milestone_number: 1,
       deliverable_statement: 'Simulation: deliver working RAG prototype',
       sign_off_authority: 'CEO',
       payment_amount_vnd: 5_000_000,
@@ -62,6 +63,7 @@ async function run({ baseUrl }) {
 
     const noCriteriaRes = await http.post('/milestones', {
       engagement_id: engagement.id,
+      milestone_number: 1,
       deliverable_statement: 'Should fail',
       sign_off_authority: 'CEO',
       payment_amount_vnd: 1000,
@@ -75,6 +77,7 @@ async function run({ baseUrl }) {
 
     const zeroPaymentRes = await http.post('/milestones', {
       engagement_id: engagement.id,
+      milestone_number: 1,
       deliverable_statement: 'Should fail',
       sign_off_authority: 'CEO',
       payment_amount_vnd: 0,

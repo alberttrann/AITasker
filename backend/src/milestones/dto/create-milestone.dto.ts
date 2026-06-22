@@ -5,6 +5,7 @@ import {
   IsOptional, Min,
 } from 'class-validator';
 import { CreateCriterionDto } from './create-criterion.dto';
+export { CreateCriterionDto };
 
 export class CreateMilestoneDto {
   @IsUUID()
@@ -16,7 +17,7 @@ export class CreateMilestoneDto {
   @Min(1, { message: 'milestone_number must be greater than zero' })
   milestone_number: number;
 
-  @IsString({ message: 'deliverable_statement must be a valid string.' }) 
+  @IsString({ message: 'deliverable_statement must be a valid string.' })
   @IsNotEmpty({ message: 'deliverable_statement cannot be empty.' })
   deliverable_statement: string;
 
