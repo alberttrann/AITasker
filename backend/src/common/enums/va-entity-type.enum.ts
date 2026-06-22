@@ -1,3 +1,4 @@
+// Đại diện cho điều kiện CHECK (entity_type IN ('WALLET_TOPUP','MILESTONE','SERVICE','SUBSCRIPTION'))
 export enum VAEntityType {
   WALLET_TOPUP = 'WALLET_TOPUP',
   MILESTONE = 'MILESTONE',

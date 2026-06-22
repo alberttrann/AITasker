@@ -32,6 +32,12 @@ export class WalletService {
     };
   }
 
+    // Hàm giả lập trả về ID ví tạm thời
+  async getWalletId(userId: string): Promise<string> {
+    
+    return 'temp-wallet-id';
+  }
+
   async getWalletTransaction(userId: string) {
     const walletId = await this.getWalletId(userId);
 
@@ -74,5 +80,5 @@ export class WalletService {
       qrCodeUrl: qrCodeUrl,
       paymentReference: vaNumber,
     };
-  }
+}
 }
