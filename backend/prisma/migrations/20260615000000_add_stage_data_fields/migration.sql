@@ -1,4 +1,4 @@
-﻿-- Add stage payload columns to elicitation_sessions.
+-- Add stage payload columns to elicitation_sessions.
 -- Required by Stage 5 synthesis to assemble Stage5Request from persisted stage data.
 -- Applied directly to Neon on 2026-06-15 via console SQL.
 

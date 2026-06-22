@@ -1,3 +1,4 @@
+import { RegisterHandoffDto } from './dto/register-handoff.dto';
 import {
   ConflictException,
   Injectable,
@@ -172,4 +173,72 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(payload);
     return accessToken;
   }
+
+  async registerHandoff(dto: RegisterHandoffDto) {
+    // Verify the invite token using the SAME JwtService/secret as login tokens.
+    let payload: { sessionId: string; ceoId: string; invitedEmail: string; purpose: string };
+    try {
+      payload = await this.jwtService.verifyAsync(dto.invite_token);
+    } catch {
+      throw new UnauthorizedException('This invite link has expired or is invalid.');
+    }
+  
+    if (payload.purpose !== 'tech-team-handoff') {
+      throw new UnauthorizedException('Invalid invite token.');
+    }
+  
+    const existingEmailCheck = await this.prisma.user.findUnique({
+      where: { email: payload.invitedEmail },
+    });
+    if (existingEmailCheck) {
+      throw new ConflictException('An account with this email already exists.');
+    }
+  
+    const hashPassword = await bcrypt.hash(dto.password, 10);
+  
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email:         payload.invitedEmail,
+          passwordHash:  hashPassword,
+          fullName:      dto.fullName,
+          roles:         [UserRoleItem.CLIENT_CEO], 
+          activeRole:    ActiveRole.CLIENT,
+          clientSubtype: ClientSubType.TECH_TEAM,
+          techTeamProfile: {
+            create: {
+              linkedClientId: payload.ceoId,
+              linkedProjectId: null, // set once the session becomes a Project
+            },
+          },
+        },
+      });
+  
+      const wallet = await tx.wallet.create({
+        data: { userId: user.id },
+      });
+
+      const nanoid = customAlphabet(
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+        8,
+      );
+      const normalizeVANumber = (VAEntityType.WALLET_TOPUP + nanoid()).replaceAll('_', '');
+
+      await tx.virtualAccount.create({
+        data: {
+          entityType:  VAEntityType.WALLET_TOPUP,
+          entityId:    user.id,
+          vaNumber:    normalizeVANumber,
+          fixedAmount: null,
+          status:      VAStatus.ACTIVE,
+        },
+      });
+  
+      return {
+        id:    user.id,
+        email: user.email,
+      };
+    });
+  }
+
 }

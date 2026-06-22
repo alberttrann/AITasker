@@ -1,9 +1,17 @@
+declare global {
+  interface BigInt {
+    toJSON(): string;
+  }
+}
+ 
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,

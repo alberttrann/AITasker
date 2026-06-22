@@ -1,3 +1,4 @@
+import { RegisterHandoffDto } from './dto/register-handoff.dto';
 import { Body, Controller, Post, Put, UseGuards } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
@@ -28,5 +29,10 @@ export class AuthController {
   @Put('switch-role')
   switchRole(@CurrentUser() user: AuthUser, @Body() switchRoleDto: SwitchRoleUserDto) {
     return this.authService.switchRole(user.id, switchRoleDto);
+  }
+
+  @Post('register-handoff')
+  registerHandoff(@Body() dto: RegisterHandoffDto) {
+    return this.authService.registerHandoff(dto);
   }
 }

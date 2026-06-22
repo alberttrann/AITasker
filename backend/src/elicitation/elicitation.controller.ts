@@ -1,65 +1,144 @@
+// backend/src/elicitation/elicitation.controller.ts
 import {
-  Controller,
-  Post,
-  Put,
-  Param,
-  Body,
-  UseGuards,
+  Controller, Post, Put, Get,
+  Param, Body, UseGuards, ForbiddenException,
 } from '@nestjs/common';
-import { ElicitationService } from './elicitation.service';
-import { JwtAuthGuard }       from '../common/guards/jwt-auth.guard';
-import { RolesGuard }         from '../common/guards/roles.guard';
-import { Roles }              from '../common/decorators/roles.decorator';
-import { CurrentUser }        from '../common/decorators/current-user.decorator';
-import { Stage1Dto }          from './dto/stage1.dto';
-import { Stage2Dto }          from './dto/stage2.dto';
+import { ElicitationService }    from './elicitation.service';
+import { JwtAuthGuard }          from '../common/guards/jwt-auth.guard';
+import { RolesGuard }            from '../common/guards/roles.guard';
+import { Roles }                 from '../common/decorators/roles.decorator';
+import { CurrentUser }           from '../common/decorators/current-user.decorator';
+import { Stage1Dto }             from './dto/stage1.dto';
+import { Stage2Dto }             from './dto/stage2.dto';
+import { Stage3Dto }             from './dto/stage3.dto';
+import { Stage4Dto }             from './dto/stage4.dto';
+import { Stage4HandoffDto }      from './dto/stage4-handoff.dto';
+import { InviteTechTeamDto }     from './dto/invite-tech-team.dto';
 
-// Elicitation controller
-// All routes require an authenticated CLIENT (CEO or TECH_TEAM role).
-//
-// Blueprint guard order:
-//   1. JwtAuthGuard   — validates token, populates req.user
-//   2. RolesGuard     — checks activeRole === 'CLIENT'
-//   3. SubscriptionGuard — TODO: add once subscriptions are wired;
-//      elicitation requires Client Pro (subscription_client_tier = 'pro')
+interface AuthUser {
+  id:             string;
+  activeRole:     string;
+  clientSubtype?: string | null;
+}
+
 @Controller('elicitation')
-@UseGuards(JwtAuthGuard, RolesGuard)    // applied to every route in this controller
-@Roles('CLIENT')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ElicitationController {
   constructor(private readonly elicitationService: ElicitationService) {}
 
-  // POST /elicitation/sessions
-  // Blueprint: CREATE elicitation session for authenticated CEO.
-  // FIX (blocking): was reading req.user.id with auth guard commented out →
-  // TypeError at runtime. Now uses @CurrentUser() decorator which reads from
-  // the request object populated by JwtAuthGuard.
+  // ── Session management — CEO ONLY ───────────────────────────────────────────
+
   @Post('sessions')
-  async createSession(@CurrentUser() user: { id: string }) {
+  @Roles('CLIENT')
+  async createSession(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
     return this.elicitationService.createSession(user.id);
   }
 
-  // PUT /elicitation/sessions/:id/stage1
-  // Note for frontend team: this endpoint uses PUT (not POST).
-  // Update your api-client calls accordingly.
-  // TODO: align HTTP verb with frontend expectations in next PR (PUT vs POST).
+  @Get('sessions/:id')
+  @Roles('CLIENT')
+  async getSession(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSession(id, user.id);
+  }
+
   @Put('sessions/:id/stage1')
+  @Roles('CLIENT')
   async processStage1(
     @Param('id') id: string,
     @Body() body: Stage1Dto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.elicitationService.processStage1(id, body.symptomText);
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage1(id, body.symptomText, user.id);
   }
 
-  // PUT /elicitation/sessions/:id/stage2
   @Put('sessions/:id/stage2')
+  @Roles('CLIENT')
   async processStage2(
     @Param('id') id: string,
     @Body() body: Stage2Dto,
+    @CurrentUser() user: AuthUser,
   ) {
+    this.assertCeoOnly(user);
     return this.elicitationService.processStage2(
       id,
       body.archetype,
+      user.id,
       body.acknowledgedVoidCodes,
     );
+  }
+
+  @Put('sessions/:id/stage3')
+  @Roles('CLIENT')
+  async processStage3(
+    @Param('id') id: string,
+    @Body() body: Stage3Dto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage3(id, body.probeResponses, user.id);
+  }
+
+  @Put('sessions/:id/stage4')
+  @Roles('CLIENT')
+  async processStage4(
+    @Param('id') id: string,
+    @Body() body: Stage4Dto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage4(id, body, user.id);
+  }
+
+  // ── Stage 4 Handoff — TECH_TEAM ONLY ────────────────────────────────────────
+  @Put('sessions/:id/stage4-handoff')
+  @Roles('CLIENT')
+  async processStage4Handoff(
+    @Param('id') id: string,
+    @Body() body: Stage4HandoffDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (user.clientSubtype !== 'TECH_TEAM') {
+      throw new ForbiddenException(
+        'Only a Tech Team member may submit Stage 4 via the handoff route.',
+      );
+    }
+    return this.elicitationService.processStage4Handoff(id, body, user.id);
+  }
+
+  // ── Invite Tech Team — CEO ONLY ─────────────────────────────────────────────
+  // Generates a signed handoff link. No email is sent — the CEO copies and
+  // shares it manually (no email-sending infrastructure exists in this codebase).
+  @Post('sessions/:id/invite-tech-team')
+  @Roles('CLIENT')
+  async inviteTechTeam(
+    @Param('id') id: string,
+    @Body() body: InviteTechTeamDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.inviteTechTeam(id, body.email, user.id);
+  }
+
+  // ── Confirm — CEO ONLY, triggers Stage 5 synthesis ──────────────────────────
+  @Post('sessions/:id/confirm')
+  @Roles('CLIENT')
+  async confirmSession(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.confirmSession(id, user.id);
+  }
+
+  // ── Private helper ───────────────────────────────────────────────────────────
+  private assertCeoOnly(user: AuthUser) {
+    if (user.clientSubtype !== 'CEO') {
+      throw new ForbiddenException('Only the CEO may perform this action.');
+    }
   }
 }

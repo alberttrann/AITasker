@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
+import { MilestonesModule } from './milestones/milestones.module';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { ElicitationModule } from './elicitation/elicitation.module';
     // BidsModule,
     // DisputesModule,
     // ─── M3 modules (Minh Thức) ───────────────────────────────────────────
-    // MilestonesModule,
+    MilestonesModule,
     // SubmissionsModule,
     // MessagesModule,
     // ReviewsModule,
