@@ -3,11 +3,15 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.useGlobalPipes(new ZodValidationPipe());
+  app.useGlobalPipes(
+    new ZodValidationPipe(),
+    new ValidationPipe({ whitelist: true, transform: true }),
+  );
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
