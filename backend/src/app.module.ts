@@ -10,6 +10,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
 import { SubscriptionModule } from './subscriptions/subscriptions.module';
 import { LedgerModule } from '@shared/ledger/ledger.module';
+import { BidsModule } from './bids/bids.module';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { LedgerModule } from '@shared/ledger/ledger.module';
     // ExpertProfilesModule,
     // ListingsModule,
     // EngagementsModule,
-    // BidsModule,
+    BidsModule,
     // DisputesModule,
     // ─── M3 modules (Minh Thức) ───────────────────────────────────────────
     // MilestonesModule,
