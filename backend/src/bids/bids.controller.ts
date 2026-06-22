@@ -9,6 +9,7 @@ import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
 import { TechReviewDto } from './dto/tech-review.dto';
 import { CeoDecisionDto } from './dto/ceo-decision.dto';
+import { CounterOfferDto } from './dto/counter-offer.dto';
 
 @Controller('bids')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,5 +73,17 @@ export class BidsController {
     @Body() body: CeoDecisionDto,
   ) {
     return this.bidsService.ceoDecision(id, user, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id/counter-offer')
+  // PUT /bids/:id/counter-offer is CLIENT+ (CEO subtype checked in service).
+  @Roles('CLIENT')
+  async counterOffer(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+    @Body() body: CounterOfferDto,
+  ) {
+    return this.bidsService.counterOffer(id, user, body);
   }
 }

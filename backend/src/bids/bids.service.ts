@@ -11,6 +11,7 @@ import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
 import { TechReviewDto } from './dto/tech-review.dto';
 import { CeoDecisionDto } from './dto/ceo-decision.dto';
+import { CounterOfferDto } from './dto/counter-offer.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string };
 
@@ -338,6 +339,50 @@ export class BidsService {
       }
 
       return updatedBid;
+    });
+  }
+
+  // PUT /bids/:id/counter-offer — CEO proposes a counter-price.
+  // Blueprint: docs/04 §0.11 L row 162 + docs/02 §3 Surface C. One-round only —
+  // negotiated_price_vnd is immutable after first write.
+  async counterOffer(bidId: string, user: ActorUser, dto: CounterOfferDto) {
+    // 1. bid must exist
+    const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
+    if (!bid) {
+      throw new NotFoundException('Bid not found.');
+    }
+
+    // 2. fetch engagement with project (for owner check)
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: bid.engagementId },
+      include: { project: { select: { id: true, clientId: true } } },
+    });
+    if (!engagement) {
+      throw new NotFoundException('Engagement not found.');
+    }
+
+    // 3. identity + ownership check
+    if (user.activeRole !== 'CLIENT' || user.clientSubtype !== 'CEO') {
+      throw new ForbiddenException('Only CEO can submit a counter-offer.');
+    }
+    if (engagement.project.clientId !== user.id) {
+      throw new ForbiddenException('You do not own this project.');
+    }
+
+    // 4. tech_status gate
+    if (bid.techStatus !== 'APPROVED') {
+      throw new UnprocessableEntityException('TECH_REVIEW_INCOMPLETE');
+    }
+
+    // 5. counter-offer already set → 409
+    if (bid.negotiatedPriceVnd !== null) {
+      throw new ConflictException('COUNTER_OFFER_ALREADY_SET');
+    }
+
+    // 6. set the counter-offer price. Immutable after this write.
+    return this.prisma.capabilityBid.update({
+      where: { id: bidId },
+      data: { negotiatedPriceVnd: dto.negotiated_price_vnd },
     });
   }
 }
