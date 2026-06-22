@@ -7,6 +7,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
+import { TechReviewDto } from './dto/tech-review.dto';
 
 @Controller('bids')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -44,5 +45,19 @@ export class BidsController {
     @Body() body: UpdateBidDto,
   ) {
     return this.bidsService.update(id, user.id, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id/tech-review')
+  // PUT /bids/:id/tech-review is CLIENT+ (TECH_TEAM subtype checked in service).
+  // Class-level @Roles('CLIENT','EXPERT','ADMIN') is too broad; we narrow to CLIENT
+  // because the doc says `active_role != CLIENT` → 403. Subtype check is in service.
+  @Roles('CLIENT')
+  async techReview(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+    @Body() body: TechReviewDto,
+  ) {
+    return this.bidsService.techReview(id, user, body);
   }
 }

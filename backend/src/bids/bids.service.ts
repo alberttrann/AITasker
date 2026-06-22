@@ -9,6 +9,7 @@ import { PrismaService } from '../database/prisma.service';
 import { ShortlistService } from './shortlist.service';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
+import { TechReviewDto } from './dto/tech-review.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string };
 
@@ -216,5 +217,55 @@ export class BidsService {
         versionNumber: { increment: 1 },
       },
     });
+  }
+
+  // PUT /bids/:id/tech-review — TECH_TEAM approves or requests revision.
+  // Blueprint: docs/04 §0.11 L row 160. Sets tech_status to APPROVED or
+  // REVISION_REQUESTED. tech_feedback is required iff REVISION_REQUESTED.
+  // On APPROVED, tech_feedback is left untouched (doc says nothing about
+  // clearing it, and the MVP design intentionally keeps no history).
+  async techReview(bidId: string, user: ActorUser, dto: TechReviewDto) {
+    // 1. bid must exist
+    const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
+    if (!bid) {
+      throw new NotFoundException('Bid not found.');
+    }
+
+    // 2. fetch engagement for projectId (needed for the link check)
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: bid.engagementId },
+      select: { projectId: true },
+    });
+    if (!engagement) {
+      throw new NotFoundException('Engagement not found.');
+    }
+
+    // 3. state check — must be reviewable (not SELECTED or DECLINED)
+    if (['SELECTED', 'DECLINED'].includes(bid.state)) {
+      throw new UnprocessableEntityException(`Bid is in state ${bid.state}; cannot review.`);
+    }
+
+    // 4. identity + link check
+    if (user.activeRole !== 'CLIENT' || user.clientSubtype !== 'TECH_TEAM') {
+      throw new ForbiddenException('Only TECH_TEAM can review bids.');
+    }
+    const tech = await this.prisma.techTeamProfile.findUnique({
+      where: { userId: user.id },
+      select: { linkedProjectId: true },
+    });
+    if (tech?.linkedProjectId !== engagement.projectId) {
+      throw new ForbiddenException('TECH_TEAM is not linked to this project.');
+    }
+
+    // 5. update bid. zod already validated tech_feedback presence.
+    //    On APPROVED, we do NOT touch tech_feedback — preserve whatever was there
+    //    (or null on first review). On REVISION_REQUESTED, write the new feedback
+    //    (overwriting any prior text — no history kept, per docs/02 §3 scope reduction).
+    const data: { techStatus: string; techFeedback?: string } = { techStatus: dto.action };
+    if (dto.action === 'REVISION_REQUESTED') {
+      data.techFeedback = dto.tech_feedback;
+    }
+
+    return this.prisma.capabilityBid.update({ where: { id: bidId }, data });
   }
 }
