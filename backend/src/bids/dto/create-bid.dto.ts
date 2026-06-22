@@ -1,50 +1,105 @@
-import { z } from 'zod';
+import { Type } from 'class-transformer';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsPositive,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 
-// JSONB sub-schemas — mirror docs/06-enum-domains.md §F
-// DOMAIN_CODE: A | B | C | D | E | F
-// SEAM_CODE:   A<->C | A<->F | A<->D | D<->E | D<->F | C<->F | E<->F | A<->B | B<->E | C<->E
-// DOMAIN_DEPTH: SURFACE | OPERATIONAL | DEEP
-// VERIFY_TIER: CLAIMED | EVIDENCE_BACKED
+// Enums mirror docs/06-enum-domains.md §A (Core Taxonomy Domains).
+// Local to this DTO — duplicated in update-bid.dto.ts (intentional, allowed to diverge).
 
-const footprintAlignment = z.object({
-  domains: z.array(
-    z.object({
-      code: z.enum(['A', 'B', 'C', 'D', 'E', 'F']),
-      depth: z.enum(['SURFACE', 'OPERATIONAL', 'DEEP']),
-    }),
-  ),
-  seams: z.array(
-    z.object({
-      code: z.enum([
-        'A<->C',
-        'A<->F',
-        'A<->D',
-        'D<->E',
-        'D<->F',
-        'C<->F',
-        'E<->F',
-        'A<->B',
-        'B<->E',
-        'C<->E',
-      ]),
-      tier: z.enum(['CLAIMED', 'EVIDENCE_BACKED']),
-    }),
-  ),
-});
+enum DomainCode {
+  A = 'A',
+  B = 'B',
+  C = 'C',
+  D = 'D',
+  E = 'E',
+  F = 'F',
+}
 
-const conditionalPricing = z.array(
-  z.object({
-    milestone_number: z.number().int().positive(),
-    price_vnd: z.number().int().positive(),
-    condition: z.string().nullable(),
-  }),
-);
+enum SeamCode {
+  A_C = 'A<->C',
+  A_F = 'A<->F',
+  A_D = 'A<->D',
+  D_E = 'D<->E',
+  D_F = 'D<->F',
+  C_F = 'C<->F',
+  E_F = 'E<->F',
+  A_B = 'A<->B',
+  B_E = 'B<->E',
+  C_E = 'C<->E',
+}
 
-export const CreateBidSchema = z.object({
-  projectId: z.string().uuid(),
-  footprint_alignment_json: footprintAlignment,
-  approach_summary: z.string().min(1),
-  conditional_pricing_json: conditionalPricing.min(1),
-});
+enum DomainDepth {
+  SURFACE = 'SURFACE',
+  OPERATIONAL = 'OPERATIONAL',
+  DEEP = 'DEEP',
+}
 
-export type CreateBidDto = z.infer<typeof CreateBidSchema>;
+enum VerifyTier {
+  CLAIMED = 'CLAIMED',
+  EVIDENCE_BACKED = 'EVIDENCE_BACKED',
+}
+
+class DomainClaim {
+  @IsEnum(DomainCode) code!: DomainCode;
+  @IsEnum(DomainDepth) depth!: DomainDepth;
+}
+
+class SeamClaim {
+  @IsEnum(SeamCode) code!: SeamCode;
+  @IsEnum(VerifyTier) tier!: VerifyTier;
+}
+
+class FootprintAlignment {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DomainClaim)
+  domains!: DomainClaim[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SeamClaim)
+  seams!: SeamClaim[];
+}
+
+class ConditionalPrice {
+  @IsInt()
+  @IsPositive()
+  milestone_number!: number;
+
+  @IsInt()
+  @IsPositive()
+  price_vnd!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  condition!: string; // docs say `string | null`; treat null as empty string on the wire
+}
+
+// POST /bids body — 3 bid components + projectId.
+// Per docs/04 §0.11 L row 157 + docs/06 §F JSONB schemas.
+export class CreateBidDto {
+  @IsUUID()
+  projectId!: string;
+
+  @ValidateNested()
+  @Type(() => FootprintAlignment)
+  footprint_alignment_json!: FootprintAlignment;
+
+  @IsString()
+  @IsNotEmpty()
+  approach_summary!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ConditionalPrice)
+  conditional_pricing_json!: ConditionalPrice[];
+}

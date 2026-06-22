@@ -8,6 +8,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
 import { TechReviewDto } from './dto/tech-review.dto';
+import { CeoDecisionDto } from './dto/ceo-decision.dto';
 
 @Controller('bids')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,5 +60,17 @@ export class BidsController {
     @Body() body: TechReviewDto,
   ) {
     return this.bidsService.techReview(id, user, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id/ceo-decision')
+  // PUT /bids/:id/ceo-decision is CLIENT+ (CEO subtype checked in service).
+  @Roles('CLIENT')
+  async ceoDecision(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+    @Body() body: CeoDecisionDto,
+  ) {
+    return this.bidsService.ceoDecision(id, user, body);
   }
 }

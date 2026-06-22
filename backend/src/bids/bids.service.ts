@@ -10,6 +10,7 @@ import { ShortlistService } from './shortlist.service';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
 import { TechReviewDto } from './dto/tech-review.dto';
+import { CeoDecisionDto } from './dto/ceo-decision.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string };
 
@@ -96,7 +97,7 @@ export class BidsService {
           techStatus: 'PENDING',
           ceoStatus: 'PENDING',
           versionNumber: 1,
-        },
+        } as any,
       });
 
       return { engagement, bid };
@@ -215,7 +216,7 @@ export class BidsService {
         techStatus: 'PENDING',
         state: 'TECH_REVIEW', // per state machine §3 loop-back
         versionNumber: { increment: 1 },
-      },
+      } as any,
     });
   }
 
@@ -267,5 +268,76 @@ export class BidsService {
     }
 
     return this.prisma.capabilityBid.update({ where: { id: bidId }, data });
+  }
+
+  // PUT /bids/:id/ceo-decision — CEO picks the winner (or rejects).
+  // Blueprint: docs/04 §0.11 L row 161. APPROVED cascades DECLINE to all
+  // sibling bids for the same project (literal doc reading).
+  // Engagement stays PENDING — docs/02 §4 says no additional DB op at
+  // SELECTED; the engagements module handles NDA/connection flow.
+  async ceoDecision(bidId: string, user: ActorUser, dto: CeoDecisionDto) {
+    // 1. bid must exist
+    const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
+    if (!bid) {
+      throw new NotFoundException('Bid not found.');
+    }
+
+    // 2. fetch engagement with project (for owner check)
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: bid.engagementId },
+      include: { project: { select: { id: true, clientId: true } } },
+    });
+    if (!engagement) {
+      throw new NotFoundException('Engagement not found.');
+    }
+
+    // 3. identity + ownership check (CEO owns the project)
+    if (user.activeRole !== 'CLIENT' || user.clientSubtype !== 'CEO') {
+      throw new ForbiddenException('Only CEO can decide bids.');
+    }
+    if (engagement.project.clientId !== user.id) {
+      throw new ForbiddenException('You do not own this project.');
+    }
+
+    // 4. tech_status gate (docs/03 BR-BID-04 / BR-BID-10)
+    if (bid.techStatus !== 'APPROVED') {
+      throw new UnprocessableEntityException('TECH_REVIEW_INCOMPLETE');
+    }
+
+    // 5. ceo_status already set → 409
+    if (bid.ceoStatus !== 'PENDING') {
+      throw new ConflictException(`Bid is already in ceo_status ${bid.ceoStatus}.`);
+    }
+
+    // 6. atomic: this bid + (if APPROVED) cascade DECLINE to all siblings
+    return this.prisma.$transaction(async (tx) => {
+      const updatedBid = await tx.capabilityBid.update({
+        where: { id: bidId },
+        data: {
+          ceoStatus: dto.decision,
+          state: dto.decision === 'APPROVED' ? 'SELECTED' : 'DECLINED',
+        },
+      });
+
+      if (dto.decision === 'APPROVED') {
+        // Cascade: all sibling bids for the same project → DECLINED.
+        // (Literal doc reading: "all other bids for project → DECLINED".)
+        // The ceoStatus='PENDING' filter is defensive — avoids re-declining
+        // already-decided bids in case of any pre-existing state.
+        await tx.capabilityBid.updateMany({
+          where: {
+            id: { not: bidId },
+            ceoStatus: 'PENDING',
+            engagement: {
+              projectId: engagement.project.id,
+              type: 'PROJECT_BASED',
+            },
+          },
+          data: { ceoStatus: 'DECLINED', state: 'DECLINED' },
+        });
+      }
+
+      return updatedBid;
+    });
   }
 }

@@ -1,17 +1,21 @@
-import { z } from 'zod';
+import { IsEnum, IsOptional, IsString, MinLength, ValidateIf } from 'class-validator';
 
-export const TechReviewSchema = z
-  .object({
-    action: z.enum(['APPROVED', 'REVISION_REQUESTED']),
-    tech_feedback: z.string().min(1).optional(),
-  })
-  .refine(
-    (d) =>
-      d.action !== 'REVISION_REQUESTED' || (d.tech_feedback != null && d.tech_feedback.length > 0),
-    {
-      message: 'tech_feedback is required when action is REVISION_REQUESTED',
-      path: ['tech_feedback'],
-    },
-  );
+// Per docs/04 §0.11 L row 160 + docs/06 §C BID_TECH_STATUS.
+enum TechReviewAction {
+  APPROVED = 'APPROVED',
+  REVISION_REQUESTED = 'REVISION_REQUESTED',
+}
 
-export type TechReviewDto = z.infer<typeof TechReviewSchema>;
+// PUT /bids/:id/tech-review body.
+// Per docs/04 §0.11 L row 160: tech_feedback required iff action=REVISION_REQUESTED.
+export class TechReviewDto {
+  @IsEnum(TechReviewAction)
+  action!: TechReviewAction;
+
+  // Required only when action=REVISION_REQUESTED.
+  @IsOptional()
+  @ValidateIf((o: TechReviewDto) => o.action === TechReviewAction.REVISION_REQUESTED)
+  @IsString()
+  @MinLength(1)
+  tech_feedback?: string;
+}
