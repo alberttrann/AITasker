@@ -12,6 +12,7 @@ import { MilestonesModule } from './milestones/milestones.module';
 import { SubscriptionModule } from './subscriptions/subscriptions.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ExpertProfilesModule } from './expert-profiles/expert-profiles.module';
+import { LedgerModule } from '@shared/ledger/ledger.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ExpertProfilesModule } from './expert-profiles/expert-profiles.module';
     WalletModule,
     PaymentsModule,
     SubscriptionModule,
+    LedgerModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
     ElicitationModule,
     ProjectsModule,
