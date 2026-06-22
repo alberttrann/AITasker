@@ -44,15 +44,15 @@ export const useAuthStore = create<AuthState>()(
         set({
           user,
           isAuthenticated: true,
-          activeRole:    user.active_role,
-          clientSubtype: user.client_subtype ?? null,
+          activeRole:    user.activeRole,
+          clientSubtype: user.clientSubtype ?? null,
         }),
 
       switchRole: (role, subtype) =>
         set((s) => ({
           activeRole:    role,
           clientSubtype: subtype ?? null,
-          user:          s.user ? { ...s.user, active_role: role, client_subtype: subtype ?? null } : s.user,
+          user:          s.user ? { ...s.user, activeRole: role, clientSubtype: subtype ?? null } : s.user,
         })),
 
       logout: () =>

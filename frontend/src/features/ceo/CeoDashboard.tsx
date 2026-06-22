@@ -1,5 +1,9 @@
+import TopNav from "@/components/layout/TopNav";
+
 export default function CeoDashboard() {
   return (
+    <>
+    <TopNav />
     <div className="p-md sm:p-lg bg-background min-h-screen">
       <div className="bg-surface rounded-xl border border-outline-variant p-md shadow-sm">
         <h1 className="font-headline-md text-headline-md text-primary mb-xs">
@@ -10,5 +14,6 @@ export default function CeoDashboard() {
         </p>
       </div>
     </div>
+    </>
   );
 }

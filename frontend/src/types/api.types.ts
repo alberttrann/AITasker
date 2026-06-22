@@ -24,11 +24,11 @@ export interface AuthTokens {
 export interface UserDto {
   id:                       string;
   email:                    string;
-  full_name:                string;
+  fullName:                string;
   phone:                    string | null;
   roles:                    string[];
-  active_role:              ActiveRole;
-  client_subtype:           ClientSubtype | null;
+  activeRole:              ActiveRole;
+  clientSubtype:           ClientSubtype | null;
   subscription_client_tier: SubscriptionTier;
   subscription_expert_tier: SubscriptionTier;
   sub_client_expires_at:    string | null;
@@ -37,7 +37,7 @@ export interface UserDto {
   bank_linked_at:           string | null;
   self_technical:           boolean;
   is_active:                boolean;
-  created_at:               string;
+  createdAt:               string;
 }
 
 export interface WalletDto {

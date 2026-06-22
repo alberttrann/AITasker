@@ -118,7 +118,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
                       onClick={() => setIsProfileMenuOpen(false)}
                       className="px-4 py-2 text-sm text-[var(--text-primary,#111C2D)] hover:bg-[var(--hover-bg,rgba(0,0,0,0.05))] transition-colors"
                     >
-                      Account Setting
+                      Account Configuration
                     </Link>
                     
                     {/* Divider */}

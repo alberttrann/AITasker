@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAuthStore } from '@store/auth.store';
 import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles } from 'lucide-react';
-import TopNav from '../layout/TopNav';
 import { Link } from 'react-router-dom';
 
 export default function ProfilePage() {
