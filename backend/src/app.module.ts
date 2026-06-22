@@ -10,6 +10,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
 import { MilestonesModule } from './milestones/milestones.module'; 
 import { SubscriptionModule } from './subscriptions/subscriptions.module';
+import { ProjectsModule } from './projects/projects.module';
+import { ExpertProfilesModule } from './expert-profiles/expert-profiles.module';
 
 @Module({
   imports: [
@@ -27,8 +29,8 @@ import { SubscriptionModule } from './subscriptions/subscriptions.module';
     SubscriptionModule,
     // ─── M2 modules (Cao Minh) ────────────────────────────────────────────
     ElicitationModule,
-    // ProjectsModule,
-    // ExpertProfilesModule,
+    ProjectsModule,
+    ExpertProfilesModule,
     // ListingsModule,
     // EngagementsModule,
     // BidsModule,
