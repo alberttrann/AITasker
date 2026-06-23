@@ -1,19 +1,19 @@
-// backend/src/elicitation/elicitation.controller.ts
 import {
   Controller, Post, Put, Get,
   Param, Body, UseGuards, ForbiddenException,
 } from '@nestjs/common';
-import { ElicitationService }    from './elicitation.service';
-import { JwtAuthGuard }          from '../common/guards/jwt-auth.guard';
-import { RolesGuard }            from '../common/guards/roles.guard';
-import { Roles }                 from '../common/decorators/roles.decorator';
-import { CurrentUser }           from '../common/decorators/current-user.decorator';
-import { Stage1Dto }             from './dto/stage1.dto';
-import { Stage2Dto }             from './dto/stage2.dto';
-import { Stage3Dto }             from './dto/stage3.dto';
-import { Stage4Dto }             from './dto/stage4.dto';
-import { Stage4HandoffDto }      from './dto/stage4-handoff.dto';
-import { InviteTechTeamDto }     from './dto/invite-tech-team.dto';
+import { ElicitationService }     from './elicitation.service';
+import { JwtAuthGuard }           from '../common/guards/jwt-auth.guard';
+import { RolesGuard }             from '../common/guards/roles.guard';
+import { SubscriptionGuard }      from '../common/guards/subscription.guard';
+import { Roles }                  from '../common/decorators/roles.decorator';
+import { CurrentUser }            from '../common/decorators/current-user.decorator';
+import { Stage1Dto }              from './dto/stage1.dto';
+import { Stage2Dto }              from './dto/stage2.dto';
+import { Stage3Dto }              from './dto/stage3.dto';
+import { Stage4Dto }              from './dto/stage4.dto';
+import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
+import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
 
 interface AuthUser {
   id:             string;
@@ -26,8 +26,7 @@ interface AuthUser {
 export class ElicitationController {
   constructor(private readonly elicitationService: ElicitationService) {}
 
-  // ── Session management — CEO ONLY ───────────────────────────────────────────
-
+  // [None] — session creation is free; gating starts at Stage 1.
   @Post('sessions')
   @Roles('CLIENT')
   async createSession(@CurrentUser() user: AuthUser) {
@@ -35,17 +34,18 @@ export class ElicitationController {
     return this.elicitationService.createSession(user.id);
   }
 
+  // [Pro-C]
   @Get('sessions/:id')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async getSession(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async getSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
     return this.elicitationService.getSession(id, user.id);
   }
 
+  // [Pro-C]
   @Put('sessions/:id/stage1')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
   async processStage1(
     @Param('id') id: string,
@@ -56,7 +56,9 @@ export class ElicitationController {
     return this.elicitationService.processStage1(id, body.symptomText, user.id);
   }
 
+  // [Pro-C]
   @Put('sessions/:id/stage2')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
   async processStage2(
     @Param('id') id: string,
@@ -65,14 +67,13 @@ export class ElicitationController {
   ) {
     this.assertCeoOnly(user);
     return this.elicitationService.processStage2(
-      id,
-      body.archetype,
-      user.id,
-      body.acknowledgedVoidCodes,
+      id, body.archetype, user.id, body.acknowledgedVoidCodes,
     );
   }
 
+  // [Pro-C]
   @Put('sessions/:id/stage3')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
   async processStage3(
     @Param('id') id: string,
@@ -83,7 +84,9 @@ export class ElicitationController {
     return this.elicitationService.processStage3(id, body.probeResponses, user.id);
   }
 
+  // [Pro-C]
   @Put('sessions/:id/stage4')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
   async processStage4(
     @Param('id') id: string,
@@ -94,7 +97,8 @@ export class ElicitationController {
     return this.elicitationService.processStage4(id, body, user.id);
   }
 
-  // ── Stage 4 Handoff — TECH_TEAM ONLY ────────────────────────────────────────
+  // [None] — Tech Team doesn't have their own Pro-C subscription; they act
+  // on the CEO's already-gated session. 
   @Put('sessions/:id/stage4-handoff')
   @Roles('CLIENT')
   async processStage4Handoff(
@@ -110,32 +114,37 @@ export class ElicitationController {
     return this.elicitationService.processStage4Handoff(id, body, user.id);
   }
 
-  // ── Invite Tech Team — CEO ONLY ─────────────────────────────────────────────
-  // Generates a signed handoff link. No email is sent — the CEO copies and
-  // shares it manually (no email-sending infrastructure exists in this codebase).
+  // [Pro-C]
   @Post('sessions/:id/invite-tech-team')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async inviteTechTeam(
+  async inviteTechTeam(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.inviteTechTeam(id, user.id);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/self-technical')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async setSelfTechnical(
     @Param('id') id: string,
-    @Body() body: InviteTechTeamDto,
+    @Body() body: SetSelfTechnicalDto,
     @CurrentUser() user: AuthUser,
   ) {
     this.assertCeoOnly(user);
-    return this.elicitationService.inviteTechTeam(id, body.email, user.id);
+    return this.elicitationService.setSelfTechnical(id, user.id, body.selfTechnical);
   }
 
-  // ── Confirm — CEO ONLY, triggers Stage 5 synthesis ──────────────────────────
-  @Post('sessions/:id/confirm')
+  // [Pro-C]
+  @Post('sessions/:id/retry-synthesis')
+  @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async confirmSession(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async retryFailedSynthesis(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
-    return this.elicitationService.confirmSession(id, user.id);
+    return this.elicitationService.retryFailedSynthesis(id, user.id);
   }
 
-  // ── Private helper ───────────────────────────────────────────────────────────
   private assertCeoOnly(user: AuthUser) {
     if (user.clientSubtype !== 'CEO') {
       throw new ForbiddenException('Only the CEO may perform this action.');

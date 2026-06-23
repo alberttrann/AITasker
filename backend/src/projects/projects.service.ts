@@ -1,33 +1,30 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable, NotFoundException, ForbiddenException,
+  ServiceUnavailableException, UnprocessableEntityException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { MatchingService } from './matching.service';
+import { FastapiClient } from '../elicitation/fastapi.client';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly matchingService: MatchingService,
+    private readonly fastapiClient: FastapiClient,   
   ) {}
 
-  /**
-   * Retrieves basic project details (for authorized project members/shortlisted candidates).
-   */
   async findProject(
     projectId: string,
     userId: string,
     activeRole: 'CLIENT' | 'EXPERT' | 'ADMIN',
     clientSubtype?: 'CEO' | 'TECH_TEAM',
   ) {
-    // 1. Fetch project with internal fields needed for authorization checks
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: {
-        id: true,
-        clientId: true,
-        state: true,
-        archetype: true,
-        tier: true,
-        artifactAJson: true,
+        id: true, clientId: true, state: true,
+        archetype: true, tier: true, artifactAJson: true,
       },
     });
 
@@ -35,25 +32,19 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID ${projectId} not found`);
     }
 
-    // Bypass structural rules for platform admin
     if (activeRole === 'ADMIN') {
       return this.mapProjectResponse(project);
     }
 
-    // Guard: If not published, only the client creator or linked TECH_TEAM can view
     if (project.state !== 'PUBLISHED') {
       const isOwnerOrLinkedTech = await this.checkClientOwnership(
-        project,
-        userId,
-        activeRole,
-        clientSubtype,
+        project, userId, activeRole, clientSubtype,
       );
       if (!isOwnerOrLinkedTech) {
         throw new ForbiddenException('Access denied. This project spec is not yet published.');
       }
     }
 
-    // General authorization check
     const isAuthorized = await this.isUserAuthorized(project, userId, activeRole, clientSubtype);
     if (!isAuthorized) {
       throw new ForbiddenException('Access denied. You are not a member of this project.');
@@ -62,9 +53,6 @@ export class ProjectsService {
     return this.mapProjectResponse(project);
   }
 
-  /**
-   * Retrieves public specification artifact_a_json.
-   */
   async findProjectArtifactA(
     projectId: string,
     userId: string,
@@ -72,15 +60,8 @@ export class ProjectsService {
     clientSubtype?: 'CEO' | 'TECH_TEAM',
   ) {
     const project = await this.prisma.project.findUnique({
-      where: {
-        id: projectId,
-      },
-      select: {
-        id: true,
-        clientId: true,
-        state: true,
-        artifactAJson: true,
-      },
+      where: { id: projectId },
+      select: { id: true, clientId: true, state: true, artifactAJson: true },
     });
 
     if (!project) {
@@ -91,20 +72,15 @@ export class ProjectsService {
       return { artifact_a_json: project.artifactAJson };
     }
 
-    // Guard: State must be published for experts to access publicly
     if (project.state !== 'PUBLISHED') {
       const isOwnerOrLinkedTech = await this.checkClientOwnership(
-        project,
-        userId,
-        activeRole,
-        clientSubtype,
+        project, userId, activeRole, clientSubtype,
       );
       if (!isOwnerOrLinkedTech) {
         throw new ForbiddenException('Artifact A is only available on published projects.');
       }
     }
 
-    // Check if client is the owner or expert has been shortlisted/matched
     const isAuthorized = await this.isUserAuthorized(project, userId, activeRole, clientSubtype);
     if (!isAuthorized) {
       throw new ForbiddenException('Access denied. You are not matched with this project.');
@@ -112,10 +88,103 @@ export class ProjectsService {
 
     return { artifact_a_json: project.artifactAJson };
   }
+  
+  async findProjectArtifactB(
+    projectId:     string,
+    userId:        string,
+    activeRole:    'CLIENT' | 'EXPERT' | 'ADMIN',
+    clientSubtype?: 'CEO' | 'TECH_TEAM',
+  ) {
+    // "requester.active_role = CLIENT/CEO → 403 permanent" — checked
+    // FIRST, before even looking up the project. No CEO ever gets Artifact B.
+    if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
+      throw new ForbiddenException(
+        'CEOs cannot access Artifact B — this is the technical deep-dive ' +
+        'spec for matched experts and tech teams only.',
+      );
+    }
 
-  /**
-   * Internal mapper to produce pure, snake_case API payloads.
-   */
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, artifactBJson: true },
+    });
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+
+    if (activeRole === 'ADMIN') {
+      return { artifact_b_json: project.artifactBJson };
+    }
+
+    let engagement: any;
+
+    if (activeRole === 'EXPERT') {
+      engagement = await this.prisma.engagement.findFirst({
+        where: { projectId, expertId: userId },
+        include: { capabilityBid: true },
+      });
+      if (!engagement) {
+        throw new ForbiddenException('You are not engaged with this project.');
+      }
+    } else if (clientSubtype === 'TECH_TEAM') {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId } });
+      if (!techProfile || techProfile.linkedProjectId !== projectId) {
+        throw new ForbiddenException('You are not linked to this project.');
+      }
+      engagement = await this.prisma.engagement.findFirst({
+        where: { projectId, state: { in: ['ACTIVE', 'CONNECTED'] } },
+        include: { capabilityBid: true },
+      });
+      if (!engagement) {
+        throw new ForbiddenException('No engagement on this project has progressed far enough yet.');
+      }
+    } else {
+      throw new ForbiddenException('Access denied.');
+    }
+
+    const bidState = engagement.capabilityBid?.state ?? 'DRAFT';
+
+    let guardResult;
+    try {
+      guardResult = await this.fastapiClient.checkArtifactBAccess(projectId, {
+        engagement_state:    engagement.state,
+        bid_state:           bidState,
+        expert_nda_accepted: !!engagement.expertNdaAcceptedAt,
+        ceo_nda_accepted:    !!engagement.clientNdaAcceptedAt,
+      });
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        throw new ForbiddenException(
+          err.response.data?.detail ?? 'Artifact B is not yet accessible for this engagement.',
+        );
+      }
+      throw new ServiceUnavailableException('Could not verify Artifact B access — please try again.');
+    }
+
+    return { artifact_b_json: project.artifactBJson };
+  }
+
+  async getMatchingShortlist(projectId: string, userId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, clientId: true, state: true },
+    });
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+    if (project.clientId !== userId) {
+      throw new ForbiddenException('Only the project owner may view the shortlist.');
+    }
+    if (project.state !== 'PUBLISHED') {
+      throw new UnprocessableEntityException('Project is not yet published.');
+    }
+
+    const shortlist = await this.matchingService.getShortlist(projectId);
+    // strip composite_score before returning 
+    // numeric scores must never reach the frontend, labels/colors only.
+    return this.matchingService.mapShortlistForFrontend(shortlist ?? []);
+  }
+
   private mapProjectResponse(project: any) {
     return {
       id: project.id,
@@ -126,23 +195,15 @@ export class ProjectsService {
     };
   }
 
-  /**
-   * Performs ownership and scoping validations for client entities.
-   */
   private async checkClientOwnership(
-    project: any,
-    userId: string,
-    activeRole: string,
-    clientSubtype?: string,
+    project: any, userId: string, activeRole: string, clientSubtype?: string,
   ): Promise<boolean> {
     if (activeRole !== 'CLIENT') return false;
 
-    // A CEO can view if they are the direct owner
     if (clientSubtype === 'CEO' && project.clientId === userId) {
       return true;
     }
 
-    // A Tech Team member can view if their profile scope matches this project ID
     if (clientSubtype === 'TECH_TEAM') {
       const techProfile = await this.prisma.techTeamProfile.findUnique({
         where: { userId: userId },
@@ -155,12 +216,8 @@ export class ProjectsService {
     return false;
   }
 
-  /**
-   * Master membership check.
-   */
   private async isUserAuthorized(
-    project: any,
-    userId: string,
+    project: any, userId: string,
     activeRole: 'CLIENT' | 'EXPERT' | 'ADMIN',
     clientSubtype?: 'CEO' | 'TECH_TEAM',
   ): Promise<boolean> {
@@ -169,23 +226,13 @@ export class ProjectsService {
     }
 
     if (activeRole === 'EXPERT') {
-      // 1. Check if the expert is already linked via an Engagement (Active, Bid pending, etc.)
       const engagement = await this.prisma.engagement.findFirst({
-        where: {
-          projectId: project.id,
-          expertId: userId,
-        },
+        where: { projectId: project.id, expertId: userId },
       });
+      if (engagement) return true;
 
-      if (engagement) {
-        return true;
-      }
-
-      // 2. Check if the expert is part of the transient matching shortlist cache
       const isShortlisted = await this.matchingService.isExpertShortlisted(project.id, userId);
-      if (isShortlisted) {
-        return true;
-      }
+      if (isShortlisted) return true;
     }
 
     return false;

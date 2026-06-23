@@ -1,36 +1,46 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/prisma.service';
-import { FastapiClient, MatchingRequest } from '../elicitation/fastapi.client'; // Corrected import class name and type
+import { MatchingHelperService } from '../shared/matching/matching-helper.service';
+import { MatchResult } from '../elicitation/fastapi.client';
 
-// MatchingService manages the transient shortlist cache and handles scoring calculations.
-// It triggers calculations on projects.state -> 'PUBLISHED' by executing
-// the composite score algorithm on the FastAPI service.
+// ProjectPublishedEvent shape
+interface ProjectPublishedEvent {
+  projectId:  string;
+  candidates: MatchResult[];
+}
+
 @Injectable()
 export class MatchingService {
-  private shortlistCache = new Map<string, any[]>();
+  private shortlistCache = new Map<string, MatchResult[]>();
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly fastapiClient: FastapiClient, // Corrected class name
+    private readonly matchingHelper: MatchingHelperService,
   ) {}
 
-  // Retrieves the calculated shortlist cards from cache.
-  async getShortlist(projectId: string): Promise<any[] | null> {
+  // listens for ElicitationService's 'project.published' event and
+  // seeds the cache DIRECTLY from the already-fetched candidate list — no
+  // second ai-service /llm/matching call for the same project.
+  @OnEvent('project.published')
+  handleProjectPublished(payload: ProjectPublishedEvent): void {
+    this.shortlistCache.set(payload.projectId, payload.candidates);
+  }
+
+  async getShortlist(projectId: string): Promise<MatchResult[] | null> {
     return this.shortlistCache.get(projectId) || null;
   }
 
-  // Checks if an expert is in the cached shortlist for a project.
   async isExpertShortlisted(projectId: string, expertId: string): Promise<boolean> {
     const list = this.shortlistCache.get(projectId);
-    if (!list) {
-      return false;
-    }
+    if (!list) return false;
     return list.some((candidate) => candidate.expert_id === expertId);
   }
 
-  // Triggers composite matching calculations against the FastAPI engine.
+  // Kept as a manual/admin re-trigger capability (e.g. "re-run matching
+  // after new experts onboard") — the AUTOMATIC post-publish path now goes
+  // through handleProjectPublished() above instead of this method.
   async triggerMatching(projectId: string): Promise<void> {
-    // 1. Fetch project footprint details from the database
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -48,70 +58,33 @@ export class MatchingService {
       return;
     }
 
-    // 2. Query User directly to access related depths and seam claims.
-    // Filter out the project owner and verify they have an ExpertProfile record.
-    const expertUsers = await this.prisma.user.findMany({
-      where: {
-        id: {
-          not: project.clientId, // Self-exclusion guard
-        },
-        expertProfile: {
-          isNot: null, // Only fetch users who have completed expert setup
-        },
-      },
-      include: {
-        expertProfile: true, // Fetch engagementModel, stack tags, history
-        expertDomainDepths: true, // Fetch domain depths from user relation
-        expertSeamClaims: true, // Fetch seam claims from user relation
-      },
-    });
-
-    if (expertUsers.length === 0) {
-      this.shortlistCache.set(projectId, []);
-      return;
-    }
-
-    // 3. Map Prisma schema relationships into the standard FastAPI matching contract payload
-    const formattedExperts = expertUsers.map((expertUser) => {
-      const profile = expertUser.expertProfile;
-      return {
-        expert_id: expertUser.id,
-        engagement_model: profile?.engagementModel,
-        stack_tags: profile?.stackTagsJson || [],
-        archetype_history: profile?.archetypeHistoryJson || [],
-        domain_depths: expertUser.expertDomainDepths.map((d) => ({
-          domain_code: d.domainCode,
-          depth_level: d.depthLevel,
-          verification_tier: d.verificationTier,
-        })),
-        seam_claims: expertUser.expertSeamClaims.map((s) => ({
-          seam_code: s.seamCode,
-          verification_tier: s.verificationTier,
-        })),
-      };
-    });
-
-    // Cast the Prisma Json fields to compile safely as Record arrays [01]
-    const payload: MatchingRequest = {
-      required_seams_json: project.requiredSeamsJson as any,
-      required_domains_json: project.requiredDomainsJson as any,
-      expert_profiles: formattedExperts,
-      project_archetype: project.archetype ?? undefined,
-    };
-
     try {
-      // 4. Hit FastAPI matching service using the public, type-safe method wrapper
-      const response = await this.fastapiClient.matching(payload);
-
-      // 5. Cache the scored and ranked shortlist card array
+      const response = await this.matchingHelper.scoreEligibleExperts(
+        project.requiredSeamsJson,
+        project.requiredDomainsJson,
+        project.archetype,
+        project.clientId,
+      );
       this.shortlistCache.set(projectId, response);
     } catch (error) {
-      // Safely extract the message depending on the type of error caught [1.1]
       const errorMessage = error instanceof Error ? error.message : String(error);
-
       throw new InternalServerErrorException(
         `Failed to calculate matches via AI Service: ${errorMessage}`,
       );
     }
+  }
+
+  // strips composite_score before returning to the frontend 
+  // numeric scores must never be exposed, labels/colors only.
+  mapShortlistForFrontend(results: MatchResult[]): Array<{
+    expert_id: string;
+    strength_label: string;
+    gap_map: MatchResult['gap_map'];
+  }> {
+    return results.map((r) => ({
+      expert_id:      r.expert_id,
+      strength_label: r.strength_label,
+      gap_map:        r.gap_map,
+    }));
   }
 }

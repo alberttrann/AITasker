@@ -1,5 +1,4 @@
 // backend/src/auth/dto/register-handoff.dto.ts
-import { IsString, IsNotEmpty, IsStrongPassword } from 'class-validator';
 
 /**
  * Used by a Tech Team member completing registration via the invite link
@@ -10,10 +9,16 @@ import { IsString, IsNotEmpty, IsStrongPassword } from 'class-validator';
  * login tokens, then creates the user with activeRole=CLIENT, clientSubtype=TECH_TEAM,
  * and links tech_team_profiles.linked_client_id = ceoId from the token.
  */
+import { IsString, IsNotEmpty, IsStrongPassword, IsEmail } from 'class-validator';
+
 export class RegisterHandoffDto {
   @IsString()
   @IsNotEmpty()
   invite_token: string;
+
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
 
   @IsStrongPassword()
   @IsNotEmpty()

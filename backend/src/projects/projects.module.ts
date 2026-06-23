@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ProjectsController } from './projects.controller';
+import { MatchingController } from './matching.controller';   
 import { ProjectsService } from './projects.service';
 import { MatchingService } from './matching.service';
 import { PrismaModule } from '../database/prisma.module';
-import { ElicitationModule } from '../elicitation/elicitation.module'; // Imported to provide FastApiClient
+import { FastapiClientModule } from '../elicitation/fastapi-client.module';
+import { MatchingHelperModule } from '../shared/matching/matching-helper.module';
 
-// ProjectsModule owns:
-//   - ProjectsService  (GET /projects/:id, GET /projects/:id/artifact-a,
-//                       internal triggerMatching delegation)
 @Module({
-  imports: [PrismaModule, ElicitationModule],
-  controllers: [ProjectsController],
+  imports: [PrismaModule, FastapiClientModule, MatchingHelperModule],
+  controllers: [ProjectsController, MatchingController],   
   providers: [ProjectsService, MatchingService],
   exports: [ProjectsService, MatchingService],
 })

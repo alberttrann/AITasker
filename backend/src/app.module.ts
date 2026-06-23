@@ -13,7 +13,7 @@ import { SubscriptionModule } from './subscriptions/subscriptions.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ExpertProfilesModule } from './expert-profiles/expert-profiles.module';
 import { LedgerModule } from '@shared/ledger/ledger.module';
-
+import { EventEmitterModule } from '@nestjs/event-emitter';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +21,7 @@ import { LedgerModule } from '@shared/ledger/ledger.module';
       load: [configuration],
       envFilePath: '.env',
     }),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     // ─── M1 modules (Chí Nhân) ────────────────────────────────────────────
     AuthModule,

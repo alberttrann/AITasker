@@ -1,4 +1,6 @@
+import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Injectable,
   BadRequestException,
@@ -7,10 +9,12 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService }    from '../database/prisma.service';
-import { FastapiClient }    from './fastapi.client';
-import { Stage4Dto }        from './dto/stage4.dto';
-import { Stage4HandoffDto } from './dto/stage4-handoff.dto';
+import { PrismaService }          from '../database/prisma.service';
+import { FastapiClient, MatchResult } from './fastapi.client';
+import { AuthService }            from '../auth/auth.service';
+import { MatchingHelperService }  from '../shared/matching/matching-helper.service';
+import { Stage4Dto }              from './dto/stage4.dto';
+import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
 
 const COMPLETENESS_GATE = 0.70;
 
@@ -18,51 +22,69 @@ const VOID_TO_STAGE: Record<string, number> = {
   UNCLEAR_SUCCESS_METRIC: 3,
   TIMELINE_UNREALISTIC:   3,
   INTEGRATION_UNCLEAR:    4,
-  // All others (NO_GROUND_TRUTH, NO_BASELINE, DATA_PRIVACY, SCOPE_CREEP) → Stage 1
 };
 
-const INVITE_TOKEN_EXPIRY = '24h'; // separate from login tokens (7d) — invites should be short-lived
+const HANDOFF_TOKEN_EXPIRY = '72h';
+
+const ARCHETYPE_PROBE_QUESTIONS: Record<string, [string, string, string, string]> = {
+  '1': [
+    'Roughly how many people will search or ask questions per day?',
+    'When someone gets a wrong or unhelpful answer, what do you expect to happen next?',
+    'Does this need to pull from documents/systems you already have, and which ones?',
+    'How quickly does an answer need to appear after someone asks?',
+  ],
+  '2': [
+    'Roughly how many users will see recommendations, and how often?',
+    'What should happen if someone ignores or dislikes a recommendation?',
+    'Where do you already track what users like/buy/view — any existing system?',
+    'How fresh do recommendations need to be (instant, hourly, daily)?',
+  ],
+  '3': [
+    'Roughly how many items need classifying per day?',
+    'What should happen when the system isn\u2019t confident about a classification?',
+    'Where does the data to classify come from today — any existing system?',
+    'How quickly does a classification decision need to be made?',
+  ],
+  '4': [
+    'Roughly how much content needs generating per day/week?',
+    'What happens if generated content is wrong or inappropriate — who reviews it?',
+    'Does generated content need to match an existing brand voice/system/template?',
+    'How long can someone wait for content to be generated?',
+  ],
+  '5': [
+    'How far ahead are you trying to predict, and how often do you need a new prediction?',
+    'What happens today when a prediction turns out wrong?',
+    'What historical data do you already have to learn from?',
+    'How quickly after new data arrives do you need an updated prediction?',
+  ],
+  '6': [
+    'Roughly how many items (images/audio/video) need processing per day?',
+    'What should happen when the system can\u2019t confidently interpret an input?',
+    'Where does this input data come from today — any existing system?',
+    'How quickly does processing need to complete after input arrives?',
+  ],
+};
+
+// payload shape for the post-publish matching event. Carries the
+// gate precheck's already-computed candidate list so the listener
+// (MatchingService) can seed its cache directly without a second
+// ai-service call.
+export interface ProjectPublishedEvent {
+  projectId:  string;
+  candidates: MatchResult[];
+}
 
 @Injectable()
 export class ElicitationService {
   constructor(
-    private readonly prisma:        PrismaService,
-    private readonly fastapiClient: FastapiClient,
-    private readonly jwtService:    JwtService,
+    private readonly prisma:         PrismaService,
+    private readonly fastapiClient:  FastapiClient,
+    private readonly jwtService:     JwtService,
+    private readonly authService:    AuthService,
+    private readonly matchingHelper: MatchingHelperService,
+    private readonly eventEmitter:   EventEmitter2,
   ) {}
 
-  
-  
-  async inviteTechTeam(sessionId: string, email: string, ceoUserId: string) {
-    const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, ceoUserId);
-  
-
-    const inviteToken = await this.jwtService.signAsync(
-      {
-        sessionId:    session.id,
-        ceoId:        ceoUserId,
-        invitedEmail: email,
-        purpose:      'tech-team-handoff', // distinguishes from login/access tokens 
-      },
-      { expiresIn: INVITE_TOKEN_EXPIRY },
-    );
-  
-    // NOTE: no email-sending utility exists in this codebase (confirmed —
-    // no mail.service.ts anywhere, consistent with the no-email-verification
-    // decision made earlier). The invite link is returned directly in the
-    // response. The CEO is responsible for sharing it with their tech team
-    // member through whatever channel they use (Slack, Zalo, etc).
-    const inviteLink = `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/tech-team/register?token=${inviteToken}`;
-  
-    return {
-      invite_token: inviteToken,
-      invite_link:  inviteLink,
-      expires_in:   INVITE_TOKEN_EXPIRY,
-    };
-  }    
-
-  // Session creation
   async createSession(userId: string) {
     const existing = await this.prisma.elicitationSession.findFirst({
       where: { userId, state: 'IN_PROGRESS' },
@@ -74,18 +96,43 @@ export class ElicitationService {
     });
   }
 
-  // Read session 
-  // verify the requesting user owns this session before returning it.
   async getSession(sessionId: string, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
     return session;
   }
 
-  // Stage 1 — Extract symptoms and voids
+  async setSelfTechnical(sessionId: string, userId: string, selfTechnical: boolean) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found.');
+
+    const overrides = ((user.selfTechnicalProjects as any[]) ?? []).filter(
+      (o) => o.sessionId !== sessionId,
+    );
+    overrides.push({ sessionId, override: selfTechnical });
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { selfTechnicalProjects: overrides as any },
+    });
+
+    const access_token = await this.authService.jwtGeneratePayload(updatedUser);
+
+    return { access_token, selfTechnical };
+  }
+
+  private getEffectiveSelfTechnical(session: { id: string; userId: string }, user: any): boolean {
+    const overrides = (user.selfTechnicalProjects as any[]) ?? [];
+    const override = overrides.find((o) => o.sessionId === session.id);
+    return override ? override.override : (user.selfTechnical ?? false);
+  }
+
   async processStage1(sessionId: string, symptomText: string, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);   
+    this.assertOwnership(session, userId);
     this.assertStage(session, 1);
 
     const aiResponse = await this.fastapiClient.stage1Extract({
@@ -95,17 +142,16 @@ export class ElicitationService {
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        currentStage:       2,
-        stage1SymptomsJson: aiResponse.symptoms as any,
-        voidListJson:       aiResponse.voids    as any,
-        // if this is a re-do after a returned session, flip back to IN_PROGRESS now that the CEO is actively fixing it.
-        state:              'IN_PROGRESS',
-        updatedAt:          new Date(),
+        currentStage:               2,
+        stage1SymptomsJson:         aiResponse.symptoms as any,
+        voidListJson:               aiResponse.voids as any,
+        recommendedArchetypesJson:  (aiResponse.recommended_archetypes ?? []) as any,
+        state:                      'IN_PROGRESS',
+        updatedAt:                  new Date(),
       },
     });
   }
 
-  // Stage 2 — Lock archetype, acknowledge voids
   async processStage2(
     sessionId:              string,
     archetype:              string,
@@ -113,8 +159,16 @@ export class ElicitationService {
     acknowledgedVoidCodes?: string[],
   ) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);   
+    this.assertOwnership(session, userId);
     this.assertStage(session, 2);
+
+    const recommended = (session.recommendedArchetypesJson as string[]) ?? [];
+    if (recommended.length > 0 && !recommended.includes(archetype)) {
+      throw new BadRequestException(
+        `Archetype ${archetype} is not among the AI-recommended options for this project: ` +
+        `${recommended.join(', ')}.`,
+      );
+    }
 
     let updatedVoids = (
       session.voidListJson as Array<{ void_code: string; injected?: boolean }>
@@ -133,37 +187,79 @@ export class ElicitationService {
         archetype:    archetype,
         voidListJson: updatedVoids as any,
         currentStage: 3,
-        state:        'IN_PROGRESS',  
+        state:        'IN_PROGRESS',
         updatedAt:    new Date(),
       },
     });
   }
 
-  // Stage 3 — Save probe responses 
   async processStage3(
     sessionId:      string,
     probeResponses: Record<string, string>,
     userId:         string,
   ) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);  
+    this.assertOwnership(session, userId);
     this.assertStage(session, 3);
 
-    return this.prisma.elicitationSession.update({
+    if (!session.archetype) {
+      throw new BadRequestException('Session has no archetype locked — complete Stage 2 first.');
+    }
+
+    const requiredQuestions = ARCHETYPE_PROBE_QUESTIONS[session.archetype];
+    if (!requiredQuestions) {
+      throw new BadRequestException(`No probe questions defined for archetype ${session.archetype}.`);
+    }
+
+    const missing = requiredQuestions.filter(
+      (q) => !probeResponses[q] || probeResponses[q].trim().length === 0,
+    );
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `All 4 probe questions must be answered. Missing: ${missing.join(' | ')}`,
+      );
+    }
+
+    let vaguenessResult;
+    try {
+      vaguenessResult = await this.fastapiClient.stage3VaguenessCheck({
+        archetype:       session.archetype,
+        probe_responses: probeResponses,
+      });
+    } catch (err) {
+      vaguenessResult = { vague_answers: [] };
+    }
+
+    if (vaguenessResult.vague_answers?.length > 0) {
+      return { advanced: false, vague_answers: vaguenessResult.vague_answers };
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const effectiveSelfTechnical = this.getEffectiveSelfTechnical(session, user);
+    const scenarioType = effectiveSelfTechnical ? 'SCENARIO_B' : 'SCENARIO_A';
+
+    await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
         currentStage:     4,
         stage3ProbesJson: probeResponses as any,
-        state:            'IN_PROGRESS',  
+        scenarioType:     scenarioType,
+        state:            'IN_PROGRESS',
         updatedAt:        new Date(),
       },
     });
+
+    return {
+      advanced:        true,
+      currentStage:    4,
+      stage4_required: true,
+      scenario_type:   scenarioType,
+    };
   }
 
-  // Stage 4 — Save technical context (CEO fills directly, Scenario A)
   async processStage4(sessionId: string, dto: Stage4Dto, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);   
+    this.assertOwnership(session, userId);
     this.assertStage(session, 4);
 
     const techInputs = {
@@ -172,20 +268,19 @@ export class ElicitationService {
       latency_requirement: dto.latency_requirement ?? null,
     };
 
-    return this.prisma.elicitationSession.update({
+    const updated = await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
         currentStage:         5,
         stage4TechInputsJson: techInputs as any,
-        state:                'IN_PROGRESS', 
+        state:                'IN_PROGRESS',
         updatedAt:            new Date(),
       },
     });
+
+    return this.runSynthesis(updated);
   }
 
-  // Stage 4 Handoff — Tech Team submits technical context (Scenario B)
-  // Ownership model is different here: the CALLER is the tech team member,not the CEO who owns the session. 
-  // We verify the tech team member is linked to the session's owning CEO instead of checking direct ownership.
   async processStage4Handoff(
     sessionId:      string,
     dto:            Stage4HandoffDto,
@@ -221,66 +316,60 @@ export class ElicitationService {
       },
     });
 
-    // The CEO has no mechanism to be notified that the Tech Team has submitted.
-    // This requires a Socket.io gateway (EventsGateway) or notification row, neither of which exists yet in the codebase. 
-    // The frontend's waiting for tech team screen will need to poll GET /sessions/:id until currentStage === 5 as a stopgap until sockets are wired.
-    // TODO: emit `elicitation:stage4-handoff-complete` to session.userId once EventsGateway exists.
-
-    return updated;
+    return this.runSynthesis(updated, techTeamUserId);
   }
 
-  // Confirm — triggers Stage 5 synthesis + quality gate 
-  async confirmSession(sessionId: string, userId: string): Promise<
-     | { gate_passed: true;  completeness_score: number; project_id: string }
-     | { gate_passed: false; completeness_score: number; flagged_void: string | null;
-         return_to_stage: number; advisory_note: string }
-   > {
+  async inviteTechTeam(sessionId: string, ceoUserId: string) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);   
+    this.assertOwnership(session, ceoUserId);
 
-    // explicitly block re-confirming an already-completed session.
+    const jti = randomUUID();
+
+    const inviteToken = await this.jwtService.signAsync(
+      {
+        sessionId: session.id,
+        ceoId:     ceoUserId,
+        jti:       jti,
+        purpose:   'tech-team-handoff',
+      },
+      { expiresIn: HANDOFF_TOKEN_EXPIRY },
+    );
+
+    await this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: {
+        handoffTokenJti:   jti,
+        handoffConsumedAt: null,
+      },
+    });
+
+    const inviteLink =
+      `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/tech-team/register?token=${inviteToken}`;
+
+    return {
+      invite_token: inviteToken,
+      invite_link:  inviteLink,
+      expires_in:   HANDOFF_TOKEN_EXPIRY,
+    };
+  }
+
+  async retryFailedSynthesis(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
     if (session.state === 'COMPLETED') {
-      throw new ConflictException(
-        'This session has already been published as a project.',
-      );
+      throw new ConflictException('This session has already been published as a project.');
     }
-
     if (session.currentStage !== 5) {
       throw new BadRequestException(
-        `Session is at stage ${session.currentStage}. All 4 stages must be completed before confirming.`,
+        `Session is at stage ${session.currentStage}. All 4 stages must be completed first.`,
       );
     }
 
-    this.assertAllStagesComplete(session);
-
-    const stage5Request = {
-      session_id:         session.id,
-      stage1_symptoms:    session.stage1SymptomsJson as string[],
-      stage2_archetype:   session.archetype!,
-      stage3_probes:      session.stage3ProbesJson      as Record<string, unknown>,
-      stage4_tech_inputs: session.stage4TechInputsJson  as Record<string, unknown>,
-      void_list_json:     (session.voidListJson as Array<Record<string, unknown>>) ?? [],
-    };
-
-    // Fcatch ai-service failures explicitly 
-    let synthesis;
-    try {
-      synthesis = await this.fastapiClient.stage5Synthesize(stage5Request);
-    } catch (err) {
-      throw new BadRequestException(
-        'Project synthesis failed — the AI service did not respond in time. ' +
-        'Please try confirming again in a moment.',
-      );
-    }
-
-    const gatePassed = synthesis.completeness_score >= COMPLETENESS_GATE;
-
-    return gatePassed
-      ? this.handleGatePassed(session, synthesis)
-      : this.handleGateFailed(session, synthesis);
+    return this.runSynthesis(session);
   }
 
-  // Private helpers 
+  // Private helpers
 
   private async findSessionOrThrow(sessionId: string) {
     const session = await this.prisma.elicitationSession.findUnique({
@@ -290,7 +379,6 @@ export class ElicitationService {
     return session;
   }
 
-  // central ownership check used by every session-scoped method.
   private assertOwnership(session: { userId: string }, userId: string) {
     if (session.userId !== userId) {
       throw new ForbiddenException('You do not have access to this session.');
@@ -319,12 +407,94 @@ export class ElicitationService {
     }
   }
 
-  private async handleGatePassed(session: any, synthesis: any): Promise<{
+  // techTeamUserId: when this session was synthesized via the handoff path
+  // (processStage4Handoff), this is the specific Tech Team member who
+  // submitted — used below to link THEIR TechTeamProfile to the new
+  // project. NOT a blanket update across every
+  // Tech Team member linked to the CEO — only the one who actually did
+  // the work for THIS session.
+  private async runSynthesis(session: any, techTeamUserId?: string): Promise<
+    | { gate_passed: true;  completeness_score: number; project_id: string }
+    | { gate_passed: false; completeness_score: number; flagged_void: string | null;
+        return_to_stage: number; advisory_note: string }
+  > {
+    if (session.state === 'COMPLETED') {
+      throw new ConflictException('This session has already been published as a project.');
+    }
+
+    this.assertAllStagesComplete(session);
+
+    const stage5Request = {
+      session_id:         session.id,
+      stage1_symptoms:    session.stage1SymptomsJson as string[],
+      stage2_archetype:   session.archetype!,
+      stage3_probes:      session.stage3ProbesJson      as Record<string, unknown>,
+      stage4_tech_inputs: session.stage4TechInputsJson  as Record<string, unknown>,
+      void_list_json:     (session.voidListJson as Array<Record<string, unknown>>) ?? [],
+    };
+
+    let synthesis;
+    try {
+      synthesis = await this.fastapiClient.stage5Synthesize(stage5Request);
+    } catch (err) {
+      throw new BadRequestException(
+        'Project synthesis failed — the AI service did not respond in time. ' +
+        'Please try again in a moment.',
+      );
+    }
+
+    const completenessOk = synthesis.completeness_score >= COMPLETENESS_GATE;
+
+    const voids = (
+      session.voidListJson as Array<{ void_code: string; severity: string; injected?: boolean }>
+    ) ?? [];
+    const unresolvedHardVoid = voids.find((v) => v.severity === 'HIGH' && !v.injected);
+    const noHardVoidsOk = !unresolvedHardVoid;
+
+    // this candidate list, fetched ONCE here, is reused directly by
+    // handleGatePassed's event payload — no second ai-service /llm/matching
+    // call happens after publish anymore.
+    let candidates: MatchResult[] = [];
+    try {
+      candidates = await this.matchingHelper.scoreEligibleExperts(
+        synthesis.required_seams_json,
+        synthesis.required_domains_json,
+        (synthesis.artifact_a_json as any)?.archetype ?? session.archetype,
+        session.userId,
+      );
+    } catch {
+      candidates = [];
+    }
+    const candidatesOk = candidates.length >= 1;
+
+    const gatePassed = completenessOk && noHardVoidsOk && candidatesOk;
+
+    if (gatePassed) {
+      return this.handleGatePassed(session, synthesis, candidates, techTeamUserId);
+    }
+
+    return this.handleGateFailed(session, synthesis, {
+      completenessOk,
+      noHardVoidsOk,
+      candidatesOk,
+      unresolvedHardVoid,
+    });
+  }
+
+  private async handleGatePassed(
+    session: any,
+    synthesis: any,
+    candidates: MatchResult[],
+    techTeamUserId?: string,
+  ): Promise<{
     gate_passed: true;
     completeness_score: number;
     project_id: string;
-   }> {
+  }> {
     const artifactA = synthesis.artifact_a_json as any;
+
+    const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
+    const effectiveSelfTechnical = this.getEffectiveSelfTechnical(session, user);
 
     let project;
     try {
@@ -335,7 +505,7 @@ export class ElicitationService {
           state:                  'PUBLISHED',
           archetype:              artifactA.archetype   ?? null,
           tier:                   artifactA.volume_tier ?? null,
-          selfTechnical:          false, // TODO: derive from user.selfTechnical once auth/ is complete
+          selfTechnical:          effectiveSelfTechnical,
           requiredSeamsJson:      synthesis.required_seams_json      as any,
           requiredDomainsJson:    synthesis.required_domains_json    as any,
           milestoneFrameworkJson: synthesis.milestone_framework_json as any,
@@ -345,9 +515,7 @@ export class ElicitationService {
       });
     } catch (err: any) {
       if (err.code === 'P2002') {
-        throw new ConflictException(
-          'This session has already been published as a project.',
-        );
+        throw new ConflictException('This session has already been published as a project.');
       }
       throw err;
     }
@@ -357,8 +525,20 @@ export class ElicitationService {
       data:  { state: 'COMPLETED', updatedAt: new Date() },
     });
 
-    // TODO (Cao Minh): once projects/ is implemented, trigger matching here:
-    // await this.projectsService.triggerMatching(project.id);
+    // link the SPECIFIC Tech Team member who submitted Stage 4
+    // for this session (if Scenario B) to the new project.
+    if (techTeamUserId) {
+      await this.prisma.techTeamProfile.update({
+        where: { userId: techTeamUserId },
+        data:  { linkedProjectId: project.id },
+      });
+    }
+
+    // event-emitter pattern
+    this.eventEmitter.emit('project.published', {
+      projectId:  project.id,
+      candidates: candidates,
+    } as ProjectPublishedEvent);
 
     return {
       gate_passed:        true,
@@ -367,23 +547,54 @@ export class ElicitationService {
     };
   }
 
-  private async handleGateFailed(session: any, synthesis: any): Promise<{
-     gate_passed: false;
-     completeness_score: number;
-     flagged_void: string | null;
-     return_to_stage: number;
-     advisory_note: string;
-   }> {
-    const voids = (
-      session.voidListJson as Array<{ void_code: string; severity: string; injected?: boolean }>
-    ) ?? [];
+  private async handleGateFailed(
+    session: any,
+    synthesis: any,
+    gateDetail: {
+      completenessOk:      boolean;
+      noHardVoidsOk:       boolean;
+      candidatesOk:        boolean;
+      unresolvedHardVoid?: { void_code: string };
+    },
+  ): Promise<{
+    gate_passed: false;
+    completeness_score: number;
+    flagged_void: string | null;
+    return_to_stage: number;
+    advisory_note: string;
+  }> {
+    const pct = Math.round(synthesis.completeness_score * 100);
 
-    const unfixedHighVoid = voids.find((v) => v.severity === 'HIGH' && !v.injected);
-    const unfixedAnyVoid  = voids.find((v) => !v.injected);
-    const flaggedVoid     = unfixedHighVoid ?? unfixedAnyVoid ?? voids[0];
+    let returnToStage = 1;
+    let advisoryNote: string;
+    let flaggedVoid: string | null = null;
 
-    const returnToStage = VOID_TO_STAGE[flaggedVoid?.void_code ?? ''] ?? 1;
-    const pct            = Math.round(synthesis.completeness_score * 100);
+    if (!gateDetail.noHardVoidsOk && gateDetail.unresolvedHardVoid) {
+      flaggedVoid   = gateDetail.unresolvedHardVoid.void_code;
+      returnToStage = VOID_TO_STAGE[flaggedVoid] ?? 1;
+      advisoryNote =
+        `Your project specification has an unresolved critical gap: ` +
+        `${flaggedVoid.replace(/_/g, ' ').toLowerCase()}. ` +
+        `Please revisit Stage ${returnToStage} and address it before publishing.`;
+    } else if (!gateDetail.completenessOk) {
+      const voids = (
+        session.voidListJson as Array<{ void_code: string; severity: string; injected?: boolean }>
+      ) ?? [];
+      const anyUnfixed = voids.find((v) => !v.injected);
+      flaggedVoid   = anyUnfixed?.void_code ?? null;
+      returnToStage = VOID_TO_STAGE[flaggedVoid ?? ''] ?? 1;
+      advisoryNote =
+        `Your project specification scored ${pct}% completeness (minimum 70% required). ` +
+        `Please revisit Stage ${returnToStage} and provide more detail` +
+        (flaggedVoid ? ` about ${flaggedVoid.replace(/_/g, ' ').toLowerCase()}.` : '.');
+    } else {
+      returnToStage = session.currentStage;
+      advisoryNote =
+        `Your project specification is complete and well-defined, but we don't ` +
+        `currently have any qualified experts available for this combination of ` +
+        `skills. Your project will remain in draft — please check back soon, or ` +
+        `adjust scope if you'd like to try a different approach.`;
+    }
 
     await this.prisma.elicitationSession.update({
       where: { id: session.id },
@@ -397,12 +608,9 @@ export class ElicitationService {
     return {
       gate_passed:        false,
       completeness_score: synthesis.completeness_score,
-      flagged_void:        flaggedVoid?.void_code ?? null,
+      flagged_void:        flaggedVoid,
       return_to_stage:     returnToStage,
-      advisory_note:
-        `Your project specification scored ${pct}% completeness (minimum 70% required). ` +
-        `Please revisit Stage ${returnToStage} and provide more detail about ` +
-        `${flaggedVoid?.void_code?.replace(/_/g, ' ').toLowerCase() ?? 'the flagged area'}.`,
+      advisory_note:       advisoryNote,
     };
   }
 }

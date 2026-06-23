@@ -30,6 +30,7 @@ model User {
   selfTechnical          Boolean   @default(false) @map("self_technical")
   isActive               Boolean   @default(true) @map("is_active")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  selfTechnicalProjects Json @default("[]") @map("self_technical_projects")
 
   // Relations
   clientProfile        ClientProfile?
@@ -187,9 +188,13 @@ model ElicitationSession {
   state        String   @default("IN_PROGRESS")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  handoffTokenJti           String?   @map("handoff_token_jti")
+  handoffConsumedAt         DateTime? @map("handoff_consumed_at") @db.Timestamptz(6)
+  recommendedArchetypesJson Json?     @map("recommended_archetypes_json")
 
   user    User     @relation(fields: [userId], references: [id])
   project Project?
+  
 
   @@index([userId])
   @@index([state])

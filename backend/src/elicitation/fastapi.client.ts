@@ -2,9 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// Request / Response interfaces
-// in sync with ai-service TECHNICAL_DOC.md.
-
 export interface Stage1Request {
   symptom_text: string;
 }
@@ -18,6 +15,21 @@ export interface Stage1Response {
   symptoms: string[];
   scale_signals: Record<string, string | null>;
   voids: VoidItem[];
+  recommended_archetypes?: string[];
+}
+
+export interface Stage3VaguenessCheckRequest {
+  archetype:       string;
+  probe_responses: Record<string, string>;
+}
+
+export interface VaguenessFlag {
+  question: string;
+  reason:   string;
+}
+
+export interface Stage3VaguenessCheckResponse {
+  vague_answers: VaguenessFlag[];
 }
 
 export interface Stage5Request {
@@ -102,11 +114,22 @@ export interface ServiceGenerateResponse {
   suggested_price_vnd: number;
 }
 
-// Per-endpoint timeout constants (ms)
-// Sourced from ai-service TECHNICAL_DOC.md §7 "Timeout recommendations".
-const TIMEOUT_DEFAULT   = 30_000;  //  30s — criterion, portfolio, dispute, stage1
-const TIMEOUT_STAGE5    = 90_000;  //  90s — stage5 synthesis (large structured output)
-const TIMEOUT_MATCHING  =  5_000;  //   5s — pure arithmetic, no LLM
+// NEW (Phase 3) — artifact-b guard check
+export interface ArtifactBGuardParams {
+  engagement_state:    string;
+  bid_state:           string;
+  expert_nda_accepted: boolean;
+  ceo_nda_accepted:    boolean;
+}
+
+export interface ArtifactBGuardResponse {
+  project_id:             string;
+  artifact_b_accessible:  boolean;
+}
+
+const TIMEOUT_DEFAULT  = 30_000;
+const TIMEOUT_STAGE5   = 90_000;
+const TIMEOUT_MATCHING =  5_000;
 
 @Injectable()
 export class FastapiClient {
@@ -123,14 +146,19 @@ export class FastapiClient {
     });
   }
 
-  // Elicitation
-
   async stage1Extract(payload: Stage1Request): Promise<Stage1Response> {
     return this.post<Stage1Response>('/llm/elicitation/stage1-extract', payload);
   }
 
-  // FIX (blocking): stage5-synthesize can take up to 90s for complex sessions
-  // (5 structured JSON outputs, large context). Override the 30s default timeout.
+  async stage3VaguenessCheck(
+    payload: Stage3VaguenessCheckRequest,
+  ): Promise<Stage3VaguenessCheckResponse> {
+    return this.post<Stage3VaguenessCheckResponse>(
+      '/llm/elicitation/stage3-vagueness-check',
+      payload,
+    );
+  }
+
   async stage5Synthesize(payload: Stage5Request): Promise<Stage5Response> {
     return this.post<Stage5Response>(
       '/llm/elicitation/stage5-synthesize',
@@ -138,8 +166,6 @@ export class FastapiClient {
       { timeout: TIMEOUT_STAGE5 },
     );
   }
-
-  // Other LLM endpoints
 
   async portfolioEval(payload: PortfolioEvalRequest): Promise<PortfolioEvalResponse> {
     return this.post<PortfolioEvalResponse>('/llm/portfolio-eval', payload);
@@ -157,25 +183,29 @@ export class FastapiClient {
     return this.post<ServiceGenerateResponse>('/llm/service-generate', payload);
   }
 
-  // Matching is pure arithmetic — no LLM. Short timeout is fine.
   async matching(payload: MatchingRequest): Promise<MatchResult[]> {
     return this.post<MatchResult[]>('/llm/matching', payload, {
       timeout: TIMEOUT_MATCHING,
     });
   }
 
-  // Internal helpers
+  async checkArtifactBAccess(
+    projectId: string,
+    params: ArtifactBGuardParams,
+  ): Promise<ArtifactBGuardResponse> {
+    const response: AxiosResponse<ArtifactBGuardResponse> = await this.http.get(
+      `/projects/${projectId}/artifact-b`,
+      { params, timeout: TIMEOUT_MATCHING },
+    );
+    return response.data;
+  }
 
   private async post<TResponse>(
     path:    string,
     payload: unknown,
     config?: AxiosRequestConfig,
   ): Promise<TResponse> {
-    const response: AxiosResponse<TResponse> = await this.http.post(
-      path,
-      payload,
-      config,
-    );
+    const response: AxiosResponse<TResponse> = await this.http.post(path, payload, config);
     return response.data;
   }
 

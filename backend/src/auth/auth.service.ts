@@ -57,7 +57,7 @@ export class AuthService {
           roles: [registerDto.roles],
           activeRole: activeRole,
           clientSubtype: clientSubtype,
-
+          selfTechnical: registerDto.selfTechnical ?? false,
           // Spread operator: take all of the above then create profile align with the activeRole
           ...(activeRole == ActiveRole.CLIENT
             ? {
@@ -183,15 +183,17 @@ export class AuthService {
       clientSubType: user.clientSubtype,
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
+      subClientExpiresAt: user.subClientExpiresAt,     
+      subExpertExpiresAt: user.subExpertExpiresAt,     
+      selfTechnical: user.selfTechnical,                
     };
-
+  
     const accessToken = await this.jwtService.signAsync(payload);
     return accessToken;
   }
 
   async registerHandoff(dto: RegisterHandoffDto) {
-    // Verify the invite token using the SAME JwtService/secret as login tokens.
-    let payload: { sessionId: string; ceoId: string; invitedEmail: string; purpose: string };
+    let payload: { sessionId: string; ceoId: string; jti: string; purpose: string };
     try {
       payload = await this.jwtService.verifyAsync(dto.invite_token);
     } catch {
@@ -202,8 +204,25 @@ export class AuthService {
       throw new UnauthorizedException('Invalid invite token.');
     }
   
+    // fetch the session to check jti + consumed_at
+    const session = await this.prisma.elicitationSession.findUnique({
+      where: { id: payload.sessionId },
+    });
+  
+    if (!session) {
+      throw new UnauthorizedException('This invite link refers to a session that no longer exists.');
+    }
+    if (session.handoffTokenJti !== payload.jti) {
+      throw new UnauthorizedException(
+        'This invite link has been superseded by a newer one. Ask the CEO to resend.',
+      );
+    }
+    if (session.handoffConsumedAt !== null) {
+      throw new UnauthorizedException('This invite link has already been used.');
+    }
+  
     const existingEmailCheck = await this.prisma.user.findUnique({
-      where: { email: payload.invitedEmail },
+      where: { email: dto.email },   // CHANGED: dto.email, not payload.invitedEmail
     });
     if (existingEmailCheck) {
       throw new ConflictException('An account with this email already exists.');
@@ -214,31 +233,35 @@ export class AuthService {
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          email:         payload.invitedEmail,
+          email:         dto.email,           // CHANGED
           passwordHash:  hashPassword,
           fullName:      dto.fullName,
-          roles:         [UserRoleItem.CLIENT_CEO], 
+          roles:         [UserRoleItem.CLIENT_CEO],
           activeRole:    ActiveRole.CLIENT,
           clientSubtype: ClientSubType.TECH_TEAM,
           techTeamProfile: {
             create: {
               linkedClientId: payload.ceoId,
-              linkedProjectId: null, // set once the session becomes a Project
+              linkedProjectId: null,
             },
           },
         },
       });
   
-      const wallet = await tx.wallet.create({
-        data: { userId: user.id },
+      // E9: mark the link consumed — this row update is the actual
+      // single-use enforcement, checked above on every subsequent attempt.
+      await tx.elicitationSession.update({
+        where: { id: payload.sessionId },
+        data:  { handoffConsumedAt: new Date() },
       });
-
+  
+      const wallet = await tx.wallet.create({ data: { userId: user.id } });
+  
       const nanoid = customAlphabet(
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-        8,
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 8,
       );
       const normalizeVANumber = (VAEntityType.WALLET_TOPUP + nanoid()).replaceAll('_', '');
-
+  
       await tx.virtualAccount.create({
         data: {
           entityType:  VAEntityType.WALLET_TOPUP,
@@ -249,10 +272,7 @@ export class AuthService {
         },
       });
   
-      return {
-        id:    user.id,
-        email: user.email,
-      };
+      return { id: user.id, email: user.email };
     });
   }
 

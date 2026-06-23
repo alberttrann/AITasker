@@ -3,7 +3,6 @@ import { INestApplication }        from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule }               from '../../src/app.module';
 
-
 import supertest = require('supertest');
 
 describe('Swagger spec validation', () => {
@@ -45,16 +44,23 @@ describe('Swagger spec validation', () => {
     ['post', '/auth/login'],
     ['put',  '/auth/switch-role'],
     ['post', '/auth/register-handoff'],
+    ['post', '/auth/refresh'],
     ['post', '/elicitation/sessions'],
+    ['get',  '/elicitation/sessions/{id}'],
     ['put',  '/elicitation/sessions/{id}/stage1'],
     ['put',  '/elicitation/sessions/{id}/stage2'],
     ['put',  '/elicitation/sessions/{id}/stage3'],
     ['put',  '/elicitation/sessions/{id}/stage4'],
-    ['post', '/elicitation/sessions/{id}/confirm'],
+    ['put',  '/elicitation/sessions/{id}/stage4-handoff'],
+    ['post', '/elicitation/sessions/{id}/invite-tech-team'],   
+    ['put',  '/elicitation/sessions/{id}/self-technical'],     
+    ['post', '/elicitation/sessions/{id}/retry-synthesis'],    
     ['get',  '/wallets/me'],
     ['get',  '/wallets/me/transactions'],
     ['post', '/wallets/virtual-accounts/topup'],
     ['post', '/webhooks/sepay/ipn'],
+    ['post', '/subscriptions/activate'],                       
+    ['get',  '/subscriptions/status'],                         
   ];
 
   it.each(REQUIRED_ENDPOINTS)(
@@ -65,6 +71,11 @@ describe('Swagger spec validation', () => {
       expect(pathEntry[method]).toBeDefined();
     },
   );
+
+  it('POST /elicitation/sessions/{id}/confirm no longer exists (replaced by retry-synthesis)', () => {
+    const pathEntry = swaggerJson.paths['/elicitation/sessions/{id}/confirm'];
+    expect(pathEntry).toBeUndefined();
+  });
 
   const JWT_PROTECTED = [
     '/elicitation/sessions',

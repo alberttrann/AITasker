@@ -57,7 +57,12 @@ export class SubscriptionService {
       userCurrentActiveRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
 
     const currentTime = new Date();
-    if (user[tierKey] === SubscriptionTier.PRO || user[expiresKey] > currentTime) {
+    const isCurrentlyActive =
+      user[tierKey] === SubscriptionTier.PRO &&
+      user[expiresKey] !== null &&
+      user[expiresKey] > currentTime;
+    
+    if (isCurrentlyActive) {
       throw new ConflictException('Your subscription is still available');
     }
 
