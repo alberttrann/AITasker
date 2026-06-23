@@ -70,4 +70,17 @@ export class ListingsController {
   ) {
     return this.listingsService.update(id, user.id, body);
   }
+
+  @ApiBearerAuth('JWT')
+  @Post(':id/purchase')
+  // POST /services/:id/purchase — CEO purchases a published service.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 137.
+  // Guard (in service): CEO role → 403 · !PUBLISHED → 422 · balance < price → 422.
+  @Roles('CLIENT')
+  async purchase(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingsService.purchase(id, user);
+  }
 }

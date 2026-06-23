@@ -13,6 +13,10 @@ import { FastapiClient } from '../elicitation/fastapi.client';
 // Actor shape passed from the controller. Matches the bids/engagements pattern.
 type Actor = { id: string; activeRole: string };
 
+// Buyer shape for purchase — needs clientSubtype for CEO gate.
+// Shape comes from JwtStrategy.validate(): { id, email, activeRole, clientSubtype }.
+type Buyer = { id: string; activeRole: string; clientSubtype?: string };
+
 // Hard cap on rows returned by GET /services browse.
 // Doc §0.11 K row 133 is silent on pagination. We cap to prevent unbounded
 // queries if the marketplace grows. Adjust here if needed.
@@ -263,5 +267,92 @@ export class ListingsService {
       data,
     });
     return { ...updated, priceVnd: updated.priceVnd.toString() };
+  }
+
+  // POST /services/:id/purchase — CEO purchases a published service.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 137.
+  // - Actor: CEO (CLIENT with client_subtype = CEO).
+  // - Gate: [None].
+  // - Guard: active_role != CLIENT OR client_subtype != CEO → 403
+  //   · state != PUBLISHED → 422 · balance < price → 422 INSUFFICIENT_BALANCE.
+  // - W: engagements, virtual_accounts.
+  // - Returns: engagement, virtual_account, VietQR URL.
+  // - IPN fires later to advance engagement to ACTIVE.
+  async purchase(id: string, buyer: Buyer) {
+    // 1. Fetch service
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      include: { expert: { select: { fullName: true } } },
+    });
+    if (!service) {
+      throw new NotFoundException('Service not found.');
+    }
+
+    // 2. Service state gate
+    if (service.state !== 'PUBLISHED') {
+      throw new UnprocessableEntityException('Only PUBLISHED services can be purchased.');
+    }
+
+    // 3. Buyer role gate
+    if (buyer.activeRole !== 'CLIENT' || buyer.clientSubtype !== 'CEO') {
+      throw new ForbiddenException('Only CEO clients can purchase services.');
+    }
+
+    // 4. Wallet balance gate
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId: buyer.id },
+    });
+    if (!wallet || wallet.availableBalance < service.priceVnd) {
+      throw new UnprocessableEntityException('INSUFFICIENT_BALANCE');
+    }
+
+    // 5. Determine engagement type from service.service_type
+    const engagementType =
+      service.serviceType === 'AI_SERVICE' ? 'SERVICE_PURCHASE' : 'TECH_DISCOVERY';
+
+    // 6. Create engagement + per-order VA atomically.
+    // VA entityId must be engagement.id — $transaction (callback) lets us
+    // create the engagement first, then reference its id in the VA insert.
+    const result = await this.prisma.$transaction(async (tx) => {
+      const engagement = await tx.engagement.create({
+        data: {
+          expertId: service.expertId,
+          serviceId: id,
+          type: engagementType,
+          state: 'PENDING',
+        },
+      });
+
+      const vaNumber = `SVC-${id.slice(0, 8)}-${Date.now()}`;
+      const va = await tx.virtualAccount.create({
+        data: {
+          entityType: 'SERVICE',
+          entityId: engagement.id,
+          vaNumber,
+          fixedAmount: service.priceVnd,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          status: 'ACTIVE',
+        },
+      });
+
+      return { engagement, va };
+    });
+
+    // 7. Build VietQR URL. Same bank account as wallet top-up (SePay platform).
+    // Pattern from wallet.service.ts; platform bank account is hardcoded.
+    const vietqrUrl = [
+      'https://qr.sepay.vn/img',
+      '?bank=MBBank',
+      '&acc=0394654576',
+      '&template=compact',
+      `&amount=${service.priceVnd.toString()}`,
+      `&des=${result.va.vaNumber}`,
+    ].join('');
+
+    return {
+      engagement: result.engagement,
+      virtualAccount: result.va,
+      vietqrUrl,
+    };
   }
 }
