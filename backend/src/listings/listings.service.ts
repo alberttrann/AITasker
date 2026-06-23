@@ -353,10 +353,7 @@ export class ListingsService {
       engagement: result.engagement,
       virtualAccount: {
         ...result.va,
-        fixedAmount:
-          result.va.fixedAmount !== null
-            ? result.va.fixedAmount.toString()
-            : null,
+        fixedAmount: result.va.fixedAmount !== null ? result.va.fixedAmount.toString() : null,
       },
       vietqrUrl,
     };
