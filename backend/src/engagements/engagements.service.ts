@@ -45,10 +45,10 @@ export class EngagementsService {
       });
     }
 
-    // 3. CEO — engagements on projects they own.
+    // 3. CEO — engagements where they are the client.
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
       return this.prisma.engagement.findMany({
-        where: { project: { clientId: user.id } },
+        where: { clientId: user.id },
       });
     }
 
@@ -103,36 +103,26 @@ export class EngagementsService {
       return engagement;
     }
 
-    // 4. CLIENT roles — must own the project (CEO) or be linked to it (TECH_TEAM).
-    //    Only applies to PROJECT_BASED engagements (projectId is non-null).
-    //
-    //    NOTE: SERVICE_PURCHASE / TECH_DISCOVERY engagements have
-    //    projectId = null and the Engagement model has no clientId column.
-    //    A CEO who purchased a service will receive 403 here. The engagement
-    //    ID is a non-guessable UUID returned in the purchase response, so
-    //    practical exposure is minimal.
-    if (engagement.projectId) {
-      if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
-        const project = await this.prisma.project.findUnique({
-          where: { id: engagement.projectId },
-          select: { clientId: true },
-        });
-
-        if (project?.clientId === user.id) {
-          return engagement;
-        }
+    // 4. CLIENT roles — must be the client (CEO) or linked TECH_TEAM.
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
+      if (engagement.clientId !== user.id) {
+        throw new ForbiddenException('You are not a party to this engagement.');
       }
+      return engagement;
+    }
 
-      if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM') {
-        const techProfile = await this.prisma.techTeamProfile.findUnique({
-          where: { userId: user.id },
-          select: { linkedProjectId: true },
-        });
-
-        if (techProfile?.linkedProjectId === engagement.projectId) {
-          return engagement;
-        }
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM') {
+      if (!engagement.projectId) {
+        throw new ForbiddenException('You are not a party to this engagement.');
       }
+      const techProfile = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+        select: { linkedProjectId: true },
+      });
+      if (techProfile?.linkedProjectId !== engagement.projectId) {
+        throw new ForbiddenException('You are not a party to this engagement.');
+      }
+      return engagement;
     }
 
     throw new ForbiddenException('You are not a party to this engagement.');
@@ -143,10 +133,9 @@ export class EngagementsService {
   // Guards: state != PENDING → 422 · client_nda_accepted_at already set → 409.
   // If both NDA timestamps are now non-null: state → CONNECTED, connected_at = now().
   async acceptNda(id: string, user: ActorUser) {
-    // 1. Fetch engagement with project (needed for CEO ownership check).
+    // 1. Fetch engagement fields needed for guards + update.
     const engagement = await this.prisma.engagement.findUnique({
       where: { id },
-      include: { project: { select: { clientId: true } } },
     });
 
     if (!engagement) {
@@ -154,17 +143,17 @@ export class EngagementsService {
     }
 
     // 2. NDA flow only applies to PROJECT_BASED engagements.
-    if (!engagement.project) {
+    if (!engagement.projectId) {
       throw new UnprocessableEntityException(
         'NDA acceptance only applies to project-based engagements.',
       );
     }
 
-    // 3. Verify user is the CEO who owns the project.
+    // 3. Verify user is the CEO who owns this engagement.
     if (user.activeRole !== 'CLIENT' || user.clientSubtype !== 'CEO') {
       throw new ForbiddenException('Only the CEO can accept the NDA.');
     }
-    if (engagement.project.clientId !== user.id) {
+    if (engagement.clientId !== user.id) {
       throw new ForbiddenException('You are not the CEO of this engagement.');
     }
 
