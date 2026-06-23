@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { EngagementsService } from './engagements.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -17,11 +17,22 @@ export class EngagementsController {
   @ApiBearerAuth('JWT')
   @Get()
   async findAll(
-    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
     @Query('state') state?: string,
     @Query('type') type?: string,
     @Query('connectedAt') connectedAt?: string,
   ) {
     return this.engagementsService.findAll(user, { state, type, connectedAt });
+  }
+
+  // GET /engagements/:id — full engagement detail.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 146.
+  @ApiBearerAuth('JWT')
+  @Get(':id')
+  async findById(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id') id: string,
+  ) {
+    return this.engagementsService.findById(id, user);
   }
 }
