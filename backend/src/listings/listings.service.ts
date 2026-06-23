@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ListServicesFilterDto } from './dto/create-listing.dto';
+
+// Actor shape passed from the controller. Matches the bids/engagements pattern.
+type Actor = { id: string; activeRole: string };
 
 // Hard cap on rows returned by GET /services browse.
 // Doc §0.11 K row 133 is silent on pagination. We cap to prevent unbounded
@@ -56,5 +59,55 @@ export class ListingsService {
       where,
       take: SERVICE_BROWSE_LIMIT,
     });
+  }
+
+  // GET /services/:id - single listing detail.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 134.
+  // - Actor: any authenticated user.
+  // - Gate: [None].
+  // - R: services, reviews (aggregates).
+  // - Guard: state != PUBLISHED AND not owner/admin → 404 (strict semantics;
+  //   the doc says 404, not 403, so non-published rows are indistinguishable
+  //   from missing rows to non-owners).
+  async findOne(id: string, actor: Actor) {
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      include: {
+        expert: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+    if (!service) {
+      throw new NotFoundException('Service not found.');
+    }
+
+    const isOwner = service.expertId === actor.id;
+    const isAdmin = actor.activeRole === 'ADMIN';
+    if (service.state !== 'PUBLISHED' && !isOwner && !isAdmin) {
+      // 404 not 403 — non-published rows are hidden from non-owners. Same as
+      // a missing row. Per doc row 134 and project 404-strict semantics.
+      throw new NotFoundException('Service not found.');
+    }
+
+    // Reputation aggregates for the expert who owns this service.
+    // Per docs/03 §15 BR-REV-06: AVG(rating), COUNT(DISTINCT engagement_id).
+    // `reviews.targetId` = the user being reviewed = the expert seller.
+    const aggregates = await this.prisma.review.aggregate({
+      where: { targetId: service.expertId },
+      _avg: { rating: true },
+      _count: { engagementId: true },
+    });
+
+    return {
+      ...service,
+      reputation: {
+        average_rating: aggregates._avg.rating,
+        review_count: aggregates._count.engagementId,
+      },
+    };
   }
 }
