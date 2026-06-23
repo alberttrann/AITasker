@@ -1,4 +1,10 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype: string | null };
@@ -99,7 +105,8 @@ export class EngagementsService {
 
     // 4. CLIENT roles — must own the project (CEO) or be linked to it (TECH_TEAM).
     //    Only applies to PROJECT_BASED engagements (projectId is non-null).
-    //    KNOWN LIMITATION: SERVICE_PURCHASE / TECH_DISCOVERY engagements have
+    //
+    //    NOTE: SERVICE_PURCHASE / TECH_DISCOVERY engagements have
     //    projectId = null and the Engagement model has no clientId column.
     //    A CEO who purchased a service will receive 403 here. The engagement
     //    ID is a non-guessable UUID returned in the purchase response, so
@@ -129,5 +136,62 @@ export class EngagementsService {
     }
 
     throw new ForbiddenException('You are not a party to this engagement.');
+  }
+
+  // PUT /engagements/:id/nda — CEO accepts NDA for a project-based engagement.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 147.
+  // Guards: state != PENDING → 422 · client_nda_accepted_at already set → 409.
+  // If both NDA timestamps are now non-null: state → CONNECTED, connected_at = now().
+  async acceptNda(id: string, user: ActorUser) {
+    // 1. Fetch engagement with project (needed for CEO ownership check).
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id },
+      include: { project: { select: { clientId: true } } },
+    });
+
+    if (!engagement) {
+      throw new NotFoundException('Engagement not found.');
+    }
+
+    // 2. NDA flow only applies to PROJECT_BASED engagements.
+    if (!engagement.project) {
+      throw new UnprocessableEntityException(
+        'NDA acceptance only applies to project-based engagements.',
+      );
+    }
+
+    // 3. Verify user is the CEO who owns the project.
+    if (user.activeRole !== 'CLIENT' || user.clientSubtype !== 'CEO') {
+      throw new ForbiddenException('Only the CEO can accept the NDA.');
+    }
+    if (engagement.project.clientId !== user.id) {
+      throw new ForbiddenException('You are not the CEO of this engagement.');
+    }
+
+    // 4. State guard — must be PENDING.
+    if (engagement.state !== 'PENDING') {
+      throw new UnprocessableEntityException(
+        `Engagement is in state ${engagement.state}; NDA acceptance requires PENDING.`,
+      );
+    }
+
+    // 5. Idempotency guard — client already accepted.
+    if (engagement.clientNdaAcceptedAt !== null) {
+      throw new ConflictException('NDA has already been accepted by the client.');
+    }
+
+    // 6. Set client_nda_accepted_at. If expert has also accepted, transition to CONNECTED.
+    const bothAccepted = engagement.expertNdaAcceptedAt !== null;
+
+    return this.prisma.engagement.update({
+      where: { id },
+      data: {
+        clientNdaAcceptedAt: new Date(),
+        ...(bothAccepted && {
+          state: 'CONNECTED',
+          connectedAt: new Date(),
+        }),
+      },
+    });
   }
 }

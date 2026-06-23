@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { EngagementsService } from './engagements.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -34,5 +34,16 @@ export class EngagementsController {
     @Param('id') id: string,
   ) {
     return this.engagementsService.findById(id, user);
+  }
+
+  // PUT /engagements/:id/nda — CEO accepts NDA.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 147.
+  @ApiBearerAuth('JWT')
+  @Put(':id/nda')
+  async acceptNda(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id') id: string,
+  ) {
+    return this.engagementsService.acceptNda(id, user);
   }
 }
