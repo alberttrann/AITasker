@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
+import { EngagementsModule } from './engagements/engagements.module';
 import { SubscriptionModule } from './subscriptions/subscriptions.module';
 import { LedgerModule } from '@shared/ledger/ledger.module';
 
@@ -31,7 +32,7 @@ import { LedgerModule } from '@shared/ledger/ledger.module';
     // ProjectsModule,
     // ExpertProfilesModule,
     // ListingsModule,
-    // EngagementsModule,
+    EngagementsModule,
     // BidsModule,
     // DisputesModule,
     // ─── M3 modules (Minh Thức) ───────────────────────────────────────────
