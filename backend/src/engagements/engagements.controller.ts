@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { EngagementsService } from './engagements.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -31,7 +31,7 @@ export class EngagementsController {
   @Get(':id')
   async findById(
     @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.engagementsService.findById(id, user);
   }
@@ -42,7 +42,7 @@ export class EngagementsController {
   @Put(':id/nda')
   async acceptNda(
     @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.engagementsService.acceptNda(id, user);
   }
