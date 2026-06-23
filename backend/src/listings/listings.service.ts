@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { ListServicesFilterDto } from './dto/list-services.dto';
+import { ListServicesFilterDto } from './dto/create-listing.dto';
 
 // Hard cap on rows returned by GET /services browse.
 // Doc §0.11 K row 133 is silent on pagination. We cap to prevent unbounded
