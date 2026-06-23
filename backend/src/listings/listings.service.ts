@@ -351,7 +351,13 @@ export class ListingsService {
 
     return {
       engagement: result.engagement,
-      virtualAccount: result.va,
+      virtualAccount: {
+        ...result.va,
+        fixedAmount:
+          result.va.fixedAmount !== null
+            ? result.va.fixedAmount.toString()
+            : null,
+      },
       vietqrUrl,
     };
   }
