@@ -163,4 +163,59 @@ export class ReviewService {
 
     return review;
   }
+
+  async getAllReview(userId: string, engagementId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("You don't have permission to access!");
+    }
+
+    const engagement = await this.prisma.engagement.findUnique({
+      where: {
+        id: engagementId,
+      },
+    });
+
+    if (!engagement) {
+      throw new BadRequestException('Engagement not found');
+    }
+
+    if (!(engagement.state === EngagementState.CLOSED)) {
+      throw new ConflictException('This engagement is not closed yet!');
+    }
+
+    // Checking if the userId belong to the EXPERT, CLIENT OR TECH_TEAM inside that engagement or user is a admin? -> This make others users who dont participate in this engagement can't see the reviews internally
+
+    // Expert Verifier
+    const isBelongExpert = engagement.expertId === user.id;
+
+    // CEO Verifier
+    const project = await this.prisma.project.findFirst({ where: { id: engagement.projectId } });
+    const isBelongCEO = project?.clientId === user.id;
+
+    // Tech team verifier
+    const isBelongTechTeam = await this.prisma.techTeamProfile.findFirst({
+      where: {
+        userId: user.id,
+        linkedProjectId: engagement.projectId,
+      },
+    });
+
+    const isParty = isBelongExpert || isBelongCEO || isBelongTechTeam;
+
+    if (!isParty && user.activeRole !== ActiveRole.ADMIN) {
+      throw new ForbiddenException('Not a party to this engagement');
+    }
+
+    return await this.prisma.review.findMany({
+      where: {
+        engagementId: engagement.id,
+      },
+    });
+  }
 }

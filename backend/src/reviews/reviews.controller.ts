@@ -1,7 +1,7 @@
 import { Roles } from '@common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ReviewService } from './reviews.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -18,5 +18,12 @@ export class ReviewController {
   @Roles('CLIENT', 'EXPERT')
   createReview(@CurrentUser() user: AuthUser, @Body() createReviewDto: CreateReviewDto) {
     return this.reviewService.createReview(user.id, createReviewDto);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get(':engagementId')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  getAllReview(@Param('engagementId') engagementId: string, @CurrentUser() user: AuthUser) {
+    return this.reviewService.getAllReview(user.id, engagementId);
   }
 }
