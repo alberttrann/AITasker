@@ -46,4 +46,26 @@ export class EngagementsController {
   ) {
     return this.engagementsService.acceptNda(id, user);
   }
+
+  // PUT /engagements/:id/connect — expert accepts connection + NDA.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 148.
+  @ApiBearerAuth('JWT')
+  @Put(':id/connect')
+  async acceptConnect(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.engagementsService.acceptConnect(id, user);
+  }
+
+  // PUT /engagements/:id/decline — expert declines connection request.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 149.
+  @ApiBearerAuth('JWT')
+  @Put(':id/decline')
+  async decline(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.engagementsService.decline(id, user);
+  }
 }

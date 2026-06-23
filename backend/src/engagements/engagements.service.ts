@@ -194,4 +194,101 @@ export class EngagementsService {
       },
     });
   }
+
+  // PUT /engagements/:id/connect — expert accepts connection + NDA.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 148.
+  // Guards: state != PENDING → 422 · expert_nda_accepted_at already set → 409.
+  // If both NDA timestamps are now non-null: state → CONNECTED.
+  // Non-blocking: if expert has no linked bank account, returns prompt_bank_link: true.
+  async acceptConnect(id: string, user: ActorUser) {
+    // 1. Fetch engagement — no project include needed (expert check uses engagement.expertId).
+    const engagement = await this.prisma.engagement.findUnique({ where: { id } });
+
+    if (!engagement) {
+      throw new NotFoundException('Engagement not found.');
+    }
+
+    // 2. Verify user is the expert of this engagement.
+    if (user.activeRole !== 'EXPERT') {
+      throw new ForbiddenException('Only the expert can accept the connection.');
+    }
+    if (engagement.expertId !== user.id) {
+      throw new ForbiddenException('You are not the expert of this engagement.');
+    }
+
+    // 3. State guard — must be PENDING.
+    if (engagement.state !== 'PENDING') {
+      throw new UnprocessableEntityException(
+        `Engagement is in state ${engagement.state}; connection requires PENDING.`,
+      );
+    }
+
+    // 4. Idempotency guard — expert already accepted.
+    if (engagement.expertNdaAcceptedAt !== null) {
+      throw new ConflictException('Connection has already been accepted by the expert.');
+    }
+
+    // 5. Set expert_nda_accepted_at. If client has also accepted, transition to CONNECTED.
+    const bothAccepted = engagement.clientNdaAcceptedAt !== null;
+
+    const updated = await this.prisma.engagement.update({
+      where: { id },
+      data: {
+        expertNdaAcceptedAt: new Date(),
+        ...(bothAccepted && {
+          state: 'CONNECTED',
+          connectedAt: new Date(),
+        }),
+      },
+    });
+
+    // 6. Non-blocking bank-link prompt (docs/03 §BR-ART-07).
+    //    If the expert has no linked bank account, surface a prompt so they
+    //    know they'll need it before withdrawal.
+    const expert = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { sepayBankAccountXid: true },
+    });
+
+    if (!expert?.sepayBankAccountXid) {
+      return { ...updated, prompt_bank_link: true };
+    }
+
+    return updated;
+  }
+
+  // PUT /engagements/:id/decline — expert declines a connection request.
+  // Blueprint: docs/04-endpoints.md §0.11 L row 149.
+  // Guard: state != PENDING → 422.
+  // Sets state → DECLINED. CEO notification is a future Socket.io event.
+  async decline(id: string, user: ActorUser) {
+    // 1. Fetch engagement.
+    const engagement = await this.prisma.engagement.findUnique({ where: { id } });
+
+    if (!engagement) {
+      throw new NotFoundException('Engagement not found.');
+    }
+
+    // 2. Verify user is the expert of this engagement.
+    if (user.activeRole !== 'EXPERT') {
+      throw new ForbiddenException('Only the expert can decline a connection.');
+    }
+    if (engagement.expertId !== user.id) {
+      throw new ForbiddenException('You are not the expert of this engagement.');
+    }
+
+    // 3. State guard — must be PENDING.
+    if (engagement.state !== 'PENDING') {
+      throw new UnprocessableEntityException(
+        `Engagement is in state ${engagement.state}; declining requires PENDING.`,
+      );
+    }
+
+    // 4. Set state → DECLINED. CEO notification fires via Socket.io in a
+    //    future sprint (docs §W row 285 engagement:state-changed event).
+    return this.prisma.engagement.update({
+      where: { id },
+      data: { state: 'DECLINED' },
+    });
+  }
 }
