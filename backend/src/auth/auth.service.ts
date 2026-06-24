@@ -17,6 +17,7 @@ import { customAlphabet, nanoid } from 'nanoid';
 import { VAStatus } from '@common/enums/va-status.enum';
 import { User } from '@prisma/client';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
+import axios from 'axios';
 @Injectable()
 export class AuthService {
   // Mapping roles to active roles
@@ -92,6 +93,26 @@ export class AuthService {
           status: VAStatus.ACTIVE,
         },
       });
+
+      // Checking for the tax number to verify Business Client
+      const taxCode = registerDto.taxCode;
+      if (taxCode) {
+        try {
+          const vietQRTaxAPI = `https://api.vietqr.io/v2/business/${taxCode}`;
+          const response = await axios.get(vietQRTaxAPI);
+
+          if (response.data.code === '00') {
+            await tx.clientProfile.update({
+              where: {
+                userId: user.id,
+              },
+              data: {
+                companyName: response.data.data.name,
+              },
+            });
+          }
+        } catch {}
+      }
 
       return {
         id: user.id,

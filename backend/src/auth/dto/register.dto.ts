@@ -30,4 +30,7 @@ export class RegisterUserDto {
   @IsNotEmpty()
   @IsEnum(UserRoleItem)
   roles: UserRoleItem;
+
+  @IsOptional()
+  taxCode?: string;
 }
