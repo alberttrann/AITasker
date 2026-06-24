@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@store/auth.store';
+import { useAuth } from '@hooks/use-auth';
 import { Pencil, Save, X, LogOut, Check } from 'lucide-react';
 
 export default function ProfileSettingPage() {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // ── State Management ──
@@ -89,11 +89,11 @@ export default function ProfileSettingPage() {
     const isModified = formValues[fieldKey] !== originalValues[fieldKey];
 
     return (
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-colors ${
-        isModified ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-outline-variant/50'
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-[24px] border-2 transition-all duration-300 ${
+        isModified ? 'bg-primary-bg border-primary/50' : 'bg-cream border-primary-light/20'
       }`}>
         <div className="flex-1 mb-2 sm:mb-0">
-          <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">{label}</p>
+          <p className="font-headline text-xs text-primary-dark/60 uppercase tracking-wider mb-2">{label}</p>
           
           {isEditing ? (
             <input
@@ -105,32 +105,33 @@ export default function ProfileSettingPage() {
                 if (e.key === 'Enter') handleInlineSave(fieldKey);
                 if (e.key === 'Escape') handleInlineCancel();
               }}
-              className="w-full sm:w-2/3 bg-surface border border-primary rounded-md px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full sm:w-2/3 bg-white border-2 border-primary-light/50 rounded-[16px] px-4 py-3 font-body text-primary-dark focus:outline-none focus:border-primary focus:shadow-focus min-h-[56px]"
             />
           ) : (
-            <p className={`text-base font-medium ${!formValues[fieldKey] && 'text-on-surface-variant italic'}`}>
+            <p className={`font-body text-base ${!formValues[fieldKey] ? 'text-primary-dark/50 italic' : 'text-primary-dark font-medium'}`}>
               {formValues[fieldKey] || 'Not set'}
             </p>
           )}
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-3 self-end sm:self-auto">
           {isEditing ? (
             <>
-              <button onClick={() => handleInlineSave(fieldKey)} className="p-2 bg-primary text-on-primary rounded-md hover:opacity-90 transition-opacity" title="Confirm">
-                <Check size={16} />
+              <button onClick={() => handleInlineSave(fieldKey)} aria-label={`Save ${label}`} className="p-3 bg-primary text-white rounded-full hover:shadow-teal-glow transition-all hover:brightness-110 active:scale-95" title="Confirm">
+                <Check size={18} strokeWidth={3} />
               </button>
-              <button onClick={handleInlineCancel} className="p-2 bg-surface border border-outline-variant text-on-surface-variant rounded-md hover:bg-surface-container-low transition-colors" title="Cancel">
-                <X size={16} />
+              <button onClick={handleInlineCancel} aria-label={`Cancel editing ${label}`} className="p-3 bg-surface-card border-2 border-primary-light/30 text-primary-dark rounded-full hover:bg-primary-bg transition-all active:scale-95" title="Cancel">
+                <X size={18} strokeWidth={3} />
               </button>
             </>
           ) : (
             <button 
               onClick={() => handleEditClick(fieldKey)} 
-              className="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+              aria-label={`Edit ${label}`}
+              className="p-3 text-primary-dark/60 hover:text-primary hover:bg-primary-bg rounded-full transition-all active:scale-95"
               title="Edit"
             >
-              <Pencil size={16} />
+              <Pencil size={18} strokeWidth={2.5} />
             </button>
           )}
         </div>
@@ -139,11 +140,11 @@ export default function ProfileSettingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8 relative">
+    <div className="min-h-screen bg-surface-base p-4 sm:p-6 lg:p-8 relative">
       
       {/* ── Page Header ── */}
       <div className="max-w-6xl mx-auto mb-6">
-        <h1 className="font-headline-md text-headline-md text-primary">Account Settings</h1>
+        <h1 className="font-headline text-h2 font-extrabold text-primary-dark">Account Settings</h1>
       </div>
 
       {/* ── Bento Grid Layout ── */}
@@ -151,8 +152,8 @@ export default function ProfileSettingPage() {
         
         {/* ── Left Column (3/4 Width): Form Fields ── */}
         <div className="md:col-span-3">
-          <div className="bg-surface border border-outline-variant rounded-2xl p-6 md:p-8 shadow-sm flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-on-surface mb-2">Personal Information</h2>
+          <div className="bg-surface-card border-2 border-primary-light/30 rounded-[32px] p-6 md:p-8 shadow-card flex flex-col gap-6">
+            <h2 className="text-h3 font-headline font-extrabold text-primary-dark mb-2">Personal Information</h2>
             
             <EditableRow label="Full Name" fieldKey="fullName" />
             <EditableRow label="Email Address" fieldKey="email" type="email" />
@@ -163,29 +164,29 @@ export default function ProfileSettingPage() {
 
         {/* ── Right Column (1/4 Width): Actions ── */}
         <div className="md:col-span-1 flex flex-col gap-4">
-          <div className="bg-surface border border-outline-variant rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div className="bg-surface-card border-2 border-primary-light/30 rounded-[32px] p-5 shadow-card flex flex-col gap-3">
             
             <button 
               onClick={() => setModalConfig({ isOpen: true, type: 'save' })}
               disabled={!isDirty}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg text-left font-medium transition-all duration-200 ${
+              className={`flex items-center justify-center gap-3 w-full p-4 rounded-full font-headline font-bold transition-all duration-300 min-h-[72px] ${
                 isDirty 
-                  ? 'bg-primary text-on-primary hover:opacity-90 shadow-md' 
-                  : 'bg-surface-container-low text-on-surface-variant opacity-50 cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-accent to-accent-light text-primary-dark hover:brightness-110 shadow-accent-glow active:scale-95' 
+                  : 'bg-primary-bg text-primary-dark/40 cursor-not-allowed border-2 border-primary-light/20'
               }`}
             >
-              <Save size={18} />
+              <Save size={20} strokeWidth={2.5} />
               Save Changes
             </button>
             
-            <div className="h-px w-full bg-outline-variant/50 my-1" />
+            <div className="h-px w-full bg-primary-light/30 my-2 border-b border-dashed" />
 
             <button 
               onClick={handleExitRequest}
-              className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-surface-container-low text-left text-on-surface font-medium transition-colors group"
+              className="flex items-center justify-center gap-3 w-full p-4 rounded-full hover:bg-coral-light/20 text-primary-dark font-headline font-bold transition-colors group min-h-[56px] active:scale-95 border-2 border-transparent hover:border-coral/30"
             >
-              <LogOut size={18} className="text-on-surface-variant group-hover:text-error transition-colors" />
-              Exit Settings
+              <LogOut size={20} strokeWidth={2.5} className="text-primary-dark/60 group-hover:text-coral transition-colors" />
+              <span className="group-hover:text-coral transition-colors">Exit Settings</span>
             </button>
 
           </div>
@@ -195,38 +196,43 @@ export default function ProfileSettingPage() {
 
       {/* ── Confirmation Modal Overlay ── */}
       {modalConfig.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-[448px] bg-surface rounded-xl border border-outline-variant shadow-xl p-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-primary-dark/80 backdrop-blur-md p-4 transition-all duration-300">
+          <div className="w-full max-w-[448px] bg-surface-card rounded-[32px] border-4 border-primary-light/30 shadow-lg p-8 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
             
-            <h3 className="text-xl font-bold text-on-surface mb-2">
-              {modalConfig.type === 'save' ? 'Save user profile?' : 'Save changes before exit?'}
-            </h3>
+            {/* Decorative circles */}
+            <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-accent-light/30 rounded-full blur-2xl z-0"></div>
             
-            <p className="text-sm text-on-surface-variant mb-6">
-              {modalConfig.type === 'save' 
-                ? 'You are about to update your personal information. Are you sure you want to apply these changes to your account?' 
-                : 'You have unsaved changes in your profile settings. Would you like to save them before leaving this page?'}
-            </p>
+            <div className="relative z-10">
+              <h3 className="text-h3 font-headline font-extrabold text-primary-dark mb-4">
+                {modalConfig.type === 'save' ? 'Save user profile?' : 'Save changes before exit?'}
+              </h3>
+              
+              <p className="font-body text-base text-primary-dark/80 mb-8 bg-primary-bg p-4 rounded-[16px] border border-primary-light/20">
+                {modalConfig.type === 'save' 
+                  ? 'You are about to update your personal information. Are you sure you want to apply these changes to your account?' 
+                  : 'You have unsaved changes in your profile settings. Would you like to save them before leaving this page?'}
+              </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-end">
-              <button 
-                onClick={() => setModalConfig({ isOpen: false, type: null })}
-                className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors order-3 sm:order-1"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={executeDiscard}
-                className="px-4 py-2 text-sm font-medium text-error bg-error/10 hover:bg-error/20 rounded-lg transition-colors order-2 sm:order-2"
-              >
-                Discard
-              </button>
-              <button 
-                onClick={executeSave}
-                className="px-4 py-2 text-sm font-medium text-on-primary bg-primary hover:opacity-90 rounded-lg transition-opacity shadow-sm order-1 sm:order-3"
-              >
-                Save
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-end">
+                <button 
+                  onClick={() => setModalConfig({ isOpen: false, type: null })}
+                  className="px-6 py-3 font-headline font-bold text-primary-dark hover:bg-primary-bg rounded-full transition-colors active:scale-95 border-2 border-primary-light/30 sm:w-auto w-full order-3 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={executeDiscard}
+                  className="px-6 py-3 font-headline font-bold text-coral bg-cream border-2 border-coral shadow-sm hover:shadow-coral-glow hover:bg-coral hover:text-white rounded-full transition-all active:scale-95 sm:w-auto w-full order-2 sm:order-2"
+                >
+                  Discard
+                </button>
+                <button 
+                  onClick={executeSave}
+                  className="px-6 py-3 font-headline font-extrabold text-white bg-primary hover:brightness-110 shadow-teal-glow rounded-full transition-all active:scale-95 sm:w-auto w-full order-1 sm:order-3"
+                >
+                  Save
+                </button>
+              </div>
             </div>
             
           </div>

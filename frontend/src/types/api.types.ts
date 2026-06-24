@@ -26,6 +26,7 @@ export interface UserDto {
   email:                    string;
   fullName:                string;
   phone:                    string | null;
+  taxCode:                  string | null;
   roles:                    string[];
   activeRole:              ActiveRole;
   clientSubtype:           ClientSubtype | null;

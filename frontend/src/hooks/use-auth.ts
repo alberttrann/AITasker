@@ -16,13 +16,20 @@ export function useAuth() {
 
 // Register
  const register = useMutation({
-  mutationFn: async (creds: { fullName: string; email: string; phone?: string; password: string; roles: UserRoleItem }) => {
-    const { data } = await apiClient.post<AuthTokens & { user: UserDto }>(
+  mutationFn: async (creds: { fullName: string; email: string; phone?: string; taxCode?: string; password: string; roles: UserRoleItem }) => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
       '/auth/register',
       creds
     );
     return data;
-  }});
+  },
+  onSuccess: async (data) => {
+    store.setTokens(data.access_token, data.refresh_token ?? '');
+    const { data: user } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(user);
+    redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
+  },
+});
  
   // Login 
 const login = useMutation({
@@ -82,9 +89,9 @@ function redirectByRole(
   subtype:  ClientSubtype | undefined,
   navigate: ReturnType<typeof useNavigate>
 ) {
-  if (role === 'ADMIN')  { navigate('/admin');       return; }
+  if (role === 'CLIENT' && subtype === 'CEO')       { navigate('/ceo');       return; }
+  if (role === 'CLIENT' && subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
   if (role === 'EXPERT') { navigate('/expert');      return; }
-  if (subtype === 'CEO')       { navigate('/ceo');       return; }
-  if (subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
+  if (role === 'ADMIN')  { navigate('/admin');       return; }
   navigate('/');
 }

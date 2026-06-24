@@ -156,3 +156,6 @@ SEED_PASSWORDS.txt
 
 backend/dist/
 node_modules/
+
+skills-lock.json
+.agents/
