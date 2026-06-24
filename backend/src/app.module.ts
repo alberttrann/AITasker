@@ -10,6 +10,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
 import { SubscriptionModule } from './subscriptions/subscriptions.module';
 import { LedgerModule } from '@shared/ledger/ledger.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { LedgerModule } from '@shared/ledger/ledger.module';
     // MilestonesModule,
     // SubmissionsModule,
     // MessagesModule,
-    // ReviewsModule,
+    ReviewsModule,
     // AdminModule,
   ],
   controllers: [AppController],
