@@ -1,11 +1,11 @@
 import { Module }                from '@nestjs/common';
 import { PrismaModule }          from '../database/prisma.module';
-import { SubmissionsController } from './submissions.controller';   // was SubmissionController (singular)
+import { SubmissionsController } from './submissions.controller';
 import { SubmissionsService }    from './submissions.service';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [SubmissionsController],   // was SubmissionController — didn't exist, compile error
+  controllers: [SubmissionsController],
   providers: [SubmissionsService],
   exports: [SubmissionsService],
 })

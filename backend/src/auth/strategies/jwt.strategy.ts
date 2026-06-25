@@ -36,7 +36,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  // validate() re-queries the DB fresh on every request (not from the signed payload)
   async validate(payload: { sub: string }): Promise<AuthUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },

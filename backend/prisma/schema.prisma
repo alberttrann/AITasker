@@ -28,9 +28,9 @@ model User {
   bankAccountHolderName  String?   @map("bank_account_holder_name")
   bankLinkedAt           DateTime? @map("bank_linked_at") @db.Timestamptz(6)
   selfTechnical          Boolean   @default(false) @map("self_technical")
+  selfTechnicalProjects  Json      @default("[]") @map("self_technical_projects")
   isActive               Boolean   @default(true) @map("is_active")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  selfTechnicalProjects Json @default("[]") @map("self_technical_projects")
 
   // Relations
   clientProfile        ClientProfile?
@@ -40,6 +40,7 @@ model User {
   elicitationSessions  ElicitationSession[]
   clientProjects       Project[]             @relation("ClientProjects")
   expertEngagements    Engagement[]          @relation("ExpertEngagements")
+  clientEngagements    Engagement[]          @relation("ClientEngagements")
   expertServices       Service[]
   expertDomainDepths   ExpertDomainDepth[]
   expertSeamClaims     ExpertSeamClaim[]
@@ -51,7 +52,8 @@ model User {
   reviewsWritten       Review[]              @relation("ReviewsWritten")
   reviewsReceived      Review[]              @relation("ReviewsReceived")
   milestonesSubmitted  MilestoneSubmission[]
-  disputesFiled        Dispute[]
+  disputesFiled    Dispute[] @relation("DisputeFiler")
+  disputesResolved  Dispute[] @relation("DisputeResolver")
 
   @@index([activeRole])
   @@map("users")
@@ -305,6 +307,7 @@ model Engagement {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   projectId           String?   @map("project_id") @db.Uuid
   expertId            String    @map("expert_id") @db.Uuid
+  clientId            String    @map("client_id") @db.Uuid
   serviceId           String?   @map("service_id") @db.Uuid
   type                String
   state               String    @default("PENDING")
@@ -312,9 +315,9 @@ model Engagement {
   clientNdaAcceptedAt DateTime? @map("client_nda_accepted_at") @db.Timestamptz(6)
   expertNdaAcceptedAt DateTime? @map("expert_nda_accepted_at") @db.Timestamptz(6)
 
-  // engagement_type_fk CHECK lives in 006_engagements_bids.sql
   project        Project?        @relation(fields: [projectId], references: [id])
   expert         User            @relation("ExpertEngagements", fields: [expertId], references: [id])
+  client         User            @relation("ClientEngagements", fields: [clientId], references: [id])
   service        Service?        @relation(fields: [serviceId], references: [id])
   capabilityBid  CapabilityBid?
   milestones     Milestone[]
@@ -325,6 +328,7 @@ model Engagement {
 
   @@index([projectId])
   @@index([expertId])
+  @@index([clientId])
   @@index([serviceId])
   @@index([state])
   @@map("engagements")
@@ -485,12 +489,15 @@ model Dispute {
   llmConfidence   Float?    @map("llm_confidence")
   filedAt         DateTime  @default(now()) @map("filed_at") @db.Timestamptz(6)
   resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolvedBy String? @map("resolved_by") @db.Uuid
+  filer         User                @relation("DisputeFiler", fields: [filedBy], references: [id])
+  resolver User? @relation("DisputeResolver", fields: [resolvedBy], references: [id])
 
   engagement    Engagement          @relation(fields: [engagementId], references: [id])
   milestone     Milestone?          @relation(fields: [milestoneId], references: [id])
   criterion     AcceptanceCriterion @relation(fields: [criterionId], references: [id])
   escrowAccount EscrowAccount       @relation(fields: [escrowAccountId], references: [id])
-  filer         User                @relation(fields: [filedBy], references: [id])
+  
 
   @@index([engagementId])
   @@index([state])

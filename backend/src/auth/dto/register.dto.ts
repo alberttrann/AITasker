@@ -1,3 +1,6 @@
+// backend/src/auth/dto/register.dto.ts
+// RECONCILED: merges Chi Nhan's taxCode (VietQR business verification)
+// with our selfTechnical (A3b) — independent, non-conflicting additions.
 import { UserRoleItem } from '@common/enums/user-role-item.enum';
 import {
   IsEmail,
@@ -32,8 +35,11 @@ export class RegisterUserDto {
   @IsEnum(UserRoleItem)
   roles: UserRoleItem;
 
-  // registration-time default. Only meaningful for CLIENT_CEO registrations (the "do you have a dedicated tech team?" question designed into CeoRegister.tsx)
-  // Ignored for EXPERTregistrations. Defaults to false (assumes "I need a tech team" / Scenario A) if omitted.
+  // Chi Nhan's — VietQR business-tax lookup, auto-fills companyName if valid.
+  @IsOptional()
+  taxCode?: string;
+
+  // Ours (A3b) — registration-time self-technical default, CLIENT_CEO only.
   @IsOptional()
   @IsBoolean()
   selfTechnical?: boolean;

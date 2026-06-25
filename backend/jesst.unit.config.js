@@ -14,6 +14,8 @@ module.exports = {
     '^src/(.*)$':     '<rootDir>/src/$1',
     '^@common/(.*)$': '<rootDir>/src/common/$1',
     '^@shared/(.*)$': '<rootDir>/src/shared/$1',
+    '^@database/(.*)$': '<rootDir>/src/database/$1',
+    '^prisma/(.*)$':    '<rootDir>/prisma/$1'
   },
   testTimeout: 10_000,
 };

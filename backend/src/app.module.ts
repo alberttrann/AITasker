@@ -8,12 +8,17 @@ import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ElicitationModule } from './elicitation/elicitation.module';
-import { MilestonesModule } from './milestones/milestones.module'; 
+import { MilestonesModule } from './milestones/milestones.module';
 import { SubscriptionModule } from './subscriptions/subscriptions.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ExpertProfilesModule } from './expert-profiles/expert-profiles.module';
 import { LedgerModule } from '@shared/ledger/ledger.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ListingsModule } from './listings/listings.module';         
+import { EngagementsModule } from './engagements/engagements.module'; 
+import { BidsModule } from './bids/bids.module';                     
+import { SubmissionsModule } from './submissions/submissions.module'; 
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -34,13 +39,13 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     ElicitationModule,
     ProjectsModule,
     ExpertProfilesModule,
-    // ListingsModule,
-    // EngagementsModule,
-    // BidsModule,
-    // DisputesModule,
+    ListingsModule,      
+    EngagementsModule,   
+    BidsModule,          
+    // DisputesModule,    
     // ─── M3 modules (Minh Thức) ───────────────────────────────────────────
     MilestonesModule,
-    // SubmissionsModule,
+    SubmissionsModule,   
     // MessagesModule,
     // ReviewsModule,
     // AdminModule,

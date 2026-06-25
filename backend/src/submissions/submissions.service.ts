@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service'; 
+import { PrismaService } from '../database/prisma.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 
@@ -7,7 +7,6 @@ import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 export class SubmissionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  //Expert nộp sản phẩm bàn giao (DoD Gate)
   async submitMilestones(milestoneId: string, dto: CreateSubmissionDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
@@ -21,7 +20,7 @@ export class SubmissionsService {
       where: {
         milestoneId: milestoneId,
         isRequired: true,
-        status: { not: 'COMPLETED' }, 
+        status: { not: 'COMPLETED' },
       },
     });
 
@@ -42,7 +41,7 @@ export class SubmissionsService {
         statusCode: 422,
         error: 'REQUIRED_DOD_INCOMPLETE',
         message: 'You cannot submit deliverables while required DoD items are incomplete.',
-        missing_items: incompleteItems, 
+        missing_items: incompleteItems,
       });
     }
 
@@ -68,25 +67,23 @@ export class SubmissionsService {
     });
   }
 
-
-    //Expert tải lên tài liệu bị khóa bằng cổng thanh toán (Stage Pay-gated Document)
-    async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
-        const milestone = await this.prisma.milestone.findUnique({
-        where: { id: milestoneId },
+  async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
     });
 
-        if (!milestone) {
-        throw new NotFoundException('Milestone cannot be found in database.');
-        }
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
 
-        return this.prisma.paygatedDocument.create({
-        data: {
-            milestoneId: milestoneId,
-            documentUrl: dto.document_url,
-            releaseState: 'STAGED', 
-            stagedAt: new Date(),
-        },
-        });
+    return this.prisma.paygatedDocument.create({
+      data: {
+        milestoneId: milestoneId,
+        documentUrl: dto.document_url,
+        releaseState: 'STAGED',
+        stagedAt: new Date(),
+      },
+    });
   }
 
   async downloadDocument(milestoneId: string) {
@@ -105,14 +102,12 @@ export class SubmissionsService {
         },
       });
 
-      // Nếu có tài liệu nhưng chưa được nạp tiền -> Trả về lỗi 403 Forbidden
       if (stagedCount > 0) {
         throw new ForbiddenException(
           'These documents are locked until payment is secured in escrow.',
         );
       }
 
-      // Nếu thực sự không tồn tại tệp nào -> Trả về lỗi 404 NotFound
       throw new NotFoundException('No released documents found for this milestone.');
     }
 

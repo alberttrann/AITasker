@@ -82,6 +82,7 @@ export class BidsService {
         data: {
           projectId: project.id,
           expertId: expertUserId,
+          clientId: project.clientId,
           serviceId: null,
           type: 'PROJECT_BASED',
           state: 'PENDING',

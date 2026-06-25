@@ -20,7 +20,8 @@ export class SubscriptionGuard implements CanActivate {
     const isPro =
       user[tierKey] === SubscriptionTier.PRO && expiresAt !== null && expiresAt > dateNow;
 
-    // throw a structured exception instead of returning false, so callers get a { code, message } body instead of a bare 403.
+    // throw a structured exception instead of returning false, so
+    // callers get a { code, message } body instead of a bare 403.
     if (!isPro) {
       throw new ForbiddenException({
         code: 'SUBSCRIPTION_REQUIRED',

@@ -36,7 +36,8 @@ async function run({ baseUrl }) {
       data: {
         projectId: project.id,
         expertId:  expertUser.id,
-        type:      'PROJECT',
+        clientId:  ceoId,
+        type:      'PROJECT_BASED',
         state:     'ACTIVE',
       },
     });

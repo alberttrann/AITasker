@@ -320,6 +320,7 @@ export class ListingsService {
       const engagement = await tx.engagement.create({
         data: {
           expertId: service.expertId,
+          clientId: buyer.id, 
           serviceId: id,
           type: engagementType,
           state: 'PENDING',

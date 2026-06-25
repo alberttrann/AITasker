@@ -1,6 +1,9 @@
-import { RegisterHandoffDto } from './dto/register-handoff.dto';
+// backend/src/auth/auth.controller.ts
+// RECONCILED: adopts Chi Nhan's real refresh-token route (body-based, not
+// Bearer-gated), restores our registerHandoff route (not on his branch).
 import { Body, Controller, Post, Put, UseGuards } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
+import { RegisterHandoffDto } from './dto/register-handoff.dto';
 import { AuthService } from './auth.service';
 import { LoginUserDto } from './dto/login.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -11,9 +14,8 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 
-@Controller('auth') // Define end points
+@Controller('auth')
 export class AuthController {
-  // Inject service to constructor
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
@@ -34,15 +36,17 @@ export class AuthController {
     return this.authService.switchRole(user.id, switchRoleDto);
   }
 
+  // CHANGED — no JwtAuthGuard at all, by design: the refresh token's
+  // entire purpose is renewing access AFTER the access token has expired,
+  // so it can't be gated behind a guard that requires a still-valid token.
+  @Post('refresh')
+  refreshToken(@Body('refresh_token') tokenString: string) {
+    return this.authService.refreshToken(tokenString);
+  }
+
+  // RESTORED — our feature, not on Chi Nhan's branch.
   @Post('register-handoff')
   registerHandoff(@Body() dto: RegisterHandoffDto) {
     return this.authService.registerHandoff(dto);
-  }
-
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
-  @Post('refresh')
-  refreshToken(@CurrentUser() user: AuthUser) {
-    return this.authService.refreshToken(user.id);
   }
 }
