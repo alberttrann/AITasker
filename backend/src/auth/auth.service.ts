@@ -18,6 +18,7 @@ import { VAStatus } from '@common/enums/va-status.enum';
 import { User } from '@prisma/client';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import axios from 'axios';
+import { generateVaNumber } from '@shared/ledger/va-generator';
 @Injectable()
 export class AuthService {
   // Mapping roles to active roles
@@ -75,20 +76,12 @@ export class AuthService {
         },
       });
 
-      // Create custom nanoid for generating VANumber
-      const nanoid = customAlphabet(
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-        8,
-      );
-
-      const normalizeVANumber = (VAEntityType.WALLET_TOPUP + nanoid()).replaceAll('_', '');
-
       // Create and assign VA to user
       const virtualAccount = await tx.virtualAccount.create({
         data: {
           entityType: VAEntityType.WALLET_TOPUP,
           entityId: user.id,
-          vaNumber: normalizeVANumber,
+          vaNumber: generateVaNumber(VAEntityType.WALLET_TOPUP),
           fixedAmount: null,
           status: VAStatus.ACTIVE,
         },
