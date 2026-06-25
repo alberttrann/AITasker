@@ -18,6 +18,7 @@ import TechTeamDashboard from '@features/tech-team/TechTeamDashboard';
 import AdminDashboard    from '@features/admin/AdminDashboard';
 import ProfilePage from './components/pages/UserProfilePage';
 import ProfileSettingPage from './components/pages/ProfileSettingPage';
+import WalletPage from './components/wallet/WalletPage';
 
 export default function App() {
   return (
@@ -51,8 +52,6 @@ export default function App() {
           {/* /admin/* — all Admin screens will nest here */}
           <Route path="/admin/*" element={<AdminDashboard />} />
         </Route>
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/account-setting" element={<ProfileSettingPage />} />
       </Route>
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}

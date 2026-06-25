@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Pencil, Save, X, LogOut, Check } from 'lucide-react';
+import { Button } from '@components/ui/Button';
 
 export default function ProfileSettingPage() {
   const { user } = useAuth();
@@ -89,12 +90,18 @@ export default function ProfileSettingPage() {
     const isModified = formValues[fieldKey] !== originalValues[fieldKey];
 
     return (
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-[24px] border-2 transition-all duration-300 ${
-        isModified ? 'bg-primary-bg border-primary/50' : 'bg-cream border-primary-light/20'
-      }`}>
-        <div className="flex-1 mb-2 sm:mb-0">
-          <p className="font-headline text-xs text-primary-dark/60 uppercase tracking-wider mb-2">{label}</p>
-          
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between py-4 px-6 border-b border-slate-100 last:border-0 transition-colors duration-200 ${isModified ? 'bg-slate-50/50' : 'hover:bg-slate-50/30'}`}>
+        
+        {/* Label Area */}
+        <div className="w-full sm:w-1/3 mb-2 sm:mb-0 flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-500">{label}</span>
+          {isModified && !isEditing && (
+            <span className="w-2 h-2 rounded-full bg-emerald-500" title="Unsaved changes" />
+          )}
+        </div>
+
+        {/* Input / Value Area */}
+        <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           {isEditing ? (
             <input
               type={type}
@@ -105,130 +112,130 @@ export default function ProfileSettingPage() {
                 if (e.key === 'Enter') handleInlineSave(fieldKey);
                 if (e.key === 'Escape') handleInlineCancel();
               }}
-              className="w-full sm:w-2/3 bg-white border-2 border-primary-light/50 rounded-[16px] px-4 py-3 font-body text-primary-dark focus:outline-none focus:border-primary focus:shadow-focus min-h-[56px]"
+              // Clinical Input Styling
+              className="w-full sm:max-w-md h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10"
             />
           ) : (
-            <p className={`font-body text-base ${!formValues[fieldKey] ? 'text-primary-dark/50 italic' : 'text-primary-dark font-medium'}`}>
+            <span className={`text-sm ${!formValues[fieldKey] ? 'text-slate-400 italic' : 'text-slate-900 font-medium truncate'}`}>
               {formValues[fieldKey] || 'Not set'}
-            </p>
+            </span>
           )}
-        </div>
 
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          {isEditing ? (
-            <>
-              <button onClick={() => handleInlineSave(fieldKey)} aria-label={`Save ${label}`} className="p-3 bg-primary text-white rounded-full hover:shadow-teal-glow transition-all hover:brightness-110 active:scale-95" title="Confirm">
-                <Check size={18} strokeWidth={3} />
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {isEditing ? (
+              <>
+                <button 
+                  onClick={() => handleInlineSave(fieldKey)} 
+                  className="flex items-center justify-center w-8 h-8 rounded-md bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                  title="Save"
+                >
+                  <Check size={16} strokeWidth={2.5} />
+                </button>
+                <button 
+                  onClick={handleInlineCancel} 
+                  className="flex items-center justify-center w-8 h-8 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                  title="Cancel"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => handleEditClick(fieldKey)} 
+                className="flex items-center justify-center w-8 h-8 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                title="Edit"
+              >
+                <Pencil size={16} strokeWidth={2} />
               </button>
-              <button onClick={handleInlineCancel} aria-label={`Cancel editing ${label}`} className="p-3 bg-surface-card border-2 border-primary-light/30 text-primary-dark rounded-full hover:bg-primary-bg transition-all active:scale-95" title="Cancel">
-                <X size={18} strokeWidth={3} />
-              </button>
-            </>
-          ) : (
-            <button 
-              onClick={() => handleEditClick(fieldKey)} 
-              aria-label={`Edit ${label}`}
-              className="p-3 text-primary-dark/60 hover:text-primary hover:bg-primary-bg rounded-full transition-all active:scale-95"
-              title="Edit"
-            >
-              <Pencil size={18} strokeWidth={2.5} />
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-surface-base p-4 sm:p-6 lg:p-8 relative">
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 relative">
       
-      {/* ── Page Header ── */}
-      <div className="max-w-6xl mx-auto mb-6">
-        <h1 className="font-headline text-h2 font-extrabold text-primary-dark">Account Settings</h1>
-      </div>
-
-      {/* ── Bento Grid Layout ── */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* ── Page Container ── */}
+      <div className="w-full max-w-5xl mx-auto">
         
-        {/* ── Left Column (3/4 Width): Form Fields ── */}
-        <div className="md:col-span-3">
-          <div className="bg-surface-card border-2 border-primary-light/30 rounded-[32px] p-6 md:p-8 shadow-card flex flex-col gap-6">
-            <h2 className="text-h3 font-headline font-extrabold text-primary-dark mb-2">Personal Information</h2>
-            
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Account Settings</h1>
+        </div>
+
+        {/* ── Main Form Card ── */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+          
+          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 className="text-sm font-semibold text-slate-900">Personal Information</h2>
+            <p className="text-xs text-slate-500 mt-1">Update your basic profile details and contact information.</p>
+          </div>
+          
+          <div className="flex flex-col">
             <EditableRow label="Full Name" fieldKey="fullName" />
             <EditableRow label="Email Address" fieldKey="email" type="email" />
             <EditableRow label="Phone Number" fieldKey="phone" type="tel" />
-            
           </div>
-        </div>
 
-        {/* ── Right Column (1/4 Width): Actions ── */}
-        <div className="md:col-span-1 flex flex-col gap-4">
-          <div className="bg-surface-card border-2 border-primary-light/30 rounded-[32px] p-5 shadow-card flex flex-col gap-3">
+          {/* ── Card Footer Actions ── */}
+          <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
             
             <button 
-              onClick={() => setModalConfig({ isOpen: true, type: 'save' })}
-              disabled={!isDirty}
-              className={`flex items-center justify-center gap-3 w-full p-4 rounded-full font-headline font-bold transition-all duration-300 min-h-[72px] ${
-                isDirty 
-                  ? 'bg-gradient-to-r from-accent to-accent-light text-primary-dark hover:brightness-110 shadow-accent-glow active:scale-95' 
-                  : 'bg-primary-bg text-primary-dark/40 cursor-not-allowed border-2 border-primary-light/20'
-              }`}
+              onClick={handleExitRequest}
+              className="w-full sm:w-auto px-4 py-2 flex items-center justify-center gap-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
             >
-              <Save size={20} strokeWidth={2.5} />
+              <LogOut size={16} />
+              Exit Settings
+            </button>
+
+            <button 
+              onClick={() => setModalConfig({ isOpen: true, type: 'save' })}
+              disabled={!isDirty || editingField !== null}
+              className="w-full sm:w-auto px-6 py-2 flex items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 text-white hover:bg-slate-800"
+            >
+              <Save size={16} />
               Save Changes
             </button>
             
-            <div className="h-px w-full bg-primary-light/30 my-2 border-b border-dashed" />
-
-            <button 
-              onClick={handleExitRequest}
-              className="flex items-center justify-center gap-3 w-full p-4 rounded-full hover:bg-coral-light/20 text-primary-dark font-headline font-bold transition-colors group min-h-[56px] active:scale-95 border-2 border-transparent hover:border-coral/30"
-            >
-              <LogOut size={20} strokeWidth={2.5} className="text-primary-dark/60 group-hover:text-coral transition-colors" />
-              <span className="group-hover:text-coral transition-colors">Exit Settings</span>
-            </button>
-
           </div>
         </div>
-
       </div>
 
-      {/* ── Confirmation Modal Overlay ── */}
+      {/* ── Clinical Confirmation Modal ── */}
       {modalConfig.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-primary-dark/80 backdrop-blur-md p-4 transition-all duration-300">
-          <div className="w-full max-w-[448px] bg-surface-card rounded-[32px] border-4 border-primary-light/30 shadow-lg p-8 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
             
-            {/* Decorative circles */}
-            <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-accent-light/30 rounded-full blur-2xl z-0"></div>
-            
-            <div className="relative z-10">
-              <h3 className="text-h3 font-headline font-extrabold text-primary-dark mb-4">
-                {modalConfig.type === 'save' ? 'Save user profile?' : 'Save changes before exit?'}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                {modalConfig.type === 'save' ? 'Save changes?' : 'Unsaved changes'}
               </h3>
               
-              <p className="font-body text-base text-primary-dark/80 mb-8 bg-primary-bg p-4 rounded-[16px] border border-primary-light/20">
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">
                 {modalConfig.type === 'save' 
-                  ? 'You are about to update your personal information. Are you sure you want to apply these changes to your account?' 
+                  ? 'Are you sure you want to apply these changes to your account profile?' 
                   : 'You have unsaved changes in your profile settings. Would you like to save them before leaving this page?'}
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-end">
+              <div className="flex flex-col sm:flex-row gap-3 justify-end">
                 <button 
                   onClick={() => setModalConfig({ isOpen: false, type: null })}
-                  className="px-6 py-3 font-headline font-bold text-primary-dark hover:bg-primary-bg rounded-full transition-colors active:scale-95 border-2 border-primary-light/30 sm:w-auto w-full order-3 sm:order-1"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors w-full sm:w-auto order-3 sm:order-1"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={executeDiscard}
-                  className="px-6 py-3 font-headline font-bold text-coral bg-cream border-2 border-coral shadow-sm hover:shadow-coral-glow hover:bg-coral hover:text-white rounded-full transition-all active:scale-95 sm:w-auto w-full order-2 sm:order-2"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm w-full sm:w-auto order-2 sm:order-2"
                 >
                   Discard
                 </button>
                 <button 
                   onClick={executeSave}
-                  className="px-6 py-3 font-headline font-extrabold text-white bg-primary hover:brightness-110 shadow-teal-glow rounded-full transition-all active:scale-95 sm:w-auto w-full order-1 sm:order-3"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm w-full sm:w-auto order-1 sm:order-3"
                 >
                   Save
                 </button>

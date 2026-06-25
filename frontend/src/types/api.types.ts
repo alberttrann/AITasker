@@ -30,31 +30,30 @@ export interface UserDto {
   roles:                    string[];
   activeRole:              ActiveRole;
   clientSubtype:           ClientSubtype | null;
-  subscription_client_tier: SubscriptionTier;
-  subscription_expert_tier: SubscriptionTier;
-  sub_client_expires_at:    string | null;
-  sub_expert_expires_at:    string | null;
+  subscriptionTier:        SubscriptionTier;
+  subscriptionExpires:     string | null;
   sepay_bank_account_xid:   string | null;
   bank_linked_at:           string | null;
   self_technical:           boolean;
   is_active:                boolean;
+  activeRoleProfile:       ActiveRoleProfile | null;
   createdAt:               string;
 }
 
 export interface WalletDto {
   id:                string;
-  user_id:           string;
-  available_balance: number;
-  locked_balance:    number;
+  userId:           string;
+  availableBalance: number;
+  lockedBalance:    number;
 }
 
 export interface WalletTransactionDto {
   id:               string;
-  wallet_id:        string;
+  walletId:        string;
   amount:           number;
-  transaction_type: WalletTxType;
-  reference_id:     string | null;
-  created_at:       string;
+  transactionType: WalletTxType;
+  referenceId:     string | null;
+  createdAt:       string;
 }
 
 export interface VirtualAccountDto {
@@ -80,12 +79,21 @@ export interface WithdrawalRequestDto {
 }
 
 export interface ExpertProfileDto {
-  user_id:                string;
+  userId:                string;
   bio:                    string | null;
-  engagement_model:       EngagementModel | null;
-  stack_tags_json:        string[];
-  archetype_history_json: object[];
+  engagementModel:       EngagementModel | null;
+  stackTagsJson:         string[];
+  archetypeHistoryJson:  object[];
 }
+
+export interface ClientProfileDto {
+  userId:       string;
+  companyName:  string | null;
+  industry:     string | null;
+  ceoName:      string | null;
+}
+
+export type ActiveRoleProfile = ExpertProfileDto | ClientProfileDto;
 
 export interface ExpertDomainDepthDto {
   id:                string;

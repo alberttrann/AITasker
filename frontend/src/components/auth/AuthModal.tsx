@@ -3,6 +3,9 @@ import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '@hooks/use-auth';
 import { RegisterRoleSwitcher } from '@components/layout/RoleSwitcher';
+import { Button } from '@components/ui/Button';
+import { Input, Label } from '@components/ui/Input';
+import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
@@ -42,6 +45,8 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+  
+  const rememberedEmail = typeof window !== 'undefined' ? localStorage.getItem('aitasker-remembered-email') || '' : '';
 
   const { login, register, isAuthenticated } = useAuth();
 
@@ -118,10 +123,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
         {/* ── Sign In Form ── */}
         {mode === 'signin' && (
           <Formik
-            initialValues={{ email: '', password: '' }}
+            initialValues={{ email: rememberedEmail, password: '', rememberMe: !!rememberedEmail }}
             validationSchema={loginSchema}
             onSubmit={(values, { setSubmitting }) => {
-              login.mutate(values, {
+              if (values.rememberMe) {
+                localStorage.setItem('aitasker-remembered-email', values.email);
+              } else {
+                localStorage.removeItem('aitasker-remembered-email');
+              }
+              
+              login.mutate({ email: values.email, password: values.password }, {
                 onSettled: () => setSubmitting(false),
                 onSuccess: () => onClose(),
               });
@@ -130,21 +141,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
             {({ isSubmitting }) => (
               <Form className="space-y-4" noValidate>
                 <div>
-                  <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="email">
-                    Email address
-                  </label>
+                  <Label htmlFor="email">Email address</Label>
                   <Field name="email">
                     {({ field, meta }: any) => (
-                      <input
+                      <Input
                         {...field}
                         id="email"
                         type="email"
                         placeholder="you@example.com"
                         disabled={login.isPending}
                         onFocus={() => login.isError && login.reset()}
-                        className={`w-full bg-surface border border-outline-variant rounded py-2 px-3 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                          meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                        }`}
+                        error={meta.touched && !!meta.error}
                       />
                     )}
                   </Field>
@@ -152,22 +159,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                 </div>
 
                 <div>
-                  <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="password">
-                    Password
-                  </label>
+                  <Label htmlFor="password">Password</Label>
                   <Field name="password">
                     {({ field, meta }: any) => (
                       <div className="relative">
-                        <input
+                        <Input
                           {...field}
                           id="password"
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
                           disabled={login.isPending}
                           onFocus={() => login.isError && login.reset()}
-                          className={`w-full bg-surface border border-outline-variant rounded py-2 pl-3 pr-10 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                            meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                          }`}
+                          error={meta.touched && !!meta.error}
+                          className="pr-10"
                         />
                         <button
                           type="button"
@@ -194,21 +198,25 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <input id="remember-me" type="checkbox" className="h-4 w-4 text-primary-container focus:ring-primary-container border-outline-variant rounded bg-surface" />
-                    <label className="ml-2 block font-label-sm text-label-sm text-on-surface-variant" htmlFor="remember-me">Remember me</label>
+                    <Field name="rememberMe" type="checkbox">
+                      {({ field }: any) => (
+                        <Checkbox id="remember-me" {...field} />
+                      )}
+                    </Field>
+                    <Label className="ml-2 mb-0" htmlFor="remember-me">Remember me</Label>
                   </div>
                   <a href="#" className="font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors">Forgot Password?</a>
                 </div>
 
                 {loginError && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">{loginError}</div>}
 
-                <button
+                <Button
                   type="submit"
                   disabled={login.isPending || isSubmitting}
-                  className="w-full bg-tertiary text-white hover:opacity-80 font-label-md text-label-md py-3 px-4 rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                  className="w-full py-3 px-4 rounded-lg shadow-sm hover:shadow-md mt-2"
                 >
                   {login.isPending ? 'Signing in...' : 'Sign in'}
-                </button>
+                </Button>
               </Form>
             )}
           </Formik>
@@ -237,19 +245,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="fullName">Full name</label>
+                      <Label htmlFor="fullName">Full name</Label>
                     <Field name="fullName">
                       {({ field, meta }: any) => (
-                        <input
+                        <Input
                           {...field}
                           id="fullname"
                           type="text"
                           placeholder="Jane Doe"
                           disabled={register.isPending}
                           onFocus={() => register.isError && register.reset()}
-                          className={`w-full bg-surface border border-outline-variant rounded py-2 px-3 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                            meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                          }`}
+                          error={meta.touched && !!meta.error}
                         />
                       )}
                     </Field>
@@ -257,19 +263,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   </div>
 
                   <div>
-                    <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="email">Email address</label>
+                    <Label htmlFor="email">Email address</Label>
                     <Field name="email">
                       {({ field, meta }: any) => (
-                        <input
+                        <Input
                           {...field}
                           id="email"
                           type="email"
                           placeholder="you@example.com"
                           disabled={register.isPending}
                           onFocus={() => register.isError && register.reset()}
-                          className={`w-full bg-surface border border-outline-variant rounded py-2 px-3 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                            meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                          }`}
+                          error={meta.touched && !!meta.error}
                         />
                       )}
                     </Field>
@@ -277,20 +281,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   </div>
 
                   <div>
-                    <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="password">Password</label>
+                    <Label htmlFor="password">Password</Label>
                     <Field name="password">
                       {({ field, meta }: any) => (
                         <div className="relative">
-                          <input
+                          <Input
                             {...field}
                             id="password"
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
                             disabled={register.isPending}
                             onFocus={() => register.isError && register.reset()}
-                            className={`w-full bg-surface border border-outline-variant rounded py-2 pl-3 pr-10 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                              meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                            }`}
+                            error={meta.touched && !!meta.error}
+                            className="pr-10"
                           />
                           <button
                             type="button"
@@ -311,21 +314,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   </div>
 
                   <div>
-                    <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="phone">
+                    <Label htmlFor="phone">
                       Phone number <span className="text-on-surface-variant font-normal">(optional)</span>
-                    </label>
+                    </Label>
                     <Field name="phone">
                       {({ field, meta }: any) => (
-                        <input
+                        <Input
                           {...field}
                           id="phone"
                           type="tel"
                           placeholder="+1 (555) 000-0000"
                           disabled={register.isPending}
                           onFocus={() => register.isError && register.reset()}
-                          className={`w-full bg-surface border border-outline-variant rounded py-2 px-3 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                            meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                          }`}
+                          error={meta.touched && !!meta.error}
                         />
                       )}
                     </Field>
@@ -333,21 +334,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   </div>
 
                     <div className="md:col-span-2">
-                      <label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="taxCode">
+                      <Label htmlFor="taxCode">
                         Tax code <span className="text-on-surface-variant font-normal">(optional)</span>
-                      </label>
+                      </Label>
                     <Field name="taxCode">
                       {({ field, meta }: any) => (
-                        <input
+                        <Input
                           {...field}
                           id="taxCode"
                           type="text"
                           placeholder="e.g. 123456789"
                           disabled={register.isPending}
                           onFocus={() => register.isError && register.reset()}
-                          className={`w-full bg-surface border border-outline-variant rounded py-2 px-3 font-body-md text-body-md text-on-surface transition-shadow focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none disabled:opacity-50 ${
-                            meta.touched && meta.error ? 'border-error focus:border-error focus:ring-error' : ''
-                          }`}
+                          error={meta.touched && !!meta.error}
                         />
                       )}
                     </Field>
@@ -357,13 +356,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
 
                   {registerError && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">{registerError}</div>}
 
-                  <button
+                  <Button
                     type="submit"
                     disabled={register.isPending || isSubmitting}
-                    className="w-full bg-tertiary text-white hover:opacity-80 font-label-md text-label-md py-3 px-4 rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 mt-2"
+                    className="w-full py-3 px-4 rounded-lg shadow-sm hover:shadow-md mt-2"
                   >
                     {register.isPending ? 'Creating account...' : `Sign up as ${values.role === 'EXPERT' ? 'Expert' : 'Client'}`}
-                  </button>
+                  </Button>
                 </Form>
               )}
             </Formik>

@@ -1,9 +1,11 @@
+import { Routes, Route } from 'react-router-dom';
 import TopNav from "@/components/layout/TopNav"
+import ProfilePage from "@/components/pages/UserProfilePage";
+import ProfileSettingPage from "@/components/pages/ProfileSettingPage";
+import WalletPage from "@/components/wallet/WalletPage";
 
-export default function ExpertDashboard() {
+function ExpertOverview() {
   return (
-    <>
-    <TopNav />
     <div className="p-md sm:p-lg bg-background min-h-screen">
       <div className="bg-surface rounded-xl border border-outline-variant p-md shadow-sm">
         <h1 className="font-headline-md text-headline-md text-primary mb-xs">
@@ -13,6 +15,21 @@ export default function ExpertDashboard() {
           You are currently viewing the Expert overview page.
         </p>
       </div>
+    </div>
+  );
+}
+
+export default function ExpertDashboard() {
+  return (
+    <>
+    <TopNav />
+    <div className="bg-background min-h-screen">
+      <Routes>
+        <Route index element={<ExpertOverview />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="account-setting" element={<ProfileSettingPage />} />
+        <Route path="wallet" element={<WalletPage />} />
+      </Routes>
     </div>
     </>
   );
