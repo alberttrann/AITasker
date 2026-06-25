@@ -20,7 +20,7 @@ export default function SubscriptionActivate() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const price = 500000;
+  const price = 5000;
   const canAfford = availableBalance >= price;
 
   const activateMutation = useMutation({
@@ -38,9 +38,9 @@ export default function SubscriptionActivate() {
       const { data: userRes } = await apiClient.get<UserDto>('/users/me');
       store.setUser(userRes);
       
-      // 3. Invalidate queries to get updated balance and user info
+      // 3. Invalidate user query and await wallet refetch so balance is fresh
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      await queryClient.refetchQueries({ queryKey: ['wallet'] });
 
       setIsSuccess(true);
       setErrorMsg(null);
@@ -81,7 +81,7 @@ export default function SubscriptionActivate() {
           <div className="bg-slate-50 rounded-2xl p-4 mb-8 text-left border border-slate-100">
             <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200">
               <span className="text-sm font-medium text-slate-500">New Balance</span>
-              <span className="font-bold text-slate-900">{formatVND(availableBalance - price)}</span>
+              <span className="font-bold text-slate-900">{formatVND(availableBalance)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-slate-500">Expires</span>
@@ -102,16 +102,16 @@ export default function SubscriptionActivate() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-50/50">
+    <div className="min-h-[80vh] w-full flex flex-col justify-center py-8 sm:py-12">
       
       {/* Background Orbs */}
       <div className="fixed top-1/4 left-1/4 w-[400px] h-[400px] bg-emerald-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
 
-      <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-stretch justify-center relative z-10">
+      <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-8 items-stretch justify-center relative z-10">
         
         {/* Left Side: Copy & Info */}
-        <div className="flex-1 flex flex-col justify-center px-4 md:px-8">
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-widest rounded-full w-fit mb-6 shadow-sm">
             <Zap size={14} /> Power Up Your Workflow
           </div>
@@ -120,7 +120,7 @@ export default function SubscriptionActivate() {
             Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Client Pro</span> Experience
           </h1>
           
-          <p className="text-lg text-slate-600 mb-8 max-w-lg leading-relaxed">
+          <p className="text-lg text-slate-600 mb-8 leading-relaxed">
             Elevate your project management with AI-driven elicitation, priority expert matching, and secure milestone tracking.
           </p>
 
@@ -148,7 +148,7 @@ export default function SubscriptionActivate() {
         </div>
 
         {/* Right Side: Pricing Card */}
-        <div className="flex-[0.8] max-w-md w-full mx-auto">
+        <div className="w-full lg:w-[380px] lg:shrink-0 mx-auto lg:mx-0">
           <div className="bg-white rounded-3xl shadow-2xl shadow-emerald-500/10 border border-slate-200 overflow-hidden flex flex-col h-full relative">
             
             {/* Top accent line */}

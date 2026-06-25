@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, Mail, Wallet, ChevronRight } from 'lucide-react'; 
+import { Bell, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User } from 'lucide-react'; 
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
@@ -66,6 +66,15 @@ export default function TopNav() {
 
 // 2. Format it for display
 const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN';
+const RoleIcon = 
+  rawRole === 'CEO' ? Briefcase :
+  rawRole === 'EXPERT' ? Award :
+  rawRole === 'TECH_TEAM' ? Code :
+  rawRole === 'ADMIN' ? Shield :
+  User;
+
+  // 3. Subscription tier
+  const isPro = user?.subscriptionTier === 'pro';
   
   // Real balances via useWallet hook
   const { data: wallet } = useWallet();
@@ -131,7 +140,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
                 </button>
 
                 {activeDropdown === 'wallet' && (
-                  <div className="absolute right-0 top-full mt-3 w-64 bg-surface border border-primary/10 shadow-md rounded-[16px] overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                  <div className="absolute right-0 top-full mt-3 w-64 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     {/* Top Section: Balances (Clickable) */}
                     <Link
                       to={`${dashboardRoute}/wallet`}
@@ -181,25 +190,35 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
                 >
                   {initial}
                 </button>
-                {/* Overlapping Role Badge */}
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-tertiary text-white text-[10px] font-headline font-extrabold tracking-wider rounded-full border-2 border-surface shadow-sm whitespace-nowrap pointer-events-none">
-                  {roleDisplay}
+                {/* Overlapping Tier Badge */}
+                <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 text-[10px] font-headline font-extrabold tracking-wider rounded-full border-2 border-surface shadow-sm whitespace-nowrap pointer-events-none ${
+                  isPro
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                    : 'bg-slate-400 text-white'
+                }`}>
+                  {isPro ? 'PRO' : 'FREE'}
                 </div>
 
                 {/* Dropdown Menu */}
                 {activeDropdown === 'profile' && (
-                  <div className="absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-[24px] py-3 flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-xl pb-3 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                    {/* Role Info — Non-interactive */}
+                    <div className="px-5 py-3 bg-accent text-primary-dark cursor-default select-none flex items-center justify-center gap-2 mb-2">
+                      <RoleIcon size={16} strokeWidth={2.5} />
+                      <span className="text-sm font-headline font-extrabold tracking-wide">{roleDisplay}</span>
+                    </div>
+
                     <Link
                       to={`${dashboardRoute}/profile`} 
                       onClick={() => setActiveDropdown(null)} 
-                      className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-[12px]"
+                      className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                     >
                       Profile
                     </Link>
                     <Link
                       to={`${dashboardRoute}/account-setting`}
                       onClick={() => setActiveDropdown(null)}
-                      className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-[12px]"
+                      className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                     >
                       Account Configuration
                     </Link>
@@ -212,7 +231,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
                         setActiveDropdown(null);
                         handleSignOut();
                       }}
-                      className="px-5 py-3 text-sm text-left font-headline font-bold text-error hover:bg-error/10 transition-colors mx-2 rounded-[12px]"
+                      className="px-5 py-3 text-sm text-left font-headline font-bold text-error hover:bg-error/10 transition-colors mx-2 rounded-lg"
                     >
                       Sign Out
                     </button>
@@ -240,7 +259,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
       cancelText="Cancel"
       isDestructive
     >
-      Are you sure you want to sign out? You will need to log in again to access your dashboard.
+      Are you sure you want to sign out?
     </ConfirmModal>
     </>
   );

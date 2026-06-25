@@ -13,8 +13,8 @@ export default function WalletPage() {
 
   // Real balances via useWallet hook
   const { data: wallet } = useWallet();
-  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.locked_balance ?? 0;
+  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.availableBalance ?? 0;
+  const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.lockedBalance ?? 0;
 
   return (
     <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
@@ -36,10 +36,10 @@ export default function WalletPage() {
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mb-6">
           
           {/* Header: Profile */}
-          <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center gap-5 bg-slate-50/50">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
             
-            {/* Slightly larger avatar for better visual balance */}
-            <div className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-bold shadow-sm">
+            {/* Standard sized avatar */}
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900 text-white flex items-center justify-center text-lg font-bold shadow-sm">
               {initial}
             </div>
             
