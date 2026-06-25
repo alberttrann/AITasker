@@ -17,6 +17,8 @@ import { customAlphabet, nanoid } from 'nanoid';
 import { VAStatus } from '@common/enums/va-status.enum';
 import { User } from '@prisma/client';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
+import axios from 'axios';
+import { generateVaNumber } from '@shared/ledger/va-generator';
 @Injectable()
 export class AuthService {
   // Mapping roles to active roles
@@ -74,29 +76,41 @@ export class AuthService {
         },
       });
 
-      // Create custom nanoid for generating VANumber
-      const nanoid = customAlphabet(
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-        8,
-      );
-
-      const normalizeVANumber = (VAEntityType.WALLET_TOPUP + nanoid()).replaceAll('_', '');
-
       // Create and assign VA to user
       const virtualAccount = await tx.virtualAccount.create({
         data: {
           entityType: VAEntityType.WALLET_TOPUP,
           entityId: user.id,
-          vaNumber: normalizeVANumber,
+          vaNumber: generateVaNumber(VAEntityType.WALLET_TOPUP),
           fixedAmount: null,
           status: VAStatus.ACTIVE,
         },
       });
 
-      return {
-        id: user.id,
-        email: user.email,
-      };
+      // Checking for the tax number to verify Business Client
+      const taxCode = registerDto.taxCode;
+      if (taxCode) {
+        try {
+          const vietQRTaxAPI = `https://api.vietqr.io/v2/business/${taxCode}`;
+          const response = await axios.get(vietQRTaxAPI);
+
+          if (response.data.code === '00') {
+            await tx.clientProfile.update({
+              where: {
+                userId: user.id,
+              },
+              data: {
+                companyName: response.data.data.name,
+              },
+            });
+          }
+        } catch {}
+      }
+
+      const access_token = await this.jwtGeneratePayload(user);
+      const refresh_token = await this.jwtGenerateRefreshPayload(user);
+
+      return { access_token, refresh_token };
     });
   }
 
@@ -122,8 +136,11 @@ export class AuthService {
 
     const accessToken = await this.jwtGeneratePayload(user);
 
+    const refreshToken = await this.jwtGenerateRefreshPayload(user);
+
     return {
       access_token: accessToken,
+      refresh_token: refreshToken,
     };
   }
 
@@ -159,19 +176,35 @@ export class AuthService {
     };
   }
 
-  async refreshToken(userId: string) {
+  async refreshToken(tokenString: string) {
+    let payload;
+    try {
+      payload = await this.jwtService.verifyAsync(tokenString);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Not a refresh token');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: {
-        id: userId,
+        id: payload.sub,
       },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found!');
+      throw new UnauthorizedException('User not found');
     }
 
     const accessToken = await this.jwtGeneratePayload(user);
-    return { access_token: accessToken };
+    const refreshToken = await this.jwtGenerateRefreshPayload(user);
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    };
   }
 
   async jwtGeneratePayload(user: User) {
@@ -186,5 +219,15 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(payload);
     return accessToken;
+  }
+
+  async jwtGenerateRefreshPayload(user: User) {
+    const payload = {
+      sub: user.id,
+      type: 'refresh',
+    };
+
+    const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
+    return refreshToken;
   }
 }
