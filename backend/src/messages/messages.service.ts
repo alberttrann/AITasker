@@ -1,4 +1,4 @@
-import { PrismaService } from "prisma/prisma.service";
+import { PrismaService } from "../database/prisma.service";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 
