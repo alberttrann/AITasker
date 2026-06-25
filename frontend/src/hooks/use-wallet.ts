@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient } from '@lib/api-client';
 import { useAuthStore } from '@store/auth.store';
 import type { WalletDto, WalletTransactionDto } from '@t/api.types';
@@ -51,5 +51,17 @@ export function useSubscriptionStatus() {
       return data;
     },
     enabled: isAuthenticated,
+  });
+}
+
+export function useTopUpWallet() {
+  return useMutation({
+    mutationFn: async (amount: number) => {
+      const { data } = await apiClient.post<{
+        qrCodeUrl: string;
+        paymentReference: string;
+      }>('/wallets/virtual-accounts/topup', { amount });
+      return data;
+    },
   });
 }

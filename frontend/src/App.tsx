@@ -4,12 +4,8 @@ import { Route, Routes } from 'react-router-dom';
 import { GuestRoute, ProtectedRoute, RoleRoute } from '@lib/route-guards';
 
 // Public pages
-import LandingPage        from '@components/pages/LandingPage';
+import LandingPage        from '@/components/pages/LandingPage';
 import ErrorPage            from '@components/pages/ErrorPage';
-
-// Guest-only auth pages
-import LoginPage        from '@features/auth/LoginPage';
-import RegisterPage     from '@features/auth/RegisterPage';
 
 // Tech Team has a public registration route (no auth, link-based)
 import { HandoffRegister }  from '@features/tech-team/auth/HandoffRegister';
@@ -20,22 +16,19 @@ import CeoDashboard     from '@features/ceo/CeoDashboard';
 import ExpertDashboard   from '@features/expert/ExpertDashboard';
 import TechTeamDashboard from '@features/tech-team/TechTeamDashboard';
 import AdminDashboard    from '@features/admin/AdminDashboard';
+import ProfilePage from './components/pages/UserProfilePage';
+import ProfileSettingPage from './components/pages/ProfileSettingPage';
+import WalletPage from './components/wallet/WalletPage';
 
 export default function App() {
   return (
     <Routes>
 
       {/* ── Public ─────────────────────────────────────────────────────── */}
-      <Route path="/"                         element={<LandingPage />} />
+      <Route path="/" element={<LandingPage />} />
       {/* Handoff link lands here — public so TECH_TEAM can register */}
       <Route path="/register/handoff/:token"  element={<HandoffRegister />} />
       <Route path="/register/handoff/expired" element={<LinkExpiredError />} />
-
-      {/* ── Guest only (logged-in users are redirected away) ─────────── */}
-      <Route element={<GuestRoute />}>
-        <Route path="/login"    element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-      </Route>
 
       {/* ── Authenticated ────────────────────────────────────────────── */}
       <Route element={<ProtectedRoute />}>
@@ -59,7 +52,6 @@ export default function App() {
           {/* /admin/* — all Admin screens will nest here */}
           <Route path="/admin/*" element={<AdminDashboard />} />
         </Route>
-
       </Route>
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}
