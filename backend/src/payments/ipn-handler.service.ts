@@ -1,6 +1,7 @@
 import { EngagementState } from '@common/enums/engagement-state.enum';
 import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { PayGatedDocumentReleaseState } from '@common/enums/paygated-document-release-state.enum';
+import { SignOffAuthority } from '@common/enums/sign-off-auth.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { VAStatus } from '@common/enums/va-status.enum';
@@ -36,13 +37,10 @@ export class IpnHandlerService {
       switch (userVirtualAccount.entityType) {
         case VAEntityType.MILESTONE:
           return this.handleMilestoneTopup(tx, userVirtualAccount, referenceCode, transferAmount);
-          break;
         case VAEntityType.SERVICE:
           return this.handleServiceTopup(tx, userVirtualAccount, referenceCode, transferAmount);
-          break;
         default:
           return this.handleWalletTopup(tx, userVirtualAccount, referenceCode, transferAmount);
-          break;
       }
     });
   }
@@ -219,7 +217,63 @@ export class IpnHandlerService {
     referenceCode: string,
     transferAmount: BigInt,
   ) {
-    
+    // Guards
+
+    // Check for the transferAmoun alignment
+    if (userVirtualAccount.fixedAmount !== transferAmount) {
+      throw new ConflictException('The transfer amount is not align with the fixed amoun');
+    }
+
+    // Check for the expires of VA Account on Service branch
+    if (userVirtualAccount.expiresAt && userVirtualAccount.expiresAt < new Date()) {
+      throw new ConflictException('VA has expired, generate a new one');
+    }
+
+    // Check for the active of the VA Account
+    if (userVirtualAccount.status !== VAStatus.ACTIVE) {
+      throw new ConflictException('This VA Account is not Active');
+    }
+
+    const engagement = await tx.engagement.findUnique({
+      where: {
+        id: userVirtualAccount.entityId,
+      },
+    });
+
+    if (!engagement) throw new ConflictException('Engagement not found');
+
+    // Handle idempotency get blocked by no clientId tracing through -> Fix later
+
+    await tx.milestone.create({
+      data: {
+        engagementId: engagement.id,
+        milestoneNumber: 1,
+        signOffAuthority: SignOffAuthority.CEO,
+        paymentAmountVnd: Number(transferAmount),
+        state: MilestoneState.FUNDED,
+        fundedAt: new Date(),
+      },
+    });
+
+    await tx.engagement.update({
+      where: {
+        id: engagement.id,
+      },
+      data: {
+        state: EngagementState.ACTIVE,
+      },
+    });
+
+    await tx.virtualAccount.update({
+      where: {
+        id: userVirtualAccount.id,
+      },
+      data: {
+        status: VAStatus.USED,
+      },
+    });
+
+    return { success: true };
   }
 
   async handleWalletTopup(
