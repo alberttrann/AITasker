@@ -18,7 +18,10 @@ import { ListingsModule } from './listings/listings.module';
 import { EngagementsModule } from './engagements/engagements.module'; 
 import { BidsModule } from './bids/bids.module';                     
 import { SubmissionsModule } from './submissions/submissions.module'; 
-
+import { MessagesModule } from './messages/messages.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { DisputesModule } from './disputes/disputes.module';
+import { AdminModule } from './admin/admin.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -42,13 +45,13 @@ import { SubmissionsModule } from './submissions/submissions.module';
     ListingsModule,      
     EngagementsModule,   
     BidsModule,          
-    // DisputesModule,    
+    DisputesModule,    
     // ─── M3 modules (Minh Thức) ───────────────────────────────────────────
     MilestonesModule,
     SubmissionsModule,   
-    // MessagesModule,
-    // ReviewsModule,
-    // AdminModule,
+    MessagesModule,
+    ReviewsModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })
