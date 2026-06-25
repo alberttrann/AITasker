@@ -38,21 +38,21 @@ export const useAuthStore = create<AuthState>()(
       clientSubtype:   null,
 
       setTokens: (access, refresh) =>
-        set({ accessToken: access, refreshToken: refresh, isAuthenticated: true }),
+        set({ accessToken: access, refreshToken: refresh }),
 
       setUser: (user) =>
         set({
           user,
           isAuthenticated: true,
-          activeRole:    user.active_role,
-          clientSubtype: user.client_subtype ?? null,
+          activeRole:    user.activeRole,
+          clientSubtype: user.clientSubtype ?? null,
         }),
 
       switchRole: (role, subtype) =>
         set((s) => ({
           activeRole:    role,
           clientSubtype: subtype ?? null,
-          user:          s.user ? { ...s.user, active_role: role, client_subtype: subtype ?? null } : s.user,
+          user:          s.user ? { ...s.user, activeRole: role, clientSubtype: subtype ?? null } : s.user,
         })),
 
       logout: () =>
@@ -70,6 +70,10 @@ export const useAuthStore = create<AuthState>()(
       partialize: (s) => ({
         accessToken:  s.accessToken,
         refreshToken: s.refreshToken,
+        user:            s.user,             
+        isAuthenticated: s.isAuthenticated,  
+        activeRole:      s.activeRole,       
+        clientSubtype:   s.clientSubtype,    
       }),
     }
   )

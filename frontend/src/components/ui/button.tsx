@@ -1,41 +1,37 @@
-import * as React from "react";
-import { cn } from "@lib/utils";
+import * as React from "react"
+import { cn } from "@lib/utils"
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
+  size?: 'sm' | 'md' | 'lg';
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'default', ...props }, ref) => {
-    const variants = {
-      primary: "bg-zinc-900 text-white shadow-lg shadow-zinc-200 hover:bg-zinc-800 active:scale-[0.98]",
-      secondary: "bg-zinc-100 text-zinc-900 hover:bg-zinc-200",
-      outline: "border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50",
-      ghost: "bg-transparent text-zinc-900 hover:bg-zinc-100",
-    };
+  ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
+    const baseClasses = "inline-flex items-center justify-center font-headline rounded transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:pointer-events-none";
     
+    const variants = {
+      primary: "bg-primary text-white border-none hover:bg-primary-dark shadow-sm",
+      secondary: "bg-transparent text-primary border border-primary hover:bg-primary/5",
+      ghost: "bg-transparent text-secondary border-none hover:bg-primary-bg",
+      destructive: "bg-error text-white border-none hover:bg-red-600 shadow-sm",
+    };
+
     const sizes = {
-      default: "py-3.5 px-4 text-sm rounded-xl",
-      sm: "h-9 px-3 rounded-lg text-xs",
-      lg: "h-11 px-8 rounded-xl text-base",
-      icon: "h-10 w-10 rounded-xl",
+      sm: "px-[14px] py-[6px] text-[14px] h-[32px]",
+      md: "px-[22px] py-[10px] text-[14px] h-[42px]",
+      lg: "px-[28px] py-[12px] text-[16px] h-[48px]",
     };
 
     return (
       <button
         ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:pointer-events-none disabled:opacity-50",
-          variants[variant],
-          sizes[size],
-          className
-        )}
+        className={cn(baseClasses, variants[variant], sizes[size], className)}
         {...props}
       />
-    );
+    )
   }
-);
-Button.displayName = "Button";
+)
+Button.displayName = "Button"
 
-export { Button };
+export { Button }

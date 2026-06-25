@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@store/auth.store';
 import { apiClient } from '@lib/api-client';
 import type { AuthTokens, UserDto } from '@t/api.types';
-import type { ActiveRole, ClientSubtype } from '@t/enums';
+import type { ActiveRole, ClientSubtype, UserRoleItem } from '@t/enums';
 
 /**
  * useAuth — the single hook every component uses for auth actions.
@@ -15,44 +15,44 @@ export function useAuth() {
   const store        = useAuthStore();
 
 // Register
-  const register = useMutation({
-    mutationFn: async (creds: { fullname: string; email: string; phone?: string ;password: string ; role: ActiveRole}) => {
-      // Assuming your backend returns the same auth payload (tokens + user) upon registration
-      const { data } = await apiClient.post<AuthTokens & { user: UserDto }>(
-        '/auth/register',
-        creds
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      // Auto-login the user right after successful registration
-      store.setTokens(data.access_token, data.refresh_token);
-      store.setUser(data.user);
-      redirectByRole(data.user.active_role, data.user.client_subtype ?? undefined, navigate);
-    },
-  });
+ const register = useMutation({
+  mutationFn: async (creds: { fullName: string; email: string; phone?: string; taxCode?: string; password: string; roles: UserRoleItem }) => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
+      '/auth/register',
+      creds
+    );
+    return data;
+  },
+  onSuccess: async (data) => {
+    store.setTokens(data.access_token, data.refresh_token ?? '');
+    const { data: user } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(user);
+    redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
+  },
+});
  
   // Login 
-  const login = useMutation({
-    mutationFn: async (creds: { email: string; password: string }) => {
-      const { data } = await apiClient.post<AuthTokens & { user: UserDto }>(
-        '/auth/login',
-        creds
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      store.setTokens(data.access_token, data.refresh_token);
-      store.setUser(data.user);
-      redirectByRole(data.user.active_role, data.user.client_subtype ?? undefined, navigate);
-    },
-  });
+const login = useMutation({
+  mutationFn: async (creds: { email: string; password: string }) => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
+      '/auth/login',
+      creds
+    );
+    return data;
+  },
+  onSuccess: async (data) => {
+    store.setTokens(data.access_token, data.refresh_token ?? '');
+    const { data: user } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(user);
+    redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
+  },
+});
 
   // Logout 
   const logout = () => {
     store.logout();
     queryClient.clear();
-    navigate('/login');
+    navigate('/');
   };
 
   // Switch active role 
@@ -64,7 +64,7 @@ export function useAuth() {
     onSuccess: (user) => {
       store.setUser(user);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      redirectByRole(user.active_role, user.client_subtype ?? undefined, navigate);
+      redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
     },
   });
 
@@ -89,9 +89,9 @@ function redirectByRole(
   subtype:  ClientSubtype | undefined,
   navigate: ReturnType<typeof useNavigate>
 ) {
-  if (role === 'ADMIN')  { navigate('/admin');       return; }
+  if (role === 'CLIENT' && subtype === 'CEO')       { navigate('/ceo');       return; }
+  if (role === 'CLIENT' && subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
   if (role === 'EXPERT') { navigate('/expert');      return; }
-  if (subtype === 'CEO')       { navigate('/ceo');       return; }
-  if (subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
+  if (role === 'ADMIN')  { navigate('/admin');       return; }
   navigate('/');
 }

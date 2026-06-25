@@ -36,25 +36,30 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    // Only attempt refresh on 401, and not on the refresh endpoint itself
+    // 1. Check if the failing request is a login or register request
+    // Note: Adjust '/login' and '/register' to match your exact backend endpoint URLs!
+    const isAuthRequest = original.url?.includes('/login') || original.url?.includes('/register');
+
+    // 2. Ignore the 401 if it's an auth request. Let the modal handle the error!
     if (
       error.response?.status !== 401 ||
       original._retry ||
-      original.url?.includes('/auth/refresh')
+      original.url?.includes('/auth/refresh') ||
+      isAuthRequest 
     ) {
       return Promise.reject(error);
     }
 
     const { refreshToken, setTokens, logout } = useAuthStore.getState();
 
+    // Now, this redirect will only happen if a logged-in user's session expires
     if (!refreshToken) {
       logout();
-      window.location.href = '/login';
+      window.location.href = '/'; // It's better to redirect to home ('/') when using an Auth Modal
       return Promise.reject(error);
     }
 
     if (isRefreshing) {
-      // Queue this request until the ongoing refresh completes
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
@@ -63,8 +68,8 @@ apiClient.interceptors.response.use(
       });
     }
 
-    original._retry  = true;
-    isRefreshing     = true;
+    original._retry = true;
+    isRefreshing = true;
 
     try {
       const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
@@ -80,12 +85,11 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null);
       logout();
-      window.location.href = '/login';
+      window.location.href = '/'; // Redirect to home here as well
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
     }
   }
 );
-
 export default apiClient;

@@ -80,6 +80,7 @@ export class UserService {
       phone: user.phone,
       roles: user.roles,
       activeRole: user.activeRole,
+      clientSubtype: user.clientSubtype,
       subscriptionTier: (user as any)[activeSubscriptionKey],
       activeRoleProfile: (user as any)[activeProfileKey],
       subscriptionExpires: (user as any)[activeSubscriptionExpiresKey],
