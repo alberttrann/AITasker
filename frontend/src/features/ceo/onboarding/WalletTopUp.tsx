@@ -28,7 +28,7 @@ export default function WalletTopUp({ showContinue = true, isModal = false }: Wa
 
   const handleGenerate = () => {
     const numericAmount = parseInt(amountInput.replace(/\./g, ''), 10);
-    if (!numericAmount || numericAmount < 10000) return;
+    if (!numericAmount || numericAmount < 1000) return;
     topUpMutation.mutate(numericAmount);
   };
 
@@ -53,7 +53,7 @@ export default function WalletTopUp({ showContinue = true, isModal = false }: Wa
             <Input 
               id="topup-amount"
               type="text" 
-              placeholder="MIN: 10.000 VND"
+              placeholder="MIN: 1.000 VND"
               value={amountInput}
               onChange={handleAmountChange}
               // Dynamic input height/text size
@@ -66,7 +66,7 @@ export default function WalletTopUp({ showContinue = true, isModal = false }: Wa
             className={`w-full font-semibold ${isModal ? 'max-w-sm py-3 text-base' : 'py-2.5'}`} 
             variant="primary"
             onClick={handleGenerate}
-            disabled={!amountInput || parseInt(amountInput.replace(/\./g, ''), 10) < 10000 || topUpMutation.isPending}
+            disabled={!amountInput || parseInt(amountInput.replace(/\./g, ''), 10) < 1000 || topUpMutation.isPending}
             isLoading={topUpMutation.isPending}
           >
             Generate QR Code
