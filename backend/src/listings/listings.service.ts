@@ -9,6 +9,9 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateListingDto, ListServicesFilterDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { FastapiClient } from '../elicitation/fastapi.client';
+import { VAEntityType } from '@common/enums/va-entity-type.enum';
+import { VAStatus } from '@common/enums/va-status.enum';
+import { generateVaNumber } from '@shared/ledger/va-generator';
 
 // Actor shape passed from the controller. Matches the bids/engagements pattern.
 type Actor = { id: string; activeRole: string };
@@ -323,15 +326,18 @@ export class ListingsService {
         },
       });
 
-      const vaNumber = `SVC-${id.slice(0, 8)}-${Date.now()}`;
+      const vaNumber = generateVaNumber(VAEntityType.SERVICE);
+
+      // Per-order VA for service purchase. Fixed amount = service price so
+      // IPN handler can match the payment. Expires in 24h.
       const va = await tx.virtualAccount.create({
         data: {
-          entityType: 'SERVICE',
+          entityType: VAEntityType.SERVICE,
           entityId: engagement.id,
           vaNumber,
           fixedAmount: service.priceVnd,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          status: 'ACTIVE',
+          status: VAStatus.ACTIVE,
         },
       });
 
