@@ -47,15 +47,15 @@ export function Modal({
       {/* Modal Content */}
       <div 
         className={cn(
-          "relative w-full sm:max-w-md bg-white rounded-[12px] border border-slate-200 shadow-[0_8px_32px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-200 flex flex-col",
+          "relative w-full max-w-[90vw] sm:w-[448px] sm:max-w-[448px] bg-white rounded-[12px] border border-slate-200 shadow-[0_8px_32px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-200 flex flex-col",
           className
         )}
       >
         {title && (
           <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h2 className="font-headline text-[20px] font-semibold text-[#0F172A] leading-[1.3]">{title}</h2>
+            <h2 className="font-headline text-[20px] font-semibold text-[#0F172A] leading-[1.3] flex-1 pr-4">{title}</h2>
             {!hideCloseButton && (
-              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 rounded-[8px]">
+              <Button variant="ghost" size="sm" onClick={onClose} className="shrink-0 h-8 w-8 p-0 text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 rounded-[8px]">
                 <X size={18} />
               </Button>
             )}

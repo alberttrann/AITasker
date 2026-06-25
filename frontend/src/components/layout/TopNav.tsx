@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Bell, Mail, Wallet, ChevronRight } from 'lucide-react'; 
@@ -10,12 +10,27 @@ import { useWallet } from '@/hooks/use-wallet';
 export default function TopNav() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  
+  // ── Dropdown State ──
+  type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | null;
+  const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // ── Modal State ──
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
-  const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
 
   const openModal = (mode: 'signin' | 'signup') => {
     setAuthMode(mode);
@@ -68,8 +83,8 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
 
   return (
     <>
-    <header className="sticky top-0 z-50 w-full border-b border-primary/10 bg-gradient-to-r from-primary/5 via-tertiary/5 to-primary/5 backdrop-blur-md select-none min-h-[72px] flex items-center shadow-sm">
-      <div className="flex flex-row items-center justify-between w-full px-6 max-w-7xl mx-auto py-2">
+    <header ref={navRef} className="relative z-50 w-full bg-surface border-b border-primary/5 select-none min-h-[80px] flex items-center">
+      <div className="flex flex-row items-center justify-between w-full px-6 max-w-[1440px] mx-auto py-2">
         
         {/* Left: Logo Area */}
         <div className="flex items-center">
@@ -109,18 +124,18 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
               <div className="relative">
                 <button
                   aria-label="Wallet"
-                  onClick={() => setIsWalletMenuOpen(!isWalletMenuOpen)}
+                  onClick={() => setActiveDropdown(activeDropdown === 'wallet' ? null : 'wallet')}
                   className="relative p-2.5 text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10 rounded-full transition-all duration-300 active:scale-95"
                 >
-                  <Wallet size={24} strokeWidth={2.5} />
+                  <Wallet size={24} strokeWidth={1.5} />
                 </button>
 
-                {isWalletMenuOpen && (
+                {activeDropdown === 'wallet' && (
                   <div className="absolute right-0 top-full mt-3 w-64 bg-surface border border-primary/10 shadow-md rounded-[16px] overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     {/* Top Section: Balances (Clickable) */}
                     <Link
                       to={`${dashboardRoute}/wallet`}
-                      onClick={() => setIsWalletMenuOpen(false)}
+                      onClick={() => setActiveDropdown(null)}
                       className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group"
                     >
                       <div className="flex flex-col gap-1.5">
@@ -142,7 +157,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
               {/* Notification Bell */}
               {/* TODO: NotificationsDropdown */}
               <button aria-label="Notifications" className="relative p-2.5 text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10 rounded-full transition-all duration-300 active:scale-95">
-                <Bell size={24} strokeWidth={2.5} />
+                <Bell size={24} strokeWidth={1.5} />
                 {unreadNotifications > 0 && (
                   <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
                 )}
@@ -151,7 +166,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
               {/* Mailbox */}
               {/* TODO: MessagesDropdown */}
               <button aria-label="Messages" className="relative p-2.5 text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10 rounded-full transition-all duration-300 active:scale-95">
-                <Mail size={24} strokeWidth={2.5} />
+                <Mail size={24} strokeWidth={1.5} />
                 {unreadMessages > 0 && (
                   <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
                 )}
@@ -160,7 +175,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
               {/* User Avatar & Dropdown */}
               <div className="relative ml-3">
                 <button
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  onClick={() => setActiveDropdown(activeDropdown === 'profile' ? null : 'profile')}
                   aria-label="User profile menu"
                   className="relative flex items-center justify-center w-12 h-12 rounded-full bg-primary text-white font-headline text-lg hover:bg-primary/90 transition-all duration-300 active:scale-95 border-2 border-surface shadow-sm"
                 >
@@ -172,18 +187,18 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
                 </div>
 
                 {/* Dropdown Menu */}
-                {isProfileMenuOpen && (
+                {activeDropdown === 'profile' && (
                   <div className="absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-[24px] py-3 flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-300">
                     <Link
                       to={`${dashboardRoute}/profile`} 
-                      onClick={() => setIsProfileMenuOpen(false)} 
+                      onClick={() => setActiveDropdown(null)} 
                       className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-[12px]"
                     >
                       Profile
                     </Link>
                     <Link
                       to={`${dashboardRoute}/account-setting`}
-                      onClick={() => setIsProfileMenuOpen(false)}
+                      onClick={() => setActiveDropdown(null)}
                       className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-[12px]"
                     >
                       Account Configuration
@@ -194,7 +209,7 @@ const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN
                     
                     <button
                       onClick={() => {
-                        setIsProfileMenuOpen(false);
+                        setActiveDropdown(null);
                         handleSignOut();
                       }}
                       className="px-5 py-3 text-sm text-left font-headline font-bold text-error hover:bg-error/10 transition-colors mx-2 rounded-[12px]"

@@ -27,7 +27,7 @@ export function useAuth() {
     store.setTokens(data.access_token, data.refresh_token ?? '');
     const { data: user } = await apiClient.get<UserDto>('/users/me');
     store.setUser(user);
-    redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
+    redirectByRole(user, navigate);
   },
 });
  
@@ -44,7 +44,7 @@ const login = useMutation({
     store.setTokens(data.access_token, data.refresh_token ?? '');
     const { data: user } = await apiClient.get<UserDto>('/users/me');
     store.setUser(user);
-    redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
+    redirectByRole(user, navigate);
   },
 });
 
@@ -57,14 +57,29 @@ const login = useMutation({
 
   // Switch active role 
   const switchRole = useMutation({
-    mutationFn: async (payload: { role: ActiveRole; subtype?: ClientSubtype }) => {
-      const { data } = await apiClient.put<UserDto>('/auth/switch-role', payload);
+    mutationFn: async (payload: { activeRole: ActiveRole }) => {
+      const { data } = await apiClient.put<{ access_token: string }>('/auth/switch-role', payload);
       return data;
     },
-    onSuccess: (user) => {
+    onSuccess: async (data) => {
+      store.setTokens(data.access_token, null);
+      const { data: userRes } = await apiClient.get<UserDto>('/users/me');
+      store.setUser(userRes);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      redirectByRole(userRes, navigate);
+    },
+  });
+
+  // Add a second role
+  const addRole = useMutation({
+    mutationFn: async (payload: { newRole: UserRoleItem }) => {
+      const { data } = await apiClient.post<{ success: boolean }>('/users/me/add-role', payload);
+      return data;
+    },
+    onSuccess: async () => {
+      const { data: user } = await apiClient.get<UserDto>('/users/me');
       store.setUser(user);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      redirectByRole(user.activeRole, user.clientSubtype ?? undefined, navigate);
     },
   });
 
@@ -80,15 +95,24 @@ const login = useMutation({
     login,
     logout,
     switchRole,
+    addRole,
   };
 }
 
 // Role-based redirect helper
 function redirectByRole(
-  role:     ActiveRole,
-  subtype:  ClientSubtype | undefined,
+  user:     UserDto,
   navigate: ReturnType<typeof useNavigate>
 ) {
+  const role = user.activeRole;
+  let subtype = user.clientSubtype;
+  
+  // Fallback: if backend didn't return clientSubtype explicitly, infer it from the roles array
+  if (!subtype && role === 'CLIENT') {
+    if (user.roles?.includes('CLIENT_CEO')) subtype = 'CEO';
+    else if (user.roles?.includes('CLIENT_TECH_TEAM')) subtype = 'TECH_TEAM';
+  }
+
   if (role === 'CLIENT' && subtype === 'CEO')       { navigate('/ceo');       return; }
   if (role === 'CLIENT' && subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
   if (role === 'EXPERT') { navigate('/expert');      return; }

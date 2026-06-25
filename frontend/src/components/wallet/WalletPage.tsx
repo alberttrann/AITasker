@@ -1,12 +1,14 @@
 import { useAuth } from '@hooks/use-auth';
+import { useNavigate } from 'react-router-dom';
 import { TransactionHistory } from './TransactionHistory';
 import WalletTopUp from '@/features/ceo/onboarding/WalletTopUp';
-import { Wallet, CheckCircle2, Lock } from 'lucide-react';
+import { Wallet, CheckCircle2, Lock, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 
 export default function WalletPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
 
   // Real balances via useWallet hook
@@ -17,10 +19,19 @@ export default function WalletPage() {
   return (
     <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
         
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-          <Wallet className="text-slate-500" size={24} />
-          My Wallet
-        </h1>
+        <div className="mb-6 flex items-center gap-3">
+          <button 
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Wallet className="text-slate-500" size={24} />
+            My Wallet
+          </h1>
+        </div>
 
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mb-6">
           
