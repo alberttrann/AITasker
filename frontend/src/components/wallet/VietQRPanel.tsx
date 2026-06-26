@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Copy, CheckCircle } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useWallet } from '@/hooks/use-wallet';
 
 interface VietQRPanelProps {
   qrCodeUrl: string;
@@ -25,14 +25,15 @@ export function VietQRPanel({
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [initialBalance, setInitialBalance] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const { walletData } = useWallet();
 
   // Get initial balance when component mounts
   useEffect(() => {
-    apiClient.get('/wallets/me').then(({ data }) => {
-      const balance = (data as any).availableBalance ?? (data as any).available_balance ?? 0;
+    if (walletData) {
+      const balance = (walletData as any).availableBalance ?? (walletData as any).available_balance ?? 0;
       setInitialBalance(balance);
-    }).catch(console.error);
-  }, []);
+    }
+  }, [walletData]);
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -46,14 +47,13 @@ export function VietQRPanel({
 
     const interval = setInterval(async () => {
       try {
-        const { data } = await apiClient.get('/wallets/me');
-        const currentBalance = (data as any).availableBalance ?? (data as any).available_balance ?? 0;
+        await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        const currentBalance = (walletData as any).availableBalance ?? (walletData as any).available_balance ?? 0;
         
         if (currentBalance > initialBalance) {
           setIsConfirmed(true);
           onPaymentConfirmed?.();
         }
-        
         queryClient.invalidateQueries({ queryKey: ['wallet'] });
       } catch (err) {
         console.error('Polling error', err);

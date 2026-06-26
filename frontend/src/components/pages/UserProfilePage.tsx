@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@hooks/use-auth';
-import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '@components/ui/Modal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
@@ -122,6 +122,12 @@ export default function ProfilePage() {
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-[4px]">
                       <Sparkles size={12} strokeWidth={2.5} />
                       Free Tier
+                    </span>
+                  )}
+                  {isVerifiedBusiness && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm">
+                      <CheckCircle2 size={12} strokeWidth={2.5} />
+                      Verified Company
                     </span>
                   )}
                 </div>

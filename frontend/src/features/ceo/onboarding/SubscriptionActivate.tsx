@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
-import { UserDto } from '@/types/api.types';
+import { useUser } from '@/hooks/use-user';
+import { useSubscription } from '@/hooks/use-subscription';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -15,6 +15,8 @@ export default function SubscriptionActivate() {
   const store = useAuthStore();
   const { user } = store;
   const { data: wallet } = useWallet();
+  const { activateSubscription } = useSubscription();
+  const { updateProfile } = useUser(); // to fetch user on success or we can just use queryClient
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -23,37 +25,23 @@ export default function SubscriptionActivate() {
   const price = 5000;
   const canAfford = availableBalance >= price;
 
-  const activateMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post<{ access_token: string }>('/subscriptions/activate', {
-        activeRole: user?.activeRole || 'CLIENT'
-      });
-      return data;
-    },
-    onSuccess: async (data) => {
-      // 1. Store the new access_token
-      store.setTokens(data.access_token, ''); // refresh token will be preserved by auth.store.ts
-
-      // 2. Fetch updated user profile
-      const { data: userRes } = await apiClient.get<UserDto>('/users/me');
-      store.setUser(userRes);
-
-      // 3. Invalidate user query and await wallet refetch so balance is fresh
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      await queryClient.refetchQueries({ queryKey: ['wallet'] });
-
-      setIsSuccess(true);
-      setErrorMsg(null);
-    },
-    onError: (error: any) => {
-      const msg = error.response?.data?.message || 'Failed to activate subscription.';
-      setErrorMsg(Array.isArray(msg) ? msg[0] : msg);
-    }
-  });
-
   const handleActivate = () => {
     setErrorMsg(null);
-    activateMutation.mutate();
+    activateSubscription.mutate(
+      { activeRole: user?.activeRole || 'CLIENT' },
+      {
+        onSuccess: async (data) => {
+          store.setTokens(data.access_token, ''); 
+          queryClient.invalidateQueries({ queryKey: ['user'] });
+          await queryClient.refetchQueries({ queryKey: ['wallet'] });
+          setIsSuccess(true);
+        },
+        onError: (error: any) => {
+          const msg = error.response?.data?.message || 'Failed to activate subscription.';
+          setErrorMsg(Array.isArray(msg) ? msg[0] : msg);
+        }
+      }
+    );
   };
 
   const getExpiryDate = () => {
@@ -199,8 +187,8 @@ export default function SubscriptionActivate() {
                     className="w-full py-4 text-lg font-bold shadow-emerald-glow hover:brightness-105 transition-all group"
                     variant="primary"
                     onClick={handleActivate}
-                    disabled={activateMutation.isPending}
-                    isLoading={activateMutation.isPending}
+                    disabled={activateSubscription.isPending}
+                    isLoading={activateSubscription.isPending}
                   >
                     Activate Client Pro
                     <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />

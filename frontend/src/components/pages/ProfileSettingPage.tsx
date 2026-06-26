@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Pencil, Save, X, LogOut, Check, ArrowLeft, Loader2 } from 'lucide-react';
+import { Pencil, Save, X, LogOut, Check, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@components/ui/Button';
-import { apiClient } from '@/lib/api-client';
+import { useUser } from '@/hooks/use-user';
 import { useAuthStore } from '@/store/auth.store';
 
 export default function ProfileSettingPage() {
   const { user } = useAuth();
+  const { updateProfile, verifyEmail } = useUser();
   const store = useAuthStore();
   const navigate = useNavigate();
 
@@ -32,6 +33,32 @@ export default function ProfileSettingPage() {
     isOpen: boolean;
     type: 'save' | 'exit' | null;
   }>({ isOpen: false, type: null });
+
+  // Tax Code State
+  const [taxCodeInput, setTaxCodeInput] = useState('');
+  const [taxStatus, setTaxStatus] = useState<{ verified: boolean; companyName: string | null; loading?: boolean; error?: boolean }>({ verified: false, companyName: null });
+  const [taxTimeoutId, setTaxTimeoutId] = useState<any>(null);
+
+  const handleVerifyTaxCode = async (taxCode: string) => {
+    if (!taxCode || taxCode.length < 10) {
+      setTaxStatus({ verified: false, companyName: null });
+      return;
+    }
+    setTaxStatus((prev) => ({ ...prev, loading: true, error: false }));
+    try {
+      const res = await verifyEmail.mutateAsync(taxCode);
+      if (res.data.verified) {
+        setTaxStatus({ verified: true, companyName: res.data.companyName, loading: false });
+        if (res.data.companyName) {
+          setFormValues(prev => ({ ...prev, companyName: res.data.companyName }));
+        }
+      } else {
+        setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
+      }
+    } catch {
+      setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
+    }
+  };
 
   // Update state if user data loads slightly after mount
   useEffect(() => {
@@ -90,9 +117,7 @@ export default function ProfileSettingPage() {
       }
       
       if (Object.keys(payload).length > 0) {
-        await apiClient.put('/users/me', payload);
-        const { data: userRes } = await apiClient.get('/users/me');
-        store.setUser(userRes);
+        await updateProfile.mutateAsync(payload);
       }
       
       setOriginalValues({ ...formValues }); // Reset dirty state
@@ -250,6 +275,55 @@ export default function ProfileSettingPage() {
                 <p className="text-xs text-slate-500 mt-1">Update your business details.</p>
               </div>
               <div className="flex flex-col">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between py-4 px-6 border-b border-slate-100 hover:bg-slate-50/30 transition-colors duration-200">
+                  <div className="w-full sm:w-1/3 mb-2 sm:mb-0 flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-500">Verify Tax Code</span>
+                  </div>
+                  <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="relative flex-1 w-full min-w-[200px] sm:max-w-md">
+                      <input
+                        type="text"
+                        value={taxCodeInput}
+                        placeholder="e.g. 123456789"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTaxCodeInput(val);
+                          if (taxTimeoutId) clearTimeout(taxTimeoutId);
+                          if (val.length >= 10) {
+                            const newTimeout = setTimeout(() => {
+                              handleVerifyTaxCode(val);
+                            }, 500);
+                            setTaxTimeoutId(newTimeout);
+                          } else {
+                            setTaxStatus({ verified: false, companyName: null, loading: false, error: false });
+                          }
+                        }}
+                        className="w-full h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10"
+                      />
+                      {taxStatus.loading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="animate-spin text-slate-400" size={16} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {(taxStatus.verified || taxStatus.error) && (
+                  <div className="px-6 pb-4 pt-2">
+                    {taxStatus.verified && taxStatus.companyName && (
+                      <div className="flex items-center gap-1 text-sm text-green-600 font-medium">
+                        <CheckCircle2 size={16} />
+                        <span>Verified: {taxStatus.companyName}</span>
+                      </div>
+                    )}
+                    {taxStatus.error && (
+                      <div className="flex items-center gap-1 text-sm text-red-500 font-medium">
+                        <XCircle size={16} />
+                        <span>Tax code not recognized</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {renderEditableRow("Company Name", "companyName")}
                 {renderEditableRow("Industry", "industry")}
                 {renderEditableRow("CEO Name", "ceoName")}

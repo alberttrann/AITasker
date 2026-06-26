@@ -50,7 +50,7 @@ export default function Stage4ScenarioB({
     } finally {
       setIsSending(false);
     }
-  }, [inviteEmail, sessionId]);
+  }, [inviteEmail, inviteTechTeam]);
 
   // Copy link to clipboard
   const handleCopyLink = useCallback(() => {
@@ -207,7 +207,9 @@ export default function Stage4ScenarioB({
   // Render: waiting state (link generated, polling in progress)
   return (
     <div className="max-w-md mx-auto p-6 space-y-4">
-      {pollError && <p className="text-xs text-amber-600 text-center">{pollError}</p>}
+      {pollError && (
+        <p className="text-xs text-amber-600 text-center">{pollError}</p>
+      )}
       <Stage4HandoffLink
         inviteLink={inviteLink!}
         isPolling={!timedOut}

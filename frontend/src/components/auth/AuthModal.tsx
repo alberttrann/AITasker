@@ -7,6 +7,9 @@ import { Button } from '@components/ui/Button';
 import { Input, Label } from '@components/ui/Input';
 import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
+import apiClient from '@/lib/api-client';
+import { useUser } from '@/hooks/use-user';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
 const loginSchema = Yup.object({
@@ -46,9 +49,31 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   
-  const rememberedEmail = typeof window !== 'undefined' ? localStorage.getItem('aitasker-remembered-email') || '' : '';
+  const [taxStatus, setTaxStatus] = useState<{ verified: boolean; companyName: string | null; loading?: boolean; error?: boolean }>({ verified: false, companyName: null });
+  const [taxTimeoutId, setTaxTimeoutId] = useState<any>(null);
 
   const { login, register, isAuthenticated } = useAuth();
+  const { verifyEmail } = useUser();
+
+  const handleVerifyTaxCode = async (taxCode: string) => {
+    if (!taxCode || taxCode.length < 10) {
+      setTaxStatus({ verified: false, companyName: null });
+      return;
+    }
+    setTaxStatus((prev) => ({ ...prev, loading: true, error: false }));
+    try {
+      const res = await verifyEmail.mutateAsync(taxCode);
+      if (res.data.verified) {
+        setTaxStatus({ verified: true, companyName: res.data.companyName, loading: false });
+      } else {
+        setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
+      }
+    } catch {
+      setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
+    }
+  };
+
+  const rememberedEmail = typeof window !== 'undefined' ? localStorage.getItem('aitasker-remembered-email') || '' : '';
 
   useEffect(() => {
     if (isOpen) {
@@ -329,17 +354,49 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       </Label>
                     <Field name="taxCode">
                       {({ field, meta }: any) => (
-                        <Input
-                          {...field}
-                          id="taxCode"
-                          type="text"
-                          placeholder="e.g. 123456789"
-                          disabled={register.isPending}
-                          onFocus={() => register.isError && register.reset()}
-                          error={meta.touched && !!meta.error}
-                        />
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            id="taxCode"
+                            type="text"
+                            placeholder="e.g. 123456789"
+                            disabled={register.isPending}
+                            onFocus={() => register.isError && register.reset()}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              field.onChange(e);
+                              const val = e.target.value;
+                              if (taxTimeoutId) clearTimeout(taxTimeoutId);
+                              if (val.length >= 10) {
+                                const newTimeout = setTimeout(() => {
+                                  handleVerifyTaxCode(val);
+                                }, 500);
+                                setTaxTimeoutId(newTimeout);
+                              } else {
+                                setTaxStatus({ verified: false, companyName: null, loading: false, error: false });
+                              }
+                            }}
+                            error={meta.touched && !!meta.error}
+                          />
+                          {taxStatus.loading && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                               <Loader2 className="animate-spin text-slate-400" size={16} />
+                            </div>
+                          )}
+                        </div>
                       )}
                     </Field>
+                    {taxStatus.verified && taxStatus.companyName && (
+                      <div className="mt-1 flex items-center gap-1 text-sm text-green-600 font-medium">
+                        <CheckCircle2 size={16} />
+                        <span>{taxStatus.companyName}</span>
+                      </div>
+                    )}
+                    {taxStatus.error && (
+                      <div className="mt-1 flex items-center gap-1 text-sm text-red-500 font-medium">
+                        <XCircle size={16} />
+                        <span>Tax code not recognized</span>
+                      </div>
+                    )}
                     <ErrorMessage name="taxCode" component="p" className="mt-1 text-xs font-semibold text-error" />
                   </div>
                   </div>

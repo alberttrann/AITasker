@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User } from 'lucide-react'; 
+import { Bell, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus } from 'lucide-react'; 
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
@@ -14,6 +14,7 @@ export default function TopNav() {
   // ── Dropdown State ──
   type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | null;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
@@ -21,6 +22,7 @@ export default function TopNav() {
     const handleClickOutside = (event: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setActiveDropdown(null);
+        setIsMobileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -107,8 +109,19 @@ const RoleIcon =
           </Link>
         </div>
 
-        {/* Right: Auth-Aware Controls */}
-        <div className="flex flex-row items-center gap-4">
+        {/* Mobile Menu Toggle */}
+        <button 
+          className="md:hidden relative p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+          onClick={() => {
+            setIsMobileMenuOpen(!isMobileMenuOpen);
+            setActiveDropdown(null);
+          }}
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+
+        {/* Right: Auth-Aware Controls (Desktop) */}
+        <div className="hidden md:flex flex-row items-center gap-4">
           {!isAuthenticated ? (
             // ── Unauthenticated State ──
             <>
@@ -213,8 +226,17 @@ const RoleIcon =
                       onClick={() => setActiveDropdown(null)} 
                       className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                     >
-                      Profile
+                      User Profile
                     </Link>
+                    {user?.activeRole === 'EXPERT' && (
+                      <Link
+                        to={`${dashboardRoute}/expert-profile`} 
+                        onClick={() => setActiveDropdown(null)} 
+                        className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
+                      >
+                        Expert Profile
+                      </Link>
+                    )}
                     <Link
                       to={`${dashboardRoute}/account-setting`}
                       onClick={() => setActiveDropdown(null)}
@@ -243,6 +265,136 @@ const RoleIcon =
         </div>
 
       </div>
+
+      {/* ── Mobile Menu ── */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute top-full left-0 w-full bg-surface border-b border-primary/10 shadow-lg flex flex-col max-h-[calc(100vh-80px)] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+          {!isAuthenticated ? (
+            <div className="flex flex-col p-4 gap-2">
+              <button 
+                onClick={() => { setIsMobileMenuOpen(false); openModal('signin'); }} 
+                className="flex items-center gap-3 p-4 text-primary hover:bg-primary/5 rounded-lg transition-colors"
+              >
+                <LogIn size={20} /> <span className="font-headline font-bold text-lg">Sign In</span>
+              </button>
+              <button 
+                onClick={() => { setIsMobileMenuOpen(false); openModal('signup'); }} 
+                className="flex items-center gap-3 p-4 bg-primary text-white rounded-lg transition-colors shadow-sm"
+              >
+                <UserPlus size={20} /> <span className="font-headline font-bold text-lg">Join</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {/* Wallet Collapse */}
+              <button 
+                onClick={() => setActiveDropdown(activeDropdown === 'wallet' ? null : 'wallet')}
+                className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Wallet size={20} /> <span className="font-headline font-bold text-lg">Wallet</span>
+                </div>
+                <ChevronDown size={20} className={`transition-transform duration-200 ${activeDropdown === 'wallet' ? 'rotate-180' : ''}`} />
+              </button>
+              {activeDropdown === 'wallet' && (
+                <div className="bg-slate-50 p-4 border-b border-primary/5">
+                  <Link
+                    to={`${dashboardRoute}/wallet`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-slate-500 uppercase">Available</span>
+                      <span className="text-lg font-bold text-slate-900">{formatVND(availableBalance)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-slate-500 uppercase">Locked</span>
+                      <span className="text-md font-semibold text-slate-600">{formatVND(lockedBalance)}</span>
+                    </div>
+                  </Link>
+                </div>
+              )}
+
+              {/* Notifications */}
+              <button className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Bell size={20} />
+                    {unreadNotifications > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full border border-surface" />}
+                  </div>
+                  <span className="font-headline font-bold text-lg">Notifications</span>
+                </div>
+              </button>
+
+              {/* Messages */}
+              <button className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Mail size={20} />
+                    {unreadMessages > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full border border-surface" />}
+                  </div>
+                  <span className="font-headline font-bold text-lg">Messages</span>
+                </div>
+              </button>
+
+              {/* Profile Collapse */}
+              <button 
+                onClick={() => setActiveDropdown(activeDropdown === 'profile' ? null : 'profile')}
+                className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white font-headline text-xs font-bold">
+                    {initial}
+                  </div>
+                  <span className="font-headline font-bold text-lg">Profile</span>
+                  <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${isPro ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'bg-slate-400 text-white'}`}>{isPro ? 'PRO' : 'FREE'}</span>
+                </div>
+                <ChevronDown size={20} className={`transition-transform duration-200 ${activeDropdown === 'profile' ? 'rotate-180' : ''}`} />
+              </button>
+              {activeDropdown === 'profile' && (
+                <div className="bg-slate-50 flex flex-col border-b border-primary/5">
+                  <div className="px-4 py-3 bg-accent/20 text-primary-dark cursor-default select-none flex items-center gap-2 border-b border-primary/5">
+                    <RoleIcon size={16} strokeWidth={2.5} />
+                    <span className="text-sm font-headline font-extrabold tracking-wide">{roleDisplay}</span>
+                  </div>
+                  <Link
+                    to={`${dashboardRoute}/profile`} 
+                    onClick={() => setIsMobileMenuOpen(false)} 
+                    className="p-4 text-sm font-headline font-semibold text-primary hover:bg-primary/5 border-b border-primary/5"
+                  >
+                    User Profile
+                  </Link>
+                  {user?.activeRole === 'EXPERT' && (
+                    <Link
+                      to={`${dashboardRoute}/expert-profile`} 
+                      onClick={() => setIsMobileMenuOpen(false)} 
+                      className="p-4 text-sm font-headline font-semibold text-primary hover:bg-primary/5 border-b border-primary/5"
+                    >
+                      Expert Profile
+                    </Link>
+                  )}
+                  <Link
+                    to={`${dashboardRoute}/account-setting`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="p-4 text-sm font-headline font-semibold text-primary hover:bg-primary/5 border-b border-primary/5"
+                  >
+                    Account Configuration
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleSignOut();
+                    }}
+                    className="p-4 text-sm text-left font-headline font-bold text-error hover:bg-error/10"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </header>
     {/* ── Render the Modal ── */}
     <AuthModal 
