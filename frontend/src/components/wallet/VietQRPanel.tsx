@@ -23,7 +23,16 @@ export function VietQRPanel({
 }: VietQRPanelProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [initialBalance, setInitialBalance] = useState<number | null>(null);
   const queryClient = useQueryClient();
+
+  // Get initial balance when component mounts
+  useEffect(() => {
+    apiClient.get('/wallets/me').then(({ data }) => {
+      const balance = (data as any).availableBalance ?? (data as any).available_balance ?? 0;
+      setInitialBalance(balance);
+    }).catch(console.error);
+  }, []);
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -33,15 +42,18 @@ export function VietQRPanel({
 
   // Polling fallback
   useEffect(() => {
-    if (isConfirmed) return;
+    if (isConfirmed || initialBalance === null) return;
 
     const interval = setInterval(async () => {
       try {
         const { data } = await apiClient.get('/wallets/me');
-        // If balance reflects the new amount or if there's a recent transaction
-        // (For simplicity, checking if we can fetch cleanly, but ideally we check a transaction ID)
-        // Since we don't have the exact logic, we rely on the parent to check or just poll silently
-        // The spec says: "re-fetch GET /wallets/me every 3 seconds... If balance >= 500k show continue"
+        const currentBalance = (data as any).availableBalance ?? (data as any).available_balance ?? 0;
+        
+        if (currentBalance > initialBalance) {
+          setIsConfirmed(true);
+          onPaymentConfirmed?.();
+        }
+        
         queryClient.invalidateQueries({ queryKey: ['wallet'] });
       } catch (err) {
         console.error('Polling error', err);
@@ -49,7 +61,7 @@ export function VietQRPanel({
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [isConfirmed, queryClient]);
+  }, [isConfirmed, queryClient, initialBalance, onPaymentConfirmed]);
 
   // TODO: Implement socket listener for `payment:confirmed`
   // useEffect(() => {

@@ -13,12 +13,15 @@ import { LinkExpiredError } from '@features/tech-team/auth/LinkExpiredError';
 
 // Dashboards — stub shells now, built out screen by screen
 import CeoDashboard     from '@features/ceo/CeoDashboard';
-import ExpertDashboard   from '@features/expert/ExpertDashboard';
+import { CeoOverview } from '@features/ceo/CeoDashboard';
+import ExpertDashboard, { ExpertOverview } from '@features/expert/ExpertDashboard';
 import TechTeamDashboard from '@features/tech-team/TechTeamDashboard';
 import AdminDashboard    from '@features/admin/AdminDashboard';
 import ProfilePage from './components/pages/UserProfilePage';
 import ProfileSettingPage from './components/pages/ProfileSettingPage';
 import WalletPage from './components/wallet/WalletPage';
+
+import SubscriptionActivate from '@features/ceo/onboarding/SubscriptionActivate';
 
 export default function App() {
   return (
@@ -35,12 +38,23 @@ export default function App() {
 
         <Route element={<RoleRoute requiredSubtype="CEO" />}>
           {/* /ceo/* — all CEO screens will nest here */}
-          <Route path="/ceo/*" element={<CeoDashboard />} />
+          <Route path="/ceo" element={<CeoDashboard />}>
+            <Route index element={<CeoOverview />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
+            <Route path="wallet" element={<WalletPage />} />
+            <Route path="subscription" element={<SubscriptionActivate />} />
+          </Route>
         </Route>
 
         <Route element={<RoleRoute requiredRole="EXPERT" />}>
           {/* /expert/* — all Expert screens will nest here */}
-          <Route path="/expert/*" element={<ExpertDashboard />} />
+          <Route path="/expert" element={<ExpertDashboard />}>
+            <Route index element={<ExpertOverview />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
+            <Route path="wallet" element={<WalletPage />} />
+          </Route>
         </Route>
 
         <Route element={<RoleRoute requiredSubtype="TECH_TEAM" />}>

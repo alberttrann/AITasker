@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
+import { RegisterHandoffDto } from './dto/register-handoff.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { UserRoleItem } from '@common/enums/user-role-item.enum';
@@ -13,15 +14,14 @@ import { ClientSubType } from '@common/enums/client-subtype.enum';
 import { LoginUserDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
-import { customAlphabet, nanoid } from 'nanoid';
 import { VAStatus } from '@common/enums/va-status.enum';
 import { User } from '@prisma/client';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import axios from 'axios';
 import { generateVaNumber } from '@shared/ledger/va-generator';
+
 @Injectable()
 export class AuthService {
-  // Mapping roles to active roles
   private readonly roleMapping = {
     [ActiveRole.CLIENT]: UserRoleItem.CLIENT_CEO,
     [ActiveRole.EXPERT]: UserRoleItem.EXPERT,
@@ -31,11 +31,22 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
+
+  private toAuthUserResponse(user: User) {
+    return {
+      id:                     user.id,
+      email:                  user.email,
+      fullName:               user.fullName,
+      activeRole:             user.activeRole,
+      clientSubtype:          user.clientSubtype ?? null,
+      subscriptionClientTier: user.subscriptionClientTier,
+      subscriptionExpertTier: user.subscriptionExpertTier,
+    };
+  }
+
   async register(registerDto: RegisterUserDto) {
     const existingEmailCheck = await this.prisma.user.findUnique({
-      where: {
-        email: registerDto.email,
-      },
+      where: { email: registerDto.email },
     });
 
     if (existingEmailCheck) {
@@ -47,7 +58,6 @@ export class AuthService {
       registerDto.roles == UserRoleItem.CLIENT_CEO ? ActiveRole.CLIENT : ActiveRole.EXPERT;
     const clientSubtype = activeRole == ActiveRole.CLIENT ? ClientSubType.CEO : null;
 
-    // Using transaction to make commit to db only both of queries are successful
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -58,25 +68,18 @@ export class AuthService {
           roles: [registerDto.roles],
           activeRole: activeRole,
           clientSubtype: clientSubtype,
+          selfTechnical: registerDto.selfTechnical ?? false,
 
-          // Spread operator: take all of the above then create profile align with the activeRole
           ...(activeRole == ActiveRole.CLIENT
-            ? {
-                clientProfile: { create: {} },
-              }
-            : {
-                expertProfile: { create: {} },
-              }),
+            ? { clientProfile: { create: {} } }
+            : { expertProfile: { create: {} } }),
         },
       });
 
       const wallet = await tx.wallet.create({
-        data: {
-          userId: user.id,
-        },
+        data: { userId: user.id },
       });
 
-      // Create and assign VA to user
       const virtualAccount = await tx.virtualAccount.create({
         data: {
           entityType: VAEntityType.WALLET_TOPUP,
@@ -87,7 +90,6 @@ export class AuthService {
         },
       });
 
-      // Checking for the tax number to verify Business Client
       const taxCode = registerDto.taxCode;
       if (taxCode) {
         try {
@@ -96,12 +98,8 @@ export class AuthService {
 
           if (response.data.code === '00') {
             await tx.clientProfile.update({
-              where: {
-                userId: user.id,
-              },
-              data: {
-                companyName: response.data.data.name,
-              },
+              where: { userId: user.id },
+              data: { companyName: response.data.data.name },
             });
           }
         } catch {}
@@ -110,55 +108,48 @@ export class AuthService {
       const access_token = await this.jwtGeneratePayload(user);
       const refresh_token = await this.jwtGenerateRefreshPayload(user);
 
-      return { access_token, refresh_token };
+      return {
+        access_token,
+        refresh_token,
+        user: this.toAuthUserResponse(user),
+      };
     });
   }
 
   async login(loginDto: LoginUserDto) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        email: loginDto.email,
-      },
+      where: { email: loginDto.email },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials!');
     }
 
-    const userInputPassword = loginDto.password;
-    const userPasswordHash = user.passwordHash;
-    const isMatch = await bcrypt.compare(userInputPassword, userPasswordHash);
+    const isMatch = await bcrypt.compare(loginDto.password, user.passwordHash);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid credentials!');
     }
 
-    // JWT Service
-
     const accessToken = await this.jwtGeneratePayload(user);
-
     const refreshToken = await this.jwtGenerateRefreshPayload(user);
 
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
+      user: this.toAuthUserResponse(user),
     };
   }
 
   async switchRole(userId: string, switchRoleDto: SwitchRoleUserDto) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Check to see if the new active roles is existed inside the roles json or not
-    // Cast json back to string of user's roles
     const roles = user.roles as string[];
-
     const requiredRole = this.roleMapping[switchRoleDto.activeRole];
     const isRoleValid = roles.includes(requiredRole);
 
@@ -189,9 +180,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: payload.sub,
-      },
+      where: { id: payload.sub },
     });
 
     if (!user) {
@@ -215,6 +204,9 @@ export class AuthService {
       clientSubType: user.clientSubtype,
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
+      subClientExpiresAt: user.subClientExpiresAt,
+      subExpertExpiresAt: user.subExpertExpiresAt,
+      selfTechnical: user.selfTechnical,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -229,5 +221,87 @@ export class AuthService {
 
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
     return refreshToken;
+  }
+
+  async registerHandoff(dto: RegisterHandoffDto) {
+    let payload: { sessionId: string; ceoId: string; jti: string; purpose: string };
+    try {
+      payload = await this.jwtService.verifyAsync(dto.invite_token);
+    } catch {
+      throw new UnauthorizedException('This invite link has expired or is invalid.');
+    }
+
+    if (payload.purpose !== 'tech-team-handoff') {
+      throw new UnauthorizedException('Invalid invite token.');
+    }
+
+    const session = await this.prisma.elicitationSession.findUnique({
+      where: { id: payload.sessionId },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException('This invite link refers to a session that no longer exists.');
+    }
+    if (session.handoffTokenJti !== payload.jti) {
+      throw new UnauthorizedException(
+        'This invite link has been superseded by a newer one. Ask the CEO to resend.',
+      );
+    }
+    if (session.handoffConsumedAt !== null) {
+      throw new UnauthorizedException('This invite link has already been used.');
+    }
+
+    const existingEmailCheck = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingEmailCheck) {
+      throw new ConflictException('An account with this email already exists.');
+    }
+
+    const hashPassword = await bcrypt.hash(dto.password, 10);
+
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email:         dto.email,
+          passwordHash:  hashPassword,
+          fullName:      dto.fullName,
+          roles:         [UserRoleItem.CLIENT_CEO],
+          activeRole:    ActiveRole.CLIENT,
+          clientSubtype: ClientSubType.TECH_TEAM,
+          techTeamProfile: {
+            create: {
+              linkedClientId: payload.ceoId,
+              linkedProjectId: null,
+            },
+          },
+        },
+      });
+
+      await tx.elicitationSession.update({
+        where: { id: payload.sessionId },
+        data:  { handoffConsumedAt: new Date() },
+      });
+
+      await tx.wallet.create({ data: { userId: user.id } });
+
+      await tx.virtualAccount.create({
+        data: {
+          entityType:  VAEntityType.WALLET_TOPUP,
+          entityId:    user.id,
+          vaNumber:    generateVaNumber(VAEntityType.WALLET_TOPUP),
+          fixedAmount: null,
+          status:      VAStatus.ACTIVE,
+        },
+      });
+
+      const access_token = await this.jwtGeneratePayload(user);
+      const refresh_token = await this.jwtGenerateRefreshPayload(user);
+      return {
+        access_token,
+        refresh_token,
+        user: this.toAuthUserResponse(user),
+      };
+    });
   }
 }

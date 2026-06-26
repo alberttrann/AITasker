@@ -6,5 +6,6 @@ import { LedgerService } from './ledger.service';
 @Global()
 @Module({
   providers: [LedgerService, AuthService, PrismaService],
+  exports: [LedgerService],
 })
 export class LedgerModule {}

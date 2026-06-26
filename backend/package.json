@@ -12,9 +12,13 @@
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "jest --testPathPattern=src",
+    "test": "jest",
     "test:watch": "jest --watch --testPathPattern=src",
     "test:cov": "jest --coverage",
+    "test:unit": "jest --config jest.unit.config.js --passWithNoTests",
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "validate": "bash ../scripts/validate.sh",
+    "swagger:gen": "ts-node -e \"require('./src/swagger-gen').generate()\" > swagger.json",
     "test:e2e": "dotenv -e .env.test -- jest --config jest.e2e.config.js --forceExit --runInBand --passWithNoTests",
     "test:e2e:watch": "dotenv -e .env.test -- jest --config jest.e2e.config.js --watch --forceExit --runInBand --passWithNoTests",
     "db:generate": "prisma generate",
@@ -31,6 +35,7 @@
     "@nestjs/common": "^10.3.0",
     "@nestjs/config": "^3.2.0",
     "@nestjs/core": "^10.3.0",
+    "@nestjs/event-emitter": "^3.1.0",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.3.0",
@@ -79,23 +84,6 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
   },
   "allowScripts": {
     "@nestjs/core@10.4.22": true,

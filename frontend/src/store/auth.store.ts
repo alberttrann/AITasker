@@ -38,15 +38,22 @@ export const useAuthStore = create<AuthState>()(
       clientSubtype:   null,
 
       setTokens: (access, refresh) =>
-        set({ accessToken: access, refreshToken: refresh }),
+        set((state) => ({ accessToken: access, refreshToken: refresh || state.refreshToken })),
 
-      setUser: (user) =>
+      setUser: (user) => {
+        let subtype = user.clientSubtype ?? null;
+        if (!subtype && user.activeRole === 'CLIENT') {
+          if (user.roles?.includes('CLIENT_CEO')) subtype = 'CEO';
+          else if (user.roles?.includes('CLIENT_TECH_TEAM')) subtype = 'TECH_TEAM';
+        }
+        const updatedUser = { ...user, clientSubtype: subtype };
         set({
-          user,
+          user: updatedUser,
           isAuthenticated: true,
-          activeRole:    user.activeRole,
-          clientSubtype: user.clientSubtype ?? null,
-        }),
+          activeRole:    updatedUser.activeRole,
+          clientSubtype: subtype,
+        });
+      },
 
       switchRole: (role, subtype) =>
         set((s) => ({

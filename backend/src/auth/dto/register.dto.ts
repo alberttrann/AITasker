@@ -8,6 +8,7 @@ import {
   IsOptional,
   MinLength,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 
 export class RegisterUserDto {
@@ -33,4 +34,8 @@ export class RegisterUserDto {
 
   @IsOptional()
   taxCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  selfTechnical?: boolean;
 }

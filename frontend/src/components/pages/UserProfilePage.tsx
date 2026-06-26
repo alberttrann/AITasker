@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { useAuth } from '@hooks/use-auth';
-import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, Briefcase } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '@components/ui/Modal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, addRole, switchRole } = useAuth();
+  const navigate = useNavigate();
   
   // Toggle states for masked fields
   const [showEmail, setShowEmail] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
+  const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
 
   // Wallet data
   const { data: wallet } = useWallet();
@@ -63,12 +65,35 @@ export default function ProfilePage() {
   const isVerifiedBusiness = isClient && !!clientProfile?.companyName;
   const isFree = user?.subscriptionTier === 'free';
 
+  const hasClient = rolesArray.some(r => r.startsWith('CLIENT'));
+  const hasExpert = rolesArray.includes('EXPERT');
+  const canAddExpert = !hasExpert;
+  const canAddClient = !hasClient;
+
+  const handleAddRole = () => {
+    setIsAddRoleOpen(true);
+  };
+
+  const confirmAddRole = () => {
+    const newRole = canAddExpert ? 'EXPERT' : 'CLIENT_CEO';
+    addRole.mutate({ newRole }, {
+      onSuccess: () => setIsAddRoleOpen(false)
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6">
       
       <div className="w-full max-w-5xl mx-auto">
         {/* Page Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-center gap-3">
+          <button 
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={20} />
+          </button>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Profile</h1>
         </div>
 
@@ -88,10 +113,15 @@ export default function ProfilePage() {
                   <h2 className="text-[20px] font-semibold text-slate-900 leading-tight">
                     {user?.fullName || 'Anonymous User'}
                   </h2>
-                  {isVerifiedBusiness && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded-[4px]">
-                      <Building2 size={12} strokeWidth={2.5} />
-                      Verified Business
+                  {user?.subscriptionTier === 'pro' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm">
+                      <Sparkles size={12} strokeWidth={2.5} />
+                      Pro Tier
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-[4px]">
+                      <Sparkles size={12} strokeWidth={2.5} />
+                      Free Tier
                     </span>
                   )}
                 </div>
@@ -111,12 +141,23 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <Link 
-              to="/account-setting"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg transition-colors duration-200"
-            >
-              Edit Profile
-            </Link>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {hasClient && hasExpert && (
+                 <button
+                   onClick={() => switchRole.mutate({ activeRole: isClient ? 'EXPERT' : 'CLIENT' })}
+                   disabled={switchRole.isPending}
+                   className="text-sm font-semibold text-slate-900 bg-[#BEF264] hover:brightness-95 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap text-center shadow-sm"
+                 >
+                   {switchRole.isPending ? 'Switching...' : `Continue as ${isClient ? 'Expert' : 'Client'}`}
+                 </button>
+              )}
+              <Link 
+                to="../account-setting"
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap text-center"
+              >
+                Edit Profile
+              </Link>
+            </div>
           </div>
 
           {/* ── 2. Contact Details (List View) ── */}
@@ -262,19 +303,31 @@ export default function ProfilePage() {
 
           {/* ── 4. Actions Footer ── */}
           <div className="border-t border-slate-200 p-2">
-            <button className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-slate-50 text-slate-900 transition-colors group">
+            
+            {/* Add Second Role Button */}
+            {(canAddExpert || canAddClient) && (
+              <button 
+                onClick={handleAddRole}
+                disabled={addRole.isPending}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-slate-50 text-slate-900 transition-colors group"
+              >
+                <div className="flex items-center gap-3 text-sm font-medium">
+                  <Shield size={18} className="text-blue-600 group-hover:scale-110 transition-transform" />
+                  {addRole.isPending ? 'Adding Role...' : (canAddExpert ? 'Become an Expert too' : 'Also act as Client')}
+                </div>
+              </button>
+            )}
+
+            <button 
+              onClick={() => navigate('/subscription')}
+              disabled={!isFree}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors group ${
+                !isFree ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50 text-slate-900'
+              }`}
+            >
               <div className="flex items-center gap-3 text-sm font-medium">
-                {isFree ? (
-                  <>
-                    <Sparkles size={18} className="text-emerald-600 group-hover:animate-pulse" />
-                    Upgrade to Premium
-                  </>
-                ) : (
-                  <>
-                    <Briefcase size={18} className="text-emerald-600 group-hover:animate-pulse" />
-                    {isExpert ? 'Get Expert Help' : 'Become an Expert'}
-                  </>
-                )}
+                <Sparkles size={18} className="text-emerald-600 group-hover:animate-pulse" />
+                Upgrade to Pro
               </div>
             </button>
             
@@ -302,6 +355,19 @@ export default function ProfilePage() {
         isDestructive
       >
         Are you sure you want to sign out? You will need to log in again to access your dashboard.
+      </ConfirmModal>
+
+      <ConfirmModal
+        isOpen={isAddRoleOpen}
+        onClose={() => setIsAddRoleOpen(false)}
+        onConfirm={confirmAddRole}
+        title={canAddExpert ? "Become an Expert" : "Become a Client"}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      >
+        {canAddExpert 
+          ? "Are you sure you want to add the Expert role to your account? This will allow you to offer your services to clients on the platform."
+          : "Are you sure you want to add the Client role to your account? This will allow you to post projects and hire experts."}
       </ConfirmModal>
     </div>
   );

@@ -1,10 +1,10 @@
 import { customAlphabet } from 'nanoid';
 
-export function generateVaNumber(VAEntityType: string): string {
-  const nanoid = customAlphabet(
-    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-    8,
-  );
+const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const SUFFIX_LENGTH = 8;
 
-  return (VAEntityType + nanoid()).replaceAll('_', '');
+const generateSuffix = customAlphabet(ALPHABET, SUFFIX_LENGTH);
+
+export function generateVaNumber(prefix: string): string {
+  return (prefix + generateSuffix()).replaceAll('_', '');
 }

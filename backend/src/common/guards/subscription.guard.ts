@@ -1,6 +1,6 @@
 import { ActiveRole } from '@common/enums/active-role.enum';
 import { SubscriptionTier } from '@common/enums/subscription-tier';
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
@@ -17,10 +17,21 @@ export class SubscriptionGuard implements CanActivate {
     const dateNow = new Date();
     const expiresAt = user[expiresKey] ? new Date(user[expiresKey]) : null;
 
-    // Return isPro true if meet these conditions
     const isPro =
       user[tierKey] === SubscriptionTier.PRO && expiresAt !== null && expiresAt > dateNow;
 
-    return isPro;
+    // throw a structured exception instead of returning false, so
+    // callers get a { code, message } body instead of a bare 403.
+    if (!isPro) {
+      throw new ForbiddenException({
+        code: 'SUBSCRIPTION_REQUIRED',
+        message:
+          user.activeRole === ActiveRole.CLIENT
+            ? 'Client Pro subscription required for this action'
+            : 'Expert Pro subscription required for this action',
+      });
+    }
+
+    return true;
   }
 }

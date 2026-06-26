@@ -80,6 +80,16 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Hide scrollbars globally */
+  * {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
   
   /* Headline Overrides */
   h1, h2, h3, h4, .text-display {

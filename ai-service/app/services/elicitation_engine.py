@@ -1,29 +1,30 @@
 """
-Elicitation engine — Stage 1 (symptom extraction) and Stage 5 (full synthesis).
-
-Stage 1: extract symptoms, scale signals, voids from CEO free text.
-Stage 5: synthesise all 4 elicitation stages into a complete project specification
-         with 5 structured JSON outputs and a completeness score.
+Elicitation engine — Stage 1 (symptom extraction), Stage 3 (vagueness check),
+and Stage 5 (full synthesis).
 """
 
 import logging
 from app.services import llm_client
 from app.services.prompt_loader import load_prompt
-from app.models.requests import Stage1Request, Stage5Request
+from app.models.requests import Stage1Request, Stage3VaguenessCheckRequest, Stage5Request
 from app.models.responses import (
     Stage1Response, VoidItem,
+    Stage3VaguenessCheckResponse, VaguenessFlag,
     Stage5Response,
 )
 
 logger = logging.getLogger(__name__)
 
+VALID_ARCHETYPE_CODES = {"1", "2", "3", "4", "5", "6"}
 
-# Stage 1 
+
+# Stage 1
 
 async def stage1_extract(request: Stage1Request) -> Stage1Response:
     """
-    Extract structured symptoms, scale signals and voids from CEO free-text input.
-    Returns empty defaults if input is sparse — never raises on missing fields.
+    Extract structured symptoms, scale signals, voids, AND recommended
+    archetypes from CEO free-text input. Returns empty defaults if
+    input is sparse — never raises on missing fields.
     """
     system = load_prompt("stage1_extract")
 
@@ -48,33 +49,77 @@ async def stage1_extract(request: Stage1Request) -> Stage1Response:
         if isinstance(v, dict)
     ]
 
+    # validate recommended_archetypes — only keep valid codes, dedupe
+    # while preserving order, cap at 5 per blueprint ("3-5 AI-recommended").
+    raw_archetypes = raw.get("recommended_archetypes", [])
+    seen = set()
+    recommended: list[str] = []
+    if isinstance(raw_archetypes, list):
+        for code in raw_archetypes:
+            code_str = str(code)
+            if code_str in VALID_ARCHETYPE_CODES and code_str not in seen:
+                recommended.append(code_str)
+                seen.add(code_str)
+    recommended = recommended[:5]
+
     return Stage1Response(
         symptoms=raw.get("symptoms", []),
         scale_signals=raw.get("scale_signals", {}),
         voids=voids,
+        recommended_archetypes=recommended,
     )
 
 
-# Stage 5 
+# Stage 3 — vagueness check 
+
+async def stage3_vagueness_check(
+    request: Stage3VaguenessCheckRequest,
+) -> Stage3VaguenessCheckResponse:
+    """
+    Checks the 4 archetype-tailored behavioral probe answers for vagueness.
+    Fails OPEN on any LLM/parsing issue — returns an empty vague_answers
+    list rather than raising, since this is a UX quality enhancement, not
+    a hard gate (NestJS's caller already treats a thrown exception here
+    the same way — fail open — but doing it here too means a malformed
+    LLM response doesn't surface as a 503 unnecessarily).
+    """
+    system = load_prompt("stage3_vagueness_check")
+
+    qa_block = "\n\n".join(
+        f"Q: {q}\nA: {a}" for q, a in request.probe_responses.items()
+    )
+    user_prompt = (
+        f"ARCHETYPE: {request.archetype}\n\n"
+        f"QUESTION/ANSWER PAIRS:\n{qa_block}\n\n"
+        "Review each answer for vagueness per the instructions."
+    )
+
+    try:
+        raw: dict = await llm_client.call_llm_json_with_system(
+            prompt=user_prompt,
+            system=system,
+        )
+    except Exception as exc:
+        logger.warning("stage3_vagueness_check LLM call failed, failing open: %s", exc)
+        return Stage3VaguenessCheckResponse(vague_answers=[])
+
+    flags = [
+        VaguenessFlag(
+            question=v.get("question", ""),
+            reason=v.get("reason", ""),
+        )
+        for v in raw.get("vague_answers", [])
+        if isinstance(v, dict) and v.get("question")
+    ]
+
+    return Stage3VaguenessCheckResponse(vague_answers=flags)
+
+
+# Stage 5
 
 async def stage5_synthesize(request: Stage5Request) -> Stage5Response:
     """
     Synthesise all 4 elicitation stages into a complete project specification.
-
-    One LLM call returns all 5 structured JSON outputs:
-      required_seams_json        — seam codes + criticality
-      required_domains_json      — domain codes + depth
-      milestone_framework_json   — deliverables + sign-off authority
-      artifact_a_json            — plain-English summary for CEO/shortlist
-      artifact_b_json            — technical deep-dive for expert due-diligence
-      completeness_score         — 0.0-1.0 quality gate
-
-    Args:
-        request: aggregated outputs from Stages 1-4 plus void list
-
-    Returns:
-        Stage5Response with validated fields.
-        On any missing key, safe empty-structure defaults are applied.
     """
     system = load_prompt("stage5_synthesize")
 
@@ -83,7 +128,7 @@ async def stage5_synthesize(request: Stage5Request) -> Stage5Response:
     raw: dict = await llm_client.call_llm_json_with_system(
         prompt=user_prompt,
         system=system,
-        max_output_tokens=8192,   # stage5 is the largest output in the service
+        max_output_tokens=8192,
     )
 
     logger.debug(
@@ -99,10 +144,6 @@ async def stage5_synthesize(request: Stage5Request) -> Stage5Response:
 
 
 def _build_stage5_prompt(request: Stage5Request) -> str:
-    """
-    Assemble the full context prompt from all 4 elicitation stages.
-    Each stage is a clearly labelled section so the LLM can reference all data.
-    """
     symptoms_block = (
         "\n".join(f"- {s}" for s in request.stage1_symptoms)
         if request.stage1_symptoms
@@ -119,14 +160,12 @@ def _build_stage5_prompt(request: Stage5Request) -> str:
         else "(no voids detected)"
     )
 
-    # Stage 3 probes: dict of question → answer
     probes_block = (
         "\n".join(f"  Q: {k}\n  A: {v}" for k, v in request.stage3_probes.items())
         if request.stage3_probes
         else "(no probe responses)"
     )
 
-    # Stage 4 tech inputs: dict of field → value
     tech_block = (
         "\n".join(f"  {k}: {v}" for k, v in request.stage4_tech_inputs.items())
         if request.stage4_tech_inputs
@@ -153,11 +192,6 @@ Synthesise all of the above into a complete project specification."""
 
 
 def _validate_stage5_response(raw: dict) -> Stage5Response:
-    """
-    Validate and sanitise each field from the LLM response.
-    Every field has a safe empty-structure default so the router never crashes.
-    """
-    # Seams: validate each entry has seam_code and criticality
     valid_criticalities = {"load_bearing", "significant", "contributing"}
     seams = [
         {"seam_code": s["seam_code"], "criticality": s.get("criticality", "contributing")}
@@ -166,7 +200,6 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
         and s.get("criticality") in valid_criticalities
     ]
 
-    # Domains: validate each entry has domain_code and required_depth
     valid_depths = {"SURFACE", "OPERATIONAL", "DEEP"}
     valid_domain_codes = {"A", "B", "C", "D", "E", "F"}
     domains = [
@@ -177,7 +210,6 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
         and d.get("required_depth") in valid_depths
     ]
 
-    # Milestones: validate each entry
     valid_authorities = {"CEO", "TECH_TEAM", "JOINT"}
     milestones = [
         {
@@ -186,15 +218,14 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
             "sign_off_authority":    m.get("sign_off_authority", "CEO")
                                      if m.get("sign_off_authority") in valid_authorities
                                      else "CEO",
-            "payment_amount_vnd":    0,   # always 0 — client sets this
+            "payment_amount_vnd":    0,
         }
         for i, m in enumerate(raw.get("milestone_framework_json", []))
         if isinstance(m, dict)
     ]
 
-    # Artifact A: safe defaults for each sub-field
     raw_a = raw.get("artifact_a_json", {}) or {}
-    valid_archetypes = {"1", "2", "3", "4", "5", "6"}
+    valid_archetypes = VALID_ARCHETYPE_CODES
     valid_tiers = {"TIER_1", "TIER_2", "TIER_3"}
     artifact_a = {
         "business_intent": str(raw_a.get("business_intent", "")),
@@ -208,7 +239,6 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
         "sdlc_notices":    raw_a.get("sdlc_notices", []) if isinstance(raw_a.get("sdlc_notices"), list) else [],
     }
 
-    # Artifact B
     raw_b = raw.get("artifact_b_json", {}) or {}
     artifact_b = {
         "stack_tags":          raw_b.get("stack_tags", [])     if isinstance(raw_b.get("stack_tags"), list)     else [],
@@ -218,7 +248,6 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
         "contracts":           raw_b.get("contracts", [])      if isinstance(raw_b.get("contracts"), list)      else [],
     }
 
-    # Completeness score: clamp to [0.0, 1.0]
     try:
         completeness = float(raw.get("completeness_score", 0.0))
         completeness = max(0.0, min(1.0, completeness))

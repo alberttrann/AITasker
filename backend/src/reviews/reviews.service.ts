@@ -18,9 +18,7 @@ export class ReviewService {
 
   async createReview(userId: string, createReviewDto: CreateReviewDto) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
 
     if (!user) {
@@ -28,9 +26,7 @@ export class ReviewService {
     }
 
     const engagement = await this.prisma.engagement.findUnique({
-      where: {
-        id: createReviewDto.engagementId,
-      },
+      where: { id: createReviewDto.engagementId },
     });
 
     if (!engagement) {
@@ -41,15 +37,6 @@ export class ReviewService {
       throw new ConflictException('This engagement is not closed yet!');
     }
 
-    /*
-        Reviews service with 3 pipelines:
-        1. CEO reviews Expert
-        2. Expert reviews CEO
-        3. Tech team reviews Expert
-    */
-
-    // Deciding the review role
-    // Reviewer roles pipelines decision
     const userActiveRole = user.activeRole;
 
     const reviewerRole =
@@ -59,7 +46,6 @@ export class ReviewService {
           : ReviewerRole.TECH_TEAM
         : ReviewerRole.EXPERT;
 
-    // Check to see if this user has made an review to the target before
     const isExistedReview = await this.prisma.review.findFirst({
       where: {
         engagementId: createReviewDto.engagementId,
@@ -71,27 +57,11 @@ export class ReviewService {
       throw new ConflictException('You have made this review before!');
     }
 
-    let parsedSignal; // signal for json parsing of structuredSignalsJson if the json parse is successfully
+    let parsedSignal;
 
     switch (reviewerRole) {
-      /*
-        Inside each case, need to check whether they're belong to that party or not!
-        1. CEO belong to that project
-        2. Tech team with the link profile match with the link project id
-        3. Expert belong to the engagements
-
-        We also need to validate that the targetId sent through the DTO is correctly align with the id inside the engagement or not -> This make CEO/TECH_TEAM/EXPERT writing review with the exact person
-       */
-
       case ReviewerRole.CEO:
-        const isBelongProject = await this.prisma.project.findFirst({
-          where: {
-            id: engagement.projectId,
-            clientId: user.id,
-          },
-        });
-
-        if (!isBelongProject) {
+        if (engagement.clientId !== user.id) {
           throw new ForbiddenException('You are not a party to this engagement');
         }
 
@@ -116,7 +86,6 @@ export class ReviewService {
           throw new ForbiddenException('TECH_TEAM can only review the expert on this engagement');
         }
 
-        // Checking if the stucturedSignalJson is missing or not
         if (!createReviewDto.structuredSignalsJson) {
           throw new BadRequestException('structuredSignalsJson is required for TECH_TEAM');
         }
@@ -134,17 +103,7 @@ export class ReviewService {
           throw new ForbiddenException('Not the expert on this engagement');
         }
 
-        const project = await this.prisma.project.findUnique({
-          where: {
-            id: engagement.projectId,
-          },
-        });
-
-        if (!project) {
-          throw new BadRequestException('Project not found for this engagement');
-        }
-
-        if (createReviewDto.targetId !== project.clientId) {
+        if (createReviewDto.targetId !== engagement.clientId) {
           throw new ForbiddenException('Expert can only review the client on this engagement');
         }
     }
@@ -166,9 +125,7 @@ export class ReviewService {
 
   async getAllReview(userId: string, engagementId: string) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
 
     if (!user) {
@@ -176,9 +133,7 @@ export class ReviewService {
     }
 
     const engagement = await this.prisma.engagement.findUnique({
-      where: {
-        id: engagementId,
-      },
+      where: { id: engagementId },
     });
 
     if (!engagement) {
@@ -189,16 +144,10 @@ export class ReviewService {
       throw new ConflictException('This engagement is not closed yet!');
     }
 
-    // Checking if the userId belong to the EXPERT, CLIENT OR TECH_TEAM inside that engagement or user is a admin? -> This make others users who dont participate in this engagement can't see the reviews internally
-
-    // Expert Verifier
     const isBelongExpert = engagement.expertId === user.id;
 
-    // CEO Verifier
-    const project = await this.prisma.project.findFirst({ where: { id: engagement.projectId } });
-    const isBelongCEO = project?.clientId === user.id;
+    const isBelongCEO = engagement.clientId === user.id;
 
-    // Tech team verifier
     const isBelongTechTeam = await this.prisma.techTeamProfile.findFirst({
       where: {
         userId: user.id,
@@ -213,9 +162,7 @@ export class ReviewService {
     }
 
     return await this.prisma.review.findMany({
-      where: {
-        engagementId: engagement.id,
-      },
+      where: { engagementId: engagement.id },
     });
   }
 }

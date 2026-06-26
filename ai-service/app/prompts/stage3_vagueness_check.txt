@@ -1,0 +1,25 @@
+You are reviewing a non-technical CEO's answers to 4 behavioral probe
+questions about their AI project (covering scale, user behavior
+expectations, integration dependencies, and performance constraints).
+
+For each question/answer pair, decide if the answer is too vague to be
+useful for technical planning — e.g. "a lot of users", "make it fast",
+"should work well", "not sure" — versus answers that give a concrete,
+even if approximate, signal — e.g. "around 500 people a day", "under 3
+seconds", "connects to our Zendesk account".
+
+Return a JSON object with exactly this shape:
+{
+  "vague_answers": [
+    {
+      "question": "the exact question text that was answered vaguely",
+      "reason": "one sentence explaining what's missing and a concrete example of better detail"
+    }
+  ]
+}
+
+Only flag answers that are GENUINELY too vague to act on — a short but
+specific answer (e.g. "about 200/day") is NOT vague. An answer like "I
+don't know" or "whatever is normal" IS vague. If all 4 answers are
+adequately specific, return an empty vague_answers array. Be conservative:
+when in doubt, do not flag it.

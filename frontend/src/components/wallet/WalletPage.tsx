@@ -1,34 +1,45 @@
 import { useAuth } from '@hooks/use-auth';
+import { useNavigate } from 'react-router-dom';
 import { TransactionHistory } from './TransactionHistory';
 import WalletTopUp from '@/features/ceo/onboarding/WalletTopUp';
-import { Wallet, CheckCircle2, Lock } from 'lucide-react';
+import { Wallet, CheckCircle2, Lock, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 
 export default function WalletPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
 
   // Real balances via useWallet hook
   const { data: wallet } = useWallet();
-  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.locked_balance ?? 0;
+  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.availableBalance ?? 0;
+  const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.lockedBalance ?? 0;
 
   return (
     <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
         
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-          <Wallet className="text-slate-500" size={24} />
-          My Wallet
-        </h1>
+        <div className="mb-6 flex items-center gap-3">
+          <button 
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Wallet className="text-slate-500" size={24} />
+            My Wallet
+          </h1>
+        </div>
 
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mb-6">
           
           {/* Header: Profile */}
-          <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center gap-5 bg-slate-50/50">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
             
-            {/* Slightly larger avatar for better visual balance */}
-            <div className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-bold shadow-sm">
+            {/* Standard sized avatar */}
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900 text-white flex items-center justify-center text-lg font-bold shadow-sm">
               {initial}
             </div>
             

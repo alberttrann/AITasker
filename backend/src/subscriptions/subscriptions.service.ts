@@ -12,7 +12,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { ActivateSubscriptionDto } from 'src/subscriptions/dto/activate-subscription.dto';
 import { addMonths } from 'date-fns';
 import { AuthService } from 'src/auth/auth.service';
-
+import { UnprocessableEntityException } from '@nestjs/common';
 @Injectable()
 export class SubscriptionService {
   constructor(
@@ -22,9 +22,7 @@ export class SubscriptionService {
 
   async activateSubscription(userId: string, activateSubscriptionDto: ActivateSubscriptionDto) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
 
     if (!user) {
@@ -39,15 +37,6 @@ export class SubscriptionService {
       );
     }
 
-    /*
-      Method using here: Dynamic Access
-      - Instead of using user.subscriptionClientTier or user.subscriptionExpertTier to access the tier or the expired time -> this cause the code to be longer and hard to maintain logic
-
-      - Therfore, we use Dynamic Access here which is user[the key]
-      - By using this, we only need to process what is the value of the key so that we can shortly access to the value of the column we want (this equals to user.subscriptionClientTier if the key is equals to subscriptionClientTier) avoiding the condition overcheck
-    
-    */
-
     const tierKey =
       userCurrentActiveRole === ActiveRole.CLIENT
         ? 'subscriptionClientTier'
@@ -56,50 +45,50 @@ export class SubscriptionService {
     const expiresKey =
       userCurrentActiveRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
 
+    const price =
+      userCurrentActiveRole === ActiveRole.CLIENT
+        ? SubscriptionPrice.CLIENT_PRO_PRICE
+        : SubscriptionPrice.EXPERT_PRO_PRICE;
+
+    const roleTypeLabel = userCurrentActiveRole === ActiveRole.CLIENT ? 'client' : 'expert';
+
     const currentTime = new Date();
-    if (user[tierKey] === SubscriptionTier.PRO || user[expiresKey] > currentTime) {
+    const isCurrentlyActive =
+      user[tierKey] === SubscriptionTier.PRO &&
+      user[expiresKey] !== null &&
+      user[expiresKey] > currentTime;
+
+    if (isCurrentlyActive) {
       throw new ConflictException('Your subscription is still available');
     }
 
-    // DB transaction to make sure every steps is successfully proccessed, rollback immediately if any step is error
     const updatedUser = await this.prisma.$transaction(async (tx) => {
       const userWallet = await tx.wallet.findUnique({
-        where: {
-          userId: user.id,
-        },
+        where: { userId: user.id },
       });
-
-      if (userWallet.availableBalance < SubscriptionPrice.PRO_PRICE) {
-        throw new ConflictException('Your available balance is not enough!');
+      
+      if (userWallet.availableBalance < price) {
+        throw new UnprocessableEntityException('INSUFFICIENT_BALANCE');
       }
 
-      // Decrease wallet balance
       await tx.wallet.update({
-        where: {
-          userId: user.id,
-        },
+        where: { userId: user.id },
         data: {
-          availableBalance: {
-            decrement: SubscriptionPrice.PRO_PRICE,
-          },
+          availableBalance: { decrement: price },
         },
       });
 
-      // Record transaction
       await tx.walletTransaction.create({
         data: {
           walletId: userWallet.id,
-          amount: BigInt(SubscriptionPrice.PRO_PRICE),
+          amount: BigInt(price),
           transactionType: TransactionType.SUBSCRIPTION,
-          referenceId: userId,
+          referenceId: `SUB-${userId}:${roleTypeLabel}:${Date.now()}`,
         },
       });
 
-      // Update tier and expiration time
       return tx.user.update({
-        where: {
-          id: user.id,
-        },
+        where: { id: user.id },
         data: {
           [tierKey]: SubscriptionTier.PRO,
           [expiresKey]: addMonths(new Date(), 6),
@@ -107,7 +96,6 @@ export class SubscriptionService {
       });
     });
 
-    // Reissue the new JWT
     const access_token = await this.authService.jwtGeneratePayload(updatedUser);
 
     return { access_token };
@@ -115,16 +103,12 @@ export class SubscriptionService {
 
   async getSubscriptionStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
 
     if (!user) {
       throw new NotFoundException('User not found!');
     }
-
-    // Using casting to const will tell TS that the string is the literal key of the user, therefore we don't need to cast the user to any to use the dynamic access method
 
     const tierKey =
       user.activeRole === ActiveRole.CLIENT

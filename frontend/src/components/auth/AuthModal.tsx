@@ -77,22 +77,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
 
       <div className="relative w-full max-w-[448px] md:max-w-[800px] lg:max-w-[900px] bg-surface rounded-xl border border-outline-variant shadow-xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden max-h-[90vh] flex flex-col md:flex-row">
 
-        {/* Left Side: Branding / Welcome Panel */}
-        <div className="hidden md:flex flex-col md:w-5/12 bg-primary text-white p-8 sm:p-12 justify-between relative overflow-hidden">
-          <div className="relative z-10">
-            <h1 className="font-headline text-4xl font-extrabold mb-4">AITasker</h1>
-            <p className="text-primary-light/90 font-body-lg">
-              {mode === 'signin' ? 'Welcome back! Log in to continue your journey.' : 'Join the platform that connects top clients with elite experts.'}
-            </p>
-          </div>
-          <div className="relative z-10 mt-12">
-            <div className="p-6 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-lg">
-              <p className="text-md italic font-medium leading-relaxed">"This platform changed the way we handle complex tasks. It is incredibly fast and reliable."</p>
-            </div>
-          </div>
-          {/* Abstract decorative shapes */}
-          <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-accent/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -top-12 -left-12 w-56 h-56 bg-tertiary/30 rounded-full blur-3xl pointer-events-none" />
+        {/* Left Side: Image Container (Blank for now) */}
+        <div className="hidden md:flex md:w-5/12 bg-slate-100 relative">
+          {/* 
+            TODO: Import and place your image here.
+            Example: <img src={yourImage} alt="Auth Background" className="absolute inset-0 w-full h-full object-cover" />
+          */}
         </div>
 
         {/* Right Side: Form Area */}
