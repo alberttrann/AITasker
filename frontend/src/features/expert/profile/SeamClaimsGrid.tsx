@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
-
-export interface SeamClaim {
-  code: string;
-  checked?: boolean;
-}
+import type { SeamClaim } from '@/types/ui.types';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;

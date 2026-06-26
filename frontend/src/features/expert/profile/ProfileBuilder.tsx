@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
-import DomainDepthGrid, { DomainDepth } from './DomainDepthGrid';
-import SeamClaimsGrid, { SeamClaim } from './SeamClaimsGrid';
+import DomainDepthGrid from './DomainDepthGrid';
+import SeamClaimsGrid from './SeamClaimsGrid';
+import type { DomainDepth, SeamClaim } from '@/types/ui.types';
 import StackTagsPicker from './StackTagsPicker';
 import { CheckCircle, ShieldCheck, X } from 'lucide-react';
 

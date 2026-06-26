@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
-
-export interface DomainDepth {
-  domainCode: string;
-  depthLevel: "SURFACE" | "OPERATIONAL" | "DEEP" | null;
-}
+import type { DomainDepth } from '@/types/ui.types';
 
 interface DomainDepthGridProps {
   onSave: (domains: DomainDepth[]) => void;
