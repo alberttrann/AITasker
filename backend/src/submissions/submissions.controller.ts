@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from "@nestjs/swagger";
 import { SubmissionsService } from "./submissions.service";
 import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { StagePaygatedDocDto } from "./dto/stage-paygated-doc.dto";
@@ -34,9 +34,12 @@ export class SubmissionsController {
   }
 
   @Get(':id/paygated-docs')
-  @Roles('TECH_TEAM', 'EXPERT')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiOperation({ summary: 'TECH_TEAM or EXPERT downloads unlocked documents (CEO is excluded)' })
-  async downloadDocument(@Param('id') milestoneId: string,) {
-    return this.submissionsService.downloadDocument(milestoneId);
+  async downloadDocument(
+    @Param('id') milestoneId: string,
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    return this.submissionsService.downloadDocument(milestoneId, user);
   }
 }

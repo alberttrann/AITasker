@@ -12,6 +12,45 @@ export class AdminService {
     private readonly disputesService: DisputesService,
   ) {}
 
+  // PUT /admin/projects/:id/suspend-spec
+  async suspendSpec(projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      throw new NotFoundException('Project not found.');
+    }
+    
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.project.update({
+        where: { id: projectId },
+        data: { state: 'SUSPENDED' }
+      });
+
+      await tx.platformDecision.create({
+        data: {
+          decisionType: 'SPEC_AUTO_RETURN',
+          entityType: 'projects',
+          entityId: projectId,
+          decision: 'SUSPENDED',
+          advisoryNote: 'Admin suspension',
+        }
+      });
+
+      return updated;
+    });
+  }
+
+  // PUT /admin/users/:id/suspend
+  async suspendUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+    });
+  }
 
   async getDisputesQueue(adminUserId: string, state?: string) {
     return this.disputesService.findAll(
@@ -27,7 +66,6 @@ export class AdminService {
     await this.disputesService.applyResolution(disputeId, resolution, undefined, adminUserId);
     return { success: true };
   }
-
 
   // GET /admin/decisions
   async getDecisions(filters?: { decisionType?: string; entityType?: string }) {

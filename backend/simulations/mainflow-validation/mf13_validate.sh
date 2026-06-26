@@ -5,7 +5,7 @@
 # already covers the CLIENT role path narrowly as part of its own flow;
 # this script targets the mechanism directly and symmetrically for BOTH
 # roles, plus the reactivation-after-expiry case neither prior script
-# exercises (today's OR-vs-AND fix from earlier this session).
+# exercises
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"

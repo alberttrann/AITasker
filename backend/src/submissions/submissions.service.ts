@@ -86,7 +86,35 @@ export class SubmissionsService {
     });
   }
 
-  async downloadDocument(milestoneId: string) {
+  async downloadDocument(
+    milestoneId: string,
+    user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: true },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    // Party-checks for highly sensitive artifact access
+    const isExpertParty = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
+    const isAdmin = user.activeRole === 'ADMIN';
+    
+    let isLinkedTechTeam = false;
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && milestone.engagement.projectId) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId: user.id } });
+      isLinkedTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
+    }
+
+    if (!isExpertParty && !isLinkedTechTeam && !isAdmin) {
+      throw new ForbiddenException(
+        "You are not authorized to access this milestone's pay-gated documents.",
+      );
+    }
+
     const docs = await this.prisma.paygatedDocument.findMany({
       where: {
         milestoneId: milestoneId,
