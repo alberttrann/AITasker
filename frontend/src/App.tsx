@@ -20,8 +20,11 @@ import AdminDashboard    from '@features/admin/AdminDashboard';
 import ProfilePage from './components/pages/UserProfilePage';
 import ProfileSettingPage from './components/pages/ProfileSettingPage';
 import WalletPage from './components/wallet/WalletPage';
+import ExpertWallet from '@features/expert/wallet/ExpertWallet';
+import BankHubLink from '@features/expert/wallet/BankHubLink';
 
 import SubscriptionActivate from '@features/ceo/onboarding/SubscriptionActivate';
+import ExpertSubscriptionActivate from '@features/expert/onboarding/SubscriptionActivate';
 
 export default function App() {
   return (
@@ -53,7 +56,9 @@ export default function App() {
             <Route index element={<ExpertOverview />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
-            <Route path="wallet" element={<WalletPage />} />
+            <Route path="wallet" element={<ExpertWallet />} />
+            <Route path="wallet/link-bank" element={<BankHubLink />} />
+            <Route path="subscription" element={<ExpertSubscriptionActivate />} />
           </Route>
         </Route>
 
