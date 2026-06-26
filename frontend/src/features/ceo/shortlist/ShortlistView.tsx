@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
-import type { ShortlistDto } from '@t/api.types';
 import type { MatchResult } from '@t/jsonb.types';
+import { getShortlist } from '@/hooks/use-matching';
 import MatchCard from './MatchCard';
 
 export default function ShortlistView() {
@@ -20,9 +19,7 @@ export default function ShortlistView() {
 
     const fetchShortlist = async () => {
       try {
-        const { data } = await apiClient.get<ShortlistDto>(
-          `/matching/${projectId}/shortlist`,
-        );
+        const data = await getShortlist(projectId);
         if (!cancelled) {
           setExperts(data.results ?? []);
         }
