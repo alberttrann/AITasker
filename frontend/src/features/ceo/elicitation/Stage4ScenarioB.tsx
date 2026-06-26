@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { useElicitation } from '@/hooks/use-elicitation';
 
 // Types
 interface ElicitationSession {
@@ -52,10 +52,9 @@ export default function Stage4ScenarioB({ sessionId, onResolved }: Stage4Scenari
     setSendError(null);
 
     try {
-      const res = await apiClient.post<InviteResponse>(
-        `/elicitation/sessions/${sessionId}/invite-tech-team`,
-        { email: inviteEmail.trim() },
-      );
+      const res = await inviteTechTeam.mutateAsync({
+        emails: [inviteEmail.trim()],
+      });
       setInviteLink(res.data.invite_link);
       setInviteSent(true);
     } catch (err: any) {
@@ -65,7 +64,7 @@ export default function Stage4ScenarioB({ sessionId, onResolved }: Stage4Scenari
     } finally {
       setIsSending(false);
     }
-  }, [inviteEmail, sessionId]);
+  }, [inviteEmail, inviteTechTeam]);
 
   // Copy link to clipboard
   const handleCopyLink = useCallback(() => {
@@ -93,12 +92,10 @@ export default function Stage4ScenarioB({ sessionId, onResolved }: Stage4Scenari
 
     const checkSession = async () => {
       try {
-        const res = await apiClient.get<ElicitationSession>(
-          `/elicitation/sessions/${sessionId}`,
-        );
+        const session = await getSession.refetch();
+        const data = session.data;
 
-        // processStage4Handoff advances currentStage to 5 on submission.
-        if (res.data.currentStage >= 5) {
+        if (data && (data.currentStage >= 5)) {
           stopPolling();
           onResolved();
           return;

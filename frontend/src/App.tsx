@@ -25,6 +25,7 @@ import BankHubLink from '@features/expert/wallet/BankHubLink';
 
 import SubscriptionActivate from '@features/ceo/onboarding/SubscriptionActivate';
 import ExpertSubscriptionActivate from '@features/expert/onboarding/SubscriptionActivate';
+import ExpertProfilePage from '@features/expert/profile/ExpertProfilePage';
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
