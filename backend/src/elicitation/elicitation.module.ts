@@ -2,13 +2,21 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ElicitationController } from './elicitation.controller';
 import { ElicitationService } from './elicitation.service';
-import { FastapiClient } from './fastapi.client';
-import { PrismaModule } from '../database/prisma.module'; // Import the shared module
+import { FastapiClientModule } from './fastapi-client.module';
+import { PrismaModule } from '../database/prisma.module';
+import { AuthModule } from '../auth/auth.module';
+import { MatchingHelperModule } from '../shared/matching/matching-helper.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule],
+  imports: [
+    ConfigModule,
+    PrismaModule,
+    FastapiClientModule,     
+    AuthModule,               
+    MatchingHelperModule,     
+  ],
   controllers: [ElicitationController],
-  providers: [ElicitationService, FastapiClient],
-  exports: [ElicitationService, FastapiClient],
+  providers: [ElicitationService],
+  exports: [ElicitationService, FastapiClientModule],
 })
 export class ElicitationModule {}

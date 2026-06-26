@@ -1,19 +1,23 @@
-import { EngagementState } from '@common/enums/engagement-state.enum';
 import { MilestoneState } from '@common/enums/milestone-state.enum';
+import { EngagementState } from '@common/enums/engagement-state.enum';
 import { PayGatedDocumentReleaseState } from '@common/enums/paygated-document-release-state.enum';
 import { SignOffAuthority } from '@common/enums/sign-off-auth.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { VAStatus } from '@common/enums/va-status.enum';
-import { ConflictException, Injectable } from '@nestjs/common';
-import { PrismaClient, Prisma, VirtualAccount } from '@prisma/client';
-import { DefaultArgs } from '@prisma/client/runtime/library';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, VirtualAccount } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
+import { LedgerService } from '@shared/ledger/ledger.service';
+
 @Injectable()
 export class IpnHandlerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ledgerService: LedgerService,
+  ) {}
+
   async handleIpn(data: any) {
-    // Extract fields inside body data
     const content = data.content;
     const transferAmount = BigInt(data.transferAmount);
     const referenceCode = data.referenceCode;
@@ -21,11 +25,8 @@ export class IpnHandlerService {
     const contentWords = content.split(' ');
     const paymentReference = contentWords[0];
 
-    // Query to get the user VA Account
     const userVirtualAccount = await this.prisma.virtualAccount.findUnique({
-      where: {
-        vaNumber: paymentReference,
-      },
+      where: { vaNumber: paymentReference },
     });
 
     if (!userVirtualAccount) {
@@ -33,7 +34,6 @@ export class IpnHandlerService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      // Rerouting to each of IPN Handler type
       switch (userVirtualAccount.entityType) {
         case VAEntityType.MILESTONE:
           return this.handleMilestoneTopup(tx, userVirtualAccount, referenceCode, transferAmount);
@@ -49,63 +49,43 @@ export class IpnHandlerService {
     tx: Prisma.TransactionClient,
     userVirtualAccount: VirtualAccount,
     referenceCode: string,
-    transferAmount: BigInt,
+    transferAmount: bigint,
   ) {
-    // Guards
-
-    // Check for the transferAmoun alignment
     if (userVirtualAccount.fixedAmount !== transferAmount) {
       throw new ConflictException('The transfer amount is not align with the fixed amoun');
     }
 
-    // Check for the expires of VA Account on Milestone branch
     if (userVirtualAccount.expiresAt && userVirtualAccount.expiresAt < new Date()) {
       throw new ConflictException('VA has expired, generate a new one');
     }
 
-    // Check for the active of the VA Account
     if (userVirtualAccount.status !== VAStatus.ACTIVE) {
       throw new ConflictException('This VA Account is not Active');
     }
 
-    // Get both the client wallet and expert wallet
     const milestone = await tx.milestone.findUnique({
-      where: {
-        id: userVirtualAccount.entityId,
-      },
+      where: { id: userVirtualAccount.entityId },
     });
 
     if (!milestone) throw new ConflictException('Milestone not found');
 
     const engagement = await tx.engagement.findUnique({
-      where: {
-        id: milestone.engagementId,
-      },
+      where: { id: milestone.engagementId },
     });
 
     if (!engagement) throw new ConflictException('Engagement not found');
 
-    const project = await tx.project.findUnique({
-      where: {
-        id: engagement.projectId,
-      },
-    });
-
-    if (!project) throw new ConflictException('Project not found');
-
     const clientWallet = await tx.wallet.findUnique({
-      where: {
-        userId: project.clientId,
-      },
+      where: { userId: engagement.clientId },
     });
 
     const expertWallet = await tx.wallet.findUnique({
-      where: {
-        userId: engagement.expertId,
-      },
+      where: { userId: engagement.expertId },
     });
 
-    // Idempotency check on the client wallet
+    if (!clientWallet) throw new NotFoundException('Client wallet not found.');
+    if (!expertWallet) throw new NotFoundException('Expert wallet not found.');
+
     const isExistedIdempotency = await tx.walletTransaction.findFirst({
       where: {
         walletId: clientWallet.id,
@@ -114,54 +94,24 @@ export class IpnHandlerService {
     });
 
     if (isExistedIdempotency) {
-      return {
-        success: true,
-        message: 'Already processed',
-      };
+      return { success: true, message: 'Already processed' };
     }
 
-    // Check milestone state
     if (milestone.state !== MilestoneState.AWAITING_PAYMENT) {
       throw new ConflictException('This milestone is done for payment');
     }
 
-    // Money flow
-    await tx.wallet.update({
-      where: {
-        id: clientWallet.id,
-      },
-      data: {
-        availableBalance: {
-          decrement: Number(transferAmount),
-        },
-        lockedBalance: {
-          increment: Number(transferAmount),
-        },
-      },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: clientWallet.id,
-        amount: Number(transferAmount),
-        transactionType: TransactionType.ESCROW_LOCK,
-        referenceId: referenceCode,
-      },
-    });
-
-    await tx.escrowAccount.create({
-      data: {
-        milestoneId: milestone.id,
-        amount: Number(transferAmount),
-        clientWalletId: clientWallet.id,
-        expertWalletId: expertWallet.id,
-      },
-    });
+    await this.ledgerService.fundAndLockEscrowWithTx(
+      tx,
+      milestone.id,
+      clientWallet.id,
+      expertWallet.id,
+      transferAmount,
+      referenceCode,
+    );
 
     await tx.milestone.update({
-      where: {
-        id: milestone.id,
-      },
+      where: { id: milestone.id },
       data: {
         state: MilestoneState.IN_PROGRESS,
         fundedAt: new Date(),
@@ -169,42 +119,29 @@ export class IpnHandlerService {
     });
 
     await tx.virtualAccount.update({
-      where: {
-        id: userVirtualAccount.id,
-      },
-      data: {
-        status: VAStatus.USED,
-      },
+      where: { id: userVirtualAccount.id },
+      data: { status: VAStatus.USED },
     });
 
     await tx.paygatedDocument.updateMany({
-      where: {
-        milestoneId: milestone.id,
-      },
+      where: { milestoneId: milestone.id },
       data: {
         releaseState: PayGatedDocumentReleaseState.RELEASED,
         releasedAt: new Date(),
       },
     });
 
-    // Setting ACTIVE status to engagement
     const countMilestone = await tx.milestone.count({
       where: {
         engagementId: engagement.id,
-        state: {
-          notIn: [MilestoneState.DEFINE, MilestoneState.AWAITING_PAYMENT],
-        },
+        state: { notIn: [MilestoneState.DEFINE, MilestoneState.AWAITING_PAYMENT] },
       },
     });
 
     if (countMilestone === 1) {
       await tx.engagement.update({
-        where: {
-          id: engagement.id,
-        },
-        data: {
-          state: EngagementState.ACTIVE,
-        },
+        where: { id: engagement.id },
+        data: { state: EngagementState.ACTIVE },
       });
     }
 
@@ -215,36 +152,47 @@ export class IpnHandlerService {
     tx: Prisma.TransactionClient,
     userVirtualAccount: VirtualAccount,
     referenceCode: string,
-    transferAmount: BigInt,
+    transferAmount: bigint,
   ) {
-    // Guards
-
-    // Check for the transferAmoun alignment
     if (userVirtualAccount.fixedAmount !== transferAmount) {
       throw new ConflictException('The transfer amount is not align with the fixed amoun');
     }
 
-    // Check for the expires of VA Account on Service branch
     if (userVirtualAccount.expiresAt && userVirtualAccount.expiresAt < new Date()) {
       throw new ConflictException('VA has expired, generate a new one');
     }
 
-    // Check for the active of the VA Account
     if (userVirtualAccount.status !== VAStatus.ACTIVE) {
       throw new ConflictException('This VA Account is not Active');
     }
 
     const engagement = await tx.engagement.findUnique({
-      where: {
-        id: userVirtualAccount.entityId,
-      },
+      where: { id: userVirtualAccount.entityId },
     });
 
     if (!engagement) throw new ConflictException('Engagement not found');
 
-    // Handle idempotency get blocked by no clientId tracing through -> Fix later
+    const clientWallet = await tx.wallet.findUnique({
+      where: { userId: engagement.clientId },
+    });
+    const expertWallet = await tx.wallet.findUnique({
+      where: { userId: engagement.expertId },
+    });
+    if (!clientWallet) throw new NotFoundException('Client wallet not found.');
+    if (!expertWallet) throw new NotFoundException('Expert wallet not found.');
 
-    await tx.milestone.create({
+    // Idempotency check
+    const isExistedIdempotency = await tx.walletTransaction.findFirst({
+      where: {
+        walletId: clientWallet.id,
+        referenceId: referenceCode,
+      },
+    });
+    if (isExistedIdempotency) {
+      return { success: true, message: 'Already processed' };
+    }
+
+    const milestone = await tx.milestone.create({
       data: {
         engagementId: engagement.id,
         milestoneNumber: 1,
@@ -255,44 +203,42 @@ export class IpnHandlerService {
       },
     });
 
+    await this.ledgerService.fundAndLockEscrowWithTx(
+      tx,
+      milestone.id,
+      clientWallet.id,
+      expertWallet.id,
+      transferAmount,
+      referenceCode,
+    );
+
     await tx.engagement.update({
-      where: {
-        id: engagement.id,
-      },
-      data: {
-        state: EngagementState.ACTIVE,
-      },
+      where: { id: engagement.id },
+      data: { state: EngagementState.ACTIVE },
     });
 
     await tx.virtualAccount.update({
-      where: {
-        id: userVirtualAccount.id,
-      },
-      data: {
-        status: VAStatus.USED,
-      },
+      where: { id: userVirtualAccount.id },
+      data: { status: VAStatus.USED },
     });
 
     return { success: true };
   }
 
   async handleWalletTopup(
-    tx: any,
-    userVirtualAccount: any,
-    referenceCode: any,
-    transferAmount: any,
+    tx: Prisma.TransactionClient,
+    userVirtualAccount: VirtualAccount,
+    referenceCode: string,
+    transferAmount: bigint,
   ) {
     const userWallet = await tx.wallet.findUnique({
-      where: {
-        userId: userVirtualAccount.entityId,
-      },
+      where: { userId: userVirtualAccount.entityId },
     });
 
     if (!userWallet) {
       throw new ConflictException('This user wallet is not exist!');
     }
 
-    // Check Idempotency
     const isExistedIdempotency = await tx.walletTransaction.findFirst({
       where: {
         walletId: userWallet.id,
@@ -301,25 +247,14 @@ export class IpnHandlerService {
     });
 
     if (isExistedIdempotency) {
-      return {
-        success: true,
-        message: 'Already processed',
-      };
+      return { success: true, message: 'Already processed' };
     }
 
-    // Update wallet balance
     await tx.wallet.update({
-      data: {
-        availableBalance: {
-          increment: transferAmount,
-        },
-      },
-      where: {
-        id: userWallet.id,
-      },
+      data: { availableBalance: { increment: transferAmount } },
+      where: { id: userWallet.id },
     });
 
-    // Create new transaction
     await tx.walletTransaction.create({
       data: {
         walletId: userWallet.id,

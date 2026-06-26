@@ -38,6 +38,7 @@ export class UserService {
 
     if (addRoleDto.newRole === UserRoleItem.CLIENT_CEO) {
       if (!user.clientProfile) dataToUpdate.clientProfile = { create: {} };
+      dataToUpdate.clientSubtype = 'CEO';
     } else {
       if (!user.expertProfile) dataToUpdate.expertProfile = { create: {} };
     }

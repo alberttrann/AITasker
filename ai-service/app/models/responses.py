@@ -9,6 +9,8 @@ class Stage1Response(BaseModel):
     symptoms:      list[str]
     scale_signals: dict
     voids:         list[VoidItem]
+    # 3-5 AI-recommended archetype codes, most-likely-first.
+    recommended_archetypes: list[str] = []
 
 class Stage5Response(BaseModel):
     required_seams_json:    list[dict]
@@ -27,7 +29,7 @@ class PortfolioEvalResponse(BaseModel):
 
 class GapMapItem(BaseModel):
     seam_code: str
-    color:     str  
+    color:     str
 
 class MatchResult(BaseModel):
     expert_id:       str
@@ -38,7 +40,7 @@ class MatchResult(BaseModel):
 
 class DisputeEvalResponse(BaseModel):
     confidence_score: float
-    finding:          str   
+    finding:          str
 
 
 class CriterionCheckResponse(BaseModel):
@@ -52,3 +54,12 @@ class ServiceGenerateResponse(BaseModel):
     scope:               str
     timeline:            str
     suggested_price_vnd: int
+
+
+# Stage 3 vagueness check on behavioral probe answers.
+class VaguenessFlag(BaseModel):
+    question: str
+    reason:   str
+
+class Stage3VaguenessCheckResponse(BaseModel):
+    vague_answers: list[VaguenessFlag] = []

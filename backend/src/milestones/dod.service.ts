@@ -1,0 +1,56 @@
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
+import { PrismaService } from '../database/prisma.service';
+import { CreateDodItemDto } from "./dto/create-dod-item.dto";
+
+@Injectable()
+export class DodService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(milestoneId: string, dto: CreateDodItemDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    return this.prisma.milestoneDodItem.create({
+      data: {
+        milestoneId: milestoneId,
+        itemDescription: dto.item_description,
+        isRequired: dto.is_required ?? true,
+        status: 'PENDING',
+        mapsToCriterionId: dto.maps_to_criterion_id || null,
+      },
+    });
+  }
+
+  async updateDodStatus(itemId: string, dto: UpdateMilestoneDoDItemDto) {
+    const dodItem = await this.prisma.milestoneDodItem.findUnique({
+      where: { id: itemId },
+    });
+    if (!dodItem) {
+      throw new NotFoundException(`DoD item with ID ${itemId} not found`);
+    }
+
+    if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE') {
+      throw new BadRequestException(`Cannot mark a required DoD item as NOT_APPLICABLE`);
+    }
+
+    if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note) {
+      throw new BadRequestException(`Completion note is required for required DoD items when status is not COMPLETED`);
+    }
+
+    return this.prisma.milestoneDodItem.update({
+      where: { id: itemId },
+      data: {
+        status: dto.status,
+        completionNote:    dto.status === 'COMPLETED'      ? dto.completion_note     : null,
+        notApplicableNote: dto.status === 'NOT_APPLICABLE' ? dto.not_applicable_note : null,
+        completedAt:       dto.status === 'COMPLETED'      ? new Date()              : null,
+      },
+    });
+  }
+}

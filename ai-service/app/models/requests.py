@@ -13,6 +13,12 @@ class Stage5Request(BaseModel):
     void_list_json:      list[dict]
 
 
+# Stage 3 vagueness check request.
+class Stage3VaguenessCheckRequest(BaseModel):
+    archetype:       str
+    probe_responses: dict[str, str]
+
+
 class PortfolioEvalRequest(BaseModel):
     project_description: str
     decision_points:     str
@@ -23,7 +29,7 @@ class MatchingRequest(BaseModel):
     required_seams_json:   list[dict]
     required_domains_json: list[dict]
     expert_profiles:       list[dict]
-    project_archetype:     str | None = None   # optional — enables archetype history scoring
+    project_archetype:     str | None = None
 
 
 class DisputeEvalRequest(BaseModel):

@@ -4,6 +4,7 @@ module.exports = {
   testRegex: 'test/.*\\.spec\\.ts$',
   transform: { '^.+\\.(t|j)s$': 'ts-jest' },
   testEnvironment: 'node',
+  moduleDirectories: ['node_modules', '.'],
   moduleNameMapper: {
     '^@common/(.*)$':   '<rootDir>/src/common/$1',
     '^@shared/(.*)$':   '<rootDir>/src/shared/$1',

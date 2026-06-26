@@ -5,34 +5,30 @@ Registered in main.py as:
     app.include_router(elicitation.router, prefix="/llm/elicitation", tags=["Elicitation"])
 
 Endpoints:
-    POST /llm/elicitation/stage1-extract      ← Part 2 ✓
-    POST /llm/elicitation/stage5-synthesize   ← Part 5 ✓
+    POST /llm/elicitation/stage1-extract            
+    POST /llm/elicitation/stage3-vagueness-check   
+    POST /llm/elicitation/stage5-synthesize         
 """
 
 import logging
 from fastapi import APIRouter, HTTPException, status
 
-from app.models.requests import Stage1Request, Stage5Request
-from app.models.responses import Stage1Response, Stage5Response
+from app.models.requests import Stage1Request, Stage3VaguenessCheckRequest, Stage5Request
+from app.models.responses import Stage1Response, Stage3VaguenessCheckResponse, Stage5Response
 from app.services import elicitation_engine
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Stage 1 — symptom extraction
+# Stage 1 — symptom extraction + archetype recommendation
 
 @router.post(
     "/stage1-extract",
     response_model=Stage1Response,
-    summary="Extract symptoms, scale signals and voids from CEO free-text input",
+    summary="Extract symptoms, scale signals, voids, and recommended archetypes from CEO free-text input",
 )
 async def stage1_extract(request: Stage1Request):
-    """
-    Called by NestJS ElicitationService after CEO submits Stage 1 text.
-    Returns an empty structure (not an error) if input is sparse.
-    NestJS decides whether to prompt the CEO for more detail.
-    """
     if not request.symptom_text.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -48,6 +44,40 @@ async def stage1_extract(request: Stage1Request):
         ) from exc
 
 
+# Stage 3 — vagueness check 
+
+@router.post(
+    "/stage3-vagueness-check",
+    response_model=Stage3VaguenessCheckResponse,
+    summary="Check Stage 3 behavioral probe answers for vagueness",
+)
+async def stage3_vagueness_check(request: Stage3VaguenessCheckRequest):
+    """
+    Called by NestJS ElicitationService.processStage3() before advancing to
+    Stage 4. Fails OPEN internally (see elicitation_engine) — this endpoint
+    itself only raises 503 on a genuine unhandled error, never on "the LLM
+    didn't flag anything," which always returns 200 with an empty list.
+    """
+    if not request.archetype.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="archetype must not be empty",
+        )
+    if not request.probe_responses:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="probe_responses must not be empty",
+        )
+    try:
+        return await elicitation_engine.stage3_vagueness_check(request)
+    except Exception as exc:
+        logger.exception("stage3_vagueness_check failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM service unavailable — retry in a moment",
+        ) from exc
+
+
 # Stage 5 — full project synthesis
 
 @router.post(
@@ -56,20 +86,6 @@ async def stage1_extract(request: Stage1Request):
     summary="Synthesise complete project spec from all 4 elicitation stages",
 )
 async def stage5_synthesize(request: Stage5Request):
-    """
-    Called by NestJS ElicitationService when the CEO completes Stage 4.
-
-    Flow (NestJS side after success):
-      1. Write required_seams_json + required_domains_json to projects table
-      2. Write milestone_framework_json to projects table
-      3. Write artifact_a_json to projects table (CEO-visible)
-      4. Write artifact_b_json to projects table (expert-only, gated until TECH_APPROVED bid)
-      5. Write completeness_score to platform_decisions
-      6. If completeness_score < 0.70:
-            project.state = RETURNED_TO_CLIENT (CEO must add more detail)
-         else:
-            project.state = PUBLISHED (visible to experts)
-    """
     if not request.session_id.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

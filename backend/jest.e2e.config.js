@@ -23,6 +23,11 @@ module.exports = {
   // Mirror tsconfig paths so src/ imports resolve in tests.
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
+    '^src/(.*)$':       '<rootDir>/src/$1',
+    '^@common/(.*)$':   '<rootDir>/src/common/$1',
+    '^@shared/(.*)$':   '<rootDir>/src/shared/$1',
+    '^@database/(.*)$': '<rootDir>/src/database/$1',
+    '^prisma/(.*)$':    '<rootDir>/prisma/$1'
   },
 
   // 30 seconds per test — integration tests hit a real DB and may do LLM calls.

@@ -10,45 +10,48 @@ datasource db {
 }
 
 model User {
-  id                                       String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                                    String                @unique
-  passwordHash                             String                @map("password_hash")
-  fullName                                 String                @map("full_name")
-  phone                                    String?
-  roles                                    Json                  @default("[]")
-  activeRole                               String                @default("CLIENT") @map("active_role")
-  clientSubtype                            String?               @map("client_subtype")
-  subscriptionClientTier                   String                @default("free") @map("subscription_client_tier")
-  subscriptionExpertTier                   String                @default("free") @map("subscription_expert_tier")
-  subClientExpiresAt                       DateTime?             @map("sub_client_expires_at") @db.Timestamptz(6)
-  subExpertExpiresAt                       DateTime?             @map("sub_expert_expires_at") @db.Timestamptz(6)
-  sepayBankAccountXid                      String?               @map("sepay_bank_account_xid")
-  bankAccountHolderName                    String?               @map("bank_account_holder_name")
-  bankLinkedAt                             DateTime?             @map("bank_linked_at") @db.Timestamptz(6)
-  selfTechnical                            Boolean               @default(false) @map("self_technical")
-  isActive                                 Boolean               @default(true) @map("is_active")
-  createdAt                                DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  self_technical_projects                  Json                  @default("[]")
-  clientProfile                            ClientProfile?
-  disputesFiled                            Dispute[]
-  elicitationSessions                      ElicitationSession[]
-  engagements_engagements_client_idTousers Engagement[]          @relation("engagements_client_idTousers")
-  expertEngagements                        Engagement[]          @relation("ExpertEngagements")
-  expertDomainDepths                       ExpertDomainDepth[]
-  expertProfile                            ExpertProfile?
-  expertSeamClaims                         ExpertSeamClaim[]
-  messageReads                             MessageRead[]
-  sentMessages                             Message[]
-  milestonesSubmitted                      MilestoneSubmission[]
-  portfolioSubmissions                     PortfolioSubmission[]
-  clientProjects                           Project[]             @relation("ClientProjects")
-  reviewsWritten                           Review[]              @relation("ReviewsWritten")
-  reviewsReceived                          Review[]              @relation("ReviewsReceived")
-  expertServices                           Service[]
-  linkedTechTeams                          TechTeamProfile[]     @relation("LinkedClient")
-  techTeamProfile                          TechTeamProfile?
-  wallet                                   Wallet?
-  withdrawalRequests                       WithdrawalRequest[]
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String    @unique
+  passwordHash           String    @map("password_hash")
+  fullName               String    @map("full_name")
+  phone                  String?
+  roles                  Json      @default("[]")
+  activeRole             String    @default("CLIENT") @map("active_role")
+  clientSubtype          String?   @map("client_subtype")
+  subscriptionClientTier String    @default("free") @map("subscription_client_tier")
+  subscriptionExpertTier String    @default("free") @map("subscription_expert_tier")
+  subClientExpiresAt     DateTime? @map("sub_client_expires_at") @db.Timestamptz(6)
+  subExpertExpiresAt     DateTime? @map("sub_expert_expires_at") @db.Timestamptz(6)
+  sepayBankAccountXid    String?   @map("sepay_bank_account_xid")
+  bankAccountHolderName  String?   @map("bank_account_holder_name")
+  bankLinkedAt           DateTime? @map("bank_linked_at") @db.Timestamptz(6)
+  selfTechnical          Boolean   @default(false) @map("self_technical")
+  selfTechnicalProjects  Json      @default("[]") @map("self_technical_projects")
+  isActive               Boolean   @default(true) @map("is_active")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  clientProfile        ClientProfile?
+  expertProfile        ExpertProfile?
+  techTeamProfile      TechTeamProfile?
+  wallet               Wallet?
+  elicitationSessions  ElicitationSession[]
+  clientProjects       Project[]             @relation("ClientProjects")
+  expertEngagements    Engagement[]          @relation("ExpertEngagements")
+  clientEngagements    Engagement[]          @relation("ClientEngagements")
+  expertServices       Service[]
+  expertDomainDepths   ExpertDomainDepth[]
+  expertSeamClaims     ExpertSeamClaim[]
+  portfolioSubmissions PortfolioSubmission[]
+  withdrawalRequests   WithdrawalRequest[]
+  linkedTechTeams      TechTeamProfile[]     @relation("LinkedClient")
+  sentMessages         Message[]
+  messageReads         MessageRead[]
+  reviewsWritten       Review[]              @relation("ReviewsWritten")
+  reviewsReceived      Review[]              @relation("ReviewsReceived")
+  milestonesSubmitted  MilestoneSubmission[]
+  disputesFiled    Dispute[] @relation("DisputeFiler")
+  disputesResolved  Dispute[] @relation("DisputeResolver")
 
   @@index([activeRole])
   @@map("users")
@@ -141,6 +144,8 @@ model WithdrawalRequest {
   status         String    @default("PENDING")
   requestedAt    DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
   confirmedAt    DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  milestoneId    String?   @map("milestone_id") @db.Uuid
+  milestone      Milestone? @relation(fields: [milestoneId], references: [id])
   expert         User      @relation(fields: [expertId], references: [id])
 
   @@index([expertId])
@@ -159,23 +164,26 @@ model PlatformSettings {
 }
 
 model ElicitationSession {
-  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                      String    @map("user_id") @db.Uuid
-  currentStage                Int       @default(1) @map("current_stage")
-  archetype                   String?
-  scenarioType                String?   @map("scenario_type")
-  voidListJson                Json      @default("[]") @map("void_list_json")
-  state                       String    @default("IN_PROGRESS")
-  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  stage1SymptomsJson          Json?     @map("stage1_symptoms_json")
-  stage3ProbesJson            Json?     @map("stage3_probes_json")
-  stage4TechInputsJson        Json?     @map("stage4_tech_inputs_json")
-  handoff_token_jti           String?
-  handoff_consumed_at         DateTime? @db.Timestamptz(6)
-  recommended_archetypes_json Json?
-  user                        User      @relation(fields: [userId], references: [id])
-  project                     Project?
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  currentStage Int      @default(1) @map("current_stage")
+  archetype    String?
+  scenarioType String?  @map("scenario_type")
+  voidListJson Json     @default("[]") @map("void_list_json")
+  // Stage payload columns — persisted per stage, assembled for Stage 5 
+  stage1SymptomsJson   Json?    @map("stage1_symptoms_json")   
+  stage3ProbesJson     Json?    @map("stage3_probes_json")     
+  stage4TechInputsJson Json?    @map("stage4_tech_inputs_json") 
+  state        String   @default("IN_PROGRESS")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  handoffTokenJti           String?   @map("handoff_token_jti")
+  handoffConsumedAt         DateTime? @map("handoff_consumed_at") @db.Timestamptz(6)
+  recommendedArchetypesJson Json?     @map("recommended_archetypes_json")
+
+  user    User     @relation(fields: [userId], references: [id])
+  project Project?
+  
 
   @@index([userId])
   @@index([state])
@@ -189,17 +197,19 @@ model Project {
   state                  String              @default("PUBLISHED")
   archetype              String?
   tier                   String?
-  selfTechnical          Boolean             @default(false) @map("self_technical")
-  requiredSeamsJson      Json                @default("[]") @map("required_seams_json")
-  requiredDomainsJson    Json                @default("[]") @map("required_domains_json")
-  milestoneFrameworkJson Json                @default("[]") @map("milestone_framework_json")
-  artifactAJson          Json?               @map("artifact_a_json")
-  artifactBJson          Json?               @map("artifact_b_json")
-  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  engagements            Engagement[]
-  client                 User                @relation("ClientProjects", fields: [clientId], references: [id])
-  elicitationSession     ElicitationSession? @relation(fields: [elicitationSessionId], references: [id])
-  techTeamProfiles       TechTeamProfile[]
+  selfTechnical          Boolean  @default(false) @map("self_technical")
+  requiredSeamsJson      Json     @default("[]") @map("required_seams_json")
+  requiredDomainsJson    Json     @default("[]") @map("required_domains_json")
+  milestoneFrameworkJson Json     @default("[]") @map("milestone_framework_json")
+  artifactAJson          Json?    @map("artifact_a_json")
+  artifactBJson          Json?    @map("artifact_b_json")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  client             User                @relation("ClientProjects", fields: [clientId], references: [id])
+  elicitationSession ElicitationSession? @relation(fields: [elicitationSessionId], references: [id])
+  techTeamProfiles   TechTeamProfile[]
+  engagements        Engagement[]
+  messages           Message[]
 
   @@index([clientId])
   @@index([state])
@@ -257,47 +267,53 @@ model Service {
   expertId    String       @map("expert_id") @db.Uuid
   title       String
   description String?
-  domainsJson Json         @default("[]") @map("domains_json")
-  seamsJson   Json         @default("[]") @map("seams_json")
-  priceVnd    BigInt       @map("price_vnd")
-  state       String       @default("DRAFT")
-  serviceType String       @map("service_type")
-  engagements Engagement[]
+  domainsJson Json     @default("[]") @map("domains_json")
+  seamsJson   Json     @default("[]") @map("seams_json")
+  priceVnd    BigInt   @map("price_vnd")
+  state       String   @default("DRAFT")
+  serviceType String   @map("service_type")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  scope       String?
+  timeline    String?
+
   expert      User         @relation(fields: [expertId], references: [id])
+  engagements Engagement[]
 
   @@index([expertId])
   @@index([state])
   @@index([serviceType])
+  @@index([createdAt(sort: Desc)])
   @@map("services")
 }
 
 model Engagement {
-  id                                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  projectId                          String?         @map("project_id") @db.Uuid
-  expertId                           String          @map("expert_id") @db.Uuid
-  client_id                          String          @db.Uuid
-  serviceId                          String?         @map("service_id") @db.Uuid
-  type                               String
-  state                              String          @default("PENDING")
-  connectedAt                        DateTime?       @map("connected_at") @db.Timestamptz(6)
-  clientNdaAcceptedAt                DateTime?       @map("client_nda_accepted_at") @db.Timestamptz(6)
-  expertNdaAcceptedAt                DateTime?       @map("expert_nda_accepted_at") @db.Timestamptz(6)
-  capabilityBid                      CapabilityBid?
-  disputes                           Dispute[]
-  users_engagements_client_idTousers User            @relation("engagements_client_idTousers", fields: [client_id], references: [id])
-  expert                             User            @relation("ExpertEngagements", fields: [expertId], references: [id])
-  project                            Project?        @relation(fields: [projectId], references: [id])
-  service                            Service?        @relation(fields: [serviceId], references: [id])
-  escrowAccounts                     EscrowAccount[] @relation("EngagementEscrow")
-  messages                           Message[]
-  milestones                         Milestone[]
-  reviews                            Review[]
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId           String?   @map("project_id") @db.Uuid
+  expertId            String    @map("expert_id") @db.Uuid
+  clientId            String    @map("client_id") @db.Uuid
+  serviceId           String?   @map("service_id") @db.Uuid
+  type                String
+  state               String    @default("PENDING")
+  connectedAt         DateTime? @map("connected_at") @db.Timestamptz(6)
+  clientNdaAcceptedAt DateTime? @map("client_nda_accepted_at") @db.Timestamptz(6)
+  expertNdaAcceptedAt DateTime? @map("expert_nda_accepted_at") @db.Timestamptz(6)
+
+  project        Project?        @relation(fields: [projectId], references: [id])
+  expert         User            @relation("ExpertEngagements", fields: [expertId], references: [id])
+  client         User            @relation("ClientEngagements", fields: [clientId], references: [id])
+  service        Service?        @relation(fields: [serviceId], references: [id])
+  capabilityBid  CapabilityBid?
+  milestones     Milestone[]
+  escrowAccounts EscrowAccount[] @relation("EngagementEscrow")
+  disputes       Dispute[]
+  messages       Message[]
+  reviews        Review[]
 
   @@index([projectId])
   @@index([expertId])
+  @@index([clientId])
   @@index([serviceId])
   @@index([state])
-  @@index([client_id])
   @@map("engagements")
 }
 
@@ -321,27 +337,28 @@ model CapabilityBid {
 }
 
 model Milestone {
-  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  engagementId         String                @map("engagement_id") @db.Uuid
-  milestoneNumber      Int                   @map("milestone_number")
-  deliverableStatement String?               @map("deliverable_statement")
-  signOffAuthority     String                @map("sign_off_authority")
-  paymentAmountVnd     BigInt                @map("payment_amount_vnd")
-  state                String                @default("DEFINED")
-  vaNumber             String?               @map("va_number")
-  vaExpiresAt          DateTime?             @map("va_expires_at") @db.Timestamptz(6)
-  fundedAt             DateTime?             @map("funded_at") @db.Timestamptz(6)
-  submittedAt          DateTime?             @map("submitted_at") @db.Timestamptz(6)
-  approvedAt           DateTime?             @map("approved_at") @db.Timestamptz(6)
-  releasedAt           DateTime?             @map("released_at") @db.Timestamptz(6)
-  acceptanceCriteria   AcceptanceCriterion[]
-  disputes             Dispute[]
-  escrowAccounts       EscrowAccount[]       @relation("MilestoneEscrow")
-  dodItems             MilestoneDodItem[]
-  submissions          MilestoneSubmission[]
-  engagement           Engagement            @relation(fields: [engagementId], references: [id])
-  paygatedDocuments    PaygatedDocument[]
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  engagementId         String    @map("engagement_id") @db.Uuid
+  milestoneNumber      Int       @map("milestone_number")
+  deliverableStatement String?   @map("deliverable_statement")
+  signOffAuthority     String    @map("sign_off_authority")
+  paymentAmountVnd     BigInt    @map("payment_amount_vnd")
+  state                String    @default("DEFINED")
+  vaNumber             String?   @map("va_number")
+  vaExpiresAt          DateTime? @map("va_expires_at") @db.Timestamptz(6)
+  fundedAt             DateTime? @map("funded_at") @db.Timestamptz(6)
+  submittedAt          DateTime? @map("submitted_at") @db.Timestamptz(6)
+  approvedAt           DateTime? @map("approved_at") @db.Timestamptz(6)
+  releasedAt           DateTime? @map("released_at") @db.Timestamptz(6)
 
+  engagement         Engagement            @relation(fields: [engagementId], references: [id])
+  acceptanceCriteria AcceptanceCriterion[]
+  dodItems           MilestoneDodItem[]
+  submissions        MilestoneSubmission[]
+  paygatedDocuments  PaygatedDocument[]
+  escrowAccounts     EscrowAccount[]       @relation("MilestoneEscrow")
+  disputes           Dispute[]
+  withdrawalRequests WithdrawalRequest[]
   @@unique([engagementId, milestoneNumber])
   @@index([engagementId])
   @@index([state])
@@ -433,21 +450,25 @@ model EscrowAccount {
 }
 
 model Dispute {
-  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  engagementId    String              @map("engagement_id") @db.Uuid
-  milestoneId     String?             @map("milestone_id") @db.Uuid
-  criterionId     String              @map("criterion_id") @db.Uuid
-  escrowAccountId String              @map("escrow_account_id") @db.Uuid
-  filedBy         String              @map("filed_by") @db.Uuid
-  state           String              @default("PENDING")
-  llmConfidence   Float?              @map("llm_confidence")
-  filedAt         DateTime            @default(now()) @map("filed_at") @db.Timestamptz(6)
-  resolvedAt      DateTime?           @map("resolved_at") @db.Timestamptz(6)
-  criterion       AcceptanceCriterion @relation(fields: [criterionId], references: [id])
-  engagement      Engagement          @relation(fields: [engagementId], references: [id])
-  escrowAccount   EscrowAccount       @relation(fields: [escrowAccountId], references: [id])
-  filer           User                @relation(fields: [filedBy], references: [id])
-  milestone       Milestone?          @relation(fields: [milestoneId], references: [id])
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  engagementId    String    @map("engagement_id") @db.Uuid
+  milestoneId     String?   @map("milestone_id") @db.Uuid
+  criterionId     String    @map("criterion_id") @db.Uuid
+  escrowAccountId String    @map("escrow_account_id") @db.Uuid
+  filedBy         String    @map("filed_by") @db.Uuid
+  state           String    @default("PENDING")
+  llmConfidence   Float?    @map("llm_confidence")
+  filedAt         DateTime  @default(now()) @map("filed_at") @db.Timestamptz(6)
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolvedBy      String?   @map("resolved_by") @db.Uuid
+
+  filer         User                @relation("DisputeFiler", fields: [filedBy], references: [id])
+  resolver      User?               @relation("DisputeResolver", fields: [resolvedBy], references: [id])
+  engagement    Engagement          @relation(fields: [engagementId], references: [id])
+  milestone     Milestone?          @relation(fields: [milestoneId], references: [id])
+  criterion     AcceptanceCriterion @relation(fields: [criterionId], references: [id])
+  escrowAccount EscrowAccount       @relation(fields: [escrowAccountId], references: [id])
+  
 
   @@index([engagementId])
   @@index([state])
@@ -456,17 +477,19 @@ model Dispute {
 }
 
 model Message {
-  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  engagementId  String        @map("engagement_id") @db.Uuid
-  senderId      String        @map("sender_id") @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  engagementId  String?  @map("engagement_id") @db.Uuid    
+  projectId     String?  @map("project_id") @db.Uuid         
+  senderId      String   @map("sender_id") @db.Uuid
   content       String
-  attachmentUrl String?       @map("attachment_url")
-  timestamp     DateTime      @default(now()) @db.Timestamptz(6)
+  attachmentUrl String?  @map("attachment_url")
+  timestamp     DateTime @default(now()) @db.Timestamptz(6)
+  project       Project?    @relation(fields: [projectId], references: [id])
+  engagement    Engagement? @relation(fields: [engagementId], references: [id])
+  sender        User        @relation(fields: [senderId], references: [id])
   reads         MessageRead[]
-  engagement    Engagement    @relation(fields: [engagementId], references: [id])
-  sender        User          @relation(fields: [senderId], references: [id])
 
-  @@index([engagementId, timestamp])
+  @@index([engagementId, timestamp(sort: Asc)])
   @@index([senderId])
   @@map("messages")
 }
