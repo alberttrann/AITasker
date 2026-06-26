@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@hooks/use-auth';
-import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, Briefcase, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '@components/ui/Modal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
@@ -318,19 +318,16 @@ export default function ProfilePage() {
               </button>
             )}
 
-            <button className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-slate-50 text-slate-900 transition-colors group">
+            <button 
+              onClick={() => navigate('/subscription')}
+              disabled={!isFree}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors group ${
+                !isFree ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50 text-slate-900'
+              }`}
+            >
               <div className="flex items-center gap-3 text-sm font-medium">
-                {isFree ? (
-                  <>
-                    <Sparkles size={18} className="text-emerald-600 group-hover:animate-pulse" />
-                    Upgrade to Premium
-                  </>
-                ) : (
-                  <>
-                    <Briefcase size={18} className="text-emerald-600 group-hover:animate-pulse" />
-                    {isExpert ? 'Get Expert Help' : 'Become an Expert'}
-                  </>
-                )}
+                <Sparkles size={18} className="text-emerald-600 group-hover:animate-pulse" />
+                Upgrade to Pro
               </div>
             </button>
             
