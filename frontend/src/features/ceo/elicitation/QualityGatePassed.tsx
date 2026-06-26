@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ARCHETYPE_LABELS } from "@/hooks/use-elicitation";
+import { PartyPopper, Clipboard, Calendar, Tag } from 'lucide-react';
 
 interface QualityGatePassedProps {
   projectId: string;
@@ -22,7 +23,7 @@ export default function QualityGatePassed({
   return (
     <Card elevated>
       <CardContent className="space-y-8 pt-6 text-center">
-        <div className="text-5xl">🎉</div>
+        <div className="flex justify-center"><PartyPopper className="w-16 h-16 text-success" /></div>
         <div>
           <h2 className="text-h2 font-headline text-primary">
             Your Project Has Been Published!
@@ -40,13 +41,13 @@ export default function QualityGatePassed({
         <div className="rounded-lg border border-slate-200 bg-primary-bg p-4 text-left">
           <div className="space-y-2">
             <p className="text-body-sm">
-              <span className="font-medium text-primary">📋 Project ID: </span>
+              <span className="font-medium text-primary"><Clipboard className="w-4 h-4 mr-1 inline" /> Project ID: </span>
               <span className="text-secondary font-mono text-caption">
                 {projectId}
               </span>
             </p>
             <p className="text-body-sm">
-              <span className="font-medium text-primary">📅 Published: </span>
+              <span className="font-medium text-primary"><Calendar className="w-4 h-4 mr-1 inline" /> Published: </span>
               <span className="text-secondary">
                 {new Date().toLocaleDateString("en-US", {
                   year: "numeric",
@@ -56,7 +57,7 @@ export default function QualityGatePassed({
               </span>
             </p>
             <p className="text-body-sm">
-              <span className="font-medium text-primary">🏷️ Archetype: </span>
+              <span className="font-medium text-primary"><Tag className="w-4 h-4 mr-1 inline" /> Archetype: </span>
               <span className="text-secondary">
                 {ARCHETYPE_LABELS[archetype] ?? archetype}
               </span>

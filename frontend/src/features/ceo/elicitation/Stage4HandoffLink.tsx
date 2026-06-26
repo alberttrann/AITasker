@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Clipboard, Check, AlertTriangle, Hourglass, Loader2 } from 'lucide-react';
 
 interface HandoffLinkProps {
   inviteLink: string;
@@ -32,8 +33,8 @@ export default function Stage4HandoffLink({
 
       {/* Share link section */}
       <div className="space-y-3">
-        <p className="text-body font-medium text-primary">
-          📋 Share this link with your technical team member:
+        <p className="text-body font-medium text-primary flex items-center justify-center gap-2">
+          <Clipboard className="w-5 h-5" /> Share this link with your technical team member:
         </p>
 
         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-primary-bg px-4 py-3">
@@ -44,13 +45,13 @@ export default function Stage4HandoffLink({
             onClick={(e) => (e.target as HTMLInputElement).select()}
           />
           <Button variant="primary" size="sm" onClick={handleCopy}>
-            {copied ? '✓ Copied!' : '📋 Copy Link'}
+            {copied ? <><Check className="w-4 h-4 mr-1 inline" /> Copied!</> : <><Clipboard className="w-4 h-4 mr-1 inline" /> Copy Link</>}
           </Button>
         </div>
 
-        <p className="text-caption text-secondary">
-          ⚠️ This link expires in 72 hours. Share via Slack, Zalo, or email
-          — no automatic sending.
+        <p className="text-caption text-secondary flex items-start justify-center gap-1">
+          <AlertTriangle className="w-4 h-4 shrink-0" /> 
+          <span>This link expires in 72 hours. Share via Slack, Zalo, or email — no automatic sending.</span>
         </p>
       </div>
 
@@ -59,10 +60,10 @@ export default function Stage4HandoffLink({
       {/* Waiting message */}
       <div className="space-y-3">
         {isPolling && (
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
         )}
-        <p className="text-body-sm text-secondary">
-          ⏳ Waiting for your Tech Team to complete Stage 4…
+        <p className="text-body-sm text-secondary flex items-center justify-center gap-2">
+          <Hourglass className="w-4 h-4" /> Waiting for your Tech Team to complete Stage 4…
         </p>
         <p className="text-caption text-secondary">
           (Auto-advancing when they submit — polling every 5s)

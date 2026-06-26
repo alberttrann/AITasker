@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getSession, type GateResult } from '@/hooks/use-elicitation';
+import { Bot, Loader2, CheckCircle2 } from 'lucide-react';
 
 const PROGRESS_MESSAGES = [
   'Analyzing symptom descriptions…',
@@ -80,7 +81,7 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
         <h2 className="text-h2 font-headline text-primary">Stage 5 of 5</h2>
         <p className="text-body-sm text-secondary">Generating Your Project Specification</p>
       </div>
-      <div className="text-5xl">🤖</div>
+      <div className="flex justify-center"><Bot className="w-16 h-16 text-primary" /></div>
       <div>
         <p className="text-body-lg font-headline text-primary">AI is synthesizing your project blueprint…</p>
         <p className="mt-2 text-body-sm text-secondary">This takes 30–90 seconds. Please don't close this page.</p>
@@ -95,7 +96,7 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
             const isDone = i < messageIndex || (i === 0 && messageIndex === 0);
             return (
               <li key={i} className={`flex items-center gap-2 text-body-sm ${isActive ? 'text-primary font-medium' : isDone ? 'text-success' : 'text-secondary'}`}>
-                <span className="w-5 text-center">{isActive ? '🔄' : isDone ? '✅' : '⬜'}</span>
+                <span className="w-5 flex justify-center items-center">{isActive ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : isDone ? <CheckCircle2 className="w-4 h-4 text-success" /> : <div className="w-4 h-4 border-2 border-slate-300 rounded-sm" />}</span>
                 {msg}
               </li>
             );

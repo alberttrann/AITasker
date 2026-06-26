@@ -4,6 +4,7 @@ import ProfileBuilder from './ProfileBuilder';
 import PortfolioSubmitForm from '../verification/PortfolioSubmitForm';
 import { ShieldCheck, PlusCircle, CheckCircle, Edit3, ArrowUpCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function ExpertProfilePage() {
   const { profile, isLoadingProfile } = useExpertProfile();
@@ -13,7 +14,7 @@ export default function ExpertProfilePage() {
   if (isLoadingProfile) {
     return (
       <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+        <Spinner size="lg" className="mb-4" />
         <p className="text-gray-500 font-medium">Loading profile...</p>
       </div>
     );

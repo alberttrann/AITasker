@@ -6,6 +6,7 @@ import SeamClaimsGrid from './SeamClaimsGrid';
 import type { DomainDepth, SeamClaim } from '@/types/ui.types';
 import StackTagsPicker from './StackTagsPicker';
 import { CheckCircle, ShieldCheck, X } from 'lucide-react';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   if (isLoadingProfile) {
     return (
       <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+        <Spinner size="lg" className="mb-4" />
         <p className="text-gray-500 font-medium">Loading profile builder...</p>
       </div>
     );

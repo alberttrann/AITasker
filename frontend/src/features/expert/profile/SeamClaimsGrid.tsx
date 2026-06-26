@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { SeamClaim } from '@/types/ui.types';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;
@@ -125,7 +126,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
         >
           {isSubmitting ? (
             <>
-              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+              <Spinner size="sm" className="text-white" />
               Saving...
             </>
           ) : (

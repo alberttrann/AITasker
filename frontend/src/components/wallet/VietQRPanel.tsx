@@ -3,6 +3,7 @@ import { Copy, CheckCircle } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWallet } from '@/hooks/use-wallet';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface VietQRPanelProps {
   qrCodeUrl: string;
@@ -141,7 +142,7 @@ export function VietQRPanel({
         </div>
       ) : (
         <div className="flex items-center justify-center gap-3 text-slate-500 bg-slate-50/50 px-4 py-3 rounded-lg w-full border border-slate-100">
-          <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+          <Spinner size="sm" className="text-slate-400" />
           <span className="text-sm font-medium">Waiting for payment confirmation...</span>
         </div>
       )}

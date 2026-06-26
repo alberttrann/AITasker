@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { Chip } from "@/components/ui/Chip";
+import { Bot, Loader2, CheckCircle2 } from "lucide-react";
 import type { VoidItem } from "@t/jsonb.types";
 import {
   submitStage1,
@@ -79,7 +80,7 @@ export default function Stage1Symptoms({
   if (isSubmitting) {
     return (
       <div className="space-y-6 py-12 text-center">
-        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
         <div>
           <h3 className="text-h3 font-headline text-primary">
             Analyzing your project description…
@@ -147,7 +148,7 @@ export default function Stage1Symptoms({
                     }`}
                   >
                     {acknowledgedVoids.has(v.void_code)
-                      ? "✓ I understand"
+                      ? <><CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> I understand</>
                       : "I understand"}
                   </button>
                 </div>
@@ -187,8 +188,8 @@ export default function Stage1Symptoms({
       </div>
 
       <div className="rounded-lg bg-primary-bg p-4">
-        <p className="text-body font-medium text-primary">
-          🤖 What problem are you trying to solve with AI?
+        <p className="text-body font-medium text-primary flex items-center gap-2">
+          <Bot className="w-5 h-5 text-primary" /> What problem are you trying to solve with AI?
         </p>
         <p className="mt-1 text-body-sm text-secondary">
           Write a detailed description of your project. Include what the

@@ -9,7 +9,7 @@ import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
 import apiClient from '@/lib/api-client';
 import { useUser } from '@/hooks/use-user';
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Target, Settings, Search } from 'lucide-react';
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
 const loginSchema = Yup.object({
@@ -102,12 +102,67 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
 
       <div className="relative w-full max-w-[448px] md:max-w-[800px] lg:max-w-[900px] bg-surface rounded-xl border border-outline-variant shadow-xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden max-h-[90vh] flex flex-col md:flex-row">
 
-        {/* Left Side: Image Container (Blank for now) */}
-        <div className="hidden md:flex md:w-5/12 bg-slate-100 relative">
-          {/* 
-            TODO: Import and place your image here.
-            Example: <img src={yourImage} alt="Auth Background" className="absolute inset-0 w-full h-full object-cover" />
-          */}
+        {/* Left Side: Image Container / Graphic */}
+        <div className="hidden md:flex md:w-5/12 bg-primary relative overflow-hidden flex-col items-center justify-center p-8 border-r border-slate-800">
+          {/* Dot Grid Background */}
+          <div 
+            className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
+            style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+          ></div>
+          
+          {/* Background decorative elements */}
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-accent rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
+          
+          <div className="relative w-full max-w-[280px] aspect-[4/5] mt-8 flex items-center justify-center">
+            {/* Main Match Card */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full bg-surface/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl z-20 hover:scale-105 transition-transform duration-500">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-accent to-emerald-400 p-[2px] shadow-accent-glow">
+                  <div className="w-full h-full bg-primary-dark rounded-xl flex items-center justify-center">
+                    <Target className="w-6 h-6 text-accent" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-white font-headline text-base font-bold">AITasker</h4>
+                  <p className="text-accent text-xs font-mono mt-0.5">Automated Quality</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-xs text-slate-400 mb-1 font-medium">
+                    <span>Vetted Experts</span>
+                    <span className="text-white">100%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-accent w-full rounded-full"></div></div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-slate-400 mb-1 font-medium">
+                    <span>Escrow Protection</span>
+                    <span className="text-white">Active</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-blue-400 w-full rounded-full"></div></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating Tech Pill 1 */}
+            <div className="absolute top-[10%] left-[-10%] bg-surface/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2.5 flex items-center gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transform -rotate-6 hover:rotate-0 hover:scale-105 transition-transform z-10">
+               <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center">
+                 <Settings className="w-3 h-3 text-purple-400" />
+               </div>
+               <span className="text-white text-xs font-headline font-bold">Smart Match</span>
+            </div>
+
+            {/* Floating Tech Pill 2 */}
+            <div className="absolute bottom-[10%] right-[-10%] bg-surface/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2.5 flex items-center gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transform rotate-3 hover:rotate-0 hover:scale-105 transition-transform z-30">
+               <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                 <Search className="w-3 h-3 text-blue-400" />
+               </div>
+               <span className="text-white text-xs font-headline font-bold">Expert AI</span>
+            </div>
+          </div>
         </div>
 
         {/* Right Side: Form Area */}
@@ -348,6 +403,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     <ErrorMessage name="phone" component="p" className="mt-1 text-xs font-semibold text-error" />
                   </div>
 
+                  {values.role === 'CLIENT_CEO' && (
                     <div className="md:col-span-2">
                       <Label htmlFor="taxCode">
                         Tax code <span className="text-on-surface-variant font-normal">(optional)</span>
@@ -399,6 +455,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     )}
                     <ErrorMessage name="taxCode" component="p" className="mt-1 text-xs font-semibold text-error" />
                   </div>
+                  )}
                   </div>
 
                   {registerError && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">{registerError}</div>}
@@ -408,7 +465,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     disabled={register.isPending || isSubmitting}
                     className="w-full py-3 px-4 rounded-lg shadow-sm hover:shadow-md mt-2"
                   >
-                    {register.isPending ? 'Creating account...' : `Sign up as ${values.role === 'EXPERT' ? 'Expert' : 'Client'}`}
+                    {register.isPending ? 'Creating account...' : (
+                      <span className="flex items-center justify-center">
+                        Sign up as <span className="text-accent font-extrabold ml-1.5 uppercase tracking-wide">{values.role === 'EXPERT' ? 'Expert' : 'Client'}</span>
+                      </span>
+                    )}
                   </Button>
                 </Form>
               )}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 import { submitStage3, handleElicitationError, PROBES, ARCHETYPE_LABELS } from '@/hooks/use-elicitation';
+import { AlertTriangle } from 'lucide-react';
 
 interface Stage3Props {
   sessionId: string;
@@ -61,7 +62,7 @@ export default function Stage3Probes({ sessionId, archetype, onComplete, onError
 
       {vagueAnswers.length > 0 && (
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-          <p className="text-body-sm font-medium text-warning">⚠️ Some answers need more detail before continuing:</p>
+          <p className="text-body-sm font-medium text-warning flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> Some answers need more detail before continuing:</p>
           <ul className="mt-2 list-inside list-disc text-body-sm text-secondary space-y-2">
             {vagueAnswers.map((v) => (
               <li key={v.question}>

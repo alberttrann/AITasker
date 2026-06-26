@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../../lib/api-client'; 
 import Stage4Submitted from './Stage4Submitted';
+import { AlertTriangle, X } from 'lucide-react';
 
 export default function Stage4Form() {
   // Lấy handoff session ID từ sessionStorage
@@ -155,7 +156,7 @@ export default function Stage4Form() {
   if (!sessionId) {
     return (
       <div className="max-w-6xl mx-auto py-16 px-4 text-center font-body">
-        <div className="text-error text-5xl mb-4">⚠️</div>
+        <div className="flex justify-center mb-4"><AlertTriangle className="w-16 h-16 text-error" /></div>
         <h3 className="text-xl font-semibold text-primary mb-2 font-headline">
           Session ID Missing
         </h3>
@@ -275,7 +276,7 @@ export default function Stage4Form() {
                     onClick={() => removeTechStack(index)}
                     className="hover:text-error font-bold text-sm leading-none focus:outline-none transition-colors"
                   >
-                    &times;
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -326,7 +327,7 @@ export default function Stage4Form() {
                     onClick={() => removeSchema(index)}
                     className="hover:text-error font-bold text-sm leading-none focus:outline-none transition-colors"
                   >
-                    &times;
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -377,7 +378,7 @@ export default function Stage4Form() {
                     onClick={() => removeContract(index)}
                     className="hover:text-error font-bold text-sm leading-none focus:outline-none transition-colors"
                   >
-                    &times;
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
