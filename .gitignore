@@ -35,6 +35,7 @@ env/
 ENV/
 ai-service/venv/
 ai-service/.venv/
+ai-service/.env/
 
 __pycache__/
 *.py[cod]
