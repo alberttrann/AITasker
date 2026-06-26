@@ -26,15 +26,15 @@ export function VietQRPanel({
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [initialBalance, setInitialBalance] = useState<number | null>(null);
   const queryClient = useQueryClient();
-  const { walletData } = useWallet();
+  const { data: walletData } = useWallet();
 
   // Get initial balance when component mounts
   useEffect(() => {
-    if (walletData) {
+    if (walletData && initialBalance === null) {
       const balance = (walletData as any).availableBalance ?? (walletData as any).available_balance ?? 0;
       setInitialBalance(balance);
     }
-  }, [walletData]);
+  }, [walletData, initialBalance]);
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -42,27 +42,28 @@ export function VietQRPanel({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // Check balance updates
+  useEffect(() => {
+    if (isConfirmed || initialBalance === null || !walletData) return;
+
+    const currentBalance = (walletData as any).availableBalance ?? (walletData as any).available_balance ?? 0;
+    if (currentBalance > initialBalance) {
+      setIsConfirmed(true);
+      onPaymentConfirmed?.();
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'transactions'] });
+    }
+  }, [walletData, initialBalance, isConfirmed, onPaymentConfirmed, queryClient]);
+
   // Polling fallback
   useEffect(() => {
     if (isConfirmed || initialBalance === null) return;
 
-    const interval = setInterval(async () => {
-      try {
-        await queryClient.invalidateQueries({ queryKey: ['wallet'] });
-        const currentBalance = (walletData as any).availableBalance ?? (walletData as any).available_balance ?? 0;
-        
-        if (currentBalance > initialBalance) {
-          setIsConfirmed(true);
-          onPaymentConfirmed?.();
-        }
-        queryClient.invalidateQueries({ queryKey: ['wallet'] });
-      } catch (err) {
-        console.error('Polling error', err);
-      }
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [isConfirmed, queryClient, initialBalance, onPaymentConfirmed]);
+  }, [isConfirmed, queryClient, initialBalance]);
 
   // TODO: Implement socket listener for `payment:confirmed`
   // useEffect(() => {
