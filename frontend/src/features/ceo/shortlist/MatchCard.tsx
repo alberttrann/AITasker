@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
 
 interface MatchCardProps {
@@ -11,10 +13,19 @@ const STRENGTH_STYLES: Record<string, string> = {
 };
 
 export default function MatchCard({ expert }: MatchCardProps) {
-  const name = (expert as any).expert_profile?.fullName || 'Expert';
+  // Fetch public profile since matching backend strips it
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['expertProfile', expert.expert_id],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/users/${expert.expert_id}/public-profile`);
+      return data;
+    },
+  });
+
+  const name = isLoading ? 'Loading Expert...' : profile?.fullName || 'Expert';
   const strength = expert.strength_label || 'Conditional';
   const strengthStyle = STRENGTH_STYLES[strength] ?? STRENGTH_STYLES.Conditional;
-  const stackTags = ((expert as any).expert_profile?.stack_tags ?? []) as string[];
+  const stackTags = (profile?.stackTags ?? []) as string[];
   const gaps: GapMapItem[] = expert.gap_map ?? [];
 
   return (
