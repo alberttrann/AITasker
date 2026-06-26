@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import { type GenerateHandoffLinkResponse } from '@t/api.types';
 
 // ─── Shared Types ─────────────────────────────────────────────────────
 
@@ -91,6 +92,15 @@ export async function submitStage4(
     `/elicitation/sessions/${sessionId}/stage4`,
     { current_stack, data_available, latency_requirement },
     { timeout: 120_000 }
+  );
+  return data;
+}
+
+/** Generate a handoff link to invite the tech team. */
+export async function inviteTechTeam(sessionId: string, email: string) {
+  const { data } = await apiClient.post<GenerateHandoffLinkResponse>(
+    `/elicitation/sessions/${sessionId}/generate-handoff-link`,
+    { email },
   );
   return data;
 }

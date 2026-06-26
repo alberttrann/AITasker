@@ -304,6 +304,12 @@ export interface PaginatedResponse<T> {
   limit: number;
 }
 
+export interface GenerateHandoffLinkResponse {
+  invite_token: string;
+  invite_link: string;
+  expires_in: string;
+}
+
 export interface ApiError {
   statusCode: number;
   message:    string | object;

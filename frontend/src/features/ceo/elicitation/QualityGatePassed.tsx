@@ -32,17 +32,25 @@ export default function QualityGatePassed({
             when bids start arriving.
           </p>
         </div>
-        <div className="space-y-2">
-          <p className="text-body-sm font-medium text-secondary">
-            Completeness Score: {pct}%
-          </p>
-          <div className="mx-auto h-3 w-full max-w-xs overflow-hidden rounded-full bg-primary-bg">
-            <div
-              className="h-full rounded-full bg-success transition-all duration-1000"
-              style={{ width: `${pct}%` }}
-            />
+        {pct > 0 ? (
+          <div className="space-y-2">
+            <p className="text-body-sm font-medium text-secondary">
+              Completeness Score: {pct}%
+            </p>
+            <div className="mx-auto h-3 w-full max-w-xs overflow-hidden rounded-full bg-primary-bg">
+              <div
+                className="h-full rounded-full bg-success transition-all duration-1000"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-body-sm font-medium text-success">
+              Status: Verified & Passed
+            </p>
+          </div>
+        )}
         <div className="rounded-lg border border-slate-200 bg-primary-bg p-4 text-left">
           <div className="space-y-2">
             <p className="text-body-sm">

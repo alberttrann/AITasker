@@ -1,26 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { apiClient } from "@/lib/api-client";
 import Stage4HandoffLink from "./Stage4HandoffLink";
-
-// Types
-interface ElicitationSession {
-  id: string;
-  currentStage: number;
-  state: "IN_PROGRESS" | "RETURNED_TO_CLIENT" | "COMPLETED";
-  updatedAt: string;
-}
-
-interface InviteResponse {
-  invite_token: string;
-  invite_link: string;
-  expires_in: string;
-}
-
-interface Stage4ScenarioBProps {
-  sessionId: string;
-  onTechTeamSubmitted: () => void; // called when polling detects stage 5
-  onFillInMyself: () => void; // called when CEO wants to switch to ScenarioA
-}
+import { inviteTechTeam, getSession } from "@/hooks/use-elicitation";
+import type { Stage4ScenarioBProps } from "@t/ui.types";
 
 // Polling configuration
 // Stopgap until a real sockets/notifications module exists on the backend.
@@ -58,11 +39,8 @@ export default function Stage4ScenarioB({
     setSendError(null);
 
     try {
-      const res = await apiClient.post<InviteResponse>(
-        `/elicitation/sessions/${sessionId}/generate-handoff-link`,
-        { email: inviteEmail.trim() },
-      );
-      setInviteLink(res.data.invite_link);
+      const res = await inviteTechTeam(sessionId, inviteEmail.trim());
+      setInviteLink(res.invite_link);
       setInviteSent(true);
     } catch (err: any) {
       setSendError(
@@ -100,12 +78,10 @@ export default function Stage4ScenarioB({
 
     const checkSession = async () => {
       try {
-        const res = await apiClient.get<ElicitationSession>(
-          `/elicitation/sessions/${sessionId}`,
-        );
+        const data = await getSession(sessionId);
 
         // processStage4Handoff advances currentStage to 5 on submission.
-        if (res.data.currentStage >= 5) {
+        if (data.currentStage >= 5) {
           stopPolling();
           onTechTeamSubmitted();
           return;

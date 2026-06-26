@@ -31,23 +31,32 @@ export default function QualityGateFailed({
             Your Project Needs More Detail
           </h2>
           <p className="mt-2 text-body text-secondary">
-            Your project specification scored {pct}% completeness (minimum 70%
-            required).
+            {pct > 0 
+              ? `Your project specification scored ${pct}% completeness (minimum 70% required).`
+              : `Your project specification is incomplete.`}
           </p>
         </div>
 
         {/* Completeness Score */}
-        <div className="space-y-2">
-          <p className="text-body-sm font-medium text-secondary">
-            Completeness Score: {pct}%
-          </p>
-          <div className="mx-auto h-3 w-full max-w-xs overflow-hidden rounded-full bg-primary-bg">
-            <div
-              className="h-full rounded-full bg-error transition-all duration-1000"
-              style={{ width: `${Math.min(pct, 100)}%` }}
-            />
+        {pct > 0 ? (
+          <div className="space-y-2">
+            <p className="text-body-sm font-medium text-secondary">
+              Completeness Score: {pct}%
+            </p>
+            <div className="mx-auto h-3 w-full max-w-xs overflow-hidden rounded-full bg-primary-bg">
+              <div
+                className="h-full rounded-full bg-error transition-all duration-1000"
+                style={{ width: `${Math.min(pct, 100)}%` }}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-body-sm font-medium text-error">
+              Status: Missing Technical Context
+            </p>
+          </div>
+        )}
 
         {/* Advisory */}
         <div className="rounded-lg border border-error/20 bg-error/5 p-4 text-left">
