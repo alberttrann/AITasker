@@ -159,3 +159,7 @@ node_modules/
 
 skills-lock.json
 .agents/
+.pi/
+.agy/
+
+docs/implement/
