@@ -11,7 +11,7 @@ export default function ErrorPage() {
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-coral-light/20 rounded-full blur-3xl opacity-70"></div>
 
       <div className="w-full max-w-5xl mx-auto flex flex-col items-center justify-center relative z-10 min-w-0">
-        <div className="relative z-10 text-center max-w-2xl w-full flex flex-col items-center shrink-0 min-w-0">
+        <div className="relative z-10 text-center max-w-5xl w-full flex flex-col items-center shrink-0 min-w-0">
 
           {/* Massive 404 Typography */}
           <div className="relative inline-block mb-4">
@@ -30,11 +30,11 @@ export default function ErrorPage() {
             </span>
           </div>
 
-          <h2 className="text-3xl md:text-4xl font-headline font-extrabold text-primary-dark mb-4 tracking-wide shrink-0 min-w-0">
+          <h2 className="text-xl md:text-4xl font-headline font-extrabold text-primary-dark mb-4 tracking-wide shrink-0 min-w-0">
             We lost this page in the void.
           </h2>
 
-          <p className="w-[90%] sm:w-[448px] max-w-full mx-auto text-base md:text-lg text-primary-dark/80 font-body mb-10 leading-relaxed bg-primary-bg p-4 rounded-[16px] border border-primary-light/30 shrink-0 min-w-0">
+          <p className="w-[90%] sm:max-w-6xl max-w-full mx-auto text-base md:text-lg text-primary-dark/80 font-body mb-10 leading-relaxed bg-primary-bg p-4 rounded-[16px] border border-primary-light/30 shrink-0 min-w-0">
             The link you followed might be broken, or the page has been moved. Let's get you back to familiar territory.
           </p>
 

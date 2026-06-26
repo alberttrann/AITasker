@@ -73,22 +73,22 @@ export class ExpertProfileService {
   }
 
   async createDomainDepth(userId: string, dto: UpsertDomainDepthDto) {
-    try {
-      return this.prisma.expertDomainDepth.create({
-        data: {
+    return this.prisma.expertDomainDepth.upsert({
+      where: {
+        expertId_domainCode: {
           expertId: userId,
           domainCode: dto.domainCode,
-          depthLevel: dto.depthLevel,
         },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException(
-          'A depth claim for this domain already exists. Use PUT to update.',
-        );
-      }
-      throw error;
-    }
+      },
+      update: {
+        depthLevel: dto.depthLevel,
+      },
+      create: {
+        expertId: userId,
+        domainCode: dto.domainCode,
+        depthLevel: dto.depthLevel,
+      },
+    });
   }
 
   async updateDomainDepth(userId: string, id: string, depthLevel: string) {
@@ -110,20 +110,18 @@ export class ExpertProfileService {
   }
 
   async createSeamClaim(userId: string, dto: UpsertSeamClaimDto) {
-    try {
-      return await this.prisma.expertSeamClaim.create({
-        data: {
+    return await this.prisma.expertSeamClaim.upsert({
+      where: {
+        expertId_seamCode: {
           expertId: userId,
           seamCode: dto.seamCode,
         },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException(
-          'A seam claim for this seam already exists. Use PUT to update.',
-        );
-      }
-      throw error;
-    }
+      },
+      update: {}, // No fields to update for a seam claim right now, just ensure it exists
+      create: {
+        expertId: userId,
+        seamCode: dto.seamCode,
+      },
+    });
   }
 }
