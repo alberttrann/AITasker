@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
-import { PrismaService } from "prisma/prisma.service";
+import { PrismaService } from '../database/prisma.service';
 import { CreateDodItemDto } from "./dto/create-dod-item.dto";
 
 @Injectable()

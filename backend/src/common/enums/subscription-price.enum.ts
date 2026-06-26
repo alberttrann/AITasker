@@ -1,3 +1,4 @@
 export enum SubscriptionPrice {
-  PRO_PRICE = 5000,
+  CLIENT_PRO_PRICE = 500000,
+  EXPERT_PRO_PRICE = 300000,
 }

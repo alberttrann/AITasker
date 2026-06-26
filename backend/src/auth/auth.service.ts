@@ -1,9 +1,3 @@
-// backend/src/auth/auth.service.ts
-// RECONCILED: adopts Chi Nhan's real dual-token refresh mechanism
-// (discarding my earlier alias-based workaround entirely) and his
-// taxCode/VietQR verification feature, while adding back the `user`
-// object the frontend hook needs (his version didn't include it) and the
-// A1 expiry/selfTechnical fields in the JWT payload.
 import {
   ConflictException,
   Injectable,
@@ -38,7 +32,6 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  // ADDED — shared response shape, never includes passwordHash.
   private toAuthUserResponse(user: User) {
     return {
       id:                     user.id,
@@ -75,8 +68,6 @@ export class AuthService {
           roles: [registerDto.roles],
           activeRole: activeRole,
           clientSubtype: clientSubtype,
-          // ADDED (A3b, merged from my side) — registration-time default,
-          // only meaningful for CLIENT_CEO; defaults to false if omitted.
           selfTechnical: registerDto.selfTechnical ?? false,
 
           ...(activeRole == ActiveRole.CLIENT
@@ -99,7 +90,6 @@ export class AuthService {
         },
       });
 
-      // Chi Nhan's VietQR business-tax verification — kept as-is.
       const taxCode = registerDto.taxCode;
       if (taxCode) {
         try {
@@ -115,9 +105,6 @@ export class AuthService {
         } catch {}
       }
 
-      // CHANGED: added `user` to the response — the frontend's onSuccess
-      // hook (store.setUser(data.user); redirectByRole(...)) needs it,
-      // and the original version of this method didn't include it.
       const access_token = await this.jwtGeneratePayload(user);
       const refresh_token = await this.jwtGenerateRefreshPayload(user);
 
@@ -146,7 +133,6 @@ export class AuthService {
     const accessToken = await this.jwtGeneratePayload(user);
     const refreshToken = await this.jwtGenerateRefreshPayload(user);
 
-    // CHANGED: added `user`, same reasoning as register() above.
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -181,10 +167,6 @@ export class AuthService {
     };
   }
 
-  // ADOPTED from Chi Nhan's branch wholesale — true dual-token refresh,
-  // reads tokenString from the request body (not Authorization header),
-  // works even after the access token has expired. Discards my earlier
-  // alias-based workaround entirely.
   async refreshToken(tokenString: string) {
     let payload;
     try {
@@ -222,10 +204,6 @@ export class AuthService {
       clientSubType: user.clientSubtype,
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
-      // ADDED (A1, merged from my side) — JwtStrategy re-queries fresh
-      // from DB on every request and ignores these claims itself, but
-      // including them keeps the signed token internally consistent with
-      // what validate() returns.
       subClientExpiresAt: user.subClientExpiresAt,
       subExpertExpiresAt: user.subExpertExpiresAt,
       selfTechnical: user.selfTechnical,
@@ -235,7 +213,6 @@ export class AuthService {
     return accessToken;
   }
 
-  // ADOPTED from Chi Nhan's branch wholesale.
   async jwtGenerateRefreshPayload(user: User) {
     const payload = {
       sub: user.id,
@@ -246,14 +223,6 @@ export class AuthService {
     return refreshToken;
   }
 
-  // RESTORED — this is OUR feature (E9, Stage B), not present on Chi Nhan's
-  // dev branch at all. His changes don't replace it; they sit alongside it.
-  // Updated here only to use the same dual-token + user response pattern
-  // as register()/login() above, for consistency.
-  //
-  // SEQUENCING NOTE (unchanged from before): depends on elicitation.service.ts's
-  // inviteTechTeam signing+persisting a jti — confirm that landed before
-  // testing this end-to-end.
   async registerHandoff(dto: RegisterHandoffDto) {
     let payload: { sessionId: string; ceoId: string; jti: string; purpose: string };
     try {

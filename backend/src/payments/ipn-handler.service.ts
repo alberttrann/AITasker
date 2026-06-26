@@ -1,12 +1,6 @@
-// backend/src/payments/ipn-handler.service.ts
-// CHANGED: handleMilestoneTopup now implements the Pass-Through Ledger
-// Pattern explicitly — Leg 1 (inbound top-up, real TOP_UP transaction
-// record) then Leg 2 (lock, delegated to LedgerService.lockMilestoneEscrowWithTx
-// so the logic is shared with the new pay-from-wallet path, not duplicated).
-// Also simplified the wallet lookup to use engagement.clientId directly
-// (now that it exists) instead of traversing through Project.
 import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { EngagementState } from '@common/enums/engagement-state.enum';
+import { PayGatedDocumentReleaseState } from '@common/enums/paygated-document-release-state.enum';
 import { SignOffAuthority } from '@common/enums/sign-off-auth.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
@@ -81,10 +75,6 @@ export class IpnHandlerService {
 
     if (!engagement) throw new ConflictException('Engagement not found');
 
-    // SIMPLIFIED: was traversing engagement -> project -> project.clientId.
-    // engagement.clientId already carries this value directly (populated
-    // at creation by bids.service.ts), avoiding an extra query and a
-    // dependency on engagement.projectId always being non-null.
     const clientWallet = await tx.wallet.findUnique({
       where: { userId: engagement.clientId },
     });
@@ -111,37 +101,49 @@ export class IpnHandlerService {
       throw new ConflictException('This milestone is done for payment');
     }
 
-    // ── Pass-Through Ledger Pattern ─────────────────────────────────────
-    // LEG 1 — Inbound: fresh external money lands in the wallet, exactly
-    // like a normal top-up. This is what makes Leg 2's decrement safe —
-    // availableBalance goes UP by transferAmount here, then immediately
-    // back DOWN by the same amount in Leg 2, never dipping below its
-    // starting value at any point, so the available_balance >= 0 CHECK
-    // constraint is never at risk.
-    await tx.wallet.update({
-      where: { id: clientWallet.id },
-      data: { availableBalance: { increment: transferAmount } },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: clientWallet.id,
-        amount: transferAmount,
-        transactionType: TransactionType.TOP_UP,
-        referenceId: referenceCode,
-      },
-    });
-
-    // LEG 2 — Lock: immediately freeze it for this milestone. Shared with
-    // the pay-from-wallet path via LedgerService, not duplicated here.
-    await this.ledgerService.lockMilestoneEscrowWithTx(
+    await this.ledgerService.fundAndLockEscrowWithTx(
       tx,
-      milestone,
+      milestone.id,
       clientWallet.id,
       expertWallet.id,
       transferAmount,
       referenceCode,
     );
+
+    await tx.milestone.update({
+      where: { id: milestone.id },
+      data: {
+        state: MilestoneState.IN_PROGRESS,
+        fundedAt: new Date(),
+      },
+    });
+
+    await tx.virtualAccount.update({
+      where: { id: userVirtualAccount.id },
+      data: { status: VAStatus.USED },
+    });
+
+    await tx.paygatedDocument.updateMany({
+      where: { milestoneId: milestone.id },
+      data: {
+        releaseState: PayGatedDocumentReleaseState.RELEASED,
+        releasedAt: new Date(),
+      },
+    });
+
+    const countMilestone = await tx.milestone.count({
+      where: {
+        engagementId: engagement.id,
+        state: { notIn: [MilestoneState.DEFINE, MilestoneState.AWAITING_PAYMENT] },
+      },
+    });
+
+    if (countMilestone === 1) {
+      await tx.engagement.update({
+        where: { id: engagement.id },
+        data: { state: EngagementState.ACTIVE },
+      });
+    }
 
     return { success: true };
   }
@@ -170,10 +172,27 @@ export class IpnHandlerService {
 
     if (!engagement) throw new ConflictException('Engagement not found');
 
-    // Chi Nhan's own flagged gap, unchanged: "Handle idempotency get
-    // blocked by no clientId tracing through -> Fix later"
+    const clientWallet = await tx.wallet.findUnique({
+      where: { userId: engagement.clientId },
+    });
+    const expertWallet = await tx.wallet.findUnique({
+      where: { userId: engagement.expertId },
+    });
+    if (!clientWallet) throw new NotFoundException('Client wallet not found.');
+    if (!expertWallet) throw new NotFoundException('Expert wallet not found.');
 
-    await tx.milestone.create({
+    // Idempotency check
+    const isExistedIdempotency = await tx.walletTransaction.findFirst({
+      where: {
+        walletId: clientWallet.id,
+        referenceId: referenceCode,
+      },
+    });
+    if (isExistedIdempotency) {
+      return { success: true, message: 'Already processed' };
+    }
+
+    const milestone = await tx.milestone.create({
       data: {
         engagementId: engagement.id,
         milestoneNumber: 1,
@@ -183,6 +202,15 @@ export class IpnHandlerService {
         fundedAt: new Date(),
       },
     });
+
+    await this.ledgerService.fundAndLockEscrowWithTx(
+      tx,
+      milestone.id,
+      clientWallet.id,
+      expertWallet.id,
+      transferAmount,
+      referenceCode,
+    );
 
     await tx.engagement.update({
       where: { id: engagement.id },

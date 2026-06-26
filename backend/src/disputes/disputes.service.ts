@@ -1,4 +1,3 @@
-// backend/src/disputes/disputes.service.ts
 import {
   Injectable, NotFoundException, ForbiddenException,
   ConflictException, UnprocessableEntityException,
@@ -14,7 +13,7 @@ import { DisputeResolution } from './dto/resolve-dispute.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
-const AI_CONFIDENCE_THRESHOLD = 0.80; // per the Zone 4 diagram
+const AUTO_RESOLVE_THRESHOLD = 0.80; 
 
 @Injectable()
 export class DisputesService {
@@ -38,6 +37,13 @@ export class DisputesService {
     }
 
     const milestone = criterion.milestone;
+
+    if (milestone.state !== MilestoneState.SUBMITTED && milestone.state !== MilestoneState.IN_REVISION) {
+      throw new UnprocessableEntityException(
+        `Milestone is in state ${milestone.state}; disputing requires SUBMITTED or IN_REVISION.`,
+      );
+    }
+
     const engagement = await this.prisma.engagement.findUnique({
       where: { id: milestone.engagementId },
     });
@@ -63,8 +69,6 @@ export class DisputesService {
       );
     }
 
-    // Phase 1 — file + freeze, atomically. Protects the escrow immediately,
-    // regardless of how long the subsequent AI call takes.
     const dispute = await this.prisma.$transaction(async (tx) => {
       const created = await tx.dispute.create({
         data: {
@@ -73,7 +77,7 @@ export class DisputesService {
           criterionId: criterion.id,
           escrowAccountId: escrowAccount.id,
           filedBy: filerId,
-          state: DisputeState.PENDING,
+          state: DisputeState.LAYER_1_EVAL,
         },
       });
 
@@ -90,7 +94,6 @@ export class DisputesService {
       return created;
     });
 
-    // Phase 2 — AI evaluation (external call, outside any transaction).
     const latestSubmission = await this.prisma.milestoneSubmission.findFirst({
       where: { milestoneId: milestone.id },
       orderBy: { submittedAt: 'desc' },
@@ -104,25 +107,35 @@ export class DisputesService {
         files: (latestSubmission?.filesJson as string[]) ?? [],
       });
     } catch (err) {
-      // AI service unavailable — leave the dispute PENDING, escrow stays
-      // FROZEN (safe default), surface for retry rather than escalating
-      // blindly or losing the filing.
+      // AI service unavailable — dispute stays in LAYER_1_EVAL, escrow
+      // stays FROZEN (safe default), surface for retry.
       return {
         dispute_id: dispute.id,
-        state: DisputeState.PENDING,
+        state: DisputeState.LAYER_1_EVAL,
         message: 'Dispute filed and escrow frozen. AI evaluation unavailable — will retry.',
       };
     }
 
-    // Phase 3 — apply or escalate based on confidence.
-    if (evalResult.confidence_score >= AI_CONFIDENCE_THRESHOLD) {
+    if (evalResult.confidence_score >= AUTO_RESOLVE_THRESHOLD) {
       const resolution: DisputeResolution = {
         decision: evalResult.finding === 'expert_wins' ? 'EXPERT_WINS' : 'CLIENT_WINS',
       };
       await this.applyResolution(dispute.id, resolution, evalResult.confidence_score);
+ 
+      // platform_decisions write on the auto-resolve path only.
+      await this.prisma.platformDecision.create({
+        data: {
+          decisionType: 'DISPUTE_L1_EVAL',
+          entityType:   'disputes',
+          entityId:     dispute.id,
+          llmConfidence: evalResult.confidence_score,
+          decision:     'AUTO_RESOLVED',
+        },
+      });
+ 
       return {
         dispute_id: dispute.id,
-        state: DisputeState.AI_RESOLVED,
+        state: DisputeState.AUTO_RESOLVED,
         finding: evalResult.finding,
         confidence_score: evalResult.confidence_score,
       };
@@ -130,19 +143,19 @@ export class DisputesService {
 
     await this.prisma.dispute.update({
       where: { id: dispute.id },
-      data: { state: DisputeState.ESCALATED, llmConfidence: evalResult.confidence_score },
+      data: { state: DisputeState.MANUAL_REVIEW, llmConfidence: evalResult.confidence_score },
     });
 
     return {
       dispute_id: dispute.id,
-      state: DisputeState.ESCALATED,
+      state: DisputeState.MANUAL_REVIEW,
       confidence_score: evalResult.confidence_score,
-      message: 'AI confidence below threshold — escalated to Admin for manual review.',
+      message: 'AI confidence below threshold — routed to Admin for manual review.',
     };
   }
 
   // Shared by the AI-auto path above AND AdminService's manual resolve.
-  // resolvedBy is omitted (stays null) for AI auto-resolution — no human
+  // resolvedBy stays null for the AI auto-resolve path — no human
   // decision-maker to record.
   async applyResolution(
     disputeId: string,
@@ -154,18 +167,12 @@ export class DisputesService {
     if (!dispute) {
       throw new NotFoundException('Dispute not found.');
     }
-    if (dispute.state !== DisputeState.PENDING && dispute.state !== DisputeState.ESCALATED) {
+    if (dispute.state !== DisputeState.LAYER_1_EVAL && dispute.state !== DisputeState.MANUAL_REVIEW) {
       throw new ConflictException(`Dispute is in state ${dispute.state}; cannot resolve.`);
     }
 
     await this.prisma.$transaction(async (tx) => {
       if (resolution.decision === 'EXPERT_WINS') {
-        // Mark the disputed criterion verified, then check if this
-        // satisfies the milestone's release condition (mirrors
-        // CriteriaService.verify()'s logic — duplicated narrowly here
-        // rather than refactored to share, given the differing
-        // transaction-composition needs; flagged as a minor consolidation
-        // opportunity for later, not urgent).
         await tx.acceptanceCriterion.update({
           where: { id: dispute.criterionId },
           data: { verifiedAt: new Date(), revisionNote: null },
@@ -184,7 +191,7 @@ export class DisputesService {
           where: {
             milestoneId: dispute.milestoneId!,
             id: { not: dispute.id },
-            state: { in: [DisputeState.PENDING, DisputeState.ESCALATED] },
+            state: { in: [DisputeState.LAYER_1_EVAL, DisputeState.MANUAL_REVIEW] },
           },
         });
 
@@ -203,56 +210,18 @@ export class DisputesService {
       } else if (resolution.decision === 'CLIENT_WINS') {
         await this.ledgerService.refundEscrowWithTx(tx, dispute.escrowAccountId);
       } else if (resolution.decision === 'SPLIT') {
-        if (resolution.expertSharePercent === undefined) {
-          throw new UnprocessableEntityException('expertSharePercent is required for a SPLIT decision.');
-        }
-        await this.ledgerService.splitEscrowWithTx(tx, dispute.escrowAccountId, resolution.expertSharePercent);
+        await this.ledgerService.splitEscrowWithTx(tx, dispute.escrowAccountId);
       }
 
       await tx.dispute.update({
         where: { id: dispute.id },
         data: {
-          state: resolvedBy ? DisputeState.ADMIN_RESOLVED : DisputeState.AI_RESOLVED,
+          state: resolvedBy ? DisputeState.RESOLVED : DisputeState.AUTO_RESOLVED,
           llmConfidence: llmConfidence ?? dispute.llmConfidence,
           resolvedAt: new Date(),
           resolvedBy: resolvedBy ?? null,
         },
       });
-    });
-  }
-
-  // PUT /disputes/:id/withdraw
-  async withdraw(disputeId: string, userId: string) {
-    const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
-    if (!dispute) {
-      throw new NotFoundException('Dispute not found.');
-    }
-    if (dispute.filedBy !== userId) {
-      throw new ForbiddenException('Only the original filer can withdraw this dispute.');
-    }
-    if (dispute.state !== DisputeState.PENDING && dispute.state !== DisputeState.ESCALATED) {
-      throw new ConflictException(`Dispute is in state ${dispute.state}; cannot withdraw.`);
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      await tx.dispute.update({
-        where: { id: dispute.id },
-        data: { state: DisputeState.WITHDRAWN, resolvedAt: new Date() },
-      });
-
-      await tx.escrowAccount.update({
-        where: { id: dispute.escrowAccountId },
-        data: { status: EscrowStatus.HELD },
-      });
-
-      if (dispute.milestoneId) {
-        await tx.milestone.update({
-          where: { id: dispute.milestoneId },
-          data: { state: MilestoneState.SUBMITTED },
-        });
-      }
-
-      return { success: true };
     });
   }
 
@@ -281,8 +250,8 @@ export class DisputesService {
     return dispute;
   }
 
-  // GET /disputes — shared by both DisputesController (own) and
-  // AdminController (queue view, where user.activeRole === 'ADMIN' sees all).
+  // GET /disputes — shared by DisputesController (own) and AdminController
+  // (queue view, ADMIN sees all).
   async findAll(user: ActorUser, filters?: { state?: string }) {
     if (user.activeRole === 'ADMIN') {
       return this.prisma.dispute.findMany({

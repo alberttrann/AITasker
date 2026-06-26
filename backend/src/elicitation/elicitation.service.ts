@@ -65,10 +65,6 @@ const ARCHETYPE_PROBE_QUESTIONS: Record<string, [string, string, string, string]
   ],
 };
 
-// payload shape for the post-publish matching event. Carries the
-// gate precheck's already-computed candidate list so the listener
-// (MatchingService) can seed its cache directly without a second
-// ai-service call.
 export interface ProjectPublishedEvent {
   projectId:  string;
   candidates: MatchResult[];
@@ -407,12 +403,6 @@ export class ElicitationService {
     }
   }
 
-  // techTeamUserId: when this session was synthesized via the handoff path
-  // (processStage4Handoff), this is the specific Tech Team member who
-  // submitted — used below to link THEIR TechTeamProfile to the new
-  // project. NOT a blanket update across every
-  // Tech Team member linked to the CEO — only the one who actually did
-  // the work for THIS session.
   private async runSynthesis(session: any, techTeamUserId?: string): Promise<
     | { gate_passed: true;  completeness_score: number; project_id: string }
     | { gate_passed: false; completeness_score: number; flagged_void: string | null;
@@ -539,7 +529,17 @@ export class ElicitationService {
       projectId:  project.id,
       candidates: candidates,
     } as ProjectPublishedEvent);
-
+ 
+    await this.prisma.platformDecision.create({
+      data: {
+        decisionType:  'ELICITATION_SYNTHESIS',
+        entityType:    'projects',
+        entityId:      project.id,
+        llmConfidence: synthesis.completeness_score,
+        decision:      'PUBLISHED',
+      },
+    });
+ 
     return {
       gate_passed:        true,
       completeness_score: synthesis.completeness_score,
@@ -599,9 +599,20 @@ export class ElicitationService {
     await this.prisma.elicitationSession.update({
       where: { id: session.id },
       data: {
-        state:        'RETURNED_TO_CLIENT',
+        state:        'RETURNED',
         currentStage: returnToStage,
         updatedAt:    new Date(),
+      },
+    });
+ 
+    await this.prisma.platformDecision.create({
+      data: {
+        decisionType:  'SPEC_AUTO_RETURN',
+        entityType:    'elicitation_sessions',
+        entityId:      session.id,
+        llmConfidence: synthesis.completeness_score,
+        decision:      'RETURNED',
+        advisoryNote:  advisoryNote,
       },
     });
 

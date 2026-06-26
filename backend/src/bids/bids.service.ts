@@ -23,9 +23,6 @@ export class BidsService {
   ) {}
 
   // POST /bids — expert initiates a bid on a published project.
-  // Blueprint: docs/04-endpoints.md §0.11 L + docs/02-state-machines.md §3.
-  // Atomic insert: engagement (PENDING) + capability_bids (DRAFT).
-  // Expert must then call PUT /bids/:id with the 3 components to move to SUBMITTED.
   async create(expertUserId: string, dto: CreateBidDto) {
     // 1. expert profile + owner subscription tier in one query
     const expert = await this.prisma.expertProfile.findUnique({
@@ -95,7 +92,7 @@ export class BidsService {
           footprintAlignmentJson: dto.footprint_alignment_json,
           approachSummary: dto.approach_summary,
           conditionalPricingJson: dto.conditional_pricing_json,
-          state: 'DRAFT',
+          state: 'SUBMITTED',
           techStatus: 'PENDING',
           ceoStatus: 'PENDING',
           versionNumber: 1,
@@ -107,10 +104,9 @@ export class BidsService {
   }
 
   // GET /bids/:id — view full bid detail.
-  // Blueprint: docs/04-endpoints.md §0.11 L row 158. Allowed: TECH_TEAM (linked),
   // CEO (project owner), EXPERT (bid owner), ADMIN. No state filter.
   async findById(bidId: string, user: ActorUser) {
-    // 1. fetch the bid row only (response stays minimal — no nested objects)
+    // 1. fetch the bid row only 
     const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
     if (!bid) {
       throw new NotFoundException('Bid not found.');
@@ -152,9 +148,6 @@ export class BidsService {
     return project?.clientId === userId;
   }
 
-  // Both POST and PUT gate on Expert Pro for Tier 2-3 projects (docs/03 BR-BID-09).
-  // POST reads the tier off the expert profile include; PUT uses this helper
-  // because the engagement fetch doesn't carry the user row.
   private async isExpertPro(userId: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -172,8 +165,6 @@ export class BidsService {
   }
 
   // PUT /bids/:id — expert revises a bid after TECH_TEAM requested changes.
-  // Blueprint: docs/04 §0.11 L row 159 + docs/02 §3 REVISION_REQUESTED → TECH_REVIEW loop.
-  // In-place mutable row update; increments version_number.
   async update(bidId: string, expertUserId: string, dto: UpdateBidDto) {
     // 1. bid must exist
     const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
@@ -223,10 +214,6 @@ export class BidsService {
   }
 
   // PUT /bids/:id/tech-review — TECH_TEAM approves or requests revision.
-  // Blueprint: docs/04 §0.11 L row 160. Sets tech_status to APPROVED or
-  // REVISION_REQUESTED. tech_feedback is required iff REVISION_REQUESTED.
-  // On APPROVED, tech_feedback is left untouched (doc says nothing about
-  // clearing it, and the MVP design intentionally keeps no history).
   async techReview(bidId: string, user: ActorUser, dto: TechReviewDto) {
     // 1. bid must exist
     const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
@@ -261,9 +248,6 @@ export class BidsService {
     }
 
     // 5. update bid. zod already validated tech_feedback presence.
-    //    On APPROVED, we do NOT touch tech_feedback — preserve whatever was there
-    //    (or null on first review). On REVISION_REQUESTED, write the new feedback
-    //    (overwriting any prior text — no history kept, per docs/02 §3 scope reduction).
     const data: { techStatus: string; techFeedback?: string } = { techStatus: dto.action };
     if (dto.action === 'REVISION_REQUESTED') {
       data.techFeedback = dto.tech_feedback;
@@ -273,10 +257,6 @@ export class BidsService {
   }
 
   // PUT /bids/:id/ceo-decision — CEO picks the winner (or rejects).
-  // Blueprint: docs/04 §0.11 L row 161. APPROVED cascades DECLINE to all
-  // sibling bids for the same project (literal doc reading).
-  // Engagement stays PENDING — docs/02 §4 says no additional DB op at
-  // SELECTED; the engagements module handles NDA/connection flow.
   async ceoDecision(bidId: string, user: ActorUser, dto: CeoDecisionDto) {
     // 1. bid must exist
     const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
@@ -344,8 +324,6 @@ export class BidsService {
   }
 
   // PUT /bids/:id/counter-offer — CEO proposes a counter-price.
-  // Blueprint: docs/04 §0.11 L row 162 + docs/02 §3 Surface C. One-round only —
-  // negotiated_price_vnd is immutable after first write.
   async counterOffer(bidId: string, user: ActorUser, dto: CounterOfferDto) {
     // 1. bid must exist
     const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });

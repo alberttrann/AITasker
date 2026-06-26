@@ -1,6 +1,3 @@
-// backend/src/auth/auth.controller.ts
-// RECONCILED: adopts Chi Nhan's real refresh-token route (body-based, not
-// Bearer-gated), restores our registerHandoff route (not on his branch).
 import { Body, Controller, Post, Put, UseGuards } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
 import { RegisterHandoffDto } from './dto/register-handoff.dto';
@@ -36,7 +33,7 @@ export class AuthController {
     return this.authService.switchRole(user.id, switchRoleDto);
   }
 
-  // CHANGED — no JwtAuthGuard at all, by design: the refresh token's
+  // no JwtAuthGuard at all, by design: the refresh token's
   // entire purpose is renewing access AFTER the access token has expired,
   // so it can't be gated behind a guard that requires a still-valid token.
   @Post('refresh')
@@ -44,8 +41,7 @@ export class AuthController {
     return this.authService.refreshToken(tokenString);
   }
 
-  // RESTORED — our feature, not on Chi Nhan's branch.
-  @Post('register-handoff')
+  @Post('register/handoff')
   registerHandoff(@Body() dto: RegisterHandoffDto) {
     return this.authService.registerHandoff(dto);
   }

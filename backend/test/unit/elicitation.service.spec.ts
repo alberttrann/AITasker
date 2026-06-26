@@ -545,12 +545,12 @@ describe('ElicitationService — regression', () => {
     });
   });
 
-  // State reset on re-do after RETURNED_TO_CLIENT
+  // State reset on re-do after RETURNED
 
-  describe('state reset after RETURNED_TO_CLIENT', () => {
+  describe('state reset after RETURNED', () => {
     it('resets state to IN_PROGRESS when re-processing stage1', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 1, state: 'RETURNED_TO_CLIENT',
+        ...stage5ReadySession, currentStage: 1, state: 'RETURNED',
       });
       fastapiClient.stage1Extract.mockResolvedValue({ symptoms: ['x'], voids: [], recommended_archetypes: ['1'] });
       prisma.elicitationSession.update.mockResolvedValue({});

@@ -155,7 +155,8 @@ model WithdrawalRequest {
   status         String    @default("PENDING")
   requestedAt    DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
   confirmedAt    DateTime? @map("confirmed_at") @db.Timestamptz(6)
-
+  milestoneId String? @map("milestone_id") @db.Uuid
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
   expert User @relation(fields: [expertId], references: [id])
 
   @@index([expertId])
@@ -222,6 +223,7 @@ model Project {
   elicitationSession ElicitationSession? @relation(fields: [elicitationSessionId], references: [id])
   techTeamProfiles   TechTeamProfile[]
   engagements        Engagement[]
+  messages Message[]
 
   @@index([clientId])
   @@index([state])
@@ -291,6 +293,9 @@ model Service {
   priceVnd    BigInt  @map("price_vnd")
   state       String  @default("DRAFT")
   serviceType String  @map("service_type")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  scope       String?
+  timeline    String?
 
   expert      User         @relation(fields: [expertId], references: [id])
   engagements Engagement[]
@@ -298,6 +303,7 @@ model Service {
   @@index([expertId])
   @@index([state])
   @@index([serviceType])
+  @@index([createdAt(sort: Desc)])
   @@map("services")
 }
 
@@ -378,7 +384,7 @@ model Milestone {
   paygatedDocuments  PaygatedDocument[]
   escrowAccounts     EscrowAccount[]       @relation("MilestoneEscrow")
   disputes           Dispute[]
-
+  withdrawalRequests WithdrawalRequest[]
   @@unique([engagementId, milestoneNumber])
   @@index([engagementId])
   @@index([state])
@@ -509,13 +515,15 @@ model Dispute {
 
 model Message {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  engagementId  String   @map("engagement_id") @db.Uuid
+  engagementId  String?  @map("engagement_id") @db.Uuid    
+  projectId     String?  @map("project_id") @db.Uuid         
   senderId      String   @map("sender_id") @db.Uuid
   content       String
   attachmentUrl String?  @map("attachment_url")
   timestamp     DateTime @default(now()) @db.Timestamptz(6)
 
-  engagement Engagement    @relation(fields: [engagementId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+  engagement Engagement?   @relation(fields: [engagementId], references: [id])
   sender     User          @relation(fields: [senderId], references: [id])
   reads      MessageRead[]
 

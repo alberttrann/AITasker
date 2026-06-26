@@ -1,4 +1,3 @@
-// backend/src/elicitation/elicitation.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ElicitationController } from './elicitation.controller';
@@ -12,9 +11,9 @@ import { MatchingHelperModule } from '../shared/matching/matching-helper.module'
   imports: [
     ConfigModule,
     PrismaModule,
-    FastapiClientModule,     // CHANGED: was providing FastapiClient directly
-    AuthModule,               // ADDED: for AuthService (setSelfTechnical re-sign)
-    MatchingHelperModule,     // ADDED: for precheckCandidateCount
+    FastapiClientModule,     
+    AuthModule,               
+    MatchingHelperModule,     
   ],
   controllers: [ElicitationController],
   providers: [ElicitationService],

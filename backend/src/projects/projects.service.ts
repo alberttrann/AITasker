@@ -225,16 +225,15 @@ export class ProjectsService {
       return this.checkClientOwnership(project, userId, activeRole, clientSubtype);
     }
 
+    // any EXPERT may view Artifact A on a published project —
+    // no prior engagement or shortlist required. This method only runs
+    // once the caller has already cleared the PUBLISHED-state check
+    // above it, so reaching here as a non-owning EXPERT already implies
+    // the project is published.
     if (activeRole === 'EXPERT') {
-      const engagement = await this.prisma.engagement.findFirst({
-        where: { projectId: project.id, expertId: userId },
-      });
-      if (engagement) return true;
-
-      const isShortlisted = await this.matchingService.isExpertShortlisted(project.id, userId);
-      if (isShortlisted) return true;
+      return true;
     }
-
+ 
     return false;
   }
 }

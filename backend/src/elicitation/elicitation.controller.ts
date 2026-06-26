@@ -115,7 +115,7 @@ export class ElicitationController {
   }
 
   // [Pro-C]
-  @Post('sessions/:id/invite-tech-team')
+  @Post('sessions/:id/generate-handoff-link')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
   async inviteTechTeam(@Param('id') id: string, @CurrentUser() user: AuthUser) {

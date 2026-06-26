@@ -1,19 +1,3 @@
-// backend/src/messages/messages.gateway.ts
-// FIX: joinRoom previously let ANY connected client join ANY engagement's
-// Socket.IO room with no verification at all. Added the same party check
-// MessagesService now exposes — used here too, so a user can't subscribe
-// to (and silently receive) another engagement's chat just by knowing/
-// guessing its ID. sendMessage gets this protection "for free" since
-// createMessage() already enforces it internally now.
-//
-// NOTE, not fixed here (flagging, not solving): client.data.user is set
-// from the raw decoded JWT payload at connection time and never
-// re-validated against the DB for the lifetime of the socket — unlike the
-// REST API's JwtStrategy, which re-queries fresh on every request. A
-// deactivated/banned user's existing WebSocket connection would persist
-// until they disconnect or the server restarts. Also, CORS is wide open
-// (origin: '*') — fine for development, worth tightening before any real
-// deployment.
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, ConnectedSocket, MessageBody,
   OnGatewayConnection, OnGatewayDisconnect, } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
@@ -56,27 +40,37 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   handleDisconnect(client: Socket) {
   }
 
-  // FIX: now verifies the connecting user is actually a party to the
-  // engagement before letting them join its room.
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody('engagementId') engagementId: string,
+    @MessageBody() body: { engagementId?: string; projectId?: string },
   ) {
     const user = client.data.user;
-    if (!user || !engagementId) {
+    if (!user) {
       client.emit('error', { message: 'Invalid join request.' });
       return;
     }
 
-    try {
-      await this.messagesService.assertPartyToEngagement(engagementId, user.sub);
-    } catch {
-      client.emit('error', { message: 'You are not authorized to join this engagement chat.' });
+    const { engagementId, projectId } = body;
+    if ((!!engagementId) === (!!projectId)) {
+      client.emit('error', { message: 'Provide exactly one of engagementId or projectId.' });
       return;
     }
 
-    client.join(engagementId);
+    try {
+      if (engagementId) {
+        await this.messagesService.assertPartyToEngagement(engagementId, user.sub);
+        client.join(engagementId);
+      } else {
+        await this.messagesService.assertPartyToProject(projectId!, {
+          id: user.sub,
+          activeRole: user.activeRole,
+        });
+        client.join(projectId!);
+      }
+    } catch {
+      client.emit('error', { message: 'You are not authorized to join this chat.' });
+    }
   }
 
   @SubscribeMessage('sendMessage')
@@ -92,10 +86,12 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
 
     try {
-      // createMessage() already enforces the party check internally now —
-      // protected "for free" by the messages.service.ts fix.
-      const savedMessage = await this.messagesService.createMessage(user.sub, dto);
-      this.server.to(dto.engagement_id).emit('newMessage', savedMessage);
+      const savedMessage = await this.messagesService.createMessage(
+        { id: user.sub, activeRole: user.activeRole },
+        dto,
+      );
+      const room = dto.engagement_id || dto.project_id;
+      this.server.to(room!).emit('newMessage', savedMessage);
     } catch (err: any) {
       client.emit('error', { message: err.message || 'Failed to send message.' });
     }

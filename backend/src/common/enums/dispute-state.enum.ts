@@ -1,7 +1,7 @@
 export enum DisputeState {
-  PENDING        = 'PENDING',         // filed, AI evaluation in flight
-  AI_RESOLVED    = 'AI_RESOLVED',     // AI confidence >= 0.80, auto-resolved
-  ESCALATED      = 'ESCALATED',       // AI confidence < 0.80, awaiting Admin
-  ADMIN_RESOLVED = 'ADMIN_RESOLVED',  // Admin made the final call
-  WITHDRAWN      = 'WITHDRAWN',       // filer withdrew before resolution (§6.4)
+  PENDING        = 'PENDING',         // transient — exists only until LAYER_1_EVAL kicks off synchronously in the same request
+  LAYER_1_EVAL   = 'LAYER_1_EVAL',     // AI evaluation in flight
+  AUTO_RESOLVED  = 'AUTO_RESOLVED',    // confidence >= 0.80, resolved automatically
+  MANUAL_REVIEW  = 'MANUAL_REVIEW',    // confidence < 0.80, awaiting admin
+  RESOLVED       = 'RESOLVED',         // admin resolved via dashboard button
 }

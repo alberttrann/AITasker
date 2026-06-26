@@ -6,7 +6,7 @@ import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { CreatePortfolioSubmissionDto } from './dto/create-portfolio-submission.dto';
-
+import { SubscriptionGuard } from '@common/guards/subscription.guard';
 /**
  * §0.11.J — Portfolio Submission Controller
  *
@@ -14,8 +14,7 @@ import { CreatePortfolioSubmissionDto } from './dto/create-portfolio-submission.
  * - POST /portfolio-submissions          — submit portfolio for LLM evaluation
  * - GET  /portfolio-submissions/:id      — read submission status + advisory_note
  *
- * POST is EXPERT only with [Pro-E] subscription gate (enforced in service
- * until SubscriptionGuard is implemented).
+ * POST is EXPERT only with [Pro-E] subscription gate, enforced via SubscriptionGuard.
  *
  * GET allows both EXPERT (own submissions only) and ADMIN (any submission).
  */
@@ -41,20 +40,11 @@ export class PortfolioController {
    */
   @Post()
   @Roles('EXPERT')
+  @UseGuards(SubscriptionGuard)
   async submit(@CurrentUser() user: { id: string }, @Body() dto: CreatePortfolioSubmissionDto) {
     return this.portfolioService.submit(user.id, dto);
   }
 
-  /**
-   * §0.11.J — GET /portfolio-submissions/:id
-   *
-   * Returns submission status, llm_confidence, and the most recent
-   * platform_decisions.advisory_note. EXPERT can only read their own;
-   * ADMIN can read any.
-   *
-   * - 403: not owner and not ADMIN.
-   * - 404: submission not found.
-   */
   @Get(':id')
   @Roles('EXPERT', 'ADMIN')
   async getById(@Param('id') id: string, @CurrentUser() user: { id: string; activeRole: string }) {

@@ -11,18 +11,6 @@ import { PrismaService } from '../database/prisma.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { CreatePortfolioSubmissionDto } from './dto/create-portfolio-submission.dto';
 
-/**
- * §0.11.J — Portfolio Submission Service
- *
- * Owns the Tier 2 seam verification flow:
- * - submit() — POST /portfolio-submissions — calls FastAPI /llm/portfolio-eval,
- *   atomically updates portfolio_submissions + expert_seam_claims + platform_decisions
- * - getById() — GET /portfolio-submissions/:id — joins platform_decisions for advisory_note
- *
- * Atomic transaction is required (per §0.11.J): all three table writes must succeed
- * or roll back together. Otherwise an LLM eval succeeds but the seam claim never
- * upgrades (or vice versa).
- */
 @Injectable()
 export class PortfolioService {
   // Maximum submission attempts before 30-day lockout per BR-VER-06
@@ -36,51 +24,8 @@ export class PortfolioService {
     private readonly fastapi: FastapiClient,
   ) {}
 
-  /**
-   * §0.11.J — POST /portfolio-submissions
-   *
-   * Submits portfolio evidence for Tier 2 verification of a seam claim.
-   *
-   * Flow:
-   * 1. [Pro-E] subscription gate — query user.subscription_expert_tier
-   *    (TODO: replace with SubscriptionGuard once Chí Nhân implements it).
-   * 2. Find seam claim by id → 404 if missing, 403 if not owner.
-   * 3. Verify claim is at CLAIMED tier → 422 ALREADY_VERIFIED_OR_HIGHER.
-   * 4. Verify not in lockout → 429 TOO_MANY_ATTEMPTS with lockedUntil.
-   * 5. Create portfolio_submissions row at PENDING.
-   * 6. Call FastAPI /llm/portfolio-eval.
-   * 7. Atomic TX: update submission status, update seam claim (tier upgrade
-   *    OR submission_count++ with possible 30-day lock), insert platform_decisions.
-   *
-   * Returns 201 with { id, status, llmConfidence, evaluationTierUpgraded,
-   * advisoryNote, evaluatedAt }.
-   */
   async submit(userId: string, dto: CreatePortfolioSubmissionDto) {
-    // 1. [Pro-E] subscription gate — service-level until SubscriptionGuard exists.
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        subscriptionExpertTier: true,
-        subExpertExpiresAt: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (
-      user.subscriptionExpertTier !== 'pro' ||
-      !user.subExpertExpiresAt ||
-      user.subExpertExpiresAt < new Date()
-    ) {
-      throw new ForbiddenException({
-        code: 'SUBSCRIPTION_REQUIRED',
-        message: 'Expert Pro subscription required to submit portfolio evidence',
-      });
-    }
-
-    // 2. Find seam claim.
+    // 1. Find seam claim.
     const claim = await this.prisma.expertSeamClaim.findUnique({
       where: { id: dto.seamClaimId },
       select: {
@@ -235,15 +180,6 @@ export class PortfolioService {
     };
   }
 
-  /**
-   * §0.11.J — GET /portfolio-submissions/:id
-   *
-   * Returns the submission's status, llm_confidence, and the most recent
-   * platform_decisions.advisory_note for the entity. ADMIN can read any
-   * submission; EXPERT can only read their own.
-   *
-   * R: portfolio_submissions, platform_decisions.
-   */
   async getById(userId: string, id: string, isAdmin: boolean) {
     const submission = await this.prisma.portfolioSubmission.findUnique({
       where: { id },

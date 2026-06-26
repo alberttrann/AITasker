@@ -13,7 +13,6 @@ export class EngagementsController {
   constructor(private readonly engagementsService: EngagementsService) {}
 
   // GET /engagements — list own engagements (ADMIN sees all).
-  // Blueprint: docs/04-endpoints.md §0.11 L row 145.
   @ApiBearerAuth('JWT')
   @Get()
   async findAll(
@@ -26,7 +25,6 @@ export class EngagementsController {
   }
 
   // GET /engagements/:id — full engagement detail.
-  // Blueprint: docs/04-endpoints.md §0.11 L row 146.
   @ApiBearerAuth('JWT')
   @Get(':id')
   async findById(
@@ -37,9 +35,8 @@ export class EngagementsController {
   }
 
   // PUT /engagements/:id/nda — CEO accepts NDA.
-  // Blueprint: docs/04-endpoints.md §0.11 L row 147.
   @ApiBearerAuth('JWT')
-  @Put(':id/nda')
+  @Put(':id/accept-nda')
   async acceptNda(
     @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
     @Param('id', ParseUUIDPipe) id: string,
@@ -48,7 +45,6 @@ export class EngagementsController {
   }
 
   // PUT /engagements/:id/connect — expert accepts connection + NDA.
-  // Blueprint: docs/04-endpoints.md §0.11 L row 148.
   @ApiBearerAuth('JWT')
   @Put(':id/connect')
   async acceptConnect(
@@ -59,7 +55,6 @@ export class EngagementsController {
   }
 
   // PUT /engagements/:id/decline — expert declines connection request.
-  // Blueprint: docs/04-endpoints.md §0.11 L row 149.
   @ApiBearerAuth('JWT')
   @Put(':id/decline')
   async decline(

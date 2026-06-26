@@ -13,16 +13,11 @@ import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { VAStatus } from '@common/enums/va-status.enum';
 import { generateVaNumber } from '@shared/ledger/va-generator';
 
-// Actor shape passed from the controller. Matches the bids/engagements pattern.
 type Actor = { id: string; activeRole: string };
 
-// Buyer shape for purchase — needs clientSubtype for CEO gate.
-// Shape comes from JwtStrategy.validate(): { id, email, activeRole, clientSubtype }.
 type Buyer = { id: string; activeRole: string; clientSubtype?: string };
 
 // Hard cap on rows returned by GET /services browse.
-// Doc §0.11 K row 133 is silent on pagination. We cap to prevent unbounded
-// queries if the marketplace grows. Adjust here if needed.
 const SERVICE_BROWSE_LIMIT = 50;
 
 @Injectable()
@@ -32,15 +27,9 @@ export class ListingsService {
     private readonly fastapiClient: FastapiClient,
   ) {}
 
-  // GET /services — browse marketplace.
-  // Blueprint: docs/04-endpoints.md §0.11 K row 133.
-  // - Actor: any authenticated user.
-  // - Gate: [None].
-  // - R: services (only state = PUBLISHED rows).
-  // - Filters: service_type, domains, seams, minPriceVnd/maxPriceVnd (all optional, AND'd).
   async list(filter: ListServicesFilterDto) {
     const where: any = {
-      state: 'PUBLISHED', // doc row 133: "Returns state = PUBLISHED listings."
+      state: 'PUBLISHED', 
     };
 
     if (filter.serviceType) {
@@ -58,9 +47,6 @@ export class ListingsService {
     }
 
     if (filter.domains && filter.domains.length > 0) {
-      // JSONB array contains filter. Literal Prisma `array_contains` semantics:
-      // service.domains_json must contain ALL requested codes (Postgres @>).
-      // For a single code, this is the same as "contains this code".
       where.domainsJson = { array_contains: filter.domains };
     }
 
@@ -68,30 +54,16 @@ export class ListingsService {
       where.seamsJson = { array_contains: filter.seams };
     }
 
-    // NOTE: docs imply newest-first browse, but `services` has no `created_at`
-    // column (verified in backend/prisma/schema.prisma + migrations/005_services.sql).
-    // UUID v4 PK is random, so `orderBy: { id: 'desc' }` would NOT be chronological.
-    // Returning insertion-order (no orderBy) is the honest choice; flag in PR.
     const services = await this.prisma.service.findMany({
       where,
       take: SERVICE_BROWSE_LIMIT,
     });
-    // Prisma BigInt → string: JSON.stringify cannot serialize BigInt.
-    // Convert priceVnd to prevent 500 on every response.
     return services.map((s) => ({
       ...s,
       priceVnd: s.priceVnd.toString(),
     }));
   }
 
-  // GET /services/:id - single listing detail.
-  // Blueprint: docs/04-endpoints.md §0.11 K row 134.
-  // - Actor: any authenticated user.
-  // - Gate: [None].
-  // - R: services, reviews (aggregates).
-  // - Guard: state != PUBLISHED AND not owner/admin → 404 (strict semantics;
-  //   the doc says 404, not 403, so non-published rows are indistinguishable
-  //   from missing rows to non-owners).
   async findOne(id: string, actor: Actor) {
     const service = await this.prisma.service.findUnique({
       where: { id },
@@ -111,14 +83,9 @@ export class ListingsService {
     const isOwner = service.expertId === actor.id;
     const isAdmin = actor.activeRole === 'ADMIN';
     if (service.state !== 'PUBLISHED' && !isOwner && !isAdmin) {
-      // 404 not 403 — non-published rows are hidden from non-owners. Same as
-      // a missing row. Per doc row 134 and project 404-strict semantics.
       throw new NotFoundException('Service not found.');
     }
 
-    // Reputation aggregates for the expert who owns this service.
-    // Per docs/03 §15 BR-REV-06: AVG(rating), COUNT(DISTINCT engagement_id).
-    // `reviews.targetId` = the user being reviewed = the expert seller.
     const aggregates = await this.prisma.review.aggregate({
       where: { targetId: service.expertId },
       _avg: { rating: true },
@@ -135,20 +102,12 @@ export class ListingsService {
     };
   }
 
-  // POST /services — expert creates a listing at state: DRAFT.
-  // Blueprint: docs/04-endpoints.md §0.11 K row 135.
-  // - Actor: EXPERT.
-  // - Gate: active Expert Pro subscription (docs/03 §BR-SUB-04 requires it for AI-generated listings).
-  // - W: services.
-  // - AI path: when dto.useAiGenerator=true, check subscription tier, then call
-  //   FastAPI /llm/service-generate BEFORE INSERT to fill title/description/priceVnd.
   async create(expertUserId: string, dto: CreateListingDto) {
     let title = dto.title;
     let description = dto.description;
     let priceVnd: bigint | null = dto.priceVnd !== undefined ? BigInt(dto.priceVnd) : null;
 
     if (dto.useAiGenerator) {
-      // Docs/03 §BR-SUB-04: Expert Pro required for AI-generated listings.
       const expert = await this.prisma.user.findUnique({
         where: { id: expertUserId },
         select: {
@@ -166,8 +125,6 @@ export class ListingsService {
         );
       }
 
-      // DTO guarantees capabilities + targetUseCases non-empty (@ValidateIf).
-      // Explicit guards replace non-null assertions.
       if (!dto.capabilities || dto.capabilities.length === 0) {
         throw new BadRequestException('capabilities is required when useAiGenerator=true.');
       }
@@ -178,10 +135,6 @@ export class ListingsService {
         expert_capabilities: dto.capabilities,
         target_use_cases: dto.targetUseCases,
       });
-      // FastAPI response shape: { title, description, scope, timeline, suggested_price_vnd }.
-      // `services` table has only a single `description` TEXT column — no `timeline` column.
-      // We pick `description` (user-facing) over `scope` (internal-ish) for the DB write.
-      // If expert provided overrides, use them; otherwise use AI output.
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
       if (priceVnd === null) {
@@ -189,8 +142,6 @@ export class ListingsService {
       }
     }
 
-    // Explicit guards replace non-null assertions. Both fields are guaranteed
-    // by their respective paths (manual DTO requirement or AI fallback).
     if (!title) {
       throw new BadRequestException('title is required.');
     }
@@ -210,16 +161,9 @@ export class ListingsService {
         state: 'DRAFT',
       },
     });
-    // Prisma BigInt → string: JSON.stringify cannot serialize BigInt.
     return { ...created, priceVnd: created.priceVnd.toString() };
   }
 
-  // PUT /services/:id — owner updates draft listing or transitions DRAFT → PUBLISHED.
-  // Blueprint: docs/04-endpoints.md §0.11 K row 136.
-  // - Actor: EXPERT (owner).
-  // - Gate: [None].
-  // - Guard: not owner → 403 · state = SUSPENDED → 422.
-  // - Transition: DRAFT → PUBLISHED only. service_type immutable after PUBLISHED.
   async update(id: string, expertUserId: string, dto: UpdateListingDto) {
     const service = await this.prisma.service.findUnique({ where: { id } });
     if (!service) {
@@ -272,15 +216,6 @@ export class ListingsService {
     return { ...updated, priceVnd: updated.priceVnd.toString() };
   }
 
-  // POST /services/:id/purchase — CEO purchases a published service.
-  // Blueprint: docs/04-endpoints.md §0.11 K row 137.
-  // - Actor: CEO (CLIENT with client_subtype = CEO).
-  // - Gate: [None].
-  // - Guard: active_role != CLIENT OR client_subtype != CEO → 403
-  //   · state != PUBLISHED → 422 · balance < price → 422 INSUFFICIENT_BALANCE.
-  // - W: engagements, virtual_accounts.
-  // - Returns: engagement, virtual_account, VietQR URL.
-  // - IPN fires later to advance engagement to ACTIVE.
   async purchase(id: string, buyer: Buyer) {
     // 1. Fetch service
     const service = await this.prisma.service.findUnique({
@@ -314,8 +249,6 @@ export class ListingsService {
       service.serviceType === 'AI_SERVICE' ? 'SERVICE_PURCHASE' : 'TECH_DISCOVERY';
 
     // 6. Create engagement + per-order VA atomically.
-    // VA entityId must be engagement.id — $transaction (callback) lets us
-    // create the engagement first, then reference its id in the VA insert.
     const result = await this.prisma.$transaction(async (tx) => {
       const engagement = await tx.engagement.create({
         data: {

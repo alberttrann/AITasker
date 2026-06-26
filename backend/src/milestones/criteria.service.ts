@@ -1,9 +1,3 @@
-// backend/src/milestones/criteria.service.ts
-// CHANGED: verify()'s auto-release trigger now checks for any OPEN
-// dispute on this milestone before releasing — closes the race flagged
-// in the design writeup (a dispute pending on one criterion shouldn't be
-// silently bypassed by the other criteria completing and triggering
-// release anyway).
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { LedgerService } from '../shared/ledger/ledger.service';
@@ -46,14 +40,10 @@ export class CriteriaService {
       });
 
       if (unverifiedCount === 0) {
-        // ADDED: don't auto-release while ANY dispute on this milestone is
-        // still open — even though every OTHER criterion is now verified,
-        // an open dispute means this milestone isn't actually ready for
-        // normal completion yet.
         const openDispute = await tx.dispute.findFirst({
           where: {
             milestoneId: criterion.milestoneId,
-            state: { in: [DisputeState.PENDING, DisputeState.ESCALATED] },
+            state: { in: [DisputeState.LAYER_1_EVAL, DisputeState.MANUAL_REVIEW] },
           },
         });
 

@@ -1,5 +1,4 @@
-// backend/src/disputes/disputes.controller.ts
-import { Controller, Post, Get, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -19,7 +18,7 @@ export class DisputesController {
 
   @Post()
   @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'File a dispute on an unverified acceptance criterion' })
+  @ApiOperation({ summary: 'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)' })
   async create(@CurrentUser() user: ActorUser, @Body() dto: CreateDisputeDto) {
     return this.disputesService.create(user.id, dto);
   }
@@ -36,12 +35,5 @@ export class DisputesController {
   @ApiOperation({ summary: 'View dispute detail' })
   async findById(@Param('id') id: string, @CurrentUser() user: ActorUser) {
     return this.disputesService.findById(id, user);
-  }
-
-  @Put(':id/withdraw')
-  @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'Withdraw a dispute before resolution (filer only)' })
-  async withdraw(@Param('id') id: string, @CurrentUser() user: ActorUser) {
-    return this.disputesService.withdraw(id, user.id);
   }
 }

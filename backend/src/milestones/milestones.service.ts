@@ -1,21 +1,29 @@
-// backend/src/milestones/milestones.service.ts
-// ADDED: fundFromWallet() — the "Pay from Wallet" path. No VA/IPN involved
-// at all; only the Lock Leg runs (via the SAME LedgerService method the
-// VietQR path uses), since the money is already sitting in the CEO's
-// availableBalance from a prior top-up or expert earnings.
 import { Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService }      from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { VAEntityType }       from '@common/enums/va-entity-type.enum';
 import { MilestoneState }     from '@common/enums/milestone-state.enum';
 import { LedgerService }      from '@shared/ledger/ledger.service';
+import { FastapiClient }      from '../elicitation/fastapi.client';
 
 @Injectable()
 export class MilestonesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
+    private readonly fastapiClient: FastapiClient,
   ) {}
+
+  async getMilestone(milestoneId: string) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { acceptanceCriteria: true, dodItems: true },
+    });
+    if (!milestone) {
+      throw new NotFoundException('Milestone not found.');
+    }
+    return milestone;
+  }
 
   async createMilestone(dto: CreateMilestoneDto) {
     if (!dto.criteria || dto.criteria.length === 0) {
@@ -26,7 +34,7 @@ export class MilestonesService {
       throw new BadRequestException('payment_amount_vnd must be greater than zero.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       let milestone;
       try {
         milestone = await tx.milestone.create({
@@ -48,20 +56,51 @@ export class MilestonesService {
         throw err;
       }
 
-      await tx.acceptanceCriterion.createMany({
-        data: dto.criteria.map((c) => ({
-          milestoneId:    milestone.id,
-          criterionText:  c.criterion_text,
-          isRequired:     c.is_required ?? true,
-          verifiedByRole: dto.sign_off_authority,
-        })),
-      });
+      const createdCriteria = [];
+      for (const c of dto.criteria) {
+        const criterion = await tx.acceptanceCriterion.create({
+          data: {
+            milestoneId:    milestone.id,
+            criterionText:  c.criterion_text,
+            isRequired:     c.is_required ?? true,
+            verifiedByRole: dto.sign_off_authority,
+          },
+        });
+        createdCriteria.push(criterion);
+      }
 
       return tx.milestone.findUnique({
         where:   { id: milestone.id },
         include: { acceptanceCriteria: true },
       });
     });
+
+    if (result?.acceptanceCriteria) {
+      for (const criterion of result.acceptanceCriteria) {
+        try {
+          const check = await this.fastapiClient.criterionCheck({
+            criterion_text: criterion.criterionText,
+          });
+
+          if (check.is_subjective) {
+            await this.prisma.platformDecision.create({
+              data: {
+                decisionType: 'CRITERION_QUALITY_GATE',
+                entityType:   'acceptance_criteria',
+                entityId:     criterion.id,
+                decision:     'FLAGGED',
+                advisoryNote: check.suggestions.join(' | ') || null,
+              },
+            });
+          }
+        } catch (err) {
+          // Advisory-only — swallow and move on. Milestone/criteria are
+          // already safely persisted regardless of this outcome.
+        }
+      }
+    }
+
+    return result;
   }
 
   async initiateFunding(milestoneId: string) {
@@ -93,61 +132,6 @@ export class MilestonesService {
         vaNumber: vaNumber,
         vaExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
-    });
-  }
-
-  // ADDED — "Pay from Wallet": only the Lock Leg runs, since the money is
-  // already sitting in the CEO's availableBalance. No VA, no IPN at all.
-  //
-  // KNOWN GAP, not solved here: two simultaneous calls on the same
-  // AWAITING_PAYMENT milestone could both pass the state check below
-  // before either commits, double-funding it. Pre-existing risk class,
-  // same as the VA/IPN path — would need SELECT...FOR UPDATE or an
-  // optimistic-locking version column to close properly.
-  async fundFromWallet(milestoneId: string, ceoUserId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const milestone = await tx.milestone.findUnique({
-        where: { id: milestoneId },
-      });
-      if (!milestone) {
-        throw new NotFoundException('Milestone not found.');
-      }
-      if (milestone.state !== MilestoneState.AWAITING_PAYMENT) {
-        throw new ConflictException(
-          `Milestone is in state ${milestone.state}; funding requires AWAITING_PAYMENT.`,
-        );
-      }
-
-      const engagement = await tx.engagement.findUnique({
-        where: { id: milestone.engagementId },
-      });
-      if (!engagement) {
-        throw new ConflictException('Engagement not found.');
-      }
-      if (engagement.clientId !== ceoUserId) {
-        throw new ForbiddenException('You are not the client on this engagement.');
-      }
-
-      const clientWallet = await tx.wallet.findUnique({ where: { userId: ceoUserId } });
-      const expertWallet = await tx.wallet.findUnique({ where: { userId: engagement.expertId } });
-      if (!clientWallet) throw new NotFoundException('Client wallet not found.');
-      if (!expertWallet) throw new NotFoundException('Expert wallet not found.');
-
-      // No Leg 1 exists on this path — the money must already be there.
-      if (clientWallet.availableBalance < milestone.paymentAmountVnd) {
-        throw new UnprocessableEntityException('INSUFFICIENT_BALANCE');
-      }
-
-      await this.ledgerService.lockMilestoneEscrowWithTx(
-        tx,
-        milestone,
-        clientWallet.id,
-        expertWallet.id,
-        milestone.paymentAmountVnd,
-        `WALLET-FUND-${milestoneId}`,
-      );
-
-      return { success: true };
     });
   }
 }

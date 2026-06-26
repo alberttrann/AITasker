@@ -1,7 +1,3 @@
-// backend/src/reviews/reviews.service.ts
-// CHANGED: every Project-traversal ownership check replaced with direct
-// engagement.clientId comparisons — fixes the SERVICE_PURCHASE/
-// TECH_DISCOVERY coverage gap (those engagements have no project at all).
 import {
   BadRequestException,
   ConflictException,
@@ -72,11 +68,6 @@ export class ReviewService {
 
     switch (reviewerRole) {
       case ReviewerRole.CEO:
-        // FIX: was traversing through Project (findFirst({where: {id:
-        // engagement.projectId, clientId: user.id}})), which silently
-        // never matches for SERVICE_PURCHASE/TECH_DISCOVERY engagements
-        // (projectId is null for those). engagement.clientId already
-        // carries this value directly, for every engagement type.
         if (engagement.clientId !== user.id) {
           throw new ForbiddenException('You are not a party to this engagement');
         }
@@ -119,10 +110,6 @@ export class ReviewService {
           throw new ForbiddenException('Not the expert on this engagement');
         }
 
-        // FIX: was `prisma.project.findUnique({where: {id:
-        // engagement.projectId}})` — would throw/misbehave when
-        // projectId is null (SERVICE_PURCHASE/TECH_DISCOVERY
-        // engagements). engagement.clientId already has this directly.
         if (createReviewDto.targetId !== engagement.clientId) {
           throw new ForbiddenException('Expert can only review the client on this engagement');
         }
@@ -166,9 +153,6 @@ export class ReviewService {
 
     const isBelongExpert = engagement.expertId === user.id;
 
-    // FIX: was deriving CEO membership via a Project lookup
-    // (`project?.clientId === user.id`), broken for SERVICE_PURCHASE/
-    // TECH_DISCOVERY engagements. engagement.clientId already has this.
     const isBelongCEO = engagement.clientId === user.id;
 
     const isBelongTechTeam = await this.prisma.techTeamProfile.findFirst({

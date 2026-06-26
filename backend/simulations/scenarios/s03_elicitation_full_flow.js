@@ -257,7 +257,7 @@ async function run({ baseUrl }) {
   });
 
   // invite-tech-team — no email body anymore
-  const inviteRes = await http.post(`/elicitation/sessions/${sessionId}/invite-tech-team`, {}, auth);
+  const inviteRes = await http.post(`/elicitation/sessions/${sessionId}/generate-handoff-link`, {}, auth);
   results.push({
     name: 'POST .../invite-tech-team — no email required, returns link with jti',
     status: inviteRes.status === 201 && inviteRes.data.invite_link && inviteRes.data.expires_in === '72h'

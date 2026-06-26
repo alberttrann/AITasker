@@ -16,6 +16,9 @@ GAP MAP (per required seam):
   amber  — expert has CLAIMED (unverified)
   red    — expert does not cover this seam
 
+HARD GATE (MF-5): claimed-to-verified ratio > 4:1 among seams relevant to
+this project → excluded from the shortlist entirely, regardless of score.
+
 STRENGTH LABELS:
   STRONG_MATCH   ≥ 0.85
   GOOD_MATCH     ≥ 0.70
@@ -53,8 +56,10 @@ _STRENGTH_THRESHOLDS = [
     (0.55, "POSSIBLE_MATCH"),
 ]
 
+_CLAIMED_TO_VERIFIED_HARD_GATE_RATIO = 4.0
 
-# Public entry point 
+
+# Public entry point
 
 async def rank_experts(request: MatchingRequest) -> list[MatchResult]:
     """
@@ -67,18 +72,29 @@ async def rank_experts(request: MatchingRequest) -> list[MatchResult]:
     Returns:
         List of MatchResult sorted by composite_score descending.
         Empty list if expert_profiles is empty.
+        Experts failing the claimed-to-verified hard gate are excluded
+        entirely, before scoring even runs.
     """
     if not request.expert_profiles:
         return []
 
-    required_seams  = request.required_seams_json  or []
+    required_seams   = request.required_seams_json  or []
     required_domains = request.required_domains_json or []
-    archetype       = request.project_archetype
+    archetype        = request.project_archetype
 
     results: list[MatchResult] = []
 
     for expert in request.expert_profiles:
         expert_id = str(expert.get("expert_id", "unknown"))
+
+        # ADDED — hard gate, checked BEFORE scoring. An expert failing
+        # this is excluded outright; no composite score is even computed.
+        if _fails_claimed_to_verified_gate(expert, required_seams):
+            logger.debug(
+                "Excluding expert %s: claimed-to-verified ratio exceeds %.1f:1",
+                expert_id, _CLAIMED_TO_VERIFIED_HARD_GATE_RATIO,
+            )
+            continue
 
         try:
             composite, gap_map = _score_expert(
@@ -106,7 +122,55 @@ async def rank_experts(request: MatchingRequest) -> list[MatchResult]:
     return results
 
 
-# Scoring 
+# Hard gate
+
+def _fails_claimed_to_verified_gate(expert: dict, required_seams: list[dict]) -> bool:
+    """
+    Hard gate: among seams relevant to THIS project, an expert whose
+    ratio of CLAIMED (unverified) to EVIDENCE_BACKED (verified) claims
+    exceeds 4:1 is excluded entirely.
+
+    The gate only applies when evidence_backed_count > 0 — there must be an actual ratio to compute.
+    Every seam starts at CLAIMED by default (MF-2) and Tier 2 upgrade isoptional; 
+    an expert with zero evidence-backed seams is the NORMAL starting state for everyone, not a red flag. 
+    Confirmed directly against s07_matching.py's CLAIMED_VS_EVIDENCE_BACKED scenario, which
+    has an expert with exactly 1 CLAIMED seam and 0 EVIDENCE_BACKED seams
+    and explicitly expects that expert to be ranked, not excluded — an
+    earlier version of this function (zero evidence-backed + any claimed
+    = excluded) would have broken that test. The gate now only catches
+    experts who have SOME verified seams but are massively over-claiming
+    relative to that proof point (e.g. 5 claimed vs 1 verified).
+    """
+    if not required_seams:
+        return False
+
+    required_codes = {
+        seam.get("seam_code", "") for seam in required_seams if isinstance(seam, dict)
+    }
+
+    claimed_count = 0
+    evidence_backed_count = 0
+
+    for claim in expert.get("seam_claims", []):
+        if not isinstance(claim, dict):
+            continue
+        code = claim.get("seam_code", "")
+        if code not in required_codes:
+            continue   # only seams relevant to this project count toward the gate
+        tier = claim.get("verification_tier", "")
+        if tier == "CLAIMED":
+            claimed_count += 1
+        elif tier == "EVIDENCE_BACKED":
+            evidence_backed_count += 1
+
+    if claimed_count == 0 or evidence_backed_count == 0:
+        return False   # no ratio to compute — gate doesn't apply
+
+    ratio = claimed_count / evidence_backed_count
+    return ratio > _CLAIMED_TO_VERIFIED_HARD_GATE_RATIO
+
+
+# Scoring
 
 def _score_expert(
     expert: dict,
@@ -142,7 +206,6 @@ def _score_seams(expert: dict, required_seams: list[dict]) -> tuple[float, list[
     if not required_seams:
         return 1.0, []   # no seams required — everyone passes
 
-    # Build expert seam lookup: seam_code → tier
     expert_seams: dict[str, str] = {
         claim.get("seam_code", ""): claim.get("verification_tier", "")
         for claim in expert.get("seam_claims", [])
@@ -202,7 +265,6 @@ def _score_domains(expert: dict, required_domains: list[dict]) -> float:
             total_score += 1.0
         elif expert_val == required_val - 1:
             total_score += 0.5
-        # else: 0 (missing or too shallow)
         count += 1
 
     return (total_score / count) if count > 0 else 0.0
@@ -215,7 +277,7 @@ def _score_portfolio(expert: dict) -> float:
     """
     raw = expert.get("portfolio_score")
     if raw is None:
-        return 0.5   # neutral — no history, not penalised
+        return 0.5
     try:
         score = float(raw)
         return max(0.0, min(1.0, score))
@@ -226,7 +288,7 @@ def _score_portfolio(expert: dict) -> float:
 def _score_archetype(expert: dict, project_archetype: str | None) -> float:
     """Archetype history match (0.0 or 1.0)."""
     if not project_archetype:
-        return 0.5   # neutral — no archetype specified
+        return 0.5
     history = [str(a) for a in expert.get("archetype_history", [])]
     return 1.0 if str(project_archetype) in history else 0.0
 

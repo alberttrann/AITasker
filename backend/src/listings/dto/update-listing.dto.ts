@@ -1,8 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
-// Enums mirror docs/06-enum-domains.md. Local to this DTO — duplicated
-// intentionally; each route's DTO can diverge per project convention.
 
 enum DomainCode {
   A = 'A',
@@ -26,8 +24,6 @@ enum SeamCode {
   C_E = 'C<->E',
 }
 
-// Only allowed state transition via this endpoint: DRAFT → PUBLISHED.
-// SUSPENDED/ARCHIVED are admin-only transitions.
 enum ServiceState {
   PUBLISHED = 'PUBLISHED',
 }
@@ -37,11 +33,6 @@ enum ServiceType {
   TECH_DISCOVERY = 'TECH_DISCOVERY',
 }
 
-// PUT /services/:id body — all fields optional, partial update.
-// Per docs/04 §0.11 K row 136:
-//   - Actor: EXPERT (owner).
-//   - Guard: not owner → 403 · state = SUSPENDED → 422.
-//   - Transition: DRAFT → PUBLISHED only. service_type immutable after PUBLISHED.
 export class UpdateListingDto {
   @IsOptional()
   @IsString()
@@ -51,6 +42,14 @@ export class UpdateListingDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+ 
+  @IsOptional()
+  @IsString()
+  timeline?: string;
 
   @IsOptional()
   @IsArray()
