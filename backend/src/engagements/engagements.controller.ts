@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Post, Put, Query, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { EngagementsService } from './engagements.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -44,9 +44,10 @@ export class EngagementsController {
     return this.engagementsService.acceptNda(id, user);
   }
 
-  // PUT /engagements/:id/connect — expert accepts connection + NDA.
+  // POST /engagements/:id/connect — expert accepts connection + NDA.
   @ApiBearerAuth('JWT')
-  @Put(':id/connect')
+  @Post(':id/connect')
+  @HttpCode(200)
   async acceptConnect(
     @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
     @Param('id', ParseUUIDPipe) id: string,

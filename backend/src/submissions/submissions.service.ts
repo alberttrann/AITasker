@@ -7,7 +7,7 @@ import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 export class SubmissionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async submitMilestones(milestoneId: string, dto: CreateSubmissionDto) {
+  async submitMilestones(milestoneId: string, expertId: string, dto: CreateSubmissionDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
     });
@@ -49,7 +49,7 @@ export class SubmissionsService {
       const submission = await tx.milestoneSubmission.create({
         data: {
           milestoneId: milestoneId,
-          expertId: dto.expert_id,
+          expertId: expertId,
           description: dto.description,
           filesJson: dto.files_json || [],
         },

@@ -180,7 +180,7 @@ export class AdminService {
 
       await tx.wallet.update({
         where: { id: wallet.id },
-        data: { availableBalance: { increment: Number(withdrawal.amount) } },
+        data: { availableBalance: { increment: withdrawal.amount } },
       });
 
       await tx.walletTransaction.create({
