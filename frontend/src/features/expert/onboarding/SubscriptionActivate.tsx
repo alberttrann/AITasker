@@ -26,7 +26,7 @@ export default function SubscriptionActivate() {
   const activateMutation = useMutation({
     mutationFn: async () => {
       const { data } = await apiClient.post<{ access_token: string }>('/subscriptions/activate', {
-        activeRole: user?.activeRole || 'CLIENT'
+        activeRole: user?.activeRole || 'EXPERT'
       });
       return data;
     },
@@ -94,9 +94,9 @@ export default function SubscriptionActivate() {
             <Button
               className="w-full py-6 text-lg font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all relative z-10 shrink-0"
               variant="primary"
-              onClick={() => navigate('/ceo/elicitation')}
+              onClick={() => navigate('/expert')}
             >
-              Start Your First AI Project
+              Back to Dashboard
             </Button>
           </div>
         </div>
@@ -116,15 +116,15 @@ export default function SubscriptionActivate() {
         {/* Left Side: Copy & Info */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-widest rounded-full w-fit mb-6 shadow-sm">
-            <Zap size={14} /> Power Up Your Workflow
+            <Zap size={14} /> Maximize Your Earnings
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-headline font-extrabold text-slate-900 leading-[1.1] mb-6">
-            Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Client Pro</span> Experience
+            Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Expert Pro</span> Experience
           </h1>
 
           <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-            Elevate your project management with AI-driven elicitation, priority expert matching, and secure milestone tracking.
+            Elevate your freelance career with priority matching, premium project access, and 0% withdrawal fees.
           </p>
 
           <div className="space-y-4 mb-8">
@@ -133,8 +133,8 @@ export default function SubscriptionActivate() {
                 <Sparkles size={20} />
               </div>
               <div>
-                <h4 className="font-bold text-slate-900">AI-Powered Elicitation</h4>
-                <p className="text-sm text-slate-500">Automatically translate raw ideas into structured PRDs.</p>
+                <h4 className="font-bold text-slate-900">Priority Matching</h4>
+                <p className="text-sm text-slate-500">Get shortlisted faster for high-value projects.</p>
               </div>
             </div>
 
@@ -143,8 +143,8 @@ export default function SubscriptionActivate() {
                 <Shield size={20} />
               </div>
               <div>
-                <h4 className="font-bold text-slate-900">Secure Escrow & Milestones</h4>
-                <p className="text-sm text-slate-500">Funds are held safely until milestones are approved.</p>
+                <h4 className="font-bold text-slate-900">0% Platform Fees</h4>
+                <p className="text-sm text-slate-500">Keep 100% of your earnings when withdrawing.</p>
               </div>
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function SubscriptionActivate() {
 
               <div className="flex-1">
                 <ul className="space-y-4 mb-8">
-                  {['Unlimited AI Project Elicitations', 'Priority Expert Matching', 'Milestone-based Escrow Payments', 'Dedicated Account Manager'].map((feat, i) => (
+                  {['Priority Project Matching', '0% Withdrawal Fees', 'Premium Profile Badge', 'Direct Client Invitations'].map((feat, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                         <Check size={12} strokeWidth={3} />
@@ -202,7 +202,7 @@ export default function SubscriptionActivate() {
                     disabled={activateMutation.isPending}
                     isLoading={activateMutation.isPending}
                   >
-                    Activate Client Pro
+                    Activate Expert Pro
                     <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 ) : (
@@ -211,7 +211,7 @@ export default function SubscriptionActivate() {
                       Insufficient balance. Top up first.
                     </div>
                     <Link
-                      to="/ceo/wallet"
+                      to="/expert/wallet"
                       className="block w-full text-center py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors"
                     >
                       Top Up Wallet
