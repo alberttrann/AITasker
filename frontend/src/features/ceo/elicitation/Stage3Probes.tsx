@@ -13,14 +13,15 @@ interface Stage3Props {
 export default function Stage3Probes({ sessionId, archetype, onComplete, onError }: Stage3Props) {
   const questions = PROBES[archetype] ?? PROBES['1'];
   const [answers, setAnswers] = useState<Record<string, string>>({ q1: '', q2: '', q3: '', q4: '' });
-  const [vagueAnswers, setVagueAnswers] = useState<string[]>([]);
+  const [vagueAnswers, setVagueAnswers] = useState<Array<{question: string; reason: string}>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const allFilled = Object.values(answers).every((a) => a.trim().length > 0);
 
   const handleChange = (key: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
-    setVagueAnswers((prev) => prev.filter((k) => k !== key));
+    // If they type, remove the vague error for this question
+    setVagueAnswers((prev) => prev.filter((v) => v.question !== questions[key]));
   };
 
   const handleSubmit = async () => {
@@ -61,8 +62,13 @@ export default function Stage3Probes({ sessionId, archetype, onComplete, onError
       {vagueAnswers.length > 0 && (
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
           <p className="text-body-sm font-medium text-warning">⚠️ Some answers need more detail before continuing:</p>
-          <ul className="mt-2 list-inside list-disc text-body-sm text-secondary">
-            {vagueAnswers.map((q) => <li key={q}>{q}</li>)}
+          <ul className="mt-2 list-inside list-disc text-body-sm text-secondary space-y-2">
+            {vagueAnswers.map((v) => (
+              <li key={v.question}>
+                <strong>{v.question}</strong>
+                <p className="text-caption text-secondary/80 mt-1">{v.reason}</p>
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -71,7 +77,7 @@ export default function Stage3Probes({ sessionId, archetype, onComplete, onError
         {(['q1', 'q2', 'q3', 'q4'] as const).map((key) => (
           <div key={key} className="space-y-2">
             <Label>{questions[key]}</Label>
-            <textarea value={answers[key]} onChange={(e) => handleChange(key, e.target.value)} placeholder="Type your answer…" rows={3} className={textareaClass(vagueAnswers.includes(questions[key]))} />
+            <textarea value={answers[key]} onChange={(e) => handleChange(key, e.target.value)} placeholder="Type your answer…" rows={3} className={textareaClass(vagueAnswers.some(v => v.question === questions[key]))} />
           </div>
         ))}
       </div>

@@ -123,7 +123,7 @@ export default function Stage4ScenarioB({
   // Render: before link generated
   if (!inviteSent) {
     return (
-      <div className="max-w-6xl mx-auto p-6 space-y-4">
+      <div className="mx-auto space-y-4">
         <h2 className="text-lg font-semibold">
           Delegate technical details to your team
         </h2>
@@ -176,7 +176,7 @@ export default function Stage4ScenarioB({
   // Render: timed out — let the CEO regenerate or switch to Scenario A
   if (timedOut) {
     return (
-      <div className="max-w-md mx-auto p-6 space-y-4 text-center">
+      <div className="mx-auto space-y-4 text-center">
         <h2 className="text-lg font-semibold">
           Still waiting on your tech team
         </h2>
@@ -206,7 +206,7 @@ export default function Stage4ScenarioB({
 
   // Render: waiting state (link generated, polling in progress)
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
+    <div className="mx-auto space-y-4">
       {pollError && (
         <p className="text-xs text-amber-600 text-center">{pollError}</p>
       )}
