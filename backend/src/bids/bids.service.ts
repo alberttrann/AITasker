@@ -49,14 +49,14 @@ export class BidsService {
       );
     }
 
-    // 3. subscription gate for Tier 2-3 projects
-    if (project.tier !== 'TIER_1' && expert.user.subscriptionExpertTier !== 'pro') {
-      throw new ForbiddenException('Expert Pro subscription required for Tier 2-3 projects.');
-    }
-
-    // 4. self-exclusion: project owner cannot bid on their own project
+    // 3. self-exclusion: project owner cannot bid on their own project
     if (project.clientId === expertUserId) {
       throw new ForbiddenException('Project owner cannot bid on their own project.');
+    }
+
+    // 4. subscription gate for Tier 2-3 projects
+    if (project.tier !== 'TIER_1' && expert.user.subscriptionExpertTier !== 'pro') {
+      throw new ForbiddenException('Expert Pro subscription required for Tier 2-3 projects.');
     }
 
     // 5. expert must appear in the shortlist (cached, computed via FastAPI /llm/matching)
