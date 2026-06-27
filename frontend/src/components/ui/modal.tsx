@@ -40,7 +40,7 @@ export function Modal({
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-transparent transition-opacity" 
+        className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" 
         onClick={onClose} 
       />
       

@@ -89,7 +89,7 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
       <div className="mx-auto h-2 w-full max-w-md overflow-hidden rounded-full bg-primary-bg">
         <div className="h-full rounded-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${fakeProgress}%` }} />
       </div>
-      <div className="mx-auto max-w-sm rounded-lg border border-slate-200 bg-surface p-4 text-left">
+      <div className="mx-auto max-w-4sm rounded-lg border border-slate-200 bg-surface p-4 text-left">
         <ul className="space-y-2">
           {PROGRESS_MESSAGES.map((msg, i) => {
             const isActive = i === messageIndex;
