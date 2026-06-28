@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
 # backend/simulations/mainflow-validation/mf15_validate.sh
 #
-# Validates MF-15 (Dual-Role Account Switch). ASSUMES the addRole()
-# clientSubtype fix has landed (see add_role_clientsubtype_fix.txt) — a
-# real, confirmed bug found while planning this script, not a guess. The
-# CEO-specific step below will fail with a specific, diagnosable error
-# if that patch hasn't been applied, rather than a generic one.
-#
-# Registers EXPERT first, then adds CLIENT_CEO — the exact order that
-# exposed the bug, since registering CLIENT_CEO first never had the
-# problem (clientSubtype is set correctly at registration time either way).
+# Validates MF-15 (Dual-Role Account Switch).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"

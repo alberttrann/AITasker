@@ -1,18 +1,10 @@
 #!/usr/bin/env bash
-# backend/simulations/mainflow-validation/mf7_validate.sh
 #
 # Validates MF-7 (Milestone Management + DoD + Escrow). Builds on a
 # CONNECTED engagement (reuses MF-6's full prerequisite chain through NDA
 # acceptance), then walks milestone creation through funding, DoD,
 # submission, sign-off, and the now-patched release + withdrawal_requests
 # creation.
-#
-# ASSUMES the milestones.controller.ts fund-from-wallet retraction has
-# landed (only PUT /milestones/:id/fund exists) and the withdrawal_requests
-# + RELEASED patch from earlier this session is applied. ALSO ASSUMES
-# GET /milestones/:id exists — confirmed genuinely missing from the real
-# controller while writing this script; see milestones_get_by_id_patch.txt,
-# apply that first or every state-check step below will 404.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"

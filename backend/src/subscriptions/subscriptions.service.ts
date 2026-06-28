@@ -13,6 +13,7 @@ import { ActivateSubscriptionDto } from 'src/subscriptions/dto/activate-subscrip
 import { addMonths } from 'date-fns';
 import { AuthService } from 'src/auth/auth.service';
 import { UnprocessableEntityException } from '@nestjs/common';
+
 @Injectable()
 export class SubscriptionService {
   constructor(
@@ -74,7 +75,7 @@ export class SubscriptionService {
       await tx.wallet.update({
         where: { userId: user.id },
         data: {
-          availableBalance: { decrement: price },
+          availableBalance: { decrement: BigInt(price) },
         },
       });
 

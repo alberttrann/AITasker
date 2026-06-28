@@ -1,30 +1,10 @@
 #!/usr/bin/env bash
-# backend/simulations/mainflow-validation/mf6_validate.sh
 #
 # Validates MF-6 (Simplified Bid & Connection Flow). Requires a tech team
 # member linked to the project for the tech-review phase — reuses the
 # real Scenario A handoff sequence (handoff link generated right after
 # Stage 3, tech team member submits Stage 4 via stage4-handoff) rather
 # than faking the linkage.
-#
-# CORRECTED: the NDA/connection step is asymmetric, not one shared
-# endpoint both parties call. CEO calls PUT /engagements/:id/accept-nda;
-# EXPERT calls POST /engagements/:id/connect — confirmed directly from
-# acceptNda()/acceptConnect()'s real implementations, each setting only
-# their own party's *NdaAcceptedAt timestamp. An earlier version of this
-# script called accept-nda for both parties, which the expert call always
-# rejected (403, CEO-only) — not a codebase bug, a wrong assumption on my part.
-#
-# ASSUMES bids.service.ts's create() sets state SUBMITTED directly (not
-# DRAFT) — today's separate bid.state fix.
-#
-# NOTE ON RESPONSE SHAPES: POST /bids's {bid, engagement} wrapper and
-# create-bid.dto's field shapes were directly verified against real code
-# this session. PUT /bids/:id's exact return shape (assumed flat — bare
-# .techStatus, .state, etc.) was NOT independently re-verified with the
-# same rigor — if that step fails on an unexpected jq path rather than a
-# real status code mismatch, check the actual service method's return
-# statement before assuming the underlying logic is wrong.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"

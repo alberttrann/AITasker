@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # backend/simulations/mainflow-validation/mf11_validate.sh
 #
-# Validates MF-11 (Wallet Top-Up). Simplest flow in the whole system —
-# this exact mechanism has already been proven correct dozens of times
-# as a prerequisite step in every other script this session. This script
-# exercises it as its own dedicated target: the idempotency guarantee
-# specifically, not just "did the balance go up once."
+# Validates MF-11 (Wallet Top-Up)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"

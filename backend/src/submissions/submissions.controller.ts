@@ -6,32 +6,40 @@ import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from "@nestjs/swagg
 import { SubmissionsService } from "./submissions.service";
 import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { StagePaygatedDocDto } from "./dto/stage-paygated-doc.dto";
+import { CurrentUser } from "../common/decorators/current-user.decorator";
 
 @ApiTags('submissions')
-@ApiBearerAuth()
-@Controller('submissions')
+@ApiBearerAuth('JWT')
+@Controller('milestones')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
-  @Post('milestones/:id/submit')
+  @Post(':id/submit')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Expert submits deliverable for a milestone (DoD gate enforced)' })
-  async submitMilestone( @Param('id') milestoneId: string, @Body() dto: CreateSubmissionDto,) {
-    return this.submissionsService.submitMilestones(milestoneId, dto);
+  async submitMilestone(
+    @Param('id') milestoneId: string, 
+    @Body() dto: CreateSubmissionDto,
+    @CurrentUser() user: { id: string }
+  ) {
+    return this.submissionsService.submitMilestones(milestoneId, user.id, dto);
   }
 
-  @Post('milestones/:id/paygated-docs')
+  @Post(':id/paygated-docs')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Expert stages a detailed technical paygated document' })
   async uploadDocument( @Param('id') milestoneId: string, @Body() dto: StagePaygatedDocDto,) {
     return this.submissionsService.uploadDocument(milestoneId, dto);
   }
 
-  @Get('milestones/:id/paygated-docs')
-  @Roles('TECH_TEAM', 'EXPERT')
+  @Get(':id/paygated-docs')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiOperation({ summary: 'TECH_TEAM or EXPERT downloads unlocked documents (CEO is excluded)' })
-  async downloadDocument(@Param('id') milestoneId: string,) {
-    return this.submissionsService.downloadDocument(milestoneId);
+  async downloadDocument(
+    @Param('id') milestoneId: string,
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    return this.submissionsService.downloadDocument(milestoneId, user);
   }
 }

@@ -105,6 +105,8 @@ export class ListingsService {
   async create(expertUserId: string, dto: CreateListingDto) {
     let title = dto.title;
     let description = dto.description;
+    let scope = dto.scope;
+    let timeline = dto.timeline;
     let priceVnd: bigint | null = dto.priceVnd !== undefined ? BigInt(dto.priceVnd) : null;
 
     if (dto.useAiGenerator) {
@@ -137,6 +139,8 @@ export class ListingsService {
       });
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
+      scope = dto.scope ?? ai.scope;
+      timeline = dto.timeline ?? ai.timeline;
       if (priceVnd === null) {
         priceVnd = BigInt(ai.suggested_price_vnd);
       }
@@ -154,6 +158,8 @@ export class ListingsService {
         expertId: expertUserId,
         title,
         description: description ?? null,
+        scope: scope ?? null,
+        timeline: timeline ?? null,
         domainsJson: dto.domainsJson ?? [],
         seamsJson: dto.seamsJson ?? [],
         priceVnd,
@@ -203,6 +209,8 @@ export class ListingsService {
     const data: Record<string, unknown> = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.description !== undefined) data.description = dto.description;
+    if (dto.scope !== undefined) data.scope = dto.scope;
+    if (dto.timeline !== undefined) data.timeline = dto.timeline;
     if (dto.domainsJson !== undefined) data.domainsJson = dto.domainsJson;
     if (dto.seamsJson !== undefined) data.seamsJson = dto.seamsJson;
     if (dto.priceVnd !== undefined) data.priceVnd = BigInt(dto.priceVnd);

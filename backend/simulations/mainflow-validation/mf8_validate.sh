@@ -1,19 +1,8 @@
 #!/usr/bin/env bash
-# backend/simulations/mainflow-validation/mf8_validate.sh
 #
 # Validates MF-8 (Dispute Resolution). Reuses MF-7's full prerequisite
 # chain through a SUBMITTED milestone, then files a dispute against the
 # unverified criterion instead of verifying it normally.
-#
-# ASSUMES today's disputes corrections have landed: DisputeState is
-# LAYER_1_EVAL/AUTO_RESOLVED/MANUAL_REVIEW/RESOLVED (not PENDING/AI_RESOLVED/
-# ESCALATED/ADMIN_RESOLVED), the withdraw route is removed, and resolve-dispute
-# no longer takes expertSharePercent.
-#
-# Whether this run exercises AUTO_RESOLVED or MANUAL_REVIEW depends on the
-# real ai-service confidence score for this exact criterion/deliverable
-# pair — not something this script controls. Both outcomes are handled
-# explicitly below, not assumed away.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
