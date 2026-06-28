@@ -1,11 +1,12 @@
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 
+@ApiTags('Wallet')
 @Controller('wallets')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('CLIENT', 'EXPERT')

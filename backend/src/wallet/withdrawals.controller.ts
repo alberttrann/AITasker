@@ -8,7 +8,7 @@ import { WithdrawalsService } from './withdrawals.service';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
 
-@ApiTags('withdrawals')
+@ApiTags('Withdrawals')
 @ApiBearerAuth()
 @Controller('withdrawals')
 @UseGuards(JwtAuthGuard, RolesGuard)

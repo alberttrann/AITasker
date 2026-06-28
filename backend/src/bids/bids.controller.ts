@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BidsService } from './bids.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -11,6 +11,7 @@ import { TechReviewDto } from './dto/tech-review.dto';
 import { CeoDecisionDto } from './dto/ceo-decision.dto';
 import { CounterOfferDto } from './dto/counter-offer.dto';
 
+@ApiTags('Bids')
 @Controller('bids')
 @UseGuards(JwtAuthGuard, RolesGuard)
 // Class-level: all 3 roles can enter the controller. Each method narrows further.

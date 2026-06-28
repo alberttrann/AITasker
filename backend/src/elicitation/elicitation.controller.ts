@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import {
   Controller, Post, Put, Get,
   Param, Body, UseGuards, ForbiddenException,
@@ -21,6 +22,7 @@ interface AuthUser {
   clientSubtype?: string | null;
 }
 
+@ApiTags('Elicitation')
 @Controller('elicitation')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ElicitationController {

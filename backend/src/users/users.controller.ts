@@ -1,7 +1,7 @@
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from 'src/auth/strategies/jwt.strategy';
 import { AddRoleDto } from './dto/add-role.dto';
 import { UserService } from './users.service';
@@ -9,6 +9,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 
+@ApiTags('Users')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('CLIENT', 'EXPERT', 'ADMIN')

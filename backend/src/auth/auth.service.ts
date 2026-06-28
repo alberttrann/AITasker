@@ -19,6 +19,7 @@ import { User } from '@prisma/client';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import axios from 'axios';
 import { generateVaNumber } from '@shared/ledger/va-generator';
+import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
 
 @Injectable()
 export class AuthService {
@@ -34,11 +35,11 @@ export class AuthService {
 
   private toAuthUserResponse(user: User) {
     return {
-      id:                     user.id,
-      email:                  user.email,
-      fullName:               user.fullName,
-      activeRole:             user.activeRole,
-      clientSubtype:          user.clientSubtype ?? null,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      activeRole: user.activeRole,
+      clientSubtype: user.clientSubtype ?? null,
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
     };
@@ -89,21 +90,6 @@ export class AuthService {
           status: VAStatus.ACTIVE,
         },
       });
-
-      const taxCode = registerDto.taxCode;
-      if (taxCode) {
-        try {
-          const vietQRTaxAPI = `https://api.vietqr.io/v2/business/${taxCode}`;
-          const response = await axios.get(vietQRTaxAPI);
-
-          if (response.data.code === '00') {
-            await tx.clientProfile.update({
-              where: { userId: user.id },
-              data: { companyName: response.data.data.name },
-            });
-          }
-        } catch {}
-      }
 
       const access_token = await this.jwtGeneratePayload(user);
       const refresh_token = await this.jwtGenerateRefreshPayload(user);
@@ -240,7 +226,9 @@ export class AuthService {
     });
 
     if (!session) {
-      throw new UnauthorizedException('This invite link refers to a session that no longer exists.');
+      throw new UnauthorizedException(
+        'This invite link refers to a session that no longer exists.',
+      );
     }
     if (session.handoffTokenJti !== payload.jti) {
       throw new UnauthorizedException(
@@ -263,11 +251,11 @@ export class AuthService {
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          email:         dto.email,
-          passwordHash:  hashPassword,
-          fullName:      dto.fullName,
-          roles:         [UserRoleItem.CLIENT_CEO],
-          activeRole:    ActiveRole.CLIENT,
+          email: dto.email,
+          passwordHash: hashPassword,
+          fullName: dto.fullName,
+          roles: [UserRoleItem.CLIENT_CEO],
+          activeRole: ActiveRole.CLIENT,
           clientSubtype: ClientSubType.TECH_TEAM,
           techTeamProfile: {
             create: {
@@ -280,18 +268,18 @@ export class AuthService {
 
       await tx.elicitationSession.update({
         where: { id: payload.sessionId },
-        data:  { handoffConsumedAt: new Date() },
+        data: { handoffConsumedAt: new Date() },
       });
 
       await tx.wallet.create({ data: { userId: user.id } });
 
       await tx.virtualAccount.create({
         data: {
-          entityType:  VAEntityType.WALLET_TOPUP,
-          entityId:    user.id,
-          vaNumber:    generateVaNumber(VAEntityType.WALLET_TOPUP),
+          entityType: VAEntityType.WALLET_TOPUP,
+          entityId: user.id,
+          vaNumber: generateVaNumber(VAEntityType.WALLET_TOPUP),
           fixedAmount: null,
-          status:      VAStatus.ACTIVE,
+          status: VAStatus.ACTIVE,
         },
       });
 
@@ -303,5 +291,25 @@ export class AuthService {
         user: this.toAuthUserResponse(user),
       };
     });
+  }
+
+  async verifyTaxCode(verifyTaxCodeDto: VerifyTaxCodeDto) {
+    const taxCode = verifyTaxCodeDto.taxCode;
+
+    const vietQRTaxAPI = `https://api.vietqr.io/v2/business/${taxCode}`;
+    const response = await axios.get(vietQRTaxAPI);
+
+    // 00 => Company tax code existed
+    if (response.data.code === '00') {
+      return {
+        verified: true,
+        companyName: response.data.data.name,
+      };
+    }
+
+    return {
+      verified: false,
+      companyName: null,
+    };
   }
 }
