@@ -7,10 +7,12 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { AuthUser } from './strategies/jwt.strategy';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
+import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -44,5 +46,13 @@ export class AuthController {
   @Post('register/handoff')
   registerHandoff(@Body() dto: RegisterHandoffDto) {
     return this.authService.registerHandoff(dto);
+  }
+
+  @ApiBearerAuth('JWT')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @Post('verify-tax-code')
+  verifyTaxCode(@Body() verifyTaxCodeDto: VerifyTaxCodeDto) {
+    return this.authService.verifyTaxCode(verifyTaxCodeDto);
   }
 }

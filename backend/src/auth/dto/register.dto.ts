@@ -33,9 +33,6 @@ export class RegisterUserDto {
   roles: UserRoleItem;
 
   @IsOptional()
-  taxCode?: string;
-
-  @IsOptional()
   @IsBoolean()
   selfTechnical?: boolean;
 }

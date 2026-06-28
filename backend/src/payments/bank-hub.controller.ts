@@ -6,8 +6,9 @@ import { Body, ConflictException, Controller, Post, UseGuards } from '@nestjs/co
 import { PrismaService } from 'prisma/prisma.service';
 import { AuthUser } from 'src/auth/strategies/jwt.strategy';
 import { InitiateBankLinkDto } from './dto/initiate-bank-link.dto';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Bank Hub')
 @Controller('bank-hub')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('EXPERT')

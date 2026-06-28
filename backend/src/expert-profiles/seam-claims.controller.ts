@@ -4,9 +4,10 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UpsertSeamClaimDto } from './dto/upsert-seam-claim.dto';
 
+@ApiTags('Seam Claims')
 @Controller('expert-profile/seams')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('EXPERT')

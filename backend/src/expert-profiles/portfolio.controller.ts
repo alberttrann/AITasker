@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreatePortfolioSubmissionDto } from './dto/create-portfolio-submission.dto';
 import { SubscriptionGuard } from '@common/guards/subscription.guard';
 /**
@@ -18,6 +18,7 @@ import { SubscriptionGuard } from '@common/guards/subscription.guard';
  *
  * GET allows both EXPERT (own submissions only) and ADMIN (any submission).
  */
+@ApiTags('Portfolio Submissions')
 @Controller('portfolio-submissions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT')

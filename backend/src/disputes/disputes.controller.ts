@@ -9,7 +9,7 @@ import { CreateDisputeDto } from './dto/create-dispute.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
-@ApiTags('disputes')
+@ApiTags('Disputes')
 @ApiBearerAuth()
 @Controller('disputes')
 @UseGuards(JwtAuthGuard, RolesGuard)

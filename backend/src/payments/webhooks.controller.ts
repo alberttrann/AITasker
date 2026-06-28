@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import {
   Body,
   Controller,
@@ -10,6 +11,7 @@ import {
 import { HmacVerifierService } from './hmac-verifier.service';
 import { IpnHandlerService } from './ipn-handler.service';
 
+@ApiTags('Webhooks (SePay)')
 @Controller('webhooks/sepay')
 export class WebhooksController {
   constructor(

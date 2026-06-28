@@ -3,8 +3,9 @@ import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Projects')
 @Controller('projects')
 @UseGuards(JwtAuthGuard)
 export class ProjectsController {

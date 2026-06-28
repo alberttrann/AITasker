@@ -18,7 +18,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
-@ApiTags('listings')
+@ApiTags('Listings')
 @Controller('services')
 @UseGuards(JwtAuthGuard, RolesGuard)
 // GET /services is open to all authenticated users per docs/04 §0.11 K row 133.

@@ -8,7 +8,7 @@ import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { StagePaygatedDocDto } from "./dto/stage-paygated-doc.dto";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 
-@ApiTags('submissions')
+@ApiTags('Submissions')
 @ApiBearerAuth('JWT')
 @Controller('milestones')
 @UseGuards(JwtAuthGuard, RolesGuard)
