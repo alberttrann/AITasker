@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface StackTagsPickerProps {
   initialTags: string[];
@@ -165,7 +166,7 @@ export default function StackTagsPicker({ initialTags, initialModel, onSave }: S
         >
           {isSubmitting ? (
             <>
-              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+              <Spinner size="sm" className="text-white" />
               Saving...
             </>
           ) : (

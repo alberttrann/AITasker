@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import type { MatchResult } from '@t/jsonb.types';
 import { getShortlist } from '@/hooks/use-matching';
+import { Spinner } from '@/components/ui/Spinner';
 import MatchCard from './MatchCard';
 
 export default function ShortlistView() {
@@ -47,7 +48,7 @@ export default function ShortlistView() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center space-y-4">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <Spinner size="xl" className="mx-auto" />
           <p className="text-body text-secondary">
             Loading matched experts…
           </p>

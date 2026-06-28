@@ -6,6 +6,7 @@ import SeamClaimsGrid from './SeamClaimsGrid';
 import type { DomainDepth, SeamClaim } from '@/types/ui.types';
 import StackTagsPicker from './StackTagsPicker';
 import { CheckCircle, ShieldCheck, X } from 'lucide-react';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   if (isLoadingProfile) {
     return (
       <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+        <Spinner size="lg" className="mb-4" />
         <p className="text-gray-500 font-medium">Loading profile builder...</p>
       </div>
     );
@@ -190,7 +191,14 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
                     {selectedSeams.map((s: any) => (
                       <div key={s.seamCode || s.code} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-800 font-bold text-xs rounded border">{s.seamCode || s.code}</span>
-                        <span className="font-medium text-gray-700">{getSeamLabel(s.seamCode || s.code)}</span>
+                        <span className="font-medium text-gray-700 flex items-center gap-2">
+                          {getSeamLabel(s.seamCode || s.code)}
+                          {(s.verificationTier === 'EVIDENCE_BACKED' || s.verificationTier === 'VERIFIED') && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
+                              <CheckCircle className="h-3 w-3" /> Verified
+                            </span>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>

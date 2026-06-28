@@ -46,7 +46,7 @@ export class LedgerService {
       select: { id: true, platformWalletId: true, platformFeePct: true },
     });
 
-    if (!platformSettings) {
+    if (!platformSettings || !platformSettings.platformWalletId) {
       throw new NotFoundException('Platform settings not configured.');
     }
 
@@ -57,40 +57,40 @@ export class LedgerService {
 
     await tx.wallet.update({
       where: { id: platformSettings.platformWalletId },
-      data: { availableBalance: { increment: platformAmount } },
+      data: { availableBalance: { increment: BigInt(platformAmount) } },
     });
     await tx.walletTransaction.create({
       data: {
         walletId: platformSettings.platformWalletId,
         amount: BigInt(platformAmount),
         transactionType: TransactionType.PLATFORM_FEE,
-        referenceId: mileStone.id,
+        referenceId: `FEE-${mileStone.id}`,
       },
     });
 
     await tx.wallet.update({
       where: { id: escrowAccount.clientWalletId },
-      data: { lockedBalance: { decrement: escrowTotalAmount } },
+      data: { lockedBalance: { decrement: escrowAccount.amount } },
     });
     await tx.walletTransaction.create({
       data: {
         walletId: escrowAccount.clientWalletId,
-        amount: BigInt(escrowTotalAmount),
+        amount: escrowAccount.amount,
         transactionType: TransactionType.ESCROW_RELEASE,
-        referenceId: mileStone.id,
+        referenceId: `REL-C-${mileStone.id}`,
       },
     });
 
     await tx.wallet.update({
       where: { id: escrowAccount.expertWalletId },
-      data: { availableBalance: { increment: expertAmount } },
+      data: { availableBalance: { increment: BigInt(expertAmount) } },
     });
     await tx.walletTransaction.create({
       data: {
         walletId: escrowAccount.expertWalletId,
         amount: BigInt(expertAmount),
         transactionType: TransactionType.ESCROW_RELEASE,
-        referenceId: mileStone.id,
+        referenceId: `REL-E-${mileStone.id}`,
       },
     });
 
@@ -127,10 +127,6 @@ export class LedgerService {
           },
         });
       }
-      // If the expert hasn't linked a bank account yet, no withdrawal
-      // request is created — the money still landed correctly in their
-      // availableBalance above; they can request a withdrawal manually
-      // once linked, same as any other earnings.
     }
   }
 
@@ -142,7 +138,7 @@ export class LedgerService {
     amount: bigint | number,
     referenceCode: string,
   ): Promise<void> {
-    const amountValue = typeof amount === 'bigint' ? Number(amount) : amount;
+    const amountValue = typeof amount === 'bigint' ? amount : BigInt(amount);
 
     await tx.wallet.update({
       where: { id: clientWalletId },
@@ -155,9 +151,9 @@ export class LedgerService {
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
-        amount: BigInt(amountValue),
+        amount: amountValue,
         transactionType: TransactionType.ESCROW_LOCK,
-        referenceId: referenceCode,
+        referenceId: `LOCK-${milestone.id}`,
       },
     });
 
@@ -200,7 +196,6 @@ export class LedgerService {
     }
   }
 
-  // Dispute outcome: client_wins. Full refund, milestone -> APPROVED
   async refundEscrowWithTx(tx: PrismaTx, escrowAccountId: string): Promise<void> {
     const escrowAccount = await tx.escrowAccount.findUnique({ where: { id: escrowAccountId } });
     if (!escrowAccount) {
@@ -212,22 +207,20 @@ export class LedgerService {
       );
     }
 
-    const amount = Number(escrowAccount.amount);
-
     await tx.wallet.update({
       where: { id: escrowAccount.clientWalletId },
       data: {
-        lockedBalance: { decrement: amount },
-        availableBalance: { increment: amount },
+        lockedBalance: { decrement: escrowAccount.amount },
+        availableBalance: { increment: escrowAccount.amount },
       },
     });
 
     await tx.walletTransaction.create({
       data: {
         walletId: escrowAccount.clientWalletId,
-        amount: BigInt(amount),
+        amount: escrowAccount.amount,
         transactionType: TransactionType.ESCROW_REFUND,
-        referenceId: escrowAccount.milestoneId ?? escrowAccount.id,
+        referenceId: `REF-${escrowAccount.milestoneId ?? escrowAccount.id}`,
       },
     });
 
@@ -262,8 +255,8 @@ export class LedgerService {
     await tx.wallet.update({
       where: { id: escrowAccount.clientWalletId },
       data: {
-        lockedBalance: { decrement: escrowTotal },
-        availableBalance: { increment: clientHalf },
+        lockedBalance: { decrement: escrowAccount.amount },
+        availableBalance: { increment: BigInt(clientHalf) },
       },
     });
     await tx.walletTransaction.create({
@@ -271,20 +264,20 @@ export class LedgerService {
         walletId: escrowAccount.clientWalletId,
         amount: BigInt(clientHalf),
         transactionType: TransactionType.ESCROW_SPLIT,
-        referenceId: escrowAccount.milestoneId ?? escrowAccount.id,
+        referenceId: `SPLIT-C-${escrowAccount.milestoneId ?? escrowAccount.id}`,
       },
     });
 
     await tx.wallet.update({
       where: { id: escrowAccount.expertWalletId },
-      data: { availableBalance: { increment: expertHalf } },
+      data: { availableBalance: { increment: BigInt(expertHalf) } },
     });
     await tx.walletTransaction.create({
       data: {
         walletId: escrowAccount.expertWalletId,
         amount: BigInt(expertHalf),
         transactionType: TransactionType.ESCROW_SPLIT,
-        referenceId: escrowAccount.milestoneId ?? escrowAccount.id,
+        referenceId: `SPLIT-E-${escrowAccount.milestoneId ?? escrowAccount.id}`,
       },
     });
 
@@ -309,13 +302,8 @@ export class LedgerService {
     amount: bigint | number,
     referenceCode: string,
   ): Promise<void> {
-    const amountValue = typeof amount === 'bigint' ? Number(amount) : amount;
+    const amountValue = typeof amount === 'bigint' ? amount : BigInt(amount);
  
-    // LEG 1 — Inbound: the fresh external money lands in availableBalance
-    // first, exactly like a normal top-up. This is what makes Leg 2's
-    // decrement safe — balance goes up by amountValue here, then
-    // immediately back down by the same amount in Leg 2, never dipping
-    // below its starting value at any point.
     await tx.wallet.update({
       where: { id: clientWalletId },
       data: { availableBalance: { increment: amountValue } },
@@ -324,13 +312,12 @@ export class LedgerService {
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
-        amount: BigInt(amountValue),
+        amount: amountValue,
         transactionType: TransactionType.TOP_UP,
         referenceId: referenceCode,
       },
     });
  
-    // LEG 2 — Lock: immediately freeze it for this milestone.
     await tx.wallet.update({
       where: { id: clientWalletId },
       data: {
@@ -342,9 +329,9 @@ export class LedgerService {
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
-        amount: BigInt(amountValue),
+        amount: amountValue,
         transactionType: TransactionType.ESCROW_LOCK,
-        referenceId: referenceCode,
+        referenceId: `LOCK-${milestoneId}`,
       },
     });
  

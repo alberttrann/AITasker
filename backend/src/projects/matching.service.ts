@@ -28,10 +28,16 @@ export class MatchingService {
   }
 
   async getShortlist(projectId: string): Promise<MatchResult[] | null> {
+    if (!this.shortlistCache.has(projectId)) {
+      await this.triggerMatching(projectId);
+    }
     return this.shortlistCache.get(projectId) || null;
   }
 
   async isExpertShortlisted(projectId: string, expertId: string): Promise<boolean> {
+    if (!this.shortlistCache.has(projectId)) {
+      await this.triggerMatching(projectId);
+    }
     const list = this.shortlistCache.get(projectId);
     if (!list) return false;
     return list.some((candidate) => candidate.expert_id === expertId);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 import { submitStage4, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
+import { X } from 'lucide-react';
 
 interface Stage4AProps {
   sessionId: string;
@@ -82,7 +83,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError }: Stag
               {schemas.map((url, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
                   {url.length > 40 ? url.substring(0, 40) + '...' : url}
-                  <button onClick={() => setSchemas(schemas.filter((_, j) => j !== i))} className="ml-1 text-red-500 hover:text-red-700">×</button>
+                  <button onClick={() => setSchemas(schemas.filter((_, j) => j !== i))} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
                 </span>
               ))}
             </div>
@@ -101,7 +102,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError }: Stag
               {contracts.map((url, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
                   {url.length > 40 ? url.substring(0, 40) + '...' : url}
-                  <button onClick={() => setContracts(contracts.filter((_, j) => j !== i))} className="ml-1 text-red-500 hover:text-red-700">×</button>
+                  <button onClick={() => setContracts(contracts.filter((_, j) => j !== i))} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
                 </span>
               ))}
             </div>

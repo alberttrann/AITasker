@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { SeamClaim } from '@/types/ui.types';
+import { Spinner } from '@/components/ui/Spinner';
+import { CheckCircle } from 'lucide-react';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;
@@ -84,6 +86,8 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
         {SEAMS.map(seam => {
           const currentState = seamStates.find(s => s.code === seam.code);
           const isChecked = currentState?.checked;
+          const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === seam.code);
+          const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
 
           return (
             <label 
@@ -101,11 +105,16 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
                 />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">
-                  <span className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs mr-2 border">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <span className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs border">
                     {seam.code}
                   </span>
                   {seam.label}
+                  {isVerified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
+                      <CheckCircle className="h-3 w-3" /> Verified
+                    </span>
+                  )}
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">{seam.hint}</p>
               </div>
@@ -125,7 +134,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
         >
           {isSubmitting ? (
             <>
-              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+              <Spinner size="sm" className="text-white" />
               Saving...
             </>
           ) : (

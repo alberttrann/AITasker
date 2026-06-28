@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
 #
-# Validates MF-5 (AI Matching & Shortlisting). IMPORTANT: built around the
-# REAL architecture, not the blueprint's literal swimlane — there is no
-# POST /matching/{projectId} endpoint. Matching fires automatically via an
-# @OnEvent('project.published') listener the instant a project publishes,
-# and GET /matching/:projectId/shortlist just reads the resulting
-# in-memory cache. This script publishes a real project (full elicitation
-# prerequisite chain, same as mf4) with at least one real expert already
-# registered and seam-claiming beforehand, so the automatic match has
-# something real to find.
+# Validates MF-5 (AI Matching & Shortlisting).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"

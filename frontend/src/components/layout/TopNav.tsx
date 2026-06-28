@@ -94,7 +94,7 @@ const RoleIcon =
 
   return (
     <>
-    <header ref={navRef} className="relative z-50 w-full bg-surface border-b border-primary/5 select-none min-h-[80px] flex items-center">
+    <header ref={navRef} className="relative z-50 w-full bg-primary-bg border-b border-primary/5 select-none min-h-[80px] flex items-center">
       <div className="flex flex-row items-center justify-between w-full px-6 max-w-[1440px] mx-auto py-2">
         
         {/* Left: Logo Area */}

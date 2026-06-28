@@ -17,6 +17,18 @@ type ActorUser = { id: string };
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Put('projects/:id/suspend-spec')
+  @ApiOperation({ summary: 'Emergency pull-back of a published project spec' })
+  async suspendSpec(@Param('id') id: string) {
+    return this.adminService.suspendSpec(id);
+  }
+
+  @Put('users/:id/suspend')
+  @ApiOperation({ summary: 'Suspend a fraudulent or abusive account' })
+  async suspendUser(@Param('id') id: string) {
+    return this.adminService.suspendUser(id);
+  }
+
   @Get('disputes')
   @ApiOperation({ summary: 'Disputes queue, optionally filtered by state' })
   async getDisputesQueue(@CurrentUser() user: ActorUser, @Query('state') state?: string) {

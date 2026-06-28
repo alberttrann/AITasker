@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { AlertTriangle } from 'lucide-react';
 
 interface QualityGateFailedProps {
   completenessScore: number;
@@ -24,7 +25,7 @@ export default function QualityGateFailed({
     <Card elevated>
       <CardContent className="space-y-8 pt-6 text-center">
         {/* Warning */}
-        <div className="text-5xl">⚠️</div>
+        <div className="flex justify-center"><AlertTriangle className="w-16 h-16 text-error" /></div>
 
         <div>
           <h2 className="text-h2 font-headline text-primary">
@@ -44,7 +45,7 @@ export default function QualityGateFailed({
         {/* Advisory */}
         <div className="rounded-lg border border-error/20 bg-error/5 p-4 text-left">
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 shrink-0 text-error">⚠️</span>
+            <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0 text-error" />
             <div>
               {flaggedVoid && (
                 <p className="text-body-sm font-semibold text-error">

@@ -3,6 +3,19 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
 import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS } from '@/hooks/use-elicitation';
+import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, AlertTriangle } from 'lucide-react';
+
+const getIcon = (code: string) => {
+  switch (code) {
+    case '1': return <Search className="w-8 h-8 text-primary" />;
+    case '2': return <Target className="w-8 h-8 text-primary" />;
+    case '3': return <FileText className="w-8 h-8 text-primary" />;
+    case '4': return <MessageSquare className="w-8 h-8 text-primary" />;
+    case '5': return <TrendingUp className="w-8 h-8 text-primary" />;
+    case '6': return <Settings className="w-8 h-8 text-primary" />;
+    default: return null;
+  }
+};
 
 interface Stage2Props {
   sessionId: string;
@@ -51,7 +64,7 @@ export default function Stage2Archetype({ sessionId, voidList, onComplete, onErr
           return (
             <button key={a.code} onClick={() => setSelected(a.code)}
               className={`rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-surface hover:border-primary/30'}`}>
-              <span className="text-2xl">{a.icon}</span>
+              <div className="mb-2">{getIcon(a.code)}</div>
               <h4 className="mt-2 font-headline text-primary">{a.label}</h4>
               <p className="mt-1 text-body-sm text-secondary">{a.desc}</p>
             </button>
@@ -61,7 +74,7 @@ export default function Stage2Archetype({ sessionId, voidList, onComplete, onErr
 
       {voidList.length > 0 && (
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-          <p className="text-body-sm font-medium text-primary">⚠️ Detected Gaps (from Stage 1)</p>
+          <p className="text-body-sm font-medium text-primary flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> Detected Gaps (from Stage 1)</p>
           <div className="mt-3 space-y-2">
             {voidList.map((v) => (
               <label key={v.void_code} className="flex cursor-pointer items-start gap-2">

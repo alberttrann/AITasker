@@ -155,8 +155,6 @@ export class DisputesService {
   }
 
   // Shared by the AI-auto path above AND AdminService's manual resolve.
-  // resolvedBy stays null for the AI auto-resolve path — no human
-  // decision-maker to record.
   async applyResolution(
     disputeId: string,
     resolution: DisputeResolution,
@@ -251,12 +249,23 @@ export class DisputesService {
   }
 
   // GET /disputes — shared by DisputesController (own) and AdminController
-  // (queue view, ADMIN sees all).
   async findAll(user: ActorUser, filters?: { state?: string }) {
+    
+    // Include milestone and escrow account context for the Admin dashboard / general query clarity
+    const includeRelations = {
+      milestone: {
+        select: { deliverableStatement: true, paymentAmountVnd: true }
+      },
+      escrowAccount: {
+        select: { status: true, amount: true }
+      }
+    };
+
     if (user.activeRole === 'ADMIN') {
       return this.prisma.dispute.findMany({
         where: filters?.state ? { state: filters.state } : undefined,
         orderBy: { filedAt: 'desc' },
+        include: includeRelations,
       });
     }
 
@@ -282,6 +291,7 @@ export class DisputesService {
         ...(filters?.state ? { state: filters.state } : {}),
       },
       orderBy: { filedAt: 'desc' },
+      include: includeRelations,
     });
   }
 }

@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@store/auth.store';
 import { useAuthContext } from '@lib/auth-context';
+import { Spinner } from '@/components/ui/Spinner';
 import type { ActiveRole, ClientSubtype } from '@t/enums';
 
 // ─── shared helpers ──────────────────────────────────────────────────────────
@@ -28,8 +29,8 @@ function homePath(
  */
 function AuthGate() {
   return (
-    <div className="flex h-screen items-center justify-center bg-white">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-indigo-600" />
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Spinner size="lg" className="text-primary" />
     </div>
   );
 }

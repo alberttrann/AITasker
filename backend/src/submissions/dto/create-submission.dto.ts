@@ -1,12 +1,6 @@
-import { Type } from "class-transformer";
-import { IsArray, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from "class-validator";
-
+import { IsArray, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateSubmissionDto {
-    @IsUUID('4', { message: 'expert_id must be a valid UUID.' }) 
-    @IsNotEmpty({ message: 'expert_id cannot be empty.'})
-    expert_id : string;
-
     @IsNotEmpty({ message : 'Description cannot be empty.'})
     @IsString({ message: 'Description must be a String'})
     description : string;

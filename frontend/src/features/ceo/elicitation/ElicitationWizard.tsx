@@ -12,6 +12,7 @@ import {
   type GateResult,
   type StageCompleteData,
 } from "@/hooks/use-elicitation";
+import { Loader2, Check } from "lucide-react";
 
 // Child stage components
 import Stage1Symptoms from "./Stage1Symptoms";
@@ -156,7 +157,7 @@ export default function ElicitationWizard() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center space-y-4">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
           <p className="text-body text-secondary">
             Preparing your elicitation session…
           </p>
@@ -234,7 +235,7 @@ export default function ElicitationWizard() {
                           : "bg-primary-bg text-secondary"
                     }`}
                   >
-                    {isCompleted ? "✓" : stageNum}
+                    {isCompleted ? <Check className="w-4 h-4" /> : stageNum}
                   </div>
                   <span
                     className={`mt-1.5 text-caption whitespace-nowrap ${isActive ? "text-primary font-semibold" : "text-secondary"}`}

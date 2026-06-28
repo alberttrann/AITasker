@@ -33,7 +33,7 @@ export class WithdrawalsService {
 
       await tx.wallet.update({
         where: { id: wallet.id },
-        data: { availableBalance: { decrement: dto.amount } },
+        data: { availableBalance: { decrement: BigInt(dto.amount) } },
       });
 
       const withdrawalRequest = await tx.withdrawalRequest.create({

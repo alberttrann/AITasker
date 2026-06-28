@@ -93,9 +93,17 @@ export class ElicitationService {
   }
 
   async getSession(sessionId: string, userId: string) {
-    const session = await this.findSessionOrThrow(sessionId);
+    const session = await this.prisma.elicitationSession.findUnique({
+      where: { id: sessionId },
+      include: { project: { select: { id: true } } },
+    });
+    if (!session) throw new NotFoundException('Elicitation session not found.');
     this.assertOwnership(session, userId);
-    return session;
+    return {
+      ...session,
+      project_id: session.project?.id,
+      projectId: session.project?.id,
+    };
   }
 
   async setSelfTechnical(sessionId: string, userId: string, selfTechnical: boolean) {
