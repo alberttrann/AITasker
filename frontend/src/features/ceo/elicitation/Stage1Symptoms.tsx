@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/input";
 import { Chip } from "@/components/ui/Chip";
 import { Bot, Loader2, CheckCircle2 } from "lucide-react";
 import type { VoidItem } from "@t/jsonb.types";
+import { useFakeProgress } from "@/hooks/use-fake-progress";
 import {
   submitStage1,
   handleElicitationError,
@@ -31,16 +32,7 @@ export default function Stage1Symptoms({
     new Set(),
   );
   const [showResults, setShowResults] = useState(false);
-  const [fakeProgress, setFakeProgress] = useState(0);
-
-  useEffect(() => {
-    if (!isSubmitting) {
-      setFakeProgress(0);
-      return;
-    }
-    const interval = setInterval(() => setFakeProgress(p => Math.min(p + Math.random() * 12, 90)), 1000);
-    return () => clearInterval(interval);
-  }, [isSubmitting]);
+  const fakeProgress = useFakeProgress(isSubmitting, 1000, 90);
 
   const minLength = 10; // matches backend Stage1Dto @MinLength(10)
 
@@ -131,7 +123,7 @@ export default function Stage1Symptoms({
             >
               <div className="flex items-start gap-3">
                 <Chip variant={sev as "error" | "warning"}>{v.severity}</Chip>
-                <div className="flex-1">
+                <div className="flex-1 text-left">
                   <p className="text-body font-semibold text-primary">
                     {v.void_code.replace(/_/g, " ")}
                   </p>
@@ -139,18 +131,21 @@ export default function Stage1Symptoms({
                     {VOID_DESCRIPTIONS[v.void_code] ??
                       "This area needs more detail before your project can be matched."}
                   </p>
-                  <button
-                    onClick={() => toggleAcknowledge(v.void_code)}
-                    className={`mt-2 text-body-sm font-medium transition-colors ${
+                  <label className="mt-3 flex items-center gap-2 cursor-pointer group w-fit">
+                    <input
+                      type="checkbox"
+                      checked={acknowledgedVoids.has(v.void_code)}
+                      onChange={() => toggleAcknowledge(v.void_code)}
+                      className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all cursor-pointer"
+                    />
+                    <span className={`text-body-sm font-medium transition-colors select-none ${
                       acknowledgedVoids.has(v.void_code)
                         ? "text-success"
-                        : "text-tertiary hover:underline"
-                    }`}
-                  >
-                    {acknowledgedVoids.has(v.void_code)
-                      ? <><CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> I understand</>
-                      : "I understand"}
-                  </button>
+                        : "text-tertiary group-hover:text-primary"
+                    }`}>
+                      I understand
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>

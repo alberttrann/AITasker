@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import ProfileBuilder from './ProfileBuilder';
 import PortfolioSubmitForm from '../verification/PortfolioSubmitForm';
-import { ShieldCheck, PlusCircle, CheckCircle, Edit3, ArrowUpCircle, X } from 'lucide-react';
+import { ShieldCheck, PlusCircle, CheckCircle, Edit3, ArrowUpCircle, X, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 
@@ -148,7 +148,9 @@ export default function ExpertProfilePage() {
             <p className="text-sm text-gray-500 italic">No seams selected.</p>
           ) : (
             <div className="grid gap-3">
-              {seams.map((s: any) => (
+              {seams.map((s: any) => {
+                const isLocked = s.lockedUntil && new Date(s.lockedUntil) > new Date();
+                return (
                 <div key={s.seamCode || s.code} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
                   <span className="px-2 py-0.5 bg-gray-100 text-gray-800 font-bold text-xs rounded border">{s.seamCode || s.code}</span>
                   <span className="font-medium text-gray-700 flex items-center gap-2">
@@ -158,7 +160,42 @@ export default function ExpertProfilePage() {
                         <CheckCircle className="h-3 w-3" /> AI Verified
                       </span>
                     )}
+                    {isLocked && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 uppercase tracking-wide">
+                        <Lock className="h-3 w-3" /> Locked
+                      </span>
+                    )}
                   </span>
+                </div>
+              )})}
+            </div>
+          )}
+        </div>
+
+        {/* Verification History Section */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h4 className="font-extrabold text-lg text-gray-900 mb-4 border-b pb-2">Verification History</h4>
+          {seams.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">No verification history available.</p>
+          ) : (
+            <div className="grid gap-3">
+              {seams.map((s: any, index: number) => (
+                <div key={index} className="flex flex-col py-3 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-gray-700">{getSeamLabel(s.seamCode || s.code)} ({s.seamCode || s.code})</span>
+                    <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wide ${
+                      s.verificationTier === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
+                      s.verificationTier === 'EVIDENCE_BACKED' ? 'bg-blue-100 text-blue-800' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {s.verificationTier || 'UNVERIFIED'}
+                    </span>
+                  </div>
+                  {s.evidenceUrl && (
+                    <a href={s.evidenceUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline mt-1 truncate">
+                      View Evidence
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

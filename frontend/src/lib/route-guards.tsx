@@ -95,7 +95,16 @@ export function RoleRoute({ requiredRole, requiredSubtype }: RoleRouteProps) {
     (requiredSubtype !== undefined && clientSubtype === requiredSubtype);
 
   if (!allowed) {
-    return <Navigate to={homePath(activeRole, clientSubtype)} replace />;
+    const basePath = homePath(activeRole, clientSubtype);
+    const currentPath = window.location.pathname;
+    
+    // Attempt to preserve path dynamically when redirecting to their actual dashboard
+    if (basePath !== '/' && currentPath.match(/^\/(ceo|expert|tech-team|admin)/)) {
+      const newPath = currentPath.replace(/^\/(ceo|expert|tech-team|admin)/, basePath);
+      return <Navigate to={newPath} replace />;
+    }
+
+    return <Navigate to={basePath} replace />;
   }
   return <Outlet />;
 }

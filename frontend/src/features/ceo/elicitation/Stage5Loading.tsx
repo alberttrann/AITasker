@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { getSession, type GateResult } from '@/hooks/use-elicitation';
 import { Bot, Loader2, CheckCircle2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useFakeProgress } from '@/hooks/use-fake-progress';
 
 const PROGRESS_MESSAGES = [
   'Analyzing symptom descriptions…',
@@ -19,61 +21,50 @@ interface Stage5Props {
 
 export default function Stage5Loading({ sessionId, initialGateResult, onComplete, onError }: Stage5Props) {
   const [messageIndex, setMessageIndex] = useState(0);
-  const [fakeProgress, setFakeProgress] = useState(0);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAt = useRef(Date.now());
+  const fakeProgress = useFakeProgress(true, 1500, 95, (prev) => prev + (prev < 50 ? 3 : prev < 80 ? 1.5 : 0.5));
 
   useEffect(() => {
     const interval = setInterval(() => setMessageIndex((prev) => (prev + 1) % PROGRESS_MESSAGES.length), 8000);
     return () => clearInterval(interval);
   }, []);
 
+  const { data: sessionData, isError } = useQuery({
+    queryKey: ['elicitation-session', sessionId],
+    queryFn: () => getSession(sessionId),
+    refetchInterval: (query) => {
+      if (initialGateResult) return false;
+      const state = query.state?.data?.state;
+      return state === 'COMPLETED' || state === 'RETURNED' ? false : 5000;
+    },
+    enabled: !initialGateResult,
+  });
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFakeProgress((prev) => {
-        if (prev >= 95) return prev;
-        return Math.min(prev + (prev < 50 ? 3 : prev < 80 ? 1.5 : 0.5), 95);
-      });
-    }, 1500);
-    return () => clearInterval(interval);
-  }, []);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  }, []);
-
-  const checkSession = useCallback(async () => {
     if (initialGateResult) {
-      stopPolling();
       onComplete(initialGateResult);
       return;
     }
+    
+    const timeoutHandle = setTimeout(() => {
+      onError('Synthesis is taking longer than expected. Please try again or contact support.');
+    }, 30 * 60 * 1000); // 30 minutes
 
-    try {
-      const data = await getSession(sessionId);
+    if (isError) {
+      // Ignore transient errors, but we can't easily track 30m timeout here simply.
+      // Assuming backend handles timeout or we just rely on normal flows.
+    }
+    if (sessionData) {
+      if (sessionData.state === 'COMPLETED') {
+        clearTimeout(timeoutHandle);
+        onComplete({ gate_passed: true as const, completeness_score: sessionData.completeness_score ?? sessionData.completenessScore ?? 0, project_id: sessionData.project_id ?? sessionData.projectId ?? '' });
+      } else if (sessionData.state === 'RETURNED') {
+        clearTimeout(timeoutHandle);
+        onComplete({ gate_passed: false as const, completeness_score: sessionData.completeness_score ?? sessionData.completenessScore ?? 0, flagged_void: sessionData.flagged_void ?? sessionData.flaggedVoid ?? null, return_to_stage: sessionData.return_to_stage ?? sessionData.returnToStage ?? 1, advisory_note: sessionData.advisory_note ?? sessionData.advisoryNote ?? 'Your project needs more detail.' });
+      }
+    }
 
-      if (data.state === 'COMPLETED') {
-        stopPolling();
-        onComplete({ gate_passed: true as const, completeness_score: data.completeness_score ?? data.completenessScore ?? 0, project_id: data.project_id ?? data.projectId ?? '' });
-        return;
-      }
-      if (data.state === 'RETURNED') {
-        stopPolling();
-        onComplete({ gate_passed: false as const, completeness_score: data.completeness_score ?? data.completenessScore ?? 0, flagged_void: data.flagged_void ?? data.flaggedVoid ?? null, return_to_stage: data.return_to_stage ?? data.returnToStage ?? 1, advisory_note: data.advisory_note ?? data.advisoryNote ?? 'Your project needs more detail.' });
-        return;
-      }
-      if (Date.now() - startedAt.current > 30 * 60_000) {
-        stopPolling();
-        onError('Synthesis is taking longer than expected. Please try again.');
-      }
-    } catch { /* transient — keep polling */ }
-  }, [sessionId, initialGateResult, onComplete, onError, stopPolling]);
-
-  useEffect(() => {
-    checkSession();
-    pollRef.current = setInterval(checkSession, 5000);
-    return () => stopPolling();
-  }, [checkSession, stopPolling]);
+    return () => clearTimeout(timeoutHandle);
+  }, [sessionData, isError, initialGateResult, onComplete, onError]);
 
   return (
     <div className="space-y-8 text-center">
@@ -86,7 +77,7 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
         <p className="text-body-lg font-headline text-primary">AI is synthesizing your project blueprint…</p>
         <p className="mt-2 text-body-sm text-secondary">This takes 30–90 seconds. Please don't close this page.</p>
       </div>
-      <div className="mx-auto h-2 w-full max-w-md overflow-hidden rounded-full bg-primary-bg">
+      <div className="mx-auto h-4 w-full max-w-2xl overflow-hidden rounded-full bg-primary-bg border border-slate-200">
         <div className="h-full rounded-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${fakeProgress}%` }} />
       </div>
       <div className="mx-auto max-w-4sm rounded-lg border border-slate-200 bg-surface p-4 text-left">

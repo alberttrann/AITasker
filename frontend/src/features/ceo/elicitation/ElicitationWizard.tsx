@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useReducer, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ConfirmModal } from "@/components/ui/Modal";
 import type { VoidItem } from "@t/jsonb.types";
 import {
   createSession,
@@ -24,19 +25,98 @@ import Stage5Loading from "./Stage5Loading";
 import QualityGatePassed from "./QualityGatePassed";
 import QualityGateFailed from "./QualityGateFailed";
 
+type WizardState = {
+  sessionId: string | null;
+  currentStage: number;
+  sessionState: string;
+  voidList: VoidItem[];
+  archetype: string | null;
+  gateResult: GateResult | null;
+  error: string | null;
+  isLoading: boolean;
+  forceScenarioA: boolean;
+  isCancelModalOpen: boolean;
+};
+
+type WizardAction =
+  | { type: "INIT_SUCCESS"; payload: Partial<WizardState> }
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "STAGE_COMPLETE"; payload: StageCompleteData }
+  | { type: "SYNTHESIS_RESOLVED"; payload: GateResult }
+  | { type: "TECH_TEAM_SUBMITTED" }
+  | { type: "RETURN_TO_STAGE"; payload: number }
+  | { type: "BACK" }
+  | { type: "START_OVER_START" }
+  | { type: "START_OVER_SUCCESS"; payload: { sessionId: string } }
+  | { type: "SET_FORCE_SCENARIO_A"; payload: boolean }
+  | { type: "SET_CANCEL_MODAL_OPEN"; payload: boolean };
+
+function wizardReducer(state: WizardState, action: WizardAction): WizardState {
+  switch (action.type) {
+    case "INIT_SUCCESS":
+      return { ...state, ...action.payload, isLoading: false };
+    case "SET_ERROR":
+      return { ...state, error: action.payload };
+    case "STAGE_COMPLETE":
+      const { voidListJson, archetype, gateResult } = action.payload;
+      return {
+        ...state,
+        error: null,
+        voidList: voidListJson || state.voidList,
+        archetype: archetype || state.archetype,
+        gateResult: gateResult || state.gateResult,
+        currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
+        sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
+      };
+    case "SYNTHESIS_RESOLVED":
+      return {
+        ...state,
+        gateResult: action.payload,
+        sessionState: action.payload.gate_passed ? "COMPLETED" : "RETURNED",
+      };
+    case "TECH_TEAM_SUBMITTED":
+      return { ...state, error: null, currentStage: 5 };
+    case "RETURN_TO_STAGE":
+      return { ...state, currentStage: action.payload, gateResult: null, sessionState: "IN_PROGRESS" };
+    case "BACK":
+      return { ...state, currentStage: Math.max(1, state.currentStage - 1), error: null };
+    case "START_OVER_START":
+      return { ...state, isLoading: true, error: null, gateResult: null };
+    case "START_OVER_SUCCESS":
+      return {
+        ...state,
+        isLoading: false,
+        sessionId: action.payload.sessionId,
+        currentStage: 1,
+        sessionState: "IN_PROGRESS",
+        voidList: [],
+        archetype: null,
+      };
+    case "SET_FORCE_SCENARIO_A":
+      return { ...state, forceScenarioA: action.payload };
+    case "SET_CANCEL_MODAL_OPEN":
+      return { ...state, isCancelModalOpen: action.payload };
+    default:
+      return state;
+  }
+}
+
 export default function ElicitationWizard() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [currentStage, setCurrentStage] = useState(1);
-  const [sessionState, setSessionState] = useState<string>("IN_PROGRESS");
-  const [voidList, setVoidList] = useState<VoidItem[]>([]);
-  const [archetype, setArchetype] = useState<string | null>(null);
-  const [gateResult, setGateResult] = useState<GateResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [forceScenarioA, setForceScenarioA] = useState(false);
+  const [state, dispatch] = useReducer(wizardReducer, {
+    sessionId: null,
+    currentStage: 1,
+    sessionState: "IN_PROGRESS",
+    voidList: [],
+    archetype: null,
+    gateResult: null,
+    error: null,
+    isLoading: true,
+    forceScenarioA: false,
+    isCancelModalOpen: false,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -60,32 +140,41 @@ export default function ElicitationWizard() {
 
         localStorage.setItem("currentSessionId", data.id);
 
-        setSessionId(data.id);
-        setCurrentStage(data.currentStage ?? 1);
-        setSessionState(data.state ?? "IN_PROGRESS");
-
-        if (data.currentStage > 1) {
-          setVoidList((data.voidListJson as VoidItem[]) ?? []);
-          setArchetype(data.archetype ?? null);
-        }
+        let initGateResult = null;
+        let finalSessionState = data.state ?? "IN_PROGRESS";
 
         if (data.state === "COMPLETED" || data.state === "RETURNED") {
           try {
             const full = await getSession(data.id);
             if (!cancelled && full) {
-              setSessionState(full.state ?? data.state);
+              finalSessionState = full.state ?? data.state;
               if (full.state === "COMPLETED") {
-                setGateResult({
+                initGateResult = {
                   gate_passed: true,
                   completeness_score: full.completeness_score ?? full.completenessScore ?? 0,
                   project_id: full.project_id ?? full.projectId ?? "",
-                });
+                };
               }
             }
           } catch {
             /* use what we have */
           }
         }
+
+        if (cancelled) return;
+
+        dispatch({
+          type: "INIT_SUCCESS",
+          payload: {
+            sessionId: data.id,
+            currentStage: data.currentStage ?? 1,
+            sessionState: finalSessionState,
+            voidList: data.currentStage > 1 ? ((data.voidListJson as VoidItem[]) ?? []) : [],
+            archetype: data.currentStage > 1 ? (data.archetype ?? null) : null,
+            gateResult: initGateResult as GateResult | null,
+          }
+        });
+
       } catch (err: any) {
         if (cancelled) return;
         const { message, isSubscriptionError } = handleElicitationError(err);
@@ -93,9 +182,7 @@ export default function ElicitationWizard() {
           navigate("/ceo/subscription", { replace: true });
           return;
         }
-        setError(message);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        dispatch({ type: "SET_ERROR", payload: message });
       }
     };
 
@@ -105,55 +192,33 @@ export default function ElicitationWizard() {
     };
   }, [navigate]);
 
-  const handleStageComplete = (data: StageCompleteData) => {
-    setError(null);
-    if (data.voidListJson) setVoidList(data.voidListJson);
-    if (data.archetype) setArchetype(data.archetype);
-
-    if (data.gateResult) {
-      setGateResult(data.gateResult);
-      if (data.gateResult.gate_passed) setCurrentStage(5);
-      else setSessionState("RETURNED");
-      return;
-    }
-    setCurrentStage((prev) => prev + 1);
-  };
-
+  const handleStageComplete = (data: StageCompleteData) => dispatch({ type: "STAGE_COMPLETE", payload: data });
   const handleSynthesisResolved = (result: GateResult) => {
-    setGateResult(result);
-    setSessionState(result.gate_passed ? "COMPLETED" : "RETURNED");
+    dispatch({ type: "SYNTHESIS_RESOLVED", payload: result });
+    if (result.gate_passed) localStorage.removeItem("currentSessionId");
   };
-
-  const handleTechTeamSubmitted = () => {
-    setError(null);
-    setCurrentStage(5);
-  };
-
-  const handleReturnToStage = (stage: number) => {
-    setCurrentStage(stage);
-    setGateResult(null);
-    setSessionState("IN_PROGRESS");
-  };
+  const handleTechTeamSubmitted = () => dispatch({ type: "TECH_TEAM_SUBMITTED" });
+  const handleReturnToStage = (stage: number) => dispatch({ type: "RETURN_TO_STAGE", payload: stage });
+  const handleBack = () => dispatch({ type: "BACK" });
 
   const handleStartOver = async () => {
-    setIsLoading(true);
-    setError(null);
-    setGateResult(null);
+    dispatch({ type: "START_OVER_START" });
     try {
       const data = await createSession();
-      setSessionId(data.id);
-      setCurrentStage(data.currentStage ?? 1);
-      setSessionState("IN_PROGRESS");
-      setVoidList([]);
-      setArchetype(null);
+      dispatch({ type: "START_OVER_SUCCESS", payload: { sessionId: data.id } });
     } catch (err: any) {
-      setError(handleElicitationError(err).message);
-    } finally {
-      setIsLoading(false);
+      dispatch({ type: "SET_ERROR", payload: handleElicitationError(err).message });
     }
   };
 
-  if (isLoading) {
+  const handleCancelSession = () => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: true });
+
+  const confirmCancelSession = () => {
+    localStorage.removeItem("currentSessionId");
+    navigate("/ceo");
+  };
+
+  if (state.isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center space-y-4">
@@ -166,7 +231,7 @@ export default function ElicitationWizard() {
     );
   }
 
-  if (!sessionId) {
+  if (!state.sessionId) {
     return (
       <div className="flex items-center justify-center py-24">
         <Card className="max-w-md text-center">
@@ -175,7 +240,7 @@ export default function ElicitationWizard() {
               Something went wrong
             </p>
             <p className="text-body-sm text-secondary">
-              {error || "Could not start elicitation session."}
+              {state.error || "Could not start elicitation session."}
             </p>
             <Button variant="primary" onClick={handleStartOver}>
               Try Again
@@ -186,27 +251,27 @@ export default function ElicitationWizard() {
     );
   }
 
-  if (sessionState === "COMPLETED" && gateResult?.gate_passed) {
+  if (state.sessionState === "COMPLETED" && state.gateResult?.gate_passed) {
     return (
       <div className="mx-auto max-w-6xl py-8">
         <QualityGatePassed
-          projectId={gateResult.project_id}
-          completenessScore={gateResult.completeness_score}
-          archetype={archetype ?? ""}
+          projectId={state.gateResult.project_id}
+          completenessScore={state.gateResult.completeness_score}
+          archetype={state.archetype ?? ""}
           onStartNew={handleStartOver}
         />
       </div>
     );
   }
 
-  if (sessionState === "RETURNED" && gateResult && !gateResult.gate_passed) {
+  if (state.sessionState === "RETURNED" && state.gateResult && !state.gateResult.gate_passed) {
     return (
       <div className="mx-auto max-w-6xl py-8">
         <QualityGateFailed
-          completenessScore={gateResult.completeness_score}
-          advisoryNote={gateResult.advisory_note}
-          flaggedVoid={gateResult.flagged_void ?? ""}
-          returnToStage={gateResult.return_to_stage}
+          completenessScore={state.gateResult.completeness_score}
+          advisoryNote={state.gateResult.advisory_note}
+          flaggedVoid={state.gateResult.flagged_void ?? ""}
+          returnToStage={state.gateResult.return_to_stage}
           onReturnToStage={handleReturnToStage}
           onStartOver={handleStartOver}
         />
@@ -215,13 +280,18 @@ export default function ElicitationWizard() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="mb-10">
+    <div className="mx-auto max-w-6xl relative pt-4">
+      <div className="absolute top-0 right-0 z-10">
+        <Button variant="ghost" size="sm" onClick={handleCancelSession} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+          Cancel Session
+        </Button>
+      </div>
+      <div className="mb-10 mt-8">
         <div className="flex items-center justify-center gap-0">
           {STAGE_LABELS.map((label, i) => {
             const stageNum = i + 1;
-            const isActive = currentStage === stageNum;
-            const isCompleted = currentStage > stageNum;
+            const isActive = state.currentStage === stageNum;
+            const isCompleted = state.currentStage > stageNum;
 
             return (
               <div key={stageNum} className="flex items-center">
@@ -254,62 +324,78 @@ export default function ElicitationWizard() {
         </div>
       </div>
 
-      {error && (
+      {state.error && (
         <div className="mb-6 rounded-lg border border-error/20 bg-error/5 px-4 py-3">
-          <p className="text-body-sm text-error">{error}</p>
+          <p className="text-body-sm text-error">{state.error}</p>
         </div>
       )}
 
       <Card>
         <CardContent className="pt-6">
-          {currentStage === 1 && sessionId && (
+          {state.currentStage === 1 && state.sessionId && (
             <Stage1Symptoms
-              sessionId={sessionId}
+              sessionId={state.sessionId}
               onComplete={handleStageComplete}
-              onError={setError}
+              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
             />
           )}
-          {currentStage === 2 && sessionId && (
+          {state.currentStage === 2 && state.sessionId && (
             <Stage2Archetype
-              sessionId={sessionId}
-              voidList={voidList}
+              sessionId={state.sessionId}
+              voidList={state.voidList}
               onComplete={handleStageComplete}
-              onError={setError}
+              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onBack={handleBack}
             />
           )}
-          {currentStage === 3 && sessionId && archetype && (
+          {state.currentStage === 3 && state.sessionId && state.archetype && (
             <Stage3Probes
-              sessionId={sessionId}
-              archetype={archetype}
+              sessionId={state.sessionId}
+              archetype={state.archetype}
               onComplete={handleStageComplete}
-              onError={setError}
+              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onBack={handleBack}
             />
           )}
-          {currentStage === 4 &&
-            sessionId &&
-            (user?.self_technical || forceScenarioA ? (
+          {state.currentStage === 4 &&
+            state.sessionId &&
+            (user?.self_technical || state.forceScenarioA ? (
               <Stage4ScenarioA
-                sessionId={sessionId}
+                sessionId={state.sessionId}
                 onComplete={handleStageComplete}
-                onError={setError}
+                onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+                onBack={state.forceScenarioA ? () => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: false }) : handleBack}
               />
             ) : (
               <Stage4ScenarioB
-                sessionId={sessionId}
+                sessionId={state.sessionId}
                 onTechTeamSubmitted={handleTechTeamSubmitted}
-                onFillInMyself={() => setForceScenarioA(true)}
+                onFillInMyself={() => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: true })}
+                onBack={handleBack}
               />
             ))}
-          {currentStage === 5 && sessionId && (
+          {state.currentStage === 5 && state.sessionId && (
             <Stage5Loading
-              sessionId={sessionId}
-              initialGateResult={gateResult}
+              sessionId={state.sessionId}
+              initialGateResult={state.gateResult}
               onComplete={handleSynthesisResolved}
-              onError={setError}
+              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
             />
           )}
         </CardContent>
       </Card>
+
+      <ConfirmModal
+        isOpen={state.isCancelModalOpen}
+        onClose={() => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false })}
+        onConfirm={confirmCancelSession}
+        title="Cancel Session"
+        confirmText="Yes, abandon"
+        cancelText="Keep working"
+        isDestructive
+      >
+        Are you sure you want to abandon this session? All progress will be lost.
+      </ConfirmModal>
     </div>
   );
 }

@@ -29,6 +29,7 @@ import SubscriptionActivate from "@features/ceo/onboarding/SubscriptionActivate"
 import ExpertSubscriptionActivate from "@features/expert/onboarding/SubscriptionActivate";
 import ElicitationWizard from "@features/ceo/elicitation/ElicitationWizard";
 import ShortlistView from "@features/ceo/shortlist/ShortlistView";
+import ProjectsPage from "@features/ceo/pages/ProjectsPage";
 import ExpertProfilePage from "@features/expert/profile/ExpertProfilePage";
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
           {/* /ceo/* — all CEO screens will nest here */}
           <Route path="/ceo" element={<CeoDashboard />}>
             <Route index element={<CeoOverview />} />
+            <Route path="projects" element={<ProjectsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />

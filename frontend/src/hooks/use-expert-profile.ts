@@ -12,6 +12,11 @@ export function useExpertProfile() {
     },
   });
 
+  const getPublicProfile = async (expertId: string) => {
+    const { data } = await apiClient.get(`/users/${expertId}/public-profile`);
+    return data;
+  };
+
   const saveDomains = useMutation({
     mutationFn: async (domains: { domainCode: string; depthLevel: string }[]) => {
       await Promise.all(
@@ -30,11 +35,9 @@ export function useExpertProfile() {
 
   const saveSeams = useMutation({
     mutationFn: async (seams: { code: string }[]) => {
-      await Promise.all(
-        seams.map(s =>
-          apiClient.post('/expert-profile/seams', { seamCode: s.code })
-        )
-      );
+      await apiClient.put('/expert-profile/seams/sync', {
+        seams: seams.map(s => s.code),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });
@@ -53,6 +56,7 @@ export function useExpertProfile() {
   return {
     profile: profileQuery.data,
     isLoadingProfile: profileQuery.isLoading,
+    getPublicProfile,
     saveDomains,
     saveSeams,
     saveStackAndModel,

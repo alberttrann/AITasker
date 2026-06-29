@@ -12,6 +12,7 @@ interface WalletTopUpProps {
 
 export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
   const [amountInput, setAmountInput] = useState<string>('');
+  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
   const { data: wallet } = useWallet();
   const topUpMutation = useTopUpWallet();
   const navigate = useNavigate();
@@ -29,12 +30,14 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
   const handleGenerate = () => {
     const numericAmount = parseInt(amountInput.replace(/\./g, ''), 10);
     if (!numericAmount || numericAmount < 1000) return;
+    setIsPaymentConfirmed(false);
     topUpMutation.mutate(numericAmount);
   };
 
   const handleCancel = () => {
     topUpMutation.reset();
     setAmountInput('');
+    setIsPaymentConfirmed(false);
   };
 
   const availableBalance = wallet?.availableBalance ?? 0;
@@ -79,17 +82,20 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
               qrCodeUrl={topUpMutation.data.qrCodeUrl}
               paymentReference={topUpMutation.data.paymentReference}
               amount={parseInt(amountInput.replace(/\./g, ''), 10)}
+              onPaymentConfirmed={() => setIsPaymentConfirmed(true)}
             />
           </div>
 
-          {/* Cancel button — always visible while QR is shown */}
-          <button
-            onClick={handleCancel}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors shadow-sm"
-          >
-            <X size={15} strokeWidth={2.5} />
-            Cancel
-          </button>
+          {/* Cancel button — only visible before payment is confirmed */}
+          {!isPaymentConfirmed && (
+            <button
+              onClick={handleCancel}
+              className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors shadow-sm"
+            >
+              <X size={15} strokeWidth={2.5} />
+              Cancel
+            </button>
+          )}
 
           {canContinue && showContinue && (
             <div className="mt-3 w-full animate-in slide-in-from-bottom-4 fade-in">

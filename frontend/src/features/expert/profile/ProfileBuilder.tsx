@@ -195,7 +195,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
                           {getSeamLabel(s.seamCode || s.code)}
                           {(s.verificationTier === 'EVIDENCE_BACKED' || s.verificationTier === 'VERIFIED') && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
-                              <CheckCircle className="h-3 w-3" /> Verified
+                              <CheckCircle className="h-3 w-3" /> AI Verified
                             </span>
                           )}
                         </span>

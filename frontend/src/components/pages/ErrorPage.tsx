@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 export default function ErrorPage() {
   const navigate = useNavigate();
@@ -44,9 +45,7 @@ export default function ErrorPage() {
               onClick={() => navigate(-1)}
               className="w-full sm:w-auto flex items-center justify-center gap-3 bg-accent hover:bg-accent-light text-primary-dark font-headline font-extrabold text-lg py-4 px-10 rounded-full transition-all duration-300 shadow-accent-glow hover:-translate-y-1 active:scale-95 min-h-[72px] shrink-0"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
+              <ArrowLeft className="w-6 h-6" />
               Go Back
             </button>
           </div>
