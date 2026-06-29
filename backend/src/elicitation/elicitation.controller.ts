@@ -1,26 +1,32 @@
 import { ApiTags } from '@nestjs/swagger';
 import {
-  Controller, Post, Put, Get,
-  Param, Body, UseGuards, ForbiddenException,
+  Controller,
+  Post,
+  Put,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ElicitationService }     from './elicitation.service';
-import { JwtAuthGuard }           from '../common/guards/jwt-auth.guard';
-import { RolesGuard }             from '../common/guards/roles.guard';
-import { SubscriptionGuard }      from '../common/guards/subscription.guard';
-import { Roles }                  from '../common/decorators/roles.decorator';
-import { CurrentUser }            from '../common/decorators/current-user.decorator';
-import { Stage1Dto }              from './dto/stage1.dto';
-import { Stage2Dto }              from './dto/stage2.dto';
-import { Stage3Dto }              from './dto/stage3.dto';
-import { Stage4Dto }              from './dto/stage4.dto';
-import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
-import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
+import { ElicitationService } from './elicitation.service';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { SubscriptionGuard } from '../common/guards/subscription.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Stage1Dto } from './dto/stage1.dto';
+import { Stage2Dto } from './dto/stage2.dto';
+import { Stage3Dto } from './dto/stage3.dto';
+import { Stage4Dto } from './dto/stage4.dto';
+import { Stage4HandoffDto } from './dto/stage4-handoff.dto';
+import { SetSelfTechnicalDto } from './dto/set-self-technical.dto';
 import { RevertSessionDto } from './dto/revert-session.dto';
 import { Delete } from '@nestjs/common';
 
 interface AuthUser {
-  id:             string;
-  activeRole:     string;
+  id: string;
+  activeRole: string;
   clientSubtype?: string | null;
 }
 
@@ -71,7 +77,10 @@ export class ElicitationController {
   ) {
     this.assertCeoOnly(user);
     return this.elicitationService.processStage2(
-      id, body.archetype, user.id, body.acknowledgedVoidCodes,
+      id,
+      body.archetype,
+      user.id,
+      body.acknowledgedVoidCodes,
     );
   }
 
@@ -102,7 +111,7 @@ export class ElicitationController {
   }
 
   // [None] — Tech Team doesn't have their own Pro-C subscription; they act
-  // on the CEO's already-gated session. 
+  // on the CEO's already-gated session.
   @Put('sessions/:id/stage4-handoff')
   @Roles('CLIENT')
   async processStage4Handoff(
@@ -162,7 +171,11 @@ export class ElicitationController {
   @Put('sessions/:id/revert')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async revertSession(@Param('id') id: string, @Body() dto: RevertSessionDto, @CurrentUser() user: AuthUser) {
+  async revertSession(
+    @Param('id') id: string,
+    @Body() dto: RevertSessionDto,
+    @CurrentUser() user: AuthUser,
+  ) {
     this.assertCeoOnly(user);
     return this.elicitationService.revertSession(id, user.id, dto.targetStage);
   }
@@ -183,6 +196,15 @@ export class ElicitationController {
   }
 
   // [Pro-C]
+  @Put('sessions/:id/continue')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async continueSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.continueSession(id, user.id);
+  }
+
+  // [Pro-C]
   @Post('sessions/:id/stage4-recommend')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
@@ -190,7 +212,7 @@ export class ElicitationController {
     this.assertCeoOnly(user);
     return this.elicitationService.recommendTechContext(id, user.id);
   }
-  
+
   // [Pro-C]
   @Delete('sessions/:id')
   @UseGuards(SubscriptionGuard)
