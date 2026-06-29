@@ -22,6 +22,15 @@ export class ProjectsController {
     return this.projectsService.findProject(projectId, userId, activeRole, clientSubtype);
   }
 
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  async getProjects(@Request() req: any) {
+    const { id, activeRole, clientSubtype } = req.user;
+    return this.projectsService.getProjects(id, activeRole, clientSubtype);
+  }
+
   @Get(':id/artifact-a')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT', 'EXPERT')

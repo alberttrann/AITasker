@@ -11,13 +11,13 @@ class Stage5Request(BaseModel):
     stage3_probes:       dict
     stage4_tech_inputs:  dict
     void_list_json:      list[dict]
-
+    is_self_technical:   bool = False
 
 # Stage 3 vagueness check request.
 class Stage3VaguenessCheckRequest(BaseModel):
     archetype:       str
     probe_responses: dict[str, str]
-
+    is_self_technical: bool = False
 
 class PortfolioEvalRequest(BaseModel):
     project_description: str

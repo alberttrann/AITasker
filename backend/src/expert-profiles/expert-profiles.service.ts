@@ -124,4 +124,39 @@ export class ExpertProfileService {
       },
     });
   }
+
+  async syncDomainDepths(userId: string, domains: UpsertDomainDepthDto[]) {
+    return this.prisma.$transaction(async (tx) => {
+      const incomingCodes = domains.map(d => d.domainCode);
+      await tx.expertDomainDepth.deleteMany({
+        where: { expertId: userId, domainCode: { notIn: incomingCodes } },
+      });
+
+      for (const d of domains) {
+        await tx.expertDomainDepth.upsert({
+          where: { expertId_domainCode: { expertId: userId, domainCode: d.domainCode } },
+          update: { depthLevel: d.depthLevel },
+          create: { expertId: userId, domainCode: d.domainCode, depthLevel: d.depthLevel },
+        });
+      }
+      return { success: true };
+    });
+  }
+
+  async syncSeamClaims(userId: string, seams: string[]) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.expertSeamClaim.deleteMany({
+        where: { expertId: userId, seamCode: { notIn: seams } },
+      });
+
+      for (const code of seams) {
+        await tx.expertSeamClaim.upsert({
+          where: { expertId_seamCode: { expertId: userId, seamCode: code } },
+          update: {}, 
+          create: { expertId: userId, seamCode: code },
+        });
+      }
+      return { success: true };
+    });
+  }
 }

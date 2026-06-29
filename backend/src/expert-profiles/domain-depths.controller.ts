@@ -6,7 +6,7 @@ import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UpsertDomainDepthDto } from './dto/upsert-domain-depth.dto';
-
+import { SyncDomainsDto } from './dto/sync-domains.dto';
 @ApiTags('Expert Domains')
 @Controller('expert-profile/domains')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,6 +20,11 @@ export class DomainDepthsController {
     return this.expertProfileService.createDomainDepth(user.id, dto);
   }
 
+  @Put('sync')
+  @ApiBearerAuth('JWT')
+  async syncDomainDepths(@CurrentUser() user: { id: string }, @Body() dto: SyncDomainsDto) {
+    return this.expertProfileService.syncDomainDepths(user.id, dto.domains);
+  }
 
   @Put(':id')
   @ApiBearerAuth('JWT')

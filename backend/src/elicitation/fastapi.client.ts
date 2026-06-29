@@ -21,6 +21,7 @@ export interface Stage1Response {
 export interface Stage3VaguenessCheckRequest {
   archetype:       string;
   probe_responses: Record<string, string>;
+  is_self_technical?: boolean;
 }
 
 export interface VaguenessFlag {
@@ -39,6 +40,7 @@ export interface Stage5Request {
   stage3_probes:       Record<string, unknown>;
   stage4_tech_inputs:  Record<string, unknown>;
   void_list_json:      Array<Record<string, unknown>>;
+  is_self_technical?:  boolean;
 }
 
 export interface Stage5Response {
