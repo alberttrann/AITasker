@@ -9,23 +9,48 @@ export const SEED_IDS = {
 
 export class DbSeeder {
   // Wipe all test data in FK-safe order (children before parents)
+  // Wipe all test data in FK-safe order (children before parents)
   static async cleanDatabase(prisma: PrismaClient): Promise<void> {
+    // 1. Leaf nodes (Audit, Messaging, Reviews)
+    await prisma.platformDecision.deleteMany({});
+    await prisma.messageRead.deleteMany({});
+    await prisma.message.deleteMany({});
+    await prisma.review.deleteMany({});
+    
+    // 2. Disputes (References criteria, escrows, milestones, engagements)
+    await prisma.dispute.deleteMany({});
+    
+    // 3. Milestone children & Escrows & Withdrawals
+    await prisma.withdrawalRequest.deleteMany({});
+    await prisma.escrowAccount.deleteMany({});
+    await prisma.paygatedDocument.deleteMany({});
     await prisma.milestoneDodItem.deleteMany({});
     await prisma.acceptanceCriterion.deleteMany({});
     await prisma.milestoneSubmission.deleteMany({});
+    
+    // 4. Core Workflow (Milestones, Bids, Engagements)
     await prisma.milestone.deleteMany({});
     await prisma.capabilityBid.deleteMany({});
-    await prisma.dispute.deleteMany({});
-    await prisma.escrowAccount.deleteMany({});
     await prisma.engagement.deleteMany({});
+    
+    // 5. Projects & Services & Sessions
+    await prisma.service.deleteMany({});
+    await prisma.techTeamProfile.deleteMany({});
     await prisma.project.deleteMany({});
     await prisma.elicitationSession.deleteMany({});
+    
+    // 6. Profiles & Wallets & Users
+    await prisma.portfolioSubmission.deleteMany({});
     await prisma.expertSeamClaim.deleteMany({});
     await prisma.expertDomainDepth.deleteMany({});
+    await prisma.expertProfile.deleteMany({});
+    await prisma.clientProfile.deleteMany({});
+    
     await prisma.walletTransaction.deleteMany({});
-    // Delete non-platform wallets first, then platform wallet via admin user delete
+    await prisma.virtualAccount.deleteMany({});
     await prisma.platformSettings.deleteMany({});
     await prisma.wallet.deleteMany({});
+    
     await prisma.user.deleteMany({});
   }
 

@@ -182,7 +182,7 @@ export class ProjectsService {
     const shortlist = await this.matchingService.getShortlist(projectId);
     // strip composite_score before returning 
     // numeric scores must never reach the frontend, labels/colors only.
-    return this.matchingService.mapShortlistForFrontend(shortlist ?? []);
+    return await this.matchingService.mapShortlistForFrontend(shortlist ?? []);
   }
 
   private mapProjectResponse(project: any) {
@@ -235,5 +235,23 @@ export class ProjectsService {
     }
  
     return false;
+  }
+
+  async getProjects(userId: string, activeRole: string, clientSubtype?: string) {
+    if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
+      return this.prisma.project.findMany({ 
+        where: { clientId: userId }, 
+        orderBy: { createdAt: 'desc' } 
+      });
+    }
+    if (activeRole === 'CLIENT' && clientSubtype === 'TECH_TEAM') {
+      const tech = await this.prisma.techTeamProfile.findUnique({ where: { userId } });
+      if (!tech?.linkedProjectId) return [];
+      return this.prisma.project.findMany({ 
+        where: { id: tech.linkedProjectId }, 
+        orderBy: { createdAt: 'desc' } 
+      });
+    }
+    return [];
   }
 }

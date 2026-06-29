@@ -82,15 +82,22 @@ export class MatchingService {
 
   // strips composite_score before returning to the frontend 
   // numeric scores must never be exposed, labels/colors only.
-  mapShortlistForFrontend(results: MatchResult[]): Array<{
-    expert_id: string;
-    strength_label: string;
-    gap_map: MatchResult['gap_map'];
-  }> {
+  async mapShortlistForFrontend(results: MatchResult[]) {
+    if (!results || results.length === 0) return [];
+    
+    const expertIds = results.map(r => r.expert_id);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: expertIds } },
+      select: { id: true, fullName: true, email: true, phone: true }
+    });
+    
+    const userMap = new Map(users.map(u => [u.id, u]));
+
     return results.map((r) => ({
       expert_id:      r.expert_id,
       strength_label: r.strength_label,
       gap_map:        r.gap_map,
+      contact_info:   userMap.get(r.expert_id) || null
     }));
   }
 }

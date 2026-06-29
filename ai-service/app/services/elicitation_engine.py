@@ -84,7 +84,9 @@ async def stage3_vagueness_check(
     LLM response doesn't surface as a 503 unnecessarily).
     """
     system = load_prompt("stage3_vagueness_check")
-
+    if getattr(request, "is_self_technical", False) is False:
+        system += "\n\nIMPORTANT CONTEXT: The user is a non-technical business executive. Be highly forgiving. Only flag answers as vague if they provide absolutely no useful business context (e.g., 'I don't know' or 'somehow'). Do not demand deep architectural specifics at this stage."
+    
     qa_block = "\n\n".join(
         f"Q: {q}\nA: {a}" for q, a in request.probe_responses.items()
     )
@@ -122,6 +124,8 @@ async def stage5_synthesize(request: Stage5Request) -> Stage5Response:
     Synthesise all 4 elicitation stages into a complete project specification.
     """
     system = load_prompt("stage5_synthesize")
+    if getattr(request, "is_self_technical", False) is False:
+        system += "\n\nIMPORTANT CONTEXT: The user is a non-technical business executive. Ensure artifact_a_json.sdlc_notices and milestone deliverable_statements are written in clear, accessible business language, avoiding deep architectural jargon while preserving the core metrics."
 
     user_prompt = _build_stage5_prompt(request)
 

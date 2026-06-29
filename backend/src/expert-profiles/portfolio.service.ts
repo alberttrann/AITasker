@@ -177,6 +177,8 @@ export class PortfolioService {
       evaluationTierUpgraded: result.tierUpgraded,
       advisoryNote: evalResult.gap_advisory,
       evaluatedAt: result.submission.evaluatedAt,
+      attemptsRemaining: passed ? null : Math.max(0, 5 - claim.submissionCount - 1),
+      lockedUntil: passed ? null : claim.lockedUntil?.toISOString() || null,
     };
   }
 

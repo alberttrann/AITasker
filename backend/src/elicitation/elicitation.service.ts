@@ -422,6 +422,9 @@ export class ElicitationService {
 
     this.assertAllStagesComplete(session);
 
+    const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
+    const effectiveSelfTechnical = this.getEffectiveSelfTechnical(session, user);
+
     const stage5Request = {
       session_id:         session.id,
       stage1_symptoms:    session.stage1SymptomsJson as string[],
@@ -429,6 +432,7 @@ export class ElicitationService {
       stage3_probes:      session.stage3ProbesJson      as Record<string, unknown>,
       stage4_tech_inputs: session.stage4TechInputsJson  as Record<string, unknown>,
       void_list_json:     (session.voidListJson as Array<Record<string, unknown>>) ?? [],
+      is_self_technical:  effectiveSelfTechnical,
     };
 
     let synthesis;
@@ -631,5 +635,53 @@ export class ElicitationService {
       return_to_stage:     returnToStage,
       advisory_note:       advisoryNote,
     };
+  }
+
+  async getSessions(userId: string) {
+    return this.prisma.elicitationSession.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      include: { project: { select: { id: true, state: true } } },
+    });
+  }
+
+  async abandonSession(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+    if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
+
+    return this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: { state: 'ABANDONED', updatedAt: new Date() },
+    });
+  }
+
+  async revertSession(sessionId: string, userId: string, targetStage: number) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
+    if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
+    if (targetStage >= session.currentStage) throw new BadRequestException('Can only revert backwards.');
+
+    const data: any = { currentStage: targetStage, state: 'IN_PROGRESS', updatedAt: new Date() };
+
+    if (targetStage <= 4) data.stage4TechInputsJson = null;
+    if (targetStage <= 3) {
+      data.stage3ProbesJson = null;
+      data.scenarioType = null;
+    }
+    if (targetStage <= 2) {
+      data.archetype = null;
+      data.recommendedArchetypesJson = null;
+    }
+    if (targetStage === 1) {
+      data.stage1SymptomsJson = null;
+      data.voidListJson = [];
+    }
+
+    return this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data,
+    });
   }
 }

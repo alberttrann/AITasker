@@ -15,6 +15,7 @@ import { Stage3Dto }              from './dto/stage3.dto';
 import { Stage4Dto }              from './dto/stage4.dto';
 import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
 import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
+import { RevertSessionDto } from './dto/revert-session.dto';
 
 interface AuthUser {
   id:             string;
@@ -145,6 +146,33 @@ export class ElicitationController {
   async retryFailedSynthesis(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
     return this.elicitationService.retryFailedSynthesis(id, user.id);
+  }
+
+  // [Pro-C]
+  @Get('sessions')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getSessionsList(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSessions(user.id);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/revert')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async revertSession(@Param('id') id: string, @Body() dto: RevertSessionDto, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.revertSession(id, user.id, dto.targetStage);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/abandon')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async abandonSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.abandonSession(id, user.id);
   }
 
   private assertCeoOnly(user: AuthUser) {
