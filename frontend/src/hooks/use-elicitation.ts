@@ -129,6 +129,15 @@ export async function submitStage4(
   return data;
 }
 
+/** Stage 4 — Tech Team handoff submit */
+export async function submitStage4Handoff(sessionId: string, payload: any) {
+  const { data } = await apiClient.put(
+    `/elicitation/${sessionId}/stage4-handoff`,
+    payload
+  );
+  return data;
+}
+
 /** Generate a handoff link to invite the tech team. */
 export async function inviteTechTeam(sessionId: string, email: string) {
   const { data } = await apiClient.post<GenerateHandoffLinkResponse>(
@@ -214,6 +223,7 @@ export const ARCHETYPES = [
 
 export const VOID_DESCRIPTIONS: Record<string, string> = {
   NO_GROUND_TRUTH: "No baseline established to measure AI performance.",
+  NO_BASELINE: "No current system or baseline to compare against.",
   UNCLEAR_SUCCESS_METRIC:
     "Success criteria are vague. How will you measure success?",
   TIMELINE_UNREALISTIC:
@@ -223,6 +233,8 @@ export const VOID_DESCRIPTIONS: Record<string, string> = {
   DATA_AVAILABILITY_UNKNOWN: "Data availability and quality are not specified.",
   UNCLEAR_USER_PERSONA:
     "The target users and their needs are not clearly defined.",
+  DATA_PRIVACY_CONSTRAINT: "Sensitive data involved, compliance unclear.",
+  SCOPE_CREEP_RISK: "Too many objectives for a single engagement.",
 };
 
 export const PROBES: Record<

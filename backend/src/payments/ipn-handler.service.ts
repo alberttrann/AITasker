@@ -35,7 +35,7 @@ export class IpnHandlerService {
       throw new ConflictException('This user VANumber is not valid!');
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       switch (userVirtualAccount.entityType) {
         case VAEntityType.MILESTONE:
           return this.handleMilestoneTopup(tx, userVirtualAccount, referenceCode, transferAmount);
@@ -45,6 +45,52 @@ export class IpnHandlerService {
           return this.handleWalletTopup(tx, userVirtualAccount, referenceCode, transferAmount);
       }
     });
+
+    /*
+      IMPORTANT: ONLY EMIT WEBSOCKET AFTER TRANSACTION COMMITS SO A BROADCAST OR A FAILURE CAN NEVER ROLL BACK A WALLET TOP UP -> DO NOT PLACE ANY EVENT EMITTER/WEB SOCKET RELATED INSIDE THE TRANSACTIONS!
+
+      EXPLANATION: ONCE THE WEB SOCKET/EVENT EMITTER FAIL, THE WHOLE PROCESS CHAIN IS DOWN!
+    */
+    if (
+      userVirtualAccount.entityType !== VAEntityType.MILESTONE &&
+      userVirtualAccount.entityType !== VAEntityType.SERVICE &&
+      result &&
+      'userId' in result
+    ) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId: String(result.userId) },
+      });
+
+      if (wallet) {
+        try {
+          this.eventEmitter.emit('socket.broadcast', {
+            userId: result.userId,
+            event: 'wallet:balance-updated',
+            payload: {
+              available_balance: Number(wallet.availableBalance),
+              locked_balance: Number(wallet.lockedBalance),
+              transaction_type: 'TOP_UP',
+              amount: Number(transferAmount),
+            },
+          });
+
+          this.eventEmitter.emit('socket.broadcast', {
+            userId: result.userId,
+            event: 'notification:generic',
+            payload: {
+              type: 'system',
+              title: 'Top-up Successful',
+              body: `Your wallet has been credited with ${transferAmount.toLocaleString('vi-VN')}
+ VND.`,
+            },
+          });
+        } catch (_err) {
+          // Broadcast is best-effort; transaction is already committed.
+        }
+      }
+    }
+
+    return result;
   }
 
   async handleMilestoneTopup(
@@ -265,27 +311,7 @@ export class IpnHandlerService {
         referenceId: referenceCode,
       },
     });
-    this.eventEmitter.emit('socket.broadcast', {
-      userId: userWallet.userId,
-      event: 'wallet:balance-updated',
-      payload: {
-        available_balance: Number(userWallet.availableBalance) + Number(transferAmount),
-        locked_balance: Number(userWallet.lockedBalance),
-        transaction_type: 'TOP_UP',
-        amount: Number(transferAmount)
-      }
-    });
 
-    this.eventEmitter.emit('socket.broadcast', {
-      userId: userWallet.userId,
-      event: 'notification:generic',
-      payload: {
-        type: 'system',
-        title: 'Top-up Successful',
-        body: `Your wallet has been credited with ${transferAmount.toLocaleString('vi-VN')} VND.`,
-      }
-    });
-
-    return { success: true };
+    return { success: true, userId: userWallet.userId };
   }
 }

@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [showPhone, setShowPhone] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
+  const [isSwitchRoleOpen, setIsSwitchRoleOpen] = useState(false);
 
   // Wallet data
   const { data: wallet } = useWallet();
@@ -62,7 +63,10 @@ export default function ProfilePage() {
   const clientProfile = isClient ? (profile as ClientProfileDto | null) : null;
   const expertProfile = isExpert ? (profile as ExpertProfileDto | null) : null;
 
-  const isVerifiedBusiness = isClient && !!clientProfile?.companyName;
+  const rawRole = isClient && user?.clientSubtype ? user.clientSubtype : user?.activeRole;
+  const displayRole = rawRole ? rawRole.replace('_', ' ').toUpperCase() : '';
+
+  const isVerifiedBusiness = isClient && clientProfile?.isTaxVerified === true;
   const isFree = user?.subscriptionTier === 'free';
 
   const hasClient = rolesArray.some(r => r.startsWith('CLIENT'));
@@ -88,7 +92,13 @@ export default function ProfilePage() {
         {/* Page Header */}
         <div className="mb-6 flex items-center gap-3">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              const basePath = user?.activeRole === 'ADMIN' ? '/admin' 
+                             : user?.activeRole === 'EXPERT' ? '/expert' 
+                             : user?.clientSubtype === 'TECH_TEAM' ? '/tech-team' 
+                             : '/ceo';
+              navigate(basePath);
+            }}
             className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
             aria-label="Go back"
           >
@@ -111,8 +121,12 @@ export default function ProfilePage() {
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-[20px] font-semibold text-slate-900 leading-tight">
-                    {user?.fullName || 'Anonymous User'}
+                    {user?.fullName || 'Anonymous User'} {displayRole && <span className="text-slate-500 font-medium">({displayRole})</span>}
                   </h2>
+                </div>
+                
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2 mt-1">
                   {user?.subscriptionTier === 'pro' ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm">
                       <Sparkles size={12} strokeWidth={2.5} />
@@ -130,10 +144,6 @@ export default function ProfilePage() {
                       Verified Company
                     </span>
                   )}
-                </div>
-                
-                {/* Clinical Badges */}
-                <div className="flex flex-wrap gap-2 mt-1">
                   {rolesArray.map((role, idx) => (
                     <span 
                       key={idx} 
@@ -150,7 +160,7 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               {hasClient && hasExpert && (
                  <button
-                   onClick={() => switchRole.mutate({ activeRole: isClient ? 'EXPERT' : 'CLIENT' })}
+                   onClick={() => setIsSwitchRoleOpen(true)}
                    disabled={switchRole.isPending}
                    className="text-sm font-semibold text-slate-900 bg-[#BEF264] hover:brightness-95 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap text-center shadow-sm"
                  >
@@ -364,7 +374,7 @@ export default function ProfilePage() {
         cancelText="Cancel"
         isDestructive
       >
-        Are you sure you want to sign out? You will need to log in again to access your dashboard.
+        Are you sure you want to sign out? You will need to log in again to access your account.
       </ConfirmModal>
 
       <ConfirmModal
@@ -378,6 +388,24 @@ export default function ProfilePage() {
         {canAddExpert 
           ? "Are you sure you want to add the Expert role to your account? This will allow you to offer your services to clients on the platform."
           : "Are you sure you want to add the Client role to your account? This will allow you to post projects and hire experts."}
+      </ConfirmModal>
+
+      <ConfirmModal
+        isOpen={isSwitchRoleOpen}
+        onClose={() => setIsSwitchRoleOpen(false)}
+        onConfirm={() => {
+          const newRole = isClient ? 'EXPERT' : 'CLIENT';
+          switchRole.mutate({ activeRole: newRole }, {
+            onSuccess: () => {
+              setIsSwitchRoleOpen(false);
+            }
+          });
+        }}
+        title={`Switch to ${isClient ? 'Expert' : 'Client'}`}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      >
+        Are you sure you want to switch your role to {isClient ? 'Expert' : 'Client'}? You can always switch back.
       </ConfirmModal>
     </div>
   );

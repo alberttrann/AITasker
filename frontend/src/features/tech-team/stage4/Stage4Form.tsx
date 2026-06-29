@@ -1,87 +1,87 @@
-import React, { useState } from 'react';
-import { apiClient } from '../../../lib/api-client'; 
+import React, { useReducer } from 'react';
+import { submitStage4Handoff } from '../../../hooks/use-elicitation';
 import Stage4Submitted from './Stage4Submitted';
 import { AlertTriangle, X } from 'lucide-react';
 
+type FormState = {
+  scaleAndInfrastructure: string;
+  integrationMethod: string;
+  legacyVolume: string;
+  techStackList: string[];
+  techStackInput: string;
+  schemas: string[];
+  schemaInput: string;
+  contracts: string[];
+  contractInput: string;
+  isSubmitting: boolean;
+  isSubmitted: boolean;
+  error: string | null;
+};
+
+type FormAction =
+  | { type: 'SET_FIELD'; field: keyof FormState; value: any }
+  | { type: 'ADD_ITEM'; listField: 'techStackList' | 'schemas' | 'contracts'; inputField: 'techStackInput' | 'schemaInput' | 'contractInput'; validateUrl?: boolean }
+  | { type: 'REMOVE_ITEM'; listField: 'techStackList' | 'schemas' | 'contracts'; index: number }
+  | { type: 'SUBMIT_START' }
+  | { type: 'SUBMIT_SUCCESS' }
+  | { type: 'SUBMIT_ERROR'; error: string };
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'ADD_ITEM': {
+      const trimmed = state[action.inputField].trim();
+      if (!trimmed) return state;
+      if (action.validateUrl && !trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+        return { ...state, error: 'Please enter a valid URL (starting with http:// or https://)' };
+      }
+      const list = state[action.listField] as string[];
+      if (list.includes(trimmed)) return { ...state, [action.inputField]: '', error: null };
+      return { ...state, [action.listField]: [...list, trimmed], [action.inputField]: '', error: null };
+    }
+    case 'REMOVE_ITEM':
+      return {
+        ...state,
+        [action.listField]: (state[action.listField] as string[]).filter((_, i) => i !== action.index)
+      };
+    case 'SUBMIT_START':
+      return { ...state, isSubmitting: true, error: null };
+    case 'SUBMIT_SUCCESS':
+      return { ...state, isSubmitting: false, isSubmitted: true };
+    case 'SUBMIT_ERROR':
+      return { ...state, isSubmitting: false, error: action.error };
+    default:
+      return state;
+  }
+}
+
 export default function Stage4Form() {
-  // Lấy handoff session ID từ sessionStorage
   const sessionId = sessionStorage.getItem('handoff_sessionId');
 
-  // Trạng thái các trường dữ liệu (Chuỗi chuẩn - String)
-  const [scaleAndInfrastructure, setScaleAndInfrastructure] = useState('');
-  const [integrationMethod, setIntegrationMethod] = useState('');
-  const [legacyVolume, setLegacyVolume] = useState('');
+  const [state, dispatch] = useReducer(formReducer, {
+    scaleAndInfrastructure: '',
+    integrationMethod: '',
+    legacyVolume: '',
+    techStackList: [],
+    techStackInput: '',
+    schemas: [],
+    schemaInput: '',
+    contracts: [],
+    contractInput: '',
+    isSubmitting: false,
+    isSubmitted: false,
+    error: null,
+  });
 
-  // Trạng thái danh sách Tech Stack (Hỗ trợ nút Add và hiển thị dạng thẻ tag)
-  const [techStackList, setTechStackList] = useState<string[]>([]);
-  const [techStackInput, setTechStackInput] = useState('');
-
-  // Trạng thái danh sách URL (Mảng - Array)
-  const [schemas, setSchemas] = useState<string[]>([]);
-  const [schemaInput, setSchemaInput] = useState('');
-  const [contracts, setContracts] = useState<string[]>([]);
-  const [contractInput, setContractInput] = useState('');
-
-  // Trạng thái xử lý UI
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Thêm/Xóa Tech Stack
-  const addTechStack = () => {
-    const trimmed = techStackInput.trim();
-    if (trimmed) {
-      if (!techStackList.includes(trimmed)) {
-        setTechStackList([...techStackList, trimmed]);
-      }
-      setTechStackInput('');
-      setError(null);
-    }
-  };
-
-  const removeTechStack = (indexToRemove: number) => {
-    setTechStackList(techStackList.filter((_, i) => i !== indexToRemove));
-  };
-
-  // Thêm/Xóa Schema URL
-  const addSchema = () => {
-    const trimmed = schemaInput.trim();
-    if (trimmed) {
-      if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-        setError('Please enter a valid URL (starting with http:// or https://)');
-        return;
-      }
-      if (!schemas.includes(trimmed)) {
-        setSchemas([...schemas, trimmed]);
-      }
-      setSchemaInput('');
-      setError(null);
-    }
-  };
-
-  const removeSchema = (indexToRemove: number) => {
-    setSchemas(schemas.filter((_, i) => i !== indexToRemove));
-  };
-
-  // Thêm/Xóa Contract URL
-  const addContract = () => {
-    const trimmed = contractInput.trim();
-    if (trimmed) {
-      if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-        setError('Please enter a valid URL (starting with http:// or https://)');
-        return;
-      }
-      if (!contracts.includes(trimmed)) {
-        setContracts([...contracts, trimmed]);
-      }
-      setContractInput('');
-      setError(null);
-    }
-  };
-
-  const removeContract = (indexToRemove: number) => {
-    setContracts(contracts.filter((_, i) => i !== indexToRemove));
-  };
+  const addTechStack = () => dispatch({ type: 'ADD_ITEM', listField: 'techStackList', inputField: 'techStackInput' });
+  const removeTechStack = (index: number) => dispatch({ type: 'REMOVE_ITEM', listField: 'techStackList', index });
+  
+  const addSchema = () => dispatch({ type: 'ADD_ITEM', listField: 'schemas', inputField: 'schemaInput', validateUrl: true });
+  const removeSchema = (index: number) => dispatch({ type: 'REMOVE_ITEM', listField: 'schemas', index });
+  
+  const addContract = () => dispatch({ type: 'ADD_ITEM', listField: 'contracts', inputField: 'contractInput', validateUrl: true });
+  const removeContract = (index: number) => dispatch({ type: 'REMOVE_ITEM', listField: 'contracts', index });
 
   // Submit dữ liệu về Backend
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,26 +89,25 @@ export default function Stage4Form() {
     if (!sessionId) return;
 
     // Tự động thêm nội dung đang gõ dở ở ô Tech Stack vào danh sách nếu có
-    let finalTechStack = [...techStackList];
-    if (techStackInput.trim()) {
-      const trimmedInput = techStackInput.trim();
+    let finalTechStack = [...state.techStackList];
+    if (state.techStackInput.trim()) {
+      const trimmedInput = state.techStackInput.trim();
       if (!finalTechStack.includes(trimmedInput)) {
         finalTechStack.push(trimmedInput);
       }
     }
 
     if (
-      !scaleAndInfrastructure.trim() ||
-      !integrationMethod.trim() ||
-      !legacyVolume.trim() ||
+      !state.scaleAndInfrastructure.trim() ||
+      !state.integrationMethod.trim() ||
+      !state.legacyVolume.trim() ||
       finalTechStack.length === 0
     ) {
-      setError('Please fill in all the required technical context fields (including at least one Tech Stack).');
+      dispatch({ type: 'SUBMIT_ERROR', error: 'Please fill in all the required technical context fields (including at least one Tech Stack).' });
       return;
     }
 
-    setIsSubmitting(true);
-    setError(null);
+    dispatch({ type: 'SUBMIT_START' });
 
     // Ghép mảng thành một chuỗi phân tách bởi dấu phẩy
     const techStackString = finalTechStack.join(', ');
@@ -116,40 +115,30 @@ export default function Stage4Form() {
     try {
       // Gửi song song cả hai chuẩn đặt tên camelCase và snake_case 
       // để ngăn chặn hoàn toàn lỗi crash 500 hoặc validate 400 ở backend
-      await apiClient.put(`/elicitation/${sessionId}/stage4-handoff`, {
-        // scaleAndInfrastructure
-        scaleAndInfrastructure,
-        scale_infrastructure: scaleAndInfrastructure,
-
-        // integrationMethod
-        integrationMethod,
-        integration_method: integrationMethod,
-
-        // legacyVolume / data_available
-        legacyVolume,
-        data_available: legacyVolume,
-
-        // current_stack
+      await submitStage4Handoff(sessionId, {
+        scaleAndInfrastructure: state.scaleAndInfrastructure,
+        scale_infrastructure: state.scaleAndInfrastructure,
+        integrationMethod: state.integrationMethod,
+        integration_method: state.integrationMethod,
+        legacyVolume: state.legacyVolume,
+        data_available: state.legacyVolume,
         current_stack: techStackString,
         currentStack: techStackString,
-
-        // URL lists
-        schemas,
-        contracts,
+        schemas: state.schemas,
+        contracts: state.contracts,
       });
 
       // Dọn dẹp session ID khỏi storage khi thành công
       sessionStorage.removeItem('handoff_sessionId');
-      setIsSubmitting(false);
-      setIsSubmitted(true);
+      dispatch({ type: 'SUBMIT_SUCCESS' });
     } catch (err: any) {
-      setIsSubmitting(false);
       const serverMessage = err.response?.data?.message;
-      setError(
-        Array.isArray(serverMessage)
+      dispatch({
+        type: 'SUBMIT_ERROR',
+        error: Array.isArray(serverMessage)
           ? serverMessage[0]
           : serverMessage || 'An unexpected error occurred during submission. Please try again.'
-      );
+      });
     }
   };
 
@@ -167,7 +156,7 @@ export default function Stage4Form() {
     );
   }
 
-  if (isSubmitted) {
+  if (state.isSubmitted) {
     return <Stage4Submitted />;
   }
 
@@ -191,8 +180,8 @@ export default function Stage4Form() {
             Describe your current deployment setup, request volumes, and overall cloud infrastructure.
           </p>
           <textarea
-            value={scaleAndInfrastructure}
-            onChange={(e) => setScaleAndInfrastructure(e.target.value)}
+            value={state.scaleAndInfrastructure}
+            onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'scaleAndInfrastructure', value: e.target.value })}
             className="w-full min-h-[112px] border border-secondary/20 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary-bg rounded p-3 text-sm text-primary bg-surface outline-none transition-all"
             placeholder="e.g., We deploy on GCP GKE, autoscaling from 10 to 50 pods, handling ~1.5M requests/day using PostgreSQL..."
             required
@@ -208,8 +197,8 @@ export default function Stage4Form() {
             How will the AI model or application integrate with your existing APIs or workflows?
           </p>
           <textarea
-            value={integrationMethod}
-            onChange={(e) => setIntegrationMethod(e.target.value)}
+            value={state.integrationMethod}
+            onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'integrationMethod', value: e.target.value })}
             className="w-full min-h-[96px] border border-secondary/20 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary-bg rounded p-3 text-sm text-primary bg-surface outline-none transition-all"
             placeholder="e.g., RESTful APIs, message-driven queue using Apache Kafka, or direct database sink..."
             required
@@ -225,8 +214,8 @@ export default function Stage4Form() {
             Mention the size, formats, and storage locations of historical data available for tuning or validation.
           </p>
           <textarea
-            value={legacyVolume}
-            onChange={(e) => setLegacyVolume(e.target.value)}
+            value={state.legacyVolume}
+            onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'legacyVolume', value: e.target.value })}
             className="w-full min-h-[96px] border border-secondary/20 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary-bg rounded p-3 text-sm text-primary bg-surface outline-none transition-all"
             placeholder="e.g., ~2TB of tabular transaction history in BigQuery, and around 500GB of unstructured logs..."
             required
@@ -244,8 +233,8 @@ export default function Stage4Form() {
           <div className="flex gap-2 mb-2">
             <input
               type="text"
-              value={techStackInput}
-              onChange={(e) => setTechStackInput(e.target.value)}
+              value={state.techStackInput}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'techStackInput', value: e.target.value })}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -263,9 +252,9 @@ export default function Stage4Form() {
               Add
             </button>
           </div>
-          {techStackList.length > 0 && (
+          {state.techStackList.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2 p-3 bg-surface-base border border-secondary/20 rounded">
-              {techStackList.map((tag, index) => (
+              {state.techStackList.map((tag, index) => (
                 <div
                   key={index}
                   className="inline-flex items-center gap-1.5 px-3 py-1 bg-tertiary/10 text-tertiary text-xs font-medium rounded-full"
@@ -295,8 +284,8 @@ export default function Stage4Form() {
           <div className="flex gap-2 mb-2">
             <input
               type="text"
-              value={schemaInput}
-              onChange={(e) => setSchemaInput(e.target.value)}
+              value={state.schemaInput}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'schemaInput', value: e.target.value })}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -314,9 +303,9 @@ export default function Stage4Form() {
               Add
             </button>
           </div>
-          {schemas.length > 0 && (
+          {state.schemas.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2 p-3 bg-surface-base border border-secondary/20 rounded">
-              {schemas.map((url, index) => (
+              {state.schemas.map((url, index) => (
                 <div
                   key={index}
                   className="inline-flex items-center gap-1.5 px-3 py-1 bg-tertiary/10 text-tertiary text-xs font-medium rounded-full"
@@ -346,8 +335,8 @@ export default function Stage4Form() {
           <div className="flex gap-2 mb-2">
             <input
               type="text"
-              value={contractInput}
-              onChange={(e) => setContractInput(e.target.value)}
+              value={state.contractInput}
+              onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'contractInput', value: e.target.value })}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -365,9 +354,9 @@ export default function Stage4Form() {
               Add
             </button>
           </div>
-          {contracts.length > 0 && (
+          {state.contracts.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2 p-3 bg-surface-base border border-secondary/20 rounded">
-              {contracts.map((url, index) => (
+              {state.contracts.map((url, index) => (
                 <div
                   key={index}
                   className="inline-flex items-center gap-1.5 px-3 py-1 bg-tertiary/10 text-tertiary text-xs font-medium rounded-full"
@@ -387,19 +376,19 @@ export default function Stage4Form() {
         </div>
 
         {/* Khung hiển thị lỗi từ hệ thống */}
-        {error && (
+        {state.error && (
           <div className="p-3.5 bg-coral-light border border-coral/20 text-coral rounded text-xs font-medium">
-            {error}
+            {state.error}
           </div>
         )}
 
         {/* Nút Submit */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={state.isSubmitting}
           className="w-full h-[48px] bg-primary text-white rounded font-semibold text-sm hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
         >
-          {isSubmitting ? 'Submitting Technical Context...' : 'Submit Technical Context →'}
+          {state.isSubmitting ? 'Submitting Technical Context...' : 'Submit Technical Context →'}
         </button>
       </form>
     </div>

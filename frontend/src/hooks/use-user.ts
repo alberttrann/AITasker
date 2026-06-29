@@ -28,9 +28,9 @@ export function useUser() {
     },
   });
 
-  const verifyEmail = useMutation({
+  const verifyTaxCode = useMutation({
     mutationFn: async (taxCode: string) => {
-      const res = await apiClient.post('/auth/verify-email', { taxCode });
+      const res = await apiClient.post('/auth/verify-tax-code', { taxCode });
       return res.data;
     },
   });
@@ -39,6 +39,6 @@ export function useUser() {
     user: userQuery.data,
     isLoading: userQuery.isLoading,
     updateProfile,
-    verifyEmail,
+    verifyTaxCode,
   };
 }

@@ -1,5 +1,12 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, ConnectedSocket, MessageBody,
-  OnGatewayConnection, OnGatewayDisconnect, } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -24,11 +31,14 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   async handleConnection(client: Socket) {
     try {
       const token = this.extractToken(client);
-      if (!token) { client.disconnect(); return; }
-      
+      if (!token) {
+        client.disconnect();
+        return;
+      }
+
       const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_SECRET });
       client.data.user = payload;
-      
+
       // Join a room named after the user's ID for personal notifications
       client.join(payload.sub);
     } catch (error) {
@@ -41,6 +51,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   // Listen for internal server events and push them to the specific user's socket
   @OnEvent('socket.broadcast')
   handleSocketBroadcast(data: { userId: string; event: string; payload: any }) {
+    if (!this.server) return;
     this.server.to(data.userId).emit(data.event, data.payload);
   }
 
@@ -56,7 +67,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
 
     const { engagementId, projectId } = body;
-    if ((!!engagementId) === (!!projectId)) {
+    if (!!engagementId === !!projectId) {
       client.emit('error', { message: 'Provide exactly one of engagementId or projectId.' });
       return;
     }
@@ -79,10 +90,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   @SubscribeMessage('sendMessage')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleSendMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() dto: CreateMessageDto,
-  ) {
+  async handleSendMessage(@ConnectedSocket() client: Socket, @MessageBody() dto: CreateMessageDto) {
     const user = client.data.user;
     if (!user) {
       client.emit('error', { message: 'Unauthorized socket connection.' });

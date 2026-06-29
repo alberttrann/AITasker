@@ -7,9 +7,7 @@ import { Button } from '@components/ui/Button';
 import { Input, Label } from '@components/ui/Input';
 import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
-import apiClient from '@/lib/api-client';
-import { useUser } from '@/hooks/use-user';
-import { CheckCircle2, XCircle, Loader2, Target, Settings, Search } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Target, Settings, Search, Eye, EyeOff, X } from 'lucide-react';
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
 const loginSchema = Yup.object({
@@ -34,8 +32,6 @@ const registerSchema = Yup.object({
   phone: Yup.string()
     .matches(/^[0-9+\-\s()]*$/, 'Please enter a valid phone number.')
     .nullable(),
-  taxCode: Yup.string()
-    .nullable(),
 });
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -49,29 +45,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   
-  const [taxStatus, setTaxStatus] = useState<{ verified: boolean; companyName: string | null; loading?: boolean; error?: boolean }>({ verified: false, companyName: null });
-  const [taxTimeoutId, setTaxTimeoutId] = useState<any>(null);
-
   const { login, register, isAuthenticated } = useAuth();
-  const { verifyEmail } = useUser();
-
-  const handleVerifyTaxCode = async (taxCode: string) => {
-    if (!taxCode || taxCode.length < 10) {
-      setTaxStatus({ verified: false, companyName: null });
-      return;
-    }
-    setTaxStatus((prev) => ({ ...prev, loading: true, error: false }));
-    try {
-      const res = await verifyEmail.mutateAsync(taxCode);
-      if (res.data.verified) {
-        setTaxStatus({ verified: true, companyName: res.data.companyName, loading: false });
-      } else {
-        setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
-      }
-    } catch {
-      setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
-    }
-  };
 
   const rememberedEmail = typeof window !== 'undefined' ? localStorage.getItem('aitasker-remembered-email') || '' : '';
 
@@ -174,9 +148,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
             aria-label="Close modal"
             className="absolute top-4 right-4 p-2 rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors z-50"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
 
           <div className="mb-8 md:mt-2 text-center md:text-left">
@@ -250,14 +222,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                           className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
                         >
                           {showPassword ? (
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                            </svg>
+                            <EyeOff className="h-5 w-5" />
                           ) : (
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
+                            <Eye className="h-5 w-5" />
                           )}
                         </button>
                       </div>
@@ -296,7 +263,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
         {mode === 'signup' && (
           <div className="space-y-4">
             <Formik
-              initialValues={{ fullName: '', email: '', password: '', phone: undefined, taxCode: '', role: 'CLIENT_CEO' as UserRoleItem }}
+              initialValues={{ fullName: '', email: '', password: '', phone: undefined, selfTechnical: false, role: 'CLIENT_CEO' as UserRoleItem }}
               validationSchema={registerSchema}
               onSubmit={(values, { setSubmitting }) => {
                 const { role, ...rest } = values;
@@ -372,9 +339,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
                           >
                             {showPassword ? (
-                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+                              <EyeOff className="h-5 w-5" />
                             ) : (
-                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                              <Eye className="h-5 w-5" />
                             )}
                           </button>
                         </div>
@@ -404,57 +371,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   </div>
 
                   {values.role === 'CLIENT_CEO' && (
-                    <div className="md:col-span-2">
-                      <Label htmlFor="taxCode">
-                        Tax code <span className="text-on-surface-variant font-normal">(optional)</span>
-                      </Label>
-                    <Field name="taxCode">
-                      {({ field, meta }: any) => (
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            id="taxCode"
-                            type="text"
-                            placeholder="e.g. 123456789"
-                            disabled={register.isPending}
-                            onFocus={() => register.isError && register.reset()}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              field.onChange(e);
-                              const val = e.target.value;
-                              if (taxTimeoutId) clearTimeout(taxTimeoutId);
-                              if (val.length >= 10) {
-                                const newTimeout = setTimeout(() => {
-                                  handleVerifyTaxCode(val);
-                                }, 500);
-                                setTaxTimeoutId(newTimeout);
-                              } else {
-                                setTaxStatus({ verified: false, companyName: null, loading: false, error: false });
-                              }
-                            }}
-                            error={meta.touched && !!meta.error}
-                          />
-                          {taxStatus.loading && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                               <Loader2 className="animate-spin text-slate-400" size={16} />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </Field>
-                    {taxStatus.verified && taxStatus.companyName && (
-                      <div className="mt-1 flex items-center gap-1 text-sm text-green-600 font-medium">
-                        <CheckCircle2 size={16} />
-                        <span>{taxStatus.companyName}</span>
-                      </div>
-                    )}
-                    {taxStatus.error && (
-                      <div className="mt-1 flex items-center gap-1 text-sm text-red-500 font-medium">
-                        <XCircle size={16} />
-                        <span>Tax code not recognized</span>
-                      </div>
-                    )}
-                    <ErrorMessage name="taxCode" component="p" className="mt-1 text-xs font-semibold text-error" />
-                  </div>
+                    <div className="md:col-span-2 flex items-center gap-2 mt-2">
+                      <Field name="selfTechnical" type="checkbox">
+                        {({ field }: any) => (
+                          <Checkbox id="selfTechnical" {...field} />
+                        )}
+                      </Field>
+                      <Label className="mb-0" htmlFor="selfTechnical">I have technical expertise</Label>
+                    </div>
                   )}
                   </div>
 
