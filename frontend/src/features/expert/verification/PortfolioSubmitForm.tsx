@@ -63,6 +63,9 @@ export default function PortfolioSubmitForm() {
 
     setError(null);
     setIsSubmitting(true);
+    
+    // Capture the submission count BEFORE the mutation to avoid race conditions with React Query invalidation
+    const currentCount = selectedSeamData?.submissionCount || 0;
 
     try {
       const USE_MOCK = false;
@@ -86,11 +89,19 @@ export default function PortfolioSubmitForm() {
         });
       }
 
-      setResultData(data);
       if (data.status === 'APPROVED') {
+        setResultData(data);
         setResultView('success');
       } else {
-        setResultView('rejected');
+        const newCount = currentCount + 1;
+        if (newCount >= 5) {
+          // Add fake lockedUntil since backend won't return it on a 201 response
+          setResultData({ ...data, lockedUntil: new Date(Date.now() + 30 * 86400000).toISOString() });
+          setResultView('lockout');
+        } else {
+          setResultData({ ...data, submissionCount: newCount });
+          setResultView('rejected');
+        }
       }
     } catch (err: any) {
       if (err.response?.status === 429) {
@@ -133,7 +144,7 @@ export default function PortfolioSubmitForm() {
         seamCode={selectedSeamData?.seamCode || 'Unknown'} 
         llmConfidence={resultData?.llmConfidence || 0} 
         advisoryNote={resultData?.advisoryNote}
-        attemptsRemaining={5 - (selectedSeamData?.submissionCount || 0) - 1}
+        attemptsRemaining={5 - (resultData?.submissionCount ?? (selectedSeamData?.submissionCount || 0))}
         onRetry={handleReset}
         onClose={handleReset}
       />

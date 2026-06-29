@@ -22,9 +22,10 @@ interface Stage2Props {
   voidList: VoidItem[];
   onComplete: (data: { archetype: string; acknowledgedVoidCodes?: string[] }) => void;
   onError: (msg: string) => void;
+  onBack: () => void;
 }
 
-export default function Stage2Archetype({ sessionId, voidList, onComplete, onError }: Stage2Props) {
+export default function Stage2Archetype({ sessionId, voidList, onComplete, onError, onBack }: Stage2Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,18 +77,23 @@ export default function Stage2Archetype({ sessionId, voidList, onComplete, onErr
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
           <p className="text-body-sm font-medium text-primary flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> Detected Gaps (from Stage 1)</p>
           <div className="mt-3 space-y-2">
-            {voidList.map((v) => (
-              <label key={v.void_code} className="flex cursor-pointer items-start gap-2">
-                <Checkbox checked={acknowledged.has(v.void_code)} onChange={() => toggleAcknowledge(v.void_code)} className="mt-0.5" />
-                <span className="text-body-sm text-secondary">I understand: &ldquo;{VOID_DESCRIPTIONS[v.void_code] ?? v.void_code}&rdquo;</span>
-              </label>
-            ))}
+            {voidList.map((v) => {
+              const fallbackDesc = v.void_code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              return (
+                <label key={v.void_code} className="flex cursor-pointer items-start gap-2">
+                  <Checkbox checked={acknowledged.has(v.void_code)} onChange={() => toggleAcknowledge(v.void_code)} className="mt-0.5" />
+                  <span className="text-body-sm text-secondary">I understand: &ldquo;{VOID_DESCRIPTIONS[v.void_code] ?? fallbackDesc}&rdquo;</span>
+                </label>
+              );
+            })}
           </div>
         </div>
       )}
 
       <div className="flex items-center justify-between pt-4">
-        <span className="text-caption text-secondary" />
+        <Button variant="outline" onClick={onBack} disabled={isSubmitting}>
+          ← Back
+        </Button>
         <Button variant="primary" disabled={!selected || isSubmitting} onClick={handleContinue}>
           {isSubmitting ? 'Saving…' : 'Continue to Stage 3 →'}
         </Button>

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@store/auth.store';
 import { apiClient } from '@lib/api-client';
+import { useNotificationsStore } from '@/store/notifications.store';
 import type { AuthTokens, UserDto } from '@t/api.types';
 import type { ActiveRole, ClientSubtype, UserRoleItem } from '@t/enums';
 
@@ -51,6 +52,7 @@ const login = useMutation({
   // Logout 
   const logout = () => {
     store.logout();
+    useNotificationsStore.getState().clear();
     queryClient.clear();
     navigate('/');
   };
@@ -66,7 +68,7 @@ const login = useMutation({
       const { data: userRes } = await apiClient.get<UserDto>('/users/me');
       store.setUser(userRes);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      redirectByRole(userRes, navigate);
+      redirectByRole(userRes, navigate, true);
     },
   });
 
@@ -83,6 +85,19 @@ const login = useMutation({
     },
   });
 
+  const registerHandoff = useMutation({
+    mutationFn: async (payload: { token: string; fullName: string; password: string }) => {
+      const { data } = await apiClient.post<{ access_token: string; refresh_token: string }>('/auth/register/handoff', payload);
+      return data;
+    },
+    onSuccess: async (data) => {
+      store.setTokens(data.access_token, data.refresh_token);
+      const { data: user } = await apiClient.get<UserDto>('/users/me');
+      store.setUser(user);
+      redirectByRole(user, navigate);
+    },
+  });
+
   return {
     // State (read from store directly — reactive)
     user:            store.user,
@@ -96,13 +111,15 @@ const login = useMutation({
     logout,
     switchRole,
     addRole,
+    registerHandoff,
   };
 }
 
 // Role-based redirect helper
 function redirectByRole(
   user:     UserDto,
-  navigate: ReturnType<typeof useNavigate>
+  navigate: ReturnType<typeof useNavigate>,
+  isSwitchRole: boolean = false
 ) {
   const role = user.activeRole;
   let subtype = user.clientSubtype;
@@ -113,9 +130,13 @@ function redirectByRole(
     else if (user.roles?.includes('CLIENT_TECH_TEAM')) subtype = 'TECH_TEAM';
   }
 
-  if (role === 'CLIENT' && subtype === 'CEO')       { navigate('/ceo');       return; }
-  if (role === 'CLIENT' && subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
-  if (role === 'EXPERT') { navigate('/expert');      return; }
-  if (role === 'ADMIN')  { navigate('/admin');       return; }
-  navigate('/');
+  let basePath = '/';
+  if (role === 'CLIENT' && subtype === 'CEO')       { basePath = '/ceo'; }
+  else if (role === 'CLIENT' && subtype === 'TECH_TEAM') { basePath = '/tech-team'; }
+  else if (role === 'EXPERT')                       { basePath = '/expert'; }
+  else if (role === 'ADMIN')                        { basePath = '/admin'; }
+
+  // U7: remove stay in profile page after switch, go to dashboard after switch.
+  // U6: fix back button routing bug -> use replace: true so we don't build history of wrong roles
+  navigate(basePath, { replace: true });
 }

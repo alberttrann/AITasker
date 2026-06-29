@@ -5,6 +5,7 @@ export interface Stage4ScenarioBProps {
   sessionId: string;
   onTechTeamSubmitted: () => void;
   onFillInMyself: () => void;
+  onBack: () => void;
 }
 
 export interface MatchCardProps {

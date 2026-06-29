@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 import { submitStage4, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
@@ -8,41 +8,81 @@ interface Stage4AProps {
   sessionId: string;
   onComplete: (data: { gateResult: GateResult }) => void;
   onError: (msg: string) => void;
+  onBack: () => void;
 }
 
-export default function Stage4ScenarioA({ sessionId, onComplete, onError }: Stage4AProps) {
-  const [scaleAndInfrastructure, setScaleAndInfrastructure] = useState('');
-  const [integrationMethod, setIntegrationMethod] = useState('');
-  const [legacyVolume, setLegacyVolume] = useState('');
-  const [schemas, setSchemas] = useState<string[]>([]);
-  const [contracts, setContracts] = useState<string[]>([]);
-  const [schemaInput, setSchemaInput] = useState('');
-  const [contractInput, setContractInput] = useState('');
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+type FormState = {
+  scaleAndInfrastructure: string;
+  integrationMethod: string;
+  legacyVolume: string;
+  schemas: string[];
+  schemaInput: string;
+  contracts: string[];
+  contractInput: string;
+  isSubmitting: boolean;
+};
 
-  const canSubmit = scaleAndInfrastructure.trim().length > 0 && integrationMethod.trim().length > 0 && legacyVolume.trim().length > 0;
+type FormAction =
+  | { type: 'SET_FIELD'; field: keyof FormState; value: any }
+  | { type: 'ADD_URL'; listField: 'schemas' | 'contracts'; inputField: 'schemaInput' | 'contractInput' }
+  | { type: 'REMOVE_URL'; listField: 'schemas' | 'contracts'; index: number }
+  | { type: 'SUBMIT_START' }
+  | { type: 'SUBMIT_END' };
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'ADD_URL': {
+      const trimmed = state[action.inputField].trim();
+      if (!trimmed) return state;
+      const list = state[action.listField] as string[];
+      if (list.includes(trimmed)) return { ...state, [action.inputField]: '' };
+      return { ...state, [action.listField]: [...list, trimmed], [action.inputField]: '' };
+    }
+    case 'REMOVE_URL':
+      return { ...state, [action.listField]: (state[action.listField] as string[]).filter((_, i) => i !== action.index) };
+    case 'SUBMIT_START':
+      return { ...state, isSubmitting: true };
+    case 'SUBMIT_END':
+      return { ...state, isSubmitting: false };
+    default:
+      return state;
+  }
+}
+
+export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack }: Stage4AProps) {
+  const [state, dispatch] = useReducer(formReducer, {
+    scaleAndInfrastructure: '',
+    integrationMethod: '',
+    legacyVolume: '',
+    schemas: [],
+    schemaInput: '',
+    contracts: [],
+    contractInput: '',
+    isSubmitting: false,
+  });
+
+  const canSubmit = state.scaleAndInfrastructure.trim().length > 0 && state.integrationMethod.trim().length > 0 && state.legacyVolume.trim().length > 0;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    setIsSubmitting(true);
+    dispatch({ type: 'SUBMIT_START' });
     try {
-      const data = await submitStage4(sessionId, scaleAndInfrastructure.trim(), integrationMethod.trim(), legacyVolume.trim(), schemas, contracts);
+      const data = await submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts);
       onComplete({ gateResult: data as GateResult });
     } catch (err: any) {
       onError(handleElicitationError(err).message || 'Failed to submit technical context.');
     } finally {
-      setIsSubmitting(false);
+      dispatch({ type: 'SUBMIT_END' });
     }
   };
 
   const addUrl = (type: 'schema' | 'contract') => {
-    if (type === 'schema' && schemaInput.trim()) {
-      setSchemas([...schemas, schemaInput.trim()]);
-      setSchemaInput('');
-    } else if (type === 'contract' && contractInput.trim()) {
-      setContracts([...contracts, contractInput.trim()]);
-      setContractInput('');
+    if (type === 'schema') {
+      dispatch({ type: 'ADD_URL', listField: 'schemas', inputField: 'schemaInput' });
+    } else {
+      dispatch({ type: 'ADD_URL', listField: 'contracts', inputField: 'contractInput' });
     }
   };
 
@@ -58,32 +98,32 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError }: Stag
         <div className="space-y-2">
           <Label>Scale and Infrastructure</Label>
           <p className="text-caption text-secondary">Describe your current infrastructure and scale.</p>
-          <textarea value={scaleAndInfrastructure} onChange={(e) => setScaleAndInfrastructure(e.target.value)} placeholder="e.g. AWS EKS, 500k req/day…" rows={3} className={ta} />
+          <textarea value={state.scaleAndInfrastructure} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'scaleAndInfrastructure', value: e.target.value })} placeholder="e.g. AWS EKS, 500k req/day…" rows={3} className={ta} />
         </div>
         <div className="space-y-2">
           <Label>Integration Method</Label>
           <p className="text-caption text-secondary">How do you prefer to integrate with the AI service?</p>
-          <textarea value={integrationMethod} onChange={(e) => setIntegrationMethod(e.target.value)} placeholder="e.g. REST APIs…" rows={3} className={ta} />
+          <textarea value={state.integrationMethod} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'integrationMethod', value: e.target.value })} placeholder="e.g. REST APIs…" rows={3} className={ta} />
         </div>
         <div className="space-y-2">
           <Label>Legacy Volume</Label>
           <p className="text-caption text-secondary">How much legacy data do you have?</p>
-          <textarea value={legacyVolume} onChange={(e) => setLegacyVolume(e.target.value)} placeholder="e.g. ~2TB in S3…" rows={2} className={ta} />
+          <textarea value={state.legacyVolume} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'legacyVolume', value: e.target.value })} placeholder="e.g. ~2TB in S3…" rows={2} className={ta} />
         </div>
         
         <div className="space-y-2">
           <Label>Schemas (Optional)</Label>
           <p className="text-caption text-secondary">Links to your data schemas.</p>
           <div className="flex gap-2">
-            <input value={schemaInput} onChange={e => setSchemaInput(e.target.value)} placeholder="https://..." className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none" onKeyDown={e => e.key === 'Enter' && addUrl('schema')} />
+            <input value={state.schemaInput} onChange={e => dispatch({ type: 'SET_FIELD', field: 'schemaInput', value: e.target.value })} placeholder="https://..." className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none" onKeyDown={e => e.key === 'Enter' && addUrl('schema')} />
             <Button variant="secondary" onClick={() => addUrl('schema')}>Add</Button>
           </div>
-          {schemas.length > 0 && (
+          {state.schemas.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {schemas.map((url, i) => (
+              {state.schemas.map((url, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
                   {url.length > 40 ? url.substring(0, 40) + '...' : url}
-                  <button onClick={() => setSchemas(schemas.filter((_, j) => j !== i))} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
+                  <button onClick={() => dispatch({ type: 'REMOVE_URL', listField: 'schemas', index: i })} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
                 </span>
               ))}
             </div>
@@ -94,15 +134,15 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError }: Stag
           <Label>Contracts (Optional)</Label>
           <p className="text-caption text-secondary">Links to your API contracts.</p>
           <div className="flex gap-2">
-            <input value={contractInput} onChange={e => setContractInput(e.target.value)} placeholder="https://..." className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none" onKeyDown={e => e.key === 'Enter' && addUrl('contract')} />
+            <input value={state.contractInput} onChange={e => dispatch({ type: 'SET_FIELD', field: 'contractInput', value: e.target.value })} placeholder="https://..." className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none" onKeyDown={e => e.key === 'Enter' && addUrl('contract')} />
             <Button variant="secondary" onClick={() => addUrl('contract')}>Add</Button>
           </div>
-          {contracts.length > 0 && (
+          {state.contracts.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {contracts.map((url, i) => (
+              {state.contracts.map((url, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
                   {url.length > 40 ? url.substring(0, 40) + '...' : url}
-                  <button onClick={() => setContracts(contracts.filter((_, j) => j !== i))} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
+                  <button onClick={() => dispatch({ type: 'REMOVE_URL', listField: 'contracts', index: i })} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
                 </span>
               ))}
             </div>
@@ -110,9 +150,11 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError }: Stag
         </div>
       </div>
       <div className="flex items-center justify-between pt-4">
-        <span className="text-caption text-secondary" />
-        <Button variant="primary" disabled={!canSubmit || isSubmitting} onClick={handleSubmit}>
-          {isSubmitting ? 'Submitting…' : 'Submit & Generate PRD →'}
+        <Button variant="outline" onClick={onBack} disabled={state.isSubmitting}>
+          ← Back
+        </Button>
+        <Button variant="primary" disabled={!canSubmit || state.isSubmitting} onClick={handleSubmit}>
+          {state.isSubmitting ? 'Submitting…' : 'Submit & Generate PRD →'}
         </Button>
       </div>
     </div>

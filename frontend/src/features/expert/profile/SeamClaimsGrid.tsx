@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { SeamClaim } from '@/types/ui.types';
 import { Spinner } from '@/components/ui/Spinner';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Lock } from 'lucide-react';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;
@@ -112,7 +112,12 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
                   {seam.label}
                   {isVerified && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
-                      <CheckCircle className="h-3 w-3" /> Verified
+                      <CheckCircle className="h-3 w-3" /> AI Verified
+                    </span>
+                  )}
+                  {existing?.lockedUntil && new Date(existing.lockedUntil) > new Date() && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 uppercase tracking-wide">
+                      <Lock className="h-3 w-3" /> Locked
                     </span>
                   )}
                 </h3>

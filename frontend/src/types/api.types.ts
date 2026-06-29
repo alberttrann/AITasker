@@ -91,6 +91,7 @@ export interface ClientProfileDto {
   companyName:  string | null;
   industry:     string | null;
   ceoName:      string | null;
+  isTaxVerified?: boolean;
 }
 
 export type ActiveRoleProfile = ExpertProfileDto | ClientProfileDto;

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus } from 'lucide-react'; 
+import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
+import { useNotificationsStore } from '@/store/notifications.store';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -14,7 +15,6 @@ export default function TopNav() {
   // ── Dropdown State ──
   type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | null;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
@@ -22,7 +22,6 @@ export default function TopNav() {
     const handleClickOutside = (event: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setActiveDropdown(null);
-        setIsMobileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -54,9 +53,9 @@ export default function TopNav() {
 
   const dashboardRoute = getBasePath();
 
-  // Mocks to demonstrate badge rendering 
-  // TODO: Connect to notifications/messages store later
-  const unreadNotifications = 2;
+  // Notifications store
+  const { notifications, markRead, markAllRead } = useNotificationsStore();
+  const unreadNotifications = notifications.filter(n => !n.read).length;
   const unreadMessages = 0;
 
   // Safely grab the first letter of the name
@@ -68,6 +67,17 @@ export default function TopNav() {
 
 // 2. Format it for display
 const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN';
+
+const getRoleColor = (roleStr: string) => {
+  const normalized = roleStr.toUpperCase();
+  if (normalized.includes('CEO')) return 'bg-blue-100 text-blue-700';
+  if (normalized.includes('EXPERT')) return 'bg-emerald-100 text-emerald-700';
+  if (normalized.includes('TECH')) return 'bg-orange-100 text-orange-700';
+  if (normalized.includes('ADMIN')) return 'bg-red-100 text-red-700';
+  return 'bg-slate-100 text-slate-600';
+};
+const roleColorClass = getRoleColor(rawRole || '');
+
 const RoleIcon = 
   rawRole === 'CEO' ? Briefcase :
   rawRole === 'EXPERT' ? Award :
@@ -109,16 +119,20 @@ const RoleIcon =
           </Link>
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <button 
-          className="md:hidden relative p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-          onClick={() => {
-            setIsMobileMenuOpen(!isMobileMenuOpen);
-            setActiveDropdown(null);
-          }}
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Middle: Search Bar */}
+        <div className="flex flex-1 mx-4 md:mx-8 lg:mx-12">
+          <div className="w-full flex items-stretch group border-[1.5px] border-primary-dark/30 rounded overflow-hidden transition-colors duration-300 hover:border-primary-dark/50 focus-within:border-primary-dark">
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              className="flex-1 min-w-0 bg-transparent pl-4 pr-3 py-3 text-sm font-medium text-primary-dark placeholder:text-primary-dark/50 focus:outline-none"
+            />
+            <button className="flex items-center justify-center shrink-0 aspect-square bg-primary-dark text-white hover:bg-primary-dark/90 transition-colors duration-300">
+              <Search size={20} strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
+
 
         {/* Right: Auth-Aware Controls (Desktop) */}
         <div className="hidden md:flex flex-row items-center gap-4">
@@ -177,13 +191,48 @@ const RoleIcon =
               </div>
 
               {/* Notification Bell */}
-              {/* TODO: NotificationsDropdown */}
-              <button aria-label="Notifications" className="relative p-2.5 text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10 rounded-full transition-all duration-300 active:scale-95">
-                <Bell size={24} strokeWidth={1.5} />
-                {unreadNotifications > 0 && (
-                  <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+              <div className="relative">
+                <button 
+                  aria-label="Notifications" 
+                  onClick={() => setActiveDropdown(activeDropdown === 'notifications' ? null : 'notifications')}
+                  className={`relative p-2.5 rounded-full transition-all duration-300 active:scale-95 ${activeDropdown === 'notifications' ? 'bg-primary-dark/10 text-primary-dark' : 'text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10'}`}
+                >
+                  <Bell size={24} strokeWidth={1.5} />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                  )}
+                </button>
+
+                {activeDropdown === 'notifications' && (
+                  <div className="absolute right-0 top-full mt-3 w-80 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                      <span className="font-semibold text-primary">Notifications</span>
+                      {unreadNotifications > 0 && (
+                        <button onClick={() => markAllRead()} className="text-xs text-primary hover:text-primary-dark transition-colors font-medium">Mark all read</button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto bg-white">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 flex flex-col items-center justify-center text-slate-400">
+                          <BellOff size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
+                          <p className="text-sm font-medium">No new notifications</p>
+                          <p className="text-xs text-center mt-1">You're all caught up! Check back later.</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div key={notif.id} onClick={() => markRead(notif.id)} className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}>
+                            <div className="flex justify-between items-start mb-1">
+                              <span className={`text-sm font-semibold ${!notif.read ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
+                              {!notif.read && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}
+                            </div>
+                            <p className="text-xs text-slate-500">{notif.body}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* Mailbox */}
               {/* TODO: MessagesDropdown */}
@@ -199,28 +248,34 @@ const RoleIcon =
                 <button
                   onClick={() => setActiveDropdown(activeDropdown === 'profile' ? null : 'profile')}
                   aria-label="User profile menu"
-                  className="relative flex items-center justify-center w-12 h-12 rounded-full bg-primary text-white font-headline text-lg hover:bg-primary/90 transition-all duration-300 active:scale-95 border-2 border-surface shadow-sm"
+                  className="relative flex items-center gap-3 transition-all duration-300 active:scale-95 group"
                 >
-                  {initial}
+                  <div className="relative">
+                    <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary text-white font-headline text-lg border-2 border-surface shadow-sm group-hover:bg-primary/90">
+                      {initial}
+                    </div>
+                    {/* Overlapping Tier Badge */}
+                    <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[9px] font-headline font-extrabold tracking-wider rounded-full border-2 border-surface shadow-sm whitespace-nowrap pointer-events-none ${
+                      isPro
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                        : 'bg-slate-400 text-white'
+                    }`}>
+                      {isPro ? 'PRO' : 'FREE'}
+                    </div>
+                  </div>
+                  <div className="hidden lg:flex flex-col justify-center items-start text-left">
+                    <span className="text-base font-bold text-primary-dark group-hover:text-primary leading-none">
+                      {user?.fullName || 'User'}
+                    </span>
+                    <span className={`mt-1 inline-flex w-fit items-center rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide shadow-sm ${roleColorClass}`}>
+                      {roleDisplay}
+                    </span>
+                  </div>
                 </button>
-                {/* Overlapping Tier Badge */}
-                <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 text-[10px] font-headline font-extrabold tracking-wider rounded-full border-2 border-surface shadow-sm whitespace-nowrap pointer-events-none ${
-                  isPro
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
-                    : 'bg-slate-400 text-white'
-                }`}>
-                  {isPro ? 'PRO' : 'FREE'}
-                </div>
 
                 {/* Dropdown Menu */}
                 {activeDropdown === 'profile' && (
-                  <div className="absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-xl pb-3 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-                    {/* Role Info — Non-interactive */}
-                    <div className="px-5 py-3 bg-accent text-primary-dark cursor-default select-none flex items-center justify-center gap-2 mb-2">
-                      <RoleIcon size={16} strokeWidth={2.5} />
-                      <span className="text-sm font-headline font-extrabold tracking-wide">{roleDisplay}</span>
-                    </div>
-
+                  <div className="absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-xl py-2 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300">
                     <Link
                       to={`${dashboardRoute}/profile`} 
                       onClick={() => setActiveDropdown(null)} 
@@ -266,135 +321,6 @@ const RoleIcon =
 
       </div>
 
-      {/* ── Mobile Menu ── */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-surface border-b border-primary/10 shadow-lg flex flex-col max-h-[calc(100vh-80px)] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
-          {!isAuthenticated ? (
-            <div className="flex flex-col p-4 gap-2">
-              <button 
-                onClick={() => { setIsMobileMenuOpen(false); openModal('signin'); }} 
-                className="flex items-center gap-3 p-4 text-primary hover:bg-primary/5 rounded-lg transition-colors"
-              >
-                <LogIn size={20} /> <span className="font-headline font-bold text-lg">Sign In</span>
-              </button>
-              <button 
-                onClick={() => { setIsMobileMenuOpen(false); openModal('signup'); }} 
-                className="flex items-center gap-3 p-4 bg-primary text-white rounded-lg transition-colors shadow-sm"
-              >
-                <UserPlus size={20} /> <span className="font-headline font-bold text-lg">Join</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              {/* Wallet Collapse */}
-              <button 
-                onClick={() => setActiveDropdown(activeDropdown === 'wallet' ? null : 'wallet')}
-                className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <Wallet size={20} /> <span className="font-headline font-bold text-lg">Wallet</span>
-                </div>
-                <ChevronDown size={20} className={`transition-transform duration-200 ${activeDropdown === 'wallet' ? 'rotate-180' : ''}`} />
-              </button>
-              {activeDropdown === 'wallet' && (
-                <div className="bg-slate-50 p-4 border-b border-primary/5">
-                  <Link
-                    to={`${dashboardRoute}/wallet`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex flex-col gap-3"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-slate-500 uppercase">Available</span>
-                      <span className="text-lg font-bold text-slate-900">{formatVND(availableBalance)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-slate-500 uppercase">Locked</span>
-                      <span className="text-md font-semibold text-slate-600">{formatVND(lockedBalance)}</span>
-                    </div>
-                  </Link>
-                </div>
-              )}
-
-              {/* Notifications */}
-              <button className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Bell size={20} />
-                    {unreadNotifications > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full border border-surface" />}
-                  </div>
-                  <span className="font-headline font-bold text-lg">Notifications</span>
-                </div>
-              </button>
-
-              {/* Messages */}
-              <button className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Mail size={20} />
-                    {unreadMessages > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full border border-surface" />}
-                  </div>
-                  <span className="font-headline font-bold text-lg">Messages</span>
-                </div>
-              </button>
-
-              {/* Profile Collapse */}
-              <button 
-                onClick={() => setActiveDropdown(activeDropdown === 'profile' ? null : 'profile')}
-                className="flex items-center justify-between p-4 border-b border-primary/5 text-primary hover:bg-primary/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white font-headline text-xs font-bold">
-                    {initial}
-                  </div>
-                  <span className="font-headline font-bold text-lg">Profile</span>
-                  <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${isPro ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'bg-slate-400 text-white'}`}>{isPro ? 'PRO' : 'FREE'}</span>
-                </div>
-                <ChevronDown size={20} className={`transition-transform duration-200 ${activeDropdown === 'profile' ? 'rotate-180' : ''}`} />
-              </button>
-              {activeDropdown === 'profile' && (
-                <div className="bg-slate-50 flex flex-col border-b border-primary/5">
-                  <div className="px-4 py-3 bg-accent/20 text-primary-dark cursor-default select-none flex items-center gap-2 border-b border-primary/5">
-                    <RoleIcon size={16} strokeWidth={2.5} />
-                    <span className="text-sm font-headline font-extrabold tracking-wide">{roleDisplay}</span>
-                  </div>
-                  <Link
-                    to={`${dashboardRoute}/profile`} 
-                    onClick={() => setIsMobileMenuOpen(false)} 
-                    className="p-4 text-sm font-headline font-semibold text-primary hover:bg-primary/5 border-b border-primary/5"
-                  >
-                    User Profile
-                  </Link>
-                  {user?.activeRole === 'EXPERT' && (
-                    <Link
-                      to={`${dashboardRoute}/expert-profile`} 
-                      onClick={() => setIsMobileMenuOpen(false)} 
-                      className="p-4 text-sm font-headline font-semibold text-primary hover:bg-primary/5 border-b border-primary/5"
-                    >
-                      Expert Profile
-                    </Link>
-                  )}
-                  <Link
-                    to={`${dashboardRoute}/account-setting`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-4 text-sm font-headline font-semibold text-primary hover:bg-primary/5 border-b border-primary/5"
-                  >
-                    Account Configuration
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      handleSignOut();
-                    }}
-                    className="p-4 text-sm text-left font-headline font-bold text-error hover:bg-error/10"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </header>
     {/* ── Render the Modal ── */}
     <AuthModal 

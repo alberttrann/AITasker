@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
 import { Modal } from '@/components/ui/modal';
 import { CheckCircle } from 'lucide-react';
@@ -18,12 +18,10 @@ const STRENGTH_STYLES: Record<string, string> = {
 
 export default function MatchCard({ expert }: MatchCardProps) {
   // Fetch public profile since matching backend strips it
+  const { getPublicProfile } = useExpertProfile();
   const { data: profile, isLoading } = useQuery({
     queryKey: ['expertProfile', expert.expert_id],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/users/${expert.expert_id}/public-profile`);
-      return data;
-    },
+    queryFn: () => getPublicProfile(expert.expert_id),
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -137,7 +135,7 @@ export default function MatchCard({ expert }: MatchCardProps) {
                         
                         {isVerified && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
-                            <CheckCircle className="h-3 w-3" /> Verified
+                            <CheckCircle className="h-3 w-3" /> AI Verified
                           </span>
                         )}
                       </span>
@@ -178,6 +176,46 @@ export default function MatchCard({ expert }: MatchCardProps) {
               </div>
             </div>
           )}
+
+          {/* Contact Information Section */}
+          <div>
+            <h4 className="text-[14px] font-semibold text-primary mb-2">Contact Information</h4>
+            <div className="flex flex-col gap-2 text-[14px] text-secondary">
+              <p><span className="font-medium text-primary">Email:</span> {profile?.contactEmail || 'Not provided'}</p>
+              {profile?.linkedIn && <p><span className="font-medium text-primary">LinkedIn:</span> <a href={profile.linkedIn} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{profile.linkedIn}</a></p>}
+              {profile?.github && <p><span className="font-medium text-primary">GitHub:</span> <a href={profile.github} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{profile.github}</a></p>}
+            </div>
+          </div>
+
+          {/* Verification History Section */}
+          <div>
+            <h4 className="text-[14px] font-semibold text-primary mb-2">Verification History</h4>
+            <div className="flex flex-col gap-2">
+              {profile?.seamClaims && profile.seamClaims.length > 0 ? (
+                profile.seamClaims.map((claim: any, index: number) => (
+                  <div key={index} className="flex flex-col rounded-lg border border-slate-200 p-3 bg-slate-50">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-[14px] text-primary">{claim.seamCode}</span>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        claim.verificationTier === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
+                        claim.verificationTier === 'EVIDENCE_BACKED' ? 'bg-blue-100 text-blue-800' :
+                        'bg-slate-200 text-slate-700'
+                      }`}>
+                        {claim.verificationTier}
+                      </span>
+                    </div>
+                    {claim.evidenceUrl && (
+                      <a href={claim.evidenceUrl} target="_blank" rel="noreferrer" className="text-[12px] text-blue-600 hover:underline truncate">
+                        Evidence Link
+                      </a>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-[13px] text-secondary">No verification history available.</p>
+              )}
+            </div>
+          </div>
         </div>
       </Modal>
     </>

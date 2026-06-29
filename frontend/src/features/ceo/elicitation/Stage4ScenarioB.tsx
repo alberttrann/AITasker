@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Stage4HandoffLink from "./Stage4HandoffLink";
 import { inviteTechTeam, getSession } from "@/hooks/use-elicitation";
 import type { Stage4ScenarioBProps } from "@t/ui.types";
+import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 // Polling configuration
 // Stopgap until a real sockets/notifications module exists on the backend.
@@ -14,6 +16,7 @@ export default function Stage4ScenarioB({
   sessionId,
   onTechTeamSubmitted,
   onFillInMyself,
+  onBack,
 }: Stage4ScenarioBProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
@@ -21,11 +24,8 @@ export default function Stage4ScenarioB({
   const [linkCopied, setLinkCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [pollError, setPollError] = useState<string | null>(null);
-  const [timedOut, setTimedOut] = useState(false);
 
-  const pollHandle = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollStartedAt = useRef<number | null>(null);
+  const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
 
   // Generate the handoff invite link
   // NOTE: there is no email-sending infrastructure in this codebase.
@@ -42,6 +42,7 @@ export default function Stage4ScenarioB({
       const res = await inviteTechTeam(sessionId, inviteEmail.trim());
       setInviteLink(res.invite_link);
       setInviteSent(true);
+      setPollStartedAt(Date.now());
     } catch (err: any) {
       setSendError(
         err?.response?.data?.message ??
@@ -66,59 +67,27 @@ export default function Stage4ScenarioB({
     setInviteSent(false);
     setInviteLink(null);
     setSendError(null);
+    setPollStartedAt(null);
   }, []);
 
-  // Polling loop — starts once the invite has been sent
+  // Give up after POLL_TIMEOUT_MS
+  const timedOut = pollStartedAt ? Date.now() - pollStartedAt > POLL_TIMEOUT_MS : false;
+
+  const { data: sessionData, isError: isPollError } = useQuery({
+    queryKey: ['elicitation-session', sessionId],
+    queryFn: () => getSession(sessionId),
+    refetchInterval: (query) => {
+      if (!inviteSent || timedOut) return false;
+      return query.state?.data?.currentStage >= 5 ? false : POLL_INTERVAL_MS;
+    },
+    enabled: inviteSent && !timedOut,
+  });
+
   useEffect(() => {
-    if (!inviteSent) return;
-
-    pollStartedAt.current = Date.now();
-    setTimedOut(false);
-    setPollError(null);
-
-    const checkSession = async () => {
-      try {
-        const data = await getSession(sessionId);
-
-        // processStage4Handoff advances currentStage to 5 on submission.
-        if (data.currentStage >= 5) {
-          stopPolling();
-          onTechTeamSubmitted();
-          return;
-        }
-
-        // Clear any transient error now that a poll succeeded.
-        setPollError(null);
-      } catch (err) {
-        // Don't stop polling on a transient network blip — just surface it.
-        // If it keeps failing, the person can still see the error and retry manually.
-        setPollError("Having trouble checking status — will keep retrying.");
-      }
-
-      // Give up after POLL_TIMEOUT_MS so the CEO isn't stuck staring at a
-      // spinner forever if the Tech Team never responds.
-      if (
-        pollStartedAt.current &&
-        Date.now() - pollStartedAt.current > POLL_TIMEOUT_MS
-      ) {
-        stopPolling();
-        setTimedOut(true);
-      }
-    };
-
-    const stopPolling = () => {
-      if (pollHandle.current) {
-        clearInterval(pollHandle.current);
-        pollHandle.current = null;
-      }
-    };
-
-    // Check immediately, then on the interval.
-    checkSession();
-    pollHandle.current = setInterval(checkSession, POLL_INTERVAL_MS);
-
-    return () => stopPolling();
-  }, [inviteSent, sessionId, onTechTeamSubmitted]);
+    if (sessionData && sessionData.currentStage >= 5) {
+      onTechTeamSubmitted();
+    }
+  }, [sessionData, onTechTeamSubmitted]);
 
   // Render: before link generated
   if (!inviteSent) {
@@ -161,7 +130,10 @@ export default function Stage4ScenarioB({
         >
           {isSending ? "Generating link…" : "Generate invite link"}
         </button>
-        <div className="text-center pt-2">
+        <div className="flex items-center justify-between pt-2">
+          <Button variant="outline" onClick={onBack} disabled={isSending}>
+            ← Back
+          </Button>
           <button
             onClick={onFillInMyself}
             className="text-sm text-gray-500 underline"
@@ -199,6 +171,11 @@ export default function Stage4ScenarioB({
           >
             Fill in the details myself instead
           </button>
+          <div className="pt-4 flex justify-center">
+            <Button variant="outline" onClick={onBack}>
+              ← Back
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -207,8 +184,8 @@ export default function Stage4ScenarioB({
   // Render: waiting state (link generated, polling in progress)
   return (
     <div className="mx-auto space-y-4">
-      {pollError && (
-        <p className="text-xs text-amber-600 text-center">{pollError}</p>
+      {isPollError && !timedOut && (
+        <p className="text-xs text-amber-600 text-center">Having trouble checking status — will keep retrying.</p>
       )}
       <Stage4HandoffLink
         inviteLink={inviteLink!}
@@ -216,6 +193,11 @@ export default function Stage4ScenarioB({
         onGenerateNew={handleResendInvite}
         onFillInMyself={onFillInMyself}
       />
+      <div className="pt-4">
+        <Button variant="outline" onClick={onBack}>
+          ← Back
+        </Button>
+      </div>
     </div>
   );
 }
