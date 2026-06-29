@@ -241,7 +241,13 @@ export class ProjectsService {
     if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
       return this.prisma.project.findMany({ 
         where: { clientId: userId }, 
-        orderBy: { createdAt: 'desc' } 
+        orderBy: { createdAt: 'desc' },
+        // Include engagement counts (bids)
+        include: {
+          _count: {
+            select: { engagements: { where: { type: 'PROJECT_BASED' } } }
+          }
+        }
       });
     }
     if (activeRole === 'CLIENT' && clientSubtype === 'TECH_TEAM') {
@@ -249,7 +255,12 @@ export class ProjectsService {
       if (!tech?.linkedProjectId) return [];
       return this.prisma.project.findMany({ 
         where: { id: tech.linkedProjectId }, 
-        orderBy: { createdAt: 'desc' } 
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: { engagements: { where: { type: 'PROJECT_BASED' } } }
+          }
+        }
       });
     }
     return [];

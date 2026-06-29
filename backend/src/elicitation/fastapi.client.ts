@@ -33,6 +33,18 @@ export interface Stage3VaguenessCheckResponse {
   vague_answers: VaguenessFlag[];
 }
 
+export interface Stage4RecommendRequest {
+  stage1_symptoms: string[];
+  stage2_archetype: string;
+  stage3_probes: Record<string, unknown>;
+}
+
+export interface Stage4RecommendResponse {
+  recommended_stack: string;
+  recommended_integration: string;
+  recommended_legacy_volume: string;
+}  
+
 export interface Stage5Request {
   session_id:          string;
   stage1_symptoms:     string[];
@@ -159,6 +171,10 @@ export class FastapiClient {
       '/llm/elicitation/stage3-vagueness-check',
       payload,
     );
+  }
+
+  async stage4Recommend(payload: Stage4RecommendRequest): Promise<Stage4RecommendResponse> {
+    return this.post<Stage4RecommendResponse>('/llm/elicitation/stage4-recommend', payload);
   }
 
   async stage5Synthesize(payload: Stage5Request): Promise<Stage5Response> {

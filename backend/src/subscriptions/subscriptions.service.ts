@@ -13,12 +13,14 @@ import { ActivateSubscriptionDto } from 'src/subscriptions/dto/activate-subscrip
 import { addMonths } from 'date-fns';
 import { AuthService } from 'src/auth/auth.service';
 import { UnprocessableEntityException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class SubscriptionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async activateSubscription(userId: string, activateSubscriptionDto: ActivateSubscriptionDto) {
@@ -96,7 +98,15 @@ export class SubscriptionService {
         },
       });
     });
-
+    this.eventEmitter.emit('socket.broadcast', {
+      userId: user.id,
+      event: 'notification:generic',
+      payload: {
+        type: 'system',
+        title: 'Pro Activated',
+        body: `Welcome to ${roleTypeLabel === 'client' ? 'Client Pro' : 'Expert Pro'}!`,
+      }
+    });
     const access_token = await this.authService.jwtGeneratePayload(updatedUser);
 
     return { access_token };
