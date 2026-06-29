@@ -8,6 +8,7 @@ import { UserService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
+import { UpdateTaxCodeDto } from './dto/update-tax-code.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -40,5 +41,12 @@ export class UserController {
   @Get(':userId/public-profile')
   getPublicProfile(@Param('userId') userId: string) {
     return this.userService.getPublicProfile(userId);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put('me/tax-code')
+  @Roles('CLIENT')
+  updateTaxCode(@CurrentUser() user: AuthUser, @Body() updateTaxCodeDto: UpdateTaxCodeDto) {
+    return this.userService.updateTaxCode(user.id, updateTaxCodeDto.taxCode);
   }
 }
