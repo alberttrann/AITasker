@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   ConflictException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService }          from '../database/prisma.service';
 import { FastapiClient, MatchResult } from './fastapi.client';
@@ -483,6 +484,26 @@ export class ElicitationService {
     });
   }
 
+  async recommendTechContext(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
+    if (session.currentStage < 4) {
+      throw new BadRequestException('Cannot recommend tech context before Stage 3 is complete.');
+    }
+
+    try {
+      const response = await this.fastapiClient.stage4Recommend({
+        stage1_symptoms: session.stage1SymptomsJson as string[],
+        stage2_archetype: session.archetype!,
+        stage3_probes: session.stage3ProbesJson as Record<string, unknown>,
+      });
+      return response;
+    } catch (err) {
+      throw new ServiceUnavailableException('AI Architect is currently unavailable.');
+    }
+  }
+
   private async handleGatePassed(
     session: any,
     synthesis: any,
@@ -683,5 +704,20 @@ export class ElicitationService {
       where: { id: sessionId },
       data,
     });
+  }
+
+  async deleteSession(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
+    if (session.state === 'COMPLETED') {
+      throw new ConflictException('Cannot delete a session that has already been published as a project.');
+    }
+
+    await this.prisma.elicitationSession.delete({
+      where: { id: sessionId },
+    });
+
+    return { success: true, message: 'Session deleted successfully.' };
   }
 }

@@ -63,3 +63,8 @@ class VaguenessFlag(BaseModel):
 
 class Stage3VaguenessCheckResponse(BaseModel):
     vague_answers: list[VaguenessFlag] = []
+
+class Stage4RecommendResponse(BaseModel):
+    recommended_stack: str
+    recommended_integration: str
+    recommended_legacy_volume: str

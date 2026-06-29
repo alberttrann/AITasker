@@ -9,12 +9,14 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma, VirtualAccount } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { LedgerService } from '@shared/ledger/ledger.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class IpnHandlerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async handleIpn(data: any) {
@@ -262,6 +264,26 @@ export class IpnHandlerService {
         transactionType: TransactionType.TOP_UP,
         referenceId: referenceCode,
       },
+    });
+    this.eventEmitter.emit('socket.broadcast', {
+      userId: userWallet.userId,
+      event: 'wallet:balance-updated',
+      payload: {
+        available_balance: Number(userWallet.availableBalance) + Number(transferAmount),
+        locked_balance: Number(userWallet.lockedBalance),
+        transaction_type: 'TOP_UP',
+        amount: Number(transferAmount)
+      }
+    });
+
+    this.eventEmitter.emit('socket.broadcast', {
+      userId: userWallet.userId,
+      event: 'notification:generic',
+      payload: {
+        type: 'system',
+        title: 'Top-up Successful',
+        body: `Your wallet has been credited with ${transferAmount.toLocaleString('vi-VN')} VND.`,
+      }
     });
 
     return { success: true };

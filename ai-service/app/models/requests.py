@@ -45,3 +45,8 @@ class CriterionCheckRequest(BaseModel):
 class ServiceGenerateRequest(BaseModel):
     expert_capabilities: list[str]
     target_use_cases:    list[str]
+
+class Stage4RecommendRequest(BaseModel):
+    stage1_symptoms: list[str]
+    stage2_archetype: str
+    stage3_probes: dict

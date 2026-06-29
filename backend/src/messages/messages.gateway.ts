@@ -5,6 +5,7 @@ import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { JwtService } from '@nestjs/jwt';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: {
@@ -23,21 +24,24 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   async handleConnection(client: Socket) {
     try {
       const token = this.extractToken(client);
-      if (!token) {
-        client.disconnect();
-        return;
-      }
-
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET,
-      });
+      if (!token) { client.disconnect(); return; }
+      
+      const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_SECRET });
       client.data.user = payload;
+      
+      // Join a room named after the user's ID for personal notifications
+      client.join(payload.sub);
     } catch (error) {
       client.disconnect();
     }
   }
 
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket) {}
+
+  // Listen for internal server events and push them to the specific user's socket
+  @OnEvent('socket.broadcast')
+  handleSocketBroadcast(data: { userId: string; event: string; payload: any }) {
+    this.server.to(data.userId).emit(data.event, data.payload);
   }
 
   @SubscribeMessage('joinRoom')

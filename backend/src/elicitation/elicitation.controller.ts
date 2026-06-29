@@ -16,6 +16,7 @@ import { Stage4Dto }              from './dto/stage4.dto';
 import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
 import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
 import { RevertSessionDto } from './dto/revert-session.dto';
+import { Delete } from '@nestjs/common';
 
 interface AuthUser {
   id:             string;
@@ -179,5 +180,23 @@ export class ElicitationController {
     if (user.clientSubtype !== 'CEO') {
       throw new ForbiddenException('Only the CEO may perform this action.');
     }
+  }
+
+  // [Pro-C]
+  @Post('sessions/:id/stage4-recommend')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async recommendTechContext(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.recommendTechContext(id, user.id);
+  }
+  
+  // [Pro-C]
+  @Delete('sessions/:id')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async deleteSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.deleteSession(id, user.id);
   }
 }

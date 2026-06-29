@@ -62,6 +62,11 @@ async def stage1_extract(request: Stage1Request) -> Stage1Response:
                 seen.add(code_str)
     recommended = recommended[:5]
 
+    # Fail-safe fallback. If AI returns nothing valid, offer all paths so the CEO isn't stuck.
+    if not recommended:
+        logger.warning("AI returned no valid archetypes. Falling back to all default archetypes.")
+        recommended = ["1", "2", "3", "4", "5", "6"]
+
     return Stage1Response(
         symptoms=raw.get("symptoms", []),
         scale_signals=raw.get("scale_signals", {}),
@@ -265,4 +270,22 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
         artifact_a_json=artifact_a,
         artifact_b_json=artifact_b,
         completeness_score=round(completeness, 4),
+    )
+from app.models.requests import Stage4RecommendRequest
+from app.models.responses import Stage4RecommendResponse
+
+async def stage4_recommend(request: Stage4RecommendRequest) -> Stage4RecommendResponse:
+    system = load_prompt("stage4_recommend")
+    
+    symptoms = "\n".join(f"- {s}" for s in request.stage1_symptoms)
+    probes = "\n".join(f"Q: {k}\nA: {v}" for k, v in request.stage3_probes.items())
+    
+    user_prompt = f"SYMPTOMS:\n{symptoms}\n\nARCHETYPE: {request.stage2_archetype}\n\nPROBES:\n{probes}\n\nRecommend the technical context."
+    
+    raw: dict = await llm_client.call_llm_json_with_system(prompt=user_prompt, system=system)
+    
+    return Stage4RecommendResponse(
+        recommended_stack=raw.get("recommended_stack", "Python, REST API, Cloud Database"),
+        recommended_integration=raw.get("recommended_integration", "REST API integration with existing frontend."),
+        recommended_legacy_volume=raw.get("recommended_legacy_volume", "Standard operational database volume.")
     )

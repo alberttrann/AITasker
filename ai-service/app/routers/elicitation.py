@@ -77,7 +77,24 @@ async def stage3_vagueness_check(request: Stage3VaguenessCheckRequest):
             detail="LLM service unavailable — retry in a moment",
         ) from exc
 
+from app.models.requests import Stage4RecommendRequest
+from app.models.responses import Stage4RecommendResponse
 
+@router.post(
+    "/stage4-recommend",
+    response_model=Stage4RecommendResponse,
+    summary="AI recommends technical context for non-technical CEOs",
+)
+async def stage4_recommend(request: Stage4RecommendRequest):
+    try:
+        return await elicitation_engine.stage4_recommend(request)
+    except Exception as exc:
+        logger.exception("stage4_recommend failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM service unavailable",
+        ) from exc
+    
 # Stage 5 — full project synthesis
 
 @router.post(
