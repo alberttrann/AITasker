@@ -31,7 +31,7 @@ export default function SubscriptionActivate() {
       {
         onSuccess: async (data) => {
           store.setTokens(data.access_token, ''); 
-          queryClient.invalidateQueries({ queryKey: ['user'] });
+          await queryClient.refetchQueries({ queryKey: ['user', 'me'] });
           await queryClient.refetchQueries({ queryKey: ['wallet'] });
           setIsSuccess(true);
         },

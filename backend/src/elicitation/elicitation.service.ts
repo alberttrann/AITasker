@@ -10,19 +10,19 @@ import {
   ConflictException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import { PrismaService }          from '../database/prisma.service';
 import { FastapiClient, MatchResult } from './fastapi.client';
-import { AuthService } from '../auth/auth.service';
-import { MatchingHelperService } from '../shared/matching/matching-helper.service';
-import { Stage4Dto } from './dto/stage4.dto';
-import { Stage4HandoffDto } from './dto/stage4-handoff.dto';
+import { AuthService }            from '../auth/auth.service';
+import { MatchingHelperService }  from '../shared/matching/matching-helper.service';
+import { Stage4Dto }              from './dto/stage4.dto';
+import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
 
-const COMPLETENESS_GATE = 0.7;
+const COMPLETENESS_GATE = 0.70;
 
 const VOID_TO_STAGE: Record<string, number> = {
   UNCLEAR_SUCCESS_METRIC: 3,
-  TIMELINE_UNREALISTIC: 3,
-  INTEGRATION_UNCLEAR: 4,
+  TIMELINE_UNREALISTIC:   3,
+  INTEGRATION_UNCLEAR:    4,
 };
 
 const HANDOFF_TOKEN_EXPIRY = '72h';
@@ -67,37 +67,29 @@ const ARCHETYPE_PROBE_QUESTIONS: Record<string, [string, string, string, string]
 };
 
 export interface ProjectPublishedEvent {
-  projectId: string;
+  projectId:  string;
   candidates: MatchResult[];
 }
 
 @Injectable()
 export class ElicitationService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly fastapiClient: FastapiClient,
-    private readonly jwtService: JwtService,
-    private readonly authService: AuthService,
+    private readonly prisma:         PrismaService,
+    private readonly fastapiClient:  FastapiClient,
+    private readonly jwtService:     JwtService,
+    private readonly authService:    AuthService,
     private readonly matchingHelper: MatchingHelperService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventEmitter:   EventEmitter2,
   ) {}
 
   async createSession(userId: string) {
     const existing = await this.prisma.elicitationSession.findFirst({
       where: { userId, state: 'IN_PROGRESS' },
     });
+    if (existing) return existing;
 
-    return this.prisma.$transaction(async (tx) => {
-      if (existing) {
-        await tx.elicitationSession.update({
-          where: { id: existing.id },
-          data: { state: 'ABANDONED', updatedAt: new Date() },
-        });
-      }
-
-      return tx.elicitationSession.create({
-        data: { userId, state: 'IN_PROGRESS', currentStage: 1 },
-      });
+    return this.prisma.elicitationSession.create({
+      data: { userId, state: 'IN_PROGRESS', currentStage: 1 },
     });
   }
 
@@ -155,20 +147,20 @@ export class ElicitationService {
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        currentStage: 2,
-        stage1SymptomsJson: aiResponse.symptoms as any,
-        voidListJson: aiResponse.voids as any,
-        recommendedArchetypesJson: (aiResponse.recommended_archetypes ?? []) as any,
-        state: 'IN_PROGRESS',
-        updatedAt: new Date(),
+        currentStage:               2,
+        stage1SymptomsJson:         aiResponse.symptoms as any,
+        voidListJson:               aiResponse.voids as any,
+        recommendedArchetypesJson:  (aiResponse.recommended_archetypes ?? []) as any,
+        state:                      'IN_PROGRESS',
+        updatedAt:                  new Date(),
       },
     });
   }
 
   async processStage2(
-    sessionId: string,
-    archetype: string,
-    userId: string,
+    sessionId:              string,
+    archetype:              string,
+    userId:                 string,
     acknowledgedVoidCodes?: string[],
   ) {
     const session = await this.findSessionOrThrow(sessionId);
@@ -179,12 +171,13 @@ export class ElicitationService {
     if (recommended.length > 0 && !recommended.includes(archetype)) {
       throw new BadRequestException(
         `Archetype ${archetype} is not among the AI-recommended options for this project: ` +
-          `${recommended.join(', ')}.`,
+        `${recommended.join(', ')}.`,
       );
     }
 
-    let updatedVoids =
-      (session.voidListJson as Array<{ void_code: string; injected?: boolean }>) ?? [];
+    let updatedVoids = (
+      session.voidListJson as Array<{ void_code: string; injected?: boolean }>
+    ) ?? [];
 
     if (acknowledgedVoidCodes?.length) {
       updatedVoids = updatedVoids.map((v) => ({
@@ -196,16 +189,20 @@ export class ElicitationService {
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        archetype: archetype,
+        archetype:    archetype,
         voidListJson: updatedVoids as any,
         currentStage: 3,
-        state: 'IN_PROGRESS',
-        updatedAt: new Date(),
+        state:        'IN_PROGRESS',
+        updatedAt:    new Date(),
       },
     });
   }
 
-  async processStage3(sessionId: string, probeResponses: Record<string, string>, userId: string) {
+  async processStage3(
+    sessionId:      string,
+    probeResponses: Record<string, string>,
+    userId:         string,
+  ) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
     this.assertStage(session, 3);
@@ -216,9 +213,7 @@ export class ElicitationService {
 
     const requiredQuestions = ARCHETYPE_PROBE_QUESTIONS[session.archetype];
     if (!requiredQuestions) {
-      throw new BadRequestException(
-        `No probe questions defined for archetype ${session.archetype}.`,
-      );
+      throw new BadRequestException(`No probe questions defined for archetype ${session.archetype}.`);
     }
 
     const missing = requiredQuestions.filter(
@@ -233,7 +228,7 @@ export class ElicitationService {
     let vaguenessResult;
     try {
       vaguenessResult = await this.fastapiClient.stage3VaguenessCheck({
-        archetype: session.archetype,
+        archetype:       session.archetype,
         probe_responses: probeResponses,
       });
     } catch (err) {
@@ -251,19 +246,19 @@ export class ElicitationService {
     await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        currentStage: 4,
+        currentStage:     4,
         stage3ProbesJson: probeResponses as any,
-        scenarioType: scenarioType,
-        state: 'IN_PROGRESS',
-        updatedAt: new Date(),
+        scenarioType:     scenarioType,
+        state:            'IN_PROGRESS',
+        updatedAt:        new Date(),
       },
     });
 
     return {
-      advanced: true,
-      currentStage: 4,
+      advanced:        true,
+      currentStage:    4,
       stage4_required: true,
-      scenario_type: scenarioType,
+      scenario_type:   scenarioType,
     };
   }
 
@@ -273,25 +268,29 @@ export class ElicitationService {
     this.assertStage(session, 4);
 
     const techInputs = {
-      current_stack: dto.current_stack,
-      data_available: dto.data_available,
+      current_stack:       dto.current_stack,
+      data_available:      dto.data_available,
       latency_requirement: dto.latency_requirement ?? null,
     };
 
     const updated = await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        currentStage: 5,
+        currentStage:         5,
         stage4TechInputsJson: techInputs as any,
-        state: 'IN_PROGRESS',
-        updatedAt: new Date(),
+        state:                'IN_PROGRESS',
+        updatedAt:            new Date(),
       },
     });
 
     return this.runSynthesis(updated);
   }
 
-  async processStage4Handoff(sessionId: string, dto: Stage4HandoffDto, techTeamUserId: string) {
+  async processStage4Handoff(
+    sessionId:      string,
+    dto:            Stage4HandoffDto,
+    techTeamUserId: string,
+  ) {
     const session = await this.findSessionOrThrow(sessionId);
 
     const techProfile = await this.prisma.techTeamProfile.findUnique({
@@ -307,18 +306,18 @@ export class ElicitationService {
     this.assertStage(session, 4);
 
     const techInputs = {
-      current_stack: dto.current_stack,
-      data_available: dto.data_available,
+      current_stack:       dto.current_stack,
+      data_available:      dto.data_available,
       latency_requirement: dto.latency_requirement ?? null,
     };
 
     const updated = await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        currentStage: 5,
+        currentStage:         5,
         stage4TechInputsJson: techInputs as any,
-        state: 'IN_PROGRESS',
-        updatedAt: new Date(),
+        state:                'IN_PROGRESS',
+        updatedAt:            new Date(),
       },
     });
 
@@ -334,9 +333,9 @@ export class ElicitationService {
     const inviteToken = await this.jwtService.signAsync(
       {
         sessionId: session.id,
-        ceoId: ceoUserId,
-        jti: jti,
-        purpose: 'tech-team-handoff',
+        ceoId:     ceoUserId,
+        jti:       jti,
+        purpose:   'tech-team-handoff',
       },
       { expiresIn: HANDOFF_TOKEN_EXPIRY },
     );
@@ -344,17 +343,18 @@ export class ElicitationService {
     await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
-        handoffTokenJti: jti,
+        handoffTokenJti:   jti,
         handoffConsumedAt: null,
       },
     });
 
-    const inviteLink = `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/tech-team/register?token=${inviteToken}`;
+    const inviteLink =
+      `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/tech-team/register?token=${inviteToken}`;
 
     return {
       invite_token: inviteToken,
-      invite_link: inviteLink,
-      expires_in: HANDOFF_TOKEN_EXPIRY,
+      invite_link:  inviteLink,
+      expires_in:   HANDOFF_TOKEN_EXPIRY,
     };
   }
 
@@ -400,28 +400,22 @@ export class ElicitationService {
 
   private assertAllStagesComplete(session: any) {
     const missing: string[] = [];
-    if (!session.stage1SymptomsJson) missing.push('stage 1 (symptoms)');
-    if (!session.archetype) missing.push('stage 2 (archetype)');
-    if (!session.stage3ProbesJson) missing.push('stage 3 (probes)');
+    if (!session.stage1SymptomsJson)   missing.push('stage 1 (symptoms)');
+    if (!session.archetype)            missing.push('stage 2 (archetype)');
+    if (!session.stage3ProbesJson)     missing.push('stage 3 (probes)');
     if (!session.stage4TechInputsJson) missing.push('stage 4 (technical context)');
 
     if (missing.length > 0) {
-      throw new BadRequestException(`Cannot synthesise: missing data from ${missing.join(', ')}.`);
+      throw new BadRequestException(
+        `Cannot synthesise: missing data from ${missing.join(', ')}.`,
+      );
     }
   }
 
-  private async runSynthesis(
-    session: any,
-    techTeamUserId?: string,
-  ): Promise<
-    | { gate_passed: true; completeness_score: number; project_id: string }
-    | {
-        gate_passed: false;
-        completeness_score: number;
-        flagged_void: string | null;
-        return_to_stage: number;
-        advisory_note: string;
-      }
+  private async runSynthesis(session: any, techTeamUserId?: string): Promise<
+    | { gate_passed: true;  completeness_score: number; project_id: string }
+    | { gate_passed: false; completeness_score: number; flagged_void: string | null;
+        return_to_stage: number; advisory_note: string }
   > {
     if (session.state === 'COMPLETED') {
       throw new ConflictException('This session has already been published as a project.');
@@ -433,13 +427,13 @@ export class ElicitationService {
     const effectiveSelfTechnical = this.getEffectiveSelfTechnical(session, user);
 
     const stage5Request = {
-      session_id: session.id,
-      stage1_symptoms: session.stage1SymptomsJson as string[],
-      stage2_archetype: session.archetype!,
-      stage3_probes: session.stage3ProbesJson as Record<string, unknown>,
-      stage4_tech_inputs: session.stage4TechInputsJson as Record<string, unknown>,
-      void_list_json: (session.voidListJson as Array<Record<string, unknown>>) ?? [],
-      is_self_technical: effectiveSelfTechnical,
+      session_id:         session.id,
+      stage1_symptoms:    session.stage1SymptomsJson as string[],
+      stage2_archetype:   session.archetype!,
+      stage3_probes:      session.stage3ProbesJson      as Record<string, unknown>,
+      stage4_tech_inputs: session.stage4TechInputsJson  as Record<string, unknown>,
+      void_list_json:     (session.voidListJson as Array<Record<string, unknown>>) ?? [],
+      is_self_technical:  effectiveSelfTechnical,
     };
 
     let synthesis;
@@ -448,18 +442,15 @@ export class ElicitationService {
     } catch (err) {
       throw new BadRequestException(
         'Project synthesis failed — the AI service did not respond in time. ' +
-          'Please try again in a moment.',
+        'Please try again in a moment.',
       );
     }
 
     const completenessOk = synthesis.completeness_score >= COMPLETENESS_GATE;
 
-    const voids =
-      (session.voidListJson as Array<{
-        void_code: string;
-        severity: string;
-        injected?: boolean;
-      }>) ?? [];
+    const voids = (
+      session.voidListJson as Array<{ void_code: string; severity: string; injected?: boolean }>
+    ) ?? [];
     const unresolvedHardVoid = voids.find((v) => v.severity === 'HIGH' && !v.injected);
     const noHardVoidsOk = !unresolvedHardVoid;
 
@@ -532,17 +523,17 @@ export class ElicitationService {
     try {
       project = await this.prisma.project.create({
         data: {
-          clientId: session.userId,
-          elicitationSessionId: session.id,
-          state: 'PUBLISHED',
-          archetype: artifactA.archetype ?? null,
-          tier: artifactA.volume_tier ?? null,
-          selfTechnical: effectiveSelfTechnical,
-          requiredSeamsJson: synthesis.required_seams_json as any,
-          requiredDomainsJson: synthesis.required_domains_json as any,
+          clientId:               session.userId,
+          elicitationSessionId:   session.id,
+          state:                  'PUBLISHED',
+          archetype:              artifactA.archetype   ?? null,
+          tier:                   artifactA.volume_tier ?? null,
+          selfTechnical:          effectiveSelfTechnical,
+          requiredSeamsJson:      synthesis.required_seams_json      as any,
+          requiredDomainsJson:    synthesis.required_domains_json    as any,
           milestoneFrameworkJson: synthesis.milestone_framework_json as any,
-          artifactAJson: synthesis.artifact_a_json as any,
-          artifactBJson: synthesis.artifact_b_json as any,
+          artifactAJson:          synthesis.artifact_a_json          as any,
+          artifactBJson:          synthesis.artifact_b_json          as any,
         },
       });
     } catch (err: any) {
@@ -554,7 +545,7 @@ export class ElicitationService {
 
     await this.prisma.elicitationSession.update({
       where: { id: session.id },
-      data: { state: 'COMPLETED', updatedAt: new Date() },
+      data:  { state: 'COMPLETED', updatedAt: new Date() },
     });
 
     // link the SPECIFIC Tech Team member who submitted Stage 4
@@ -562,30 +553,30 @@ export class ElicitationService {
     if (techTeamUserId) {
       await this.prisma.techTeamProfile.update({
         where: { userId: techTeamUserId },
-        data: { linkedProjectId: project.id },
+        data:  { linkedProjectId: project.id },
       });
     }
 
     // event-emitter pattern
     this.eventEmitter.emit('project.published', {
-      projectId: project.id,
+      projectId:  project.id,
       candidates: candidates,
     } as ProjectPublishedEvent);
-
+ 
     await this.prisma.platformDecision.create({
       data: {
-        decisionType: 'ELICITATION_SYNTHESIS',
-        entityType: 'projects',
-        entityId: project.id,
+        decisionType:  'ELICITATION_SYNTHESIS',
+        entityType:    'projects',
+        entityId:      project.id,
         llmConfidence: synthesis.completeness_score,
-        decision: 'PUBLISHED',
+        decision:      'PUBLISHED',
       },
     });
-
+ 
     return {
-      gate_passed: true,
+      gate_passed:        true,
       completeness_score: synthesis.completeness_score,
-      project_id: project.id,
+      project_id:         project.id,
     };
   }
 
@@ -593,9 +584,9 @@ export class ElicitationService {
     session: any,
     synthesis: any,
     gateDetail: {
-      completenessOk: boolean;
-      noHardVoidsOk: boolean;
-      candidatesOk: boolean;
+      completenessOk:      boolean;
+      noHardVoidsOk:       boolean;
+      candidatesOk:        boolean;
       unresolvedHardVoid?: { void_code: string };
     },
   ): Promise<{
@@ -612,21 +603,18 @@ export class ElicitationService {
     let flaggedVoid: string | null = null;
 
     if (!gateDetail.noHardVoidsOk && gateDetail.unresolvedHardVoid) {
-      flaggedVoid = gateDetail.unresolvedHardVoid.void_code;
+      flaggedVoid   = gateDetail.unresolvedHardVoid.void_code;
       returnToStage = VOID_TO_STAGE[flaggedVoid] ?? 1;
       advisoryNote =
         `Your project specification has an unresolved critical gap: ` +
         `${flaggedVoid.replace(/_/g, ' ').toLowerCase()}. ` +
         `Please revisit Stage ${returnToStage} and address it before publishing.`;
     } else if (!gateDetail.completenessOk) {
-      const voids =
-        (session.voidListJson as Array<{
-          void_code: string;
-          severity: string;
-          injected?: boolean;
-        }>) ?? [];
+      const voids = (
+        session.voidListJson as Array<{ void_code: string; severity: string; injected?: boolean }>
+      ) ?? [];
       const anyUnfixed = voids.find((v) => !v.injected);
-      flaggedVoid = anyUnfixed?.void_code ?? null;
+      flaggedVoid   = anyUnfixed?.void_code ?? null;
       returnToStage = VOID_TO_STAGE[flaggedVoid ?? ''] ?? 1;
       advisoryNote =
         `Your project specification scored ${pct}% completeness (minimum 70% required). ` +
@@ -644,29 +632,29 @@ export class ElicitationService {
     await this.prisma.elicitationSession.update({
       where: { id: session.id },
       data: {
-        state: 'RETURNED',
+        state:        'RETURNED',
         currentStage: returnToStage,
-        updatedAt: new Date(),
+        updatedAt:    new Date(),
       },
     });
-
+ 
     await this.prisma.platformDecision.create({
       data: {
-        decisionType: 'SPEC_AUTO_RETURN',
-        entityType: 'elicitation_sessions',
-        entityId: session.id,
+        decisionType:  'SPEC_AUTO_RETURN',
+        entityType:    'elicitation_sessions',
+        entityId:      session.id,
         llmConfidence: synthesis.completeness_score,
-        decision: 'RETURNED',
-        advisoryNote: advisoryNote,
+        decision:      'RETURNED',
+        advisoryNote:  advisoryNote,
       },
     });
 
     return {
-      gate_passed: false,
+      gate_passed:        false,
       completeness_score: synthesis.completeness_score,
-      flagged_void: flaggedVoid,
-      return_to_stage: returnToStage,
-      advisory_note: advisoryNote,
+      flagged_void:        flaggedVoid,
+      return_to_stage:     returnToStage,
+      advisory_note:       advisoryNote,
     };
   }
 
@@ -689,37 +677,12 @@ export class ElicitationService {
     });
   }
 
-  async continueSession(sessionId: string, userId: string) {
-    const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);
-    if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
-
-    const currentInProgress = await this.prisma.elicitationSession.findFirst({
-      where: { userId, state: 'IN_PROGRESS', id: { not: sessionId } },
-    });
-
-    return this.prisma.$transaction(async (tx) => {
-      if (currentInProgress) {
-        await tx.elicitationSession.update({
-          where: { id: currentInProgress.id },
-          data: { state: 'ABANDONED', updatedAt: new Date() },
-        });
-      }
-
-      return tx.elicitationSession.update({
-        where: { id: sessionId },
-        data: { state: 'IN_PROGRESS', updatedAt: new Date() },
-      });
-    });
-  }
-
   async revertSession(sessionId: string, userId: string, targetStage: number) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
 
     if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
-    if (targetStage >= session.currentStage)
-      throw new BadRequestException('Can only revert backwards.');
+    if (targetStage >= session.currentStage) throw new BadRequestException('Can only revert backwards.');
 
     const data: any = { currentStage: targetStage, state: 'IN_PROGRESS', updatedAt: new Date() };
 
@@ -748,9 +711,7 @@ export class ElicitationService {
     this.assertOwnership(session, userId);
 
     if (session.state === 'COMPLETED') {
-      throw new ConflictException(
-        'Cannot delete a session that has already been published as a project.',
-      );
+      throw new ConflictException('Cannot delete a session that has already been published as a project.');
     }
 
     await this.prisma.elicitationSession.delete({

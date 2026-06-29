@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Pencil, Save, X, LogOut, Check, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { Button } from '@components/ui/Button';
+import { Pencil, X, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -29,7 +28,6 @@ export default function ProfileSettingPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Tax Code State
-  const [taxCodeInput, setTaxCodeInput] = useState('');
   const [taxStatus, setTaxStatus] = useState<{ verified: boolean; companyName: string | null; loading?: boolean; error?: boolean }>({ verified: false, companyName: null });
   const [taxTimeoutId, setTaxTimeoutId] = useState<any>(null);
 
@@ -43,14 +41,6 @@ export default function ProfileSettingPage() {
       const res = await verifyTaxCode.mutateAsync(taxCode);
       if (res.verified) {
         setTaxStatus({ verified: true, companyName: res.companyName, loading: false });
-        if (res.companyName) {
-          setFormValues(prev => ({ ...prev, companyName: res.companyName }));
-        }
-        await updateProfile.mutateAsync({
-          taxCode,
-          isTaxVerified: true,
-          companyName: res.companyName,
-        });
       } else {
         setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
       }
@@ -58,6 +48,8 @@ export default function ProfileSettingPage() {
       setTaxStatus({ verified: false, companyName: null, loading: false, error: true });
     }
   };
+
+  // (Removed standalone tax code logic)
 
   // Update state if user data loads slightly after mount
   useEffect(() => {
@@ -78,12 +70,25 @@ export default function ProfileSettingPage() {
   // ── Handlers ──
   const handleEditClick = (field: keyof typeof formValues) => {
     setEditingField(field);
-    setTempValue(originalValues[field]);
+    if (field === 'companyName') {
+      setTempValue(''); // Start with empty tax code field
+      setTaxStatus({ verified: false, companyName: null });
+    } else {
+      setTempValue(originalValues[field]);
+    }
   };
 
   const handleInlineSave = async (field: keyof typeof formValues) => {
-    const newValue = tempValue;
-    if (newValue === originalValues[field]) {
+    let newValue = tempValue;
+
+    if (field === 'companyName') {
+      if (!taxStatus.verified || !taxStatus.companyName) {
+         throw new Error("Tax code must be recognized to save company name.");
+      }
+      newValue = taxStatus.companyName;
+    }
+
+    if (field !== 'companyName' && newValue === originalValues[field]) {
       setEditingField(null);
       return;
     }
@@ -91,12 +96,19 @@ export default function ProfileSettingPage() {
     setSavingField(field);
     setErrorMsg(null);
     try {
-      await updateProfile.mutateAsync({ [field]: newValue });
-      setOriginalValues((prev) => ({ ...prev, [field]: newValue }));
-      setFormValues((prev) => ({ ...prev, [field]: newValue }));
+      if (field === 'companyName') {
+        await updateProfile.mutateAsync({ companyName: newValue });
+        setOriginalValues((prev) => ({ ...prev, companyName: newValue }));
+        setFormValues((prev) => ({ ...prev, companyName: newValue }));
+      } else {
+        await updateProfile.mutateAsync({ [field]: newValue });
+        setOriginalValues((prev) => ({ ...prev, [field]: newValue }));
+        setFormValues((prev) => ({ ...prev, [field]: newValue }));
+      }
       setEditingField(null);
+      setTaxStatus({ verified: false, companyName: null });
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to update profile.';
+      const msg = err.response?.data?.message || err.message || 'Failed to update profile.';
       setErrorMsg(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setSavingField(null);
@@ -105,6 +117,7 @@ export default function ProfileSettingPage() {
 
   const handleInlineCancel = () => {
     setEditingField(null);
+    setTaxStatus({ verified: false, companyName: null });
   };
 
   // ── Helper Function for Editable Rows ──
@@ -121,74 +134,116 @@ export default function ProfileSettingPage() {
         </div>
 
         {/* Input / Value Area */}
-        <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {isEditing ? (
-            <input
-              type={type}
-              autoFocus
-              value={tempValue}
-              onChange={(e) => {
-                let val = e.target.value;
-                if (fieldKey === 'phone') {
-                  val = val.replace(/\D/g, ''); // Strip non-digits
-                  if (val.length > 10) val = val.slice(0, 10); // Cap at 10 digits
-                }
-                setTempValue(val);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleInlineSave(fieldKey);
-                if (e.key === 'Escape') handleInlineCancel();
-              }}
-              disabled={isSavingThis}
-              className="flex-1 w-full min-w-[200px] sm:max-w-md h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10 disabled:opacity-50"
-            />
-          ) : (
-            <span className={`text-sm ${!formValues[fieldKey] ? 'text-slate-400 italic' : 'text-slate-900 font-medium truncate'}`}>
-              {formValues[fieldKey] || 'Not set'}
-            </span>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            {editable && (
-              isEditing ? (
-                <>
-                  <button 
-                    onClick={() => handleInlineSave(fieldKey)} 
-                    disabled={isSavingThis}
-                    className="flex items-center justify-center w-8 h-8 rounded-md bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
-                    title="Save"
-                  >
-                    {isSavingThis ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
-                  </button>
-                  <button 
-                    onClick={handleInlineCancel} 
-                    disabled={isSavingThis}
-                    className="flex items-center justify-center w-8 h-8 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
-                    title="Cancel"
-                  >
-                    <X size={16} strokeWidth={2.5} />
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={() => handleEditClick(fieldKey)} 
-                  className="flex items-center justify-center w-8 h-8 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                  title="Edit"
-                >
-                  <Pencil size={16} strokeWidth={2} />
-                </button>
-              )
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {isEditing ? (
+              <div className="relative flex-1 w-full min-w-[200px] sm:max-w-md">
+                {fieldKey === 'companyName' && (
+                  <div className="mb-2 text-xs font-medium text-slate-500">
+                    Enter company tax code
+                  </div>
+                )}
+                <input
+                  type={type}
+                  autoFocus
+                  value={tempValue}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (fieldKey === 'phone') {
+                      val = val.replace(/\D/g, ''); // Strip non-digits
+                      if (val.length > 10) val = val.slice(0, 10); // Cap at 10 digits
+                    }
+                    setTempValue(val);
+                    
+                    if (fieldKey === 'companyName') {
+                      if (taxTimeoutId) clearTimeout(taxTimeoutId);
+                      if (val.length >= 10) {
+                        const newTimeout = setTimeout(() => {
+                          handleVerifyTaxCode(val);
+                        }, 500);
+                        setTaxTimeoutId(newTimeout);
+                      } else {
+                        setTaxStatus({ verified: false, companyName: null, loading: false, error: false });
+                      }
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleInlineSave(fieldKey);
+                    if (e.key === 'Escape') handleInlineCancel();
+                  }}
+                  disabled={isSavingThis}
+                  className="w-full h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10 disabled:opacity-50"
+                />
+                {fieldKey === 'companyName' && taxStatus.loading && (
+                  <div className="absolute right-3 top-[calc(50%+10px)] -translate-y-1/2">
+                    <Loader2 className="animate-spin text-slate-400" size={16} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className={`text-sm flex-1 ${!formValues[fieldKey] ? 'text-slate-400 italic' : 'text-slate-900 font-medium truncate'}`}>
+                {formValues[fieldKey] || 'Not specified'}
+              </span>
             )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              {editable && (
+                isEditing ? (
+                  <>
+                    <button 
+                      onClick={() => handleInlineSave(fieldKey)} 
+                      disabled={isSavingThis || (fieldKey === 'companyName' && !taxStatus.verified)}
+                      className="flex items-center justify-center w-8 h-8 rounded-md bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                      title="Save"
+                    >
+                      {isSavingThis ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
+                    </button>
+                    <button 
+                      onClick={handleInlineCancel} 
+                      disabled={isSavingThis}
+                      className="flex items-center justify-center w-8 h-8 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
+                      title="Cancel"
+                    >
+                      <X size={16} strokeWidth={2.5} />
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={() => handleEditClick(fieldKey)} 
+                    className="flex items-center justify-center w-8 h-8 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil size={16} strokeWidth={2} />
+                  </button>
+                )
+              )}
+            </div>
           </div>
+          
+          {fieldKey === 'companyName' && isEditing && (taxStatus.verified || taxStatus.error) && (
+            <div className="pt-2">
+              {taxStatus.verified && taxStatus.companyName && (
+                <div className="flex items-center gap-1 text-sm text-green-600 font-medium">
+                  <Check size={16} />
+                  <span>Verified: {taxStatus.companyName}</span>
+                </div>
+              )}
+              {taxStatus.error && (
+                <div className="flex items-center gap-1 text-sm text-red-500 font-medium">
+                  <X size={16} />
+                  <span>Tax code not recognized</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6">
-      <div className="w-full max-w-4xl mx-auto">
+    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
         
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -208,7 +263,7 @@ export default function ProfileSettingPage() {
         </div>
 
         {/* ── Main Form Card ── */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
           
           <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
             <h2 className="text-sm font-semibold text-slate-900">Personal Information</h2>
@@ -228,55 +283,6 @@ export default function ProfileSettingPage() {
                 <p className="text-xs text-slate-500 mt-1">Update your business details.</p>
               </div>
               <div className="flex flex-col">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between py-4 px-6 border-b border-slate-100 hover:bg-slate-50/30 transition-colors duration-200">
-                  <div className="w-full sm:w-1/3 mb-2 sm:mb-0 flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-500">Verify Tax Code</span>
-                  </div>
-                  <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="relative flex-1 w-full min-w-[200px] sm:max-w-md">
-                      <input
-                        type="text"
-                        value={taxCodeInput}
-                        placeholder="e.g. 123456789"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setTaxCodeInput(val);
-                          if (taxTimeoutId) clearTimeout(taxTimeoutId);
-                          if (val.length >= 10) {
-                            const newTimeout = setTimeout(() => {
-                              handleVerifyTaxCode(val);
-                            }, 500);
-                            setTaxTimeoutId(newTimeout);
-                          } else {
-                            setTaxStatus({ verified: false, companyName: null, loading: false, error: false });
-                          }
-                        }}
-                        className="w-full h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10"
-                      />
-                      {taxStatus.loading && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="animate-spin text-slate-400" size={16} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {(taxStatus.verified || taxStatus.error) && (
-                  <div className="px-6 pb-4 pt-2">
-                    {taxStatus.verified && taxStatus.companyName && (
-                      <div className="flex items-center gap-1 text-sm text-green-600 font-medium">
-                        <CheckCircle2 size={16} />
-                        <span>Verified: {taxStatus.companyName}</span>
-                      </div>
-                    )}
-                    {taxStatus.error && (
-                      <div className="flex items-center gap-1 text-sm text-red-500 font-medium">
-                        <XCircle size={16} />
-                        <span>Tax code not recognized</span>
-                      </div>
-                    )}
-                  </div>
-                )}
                 {renderEditableRow("Company Name", "companyName")}
                 {renderEditableRow("Industry", "industry")}
                 {renderEditableRow("CEO Name", "ceoName")}
@@ -291,7 +297,6 @@ export default function ProfileSettingPage() {
           )}
 
         </div>
-      </div>
     </div>
   );
 }
