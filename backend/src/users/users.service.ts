@@ -77,6 +77,7 @@ export class UserService {
       user.activeRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
 
     const userProfile = {
+      id: user.id,
       email: user.email,
       fullName: user.fullName,
       phone: user.phone,
@@ -86,6 +87,11 @@ export class UserService {
       subscriptionTier: (user as any)[activeSubscriptionKey],
       activeRoleProfile: (user as any)[activeProfileKey],
       subscriptionExpires: (user as any)[activeSubscriptionExpiresKey],
+      selfTechnical: user.selfTechnical,
+      sepay_bank_account_xid: user.sepayBankAccountXid,
+      bank_linked_at: user.bankLinkedAt,
+      is_active: user.isActive,
+      createdAt: user.createdAt,
     };
 
     return userProfile;

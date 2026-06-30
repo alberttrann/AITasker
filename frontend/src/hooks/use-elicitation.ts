@@ -147,6 +147,14 @@ export async function submitStage4Handoff(sessionId: string, payload: any) {
   return data;
 }
 
+/** Stage 4 — Let AI recommend tech context (non-technical CEO fallback) */
+export async function recommendStage4(sessionId: string) {
+  const { data } = await apiClient.post(
+    `/elicitation/sessions/${sessionId}/stage4-recommend`
+  );
+  return data;
+}
+
 /** Generate a handoff link to invite the tech team. */
 export async function inviteTechTeam(sessionId: string, email: string) {
   const { data } = await apiClient.post<GenerateHandoffLinkResponse>(

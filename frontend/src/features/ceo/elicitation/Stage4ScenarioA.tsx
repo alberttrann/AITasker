@@ -1,9 +1,9 @@
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
-import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 interface Stage4AProps {
   sessionId: string;
@@ -33,7 +33,8 @@ type FormAction =
   | { type: 'SUBMIT_END' }
   | { type: 'REVERT_START' }
   | { type: 'REVERT_END' }
-  | { type: 'INIT_STATE'; payload: any };
+  | { type: 'INIT_STATE'; payload: any }
+  | { type: 'AUTOFILL_AI'; payload: any };
 
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
@@ -78,6 +79,18 @@ function formReducer(state: FormState, action: FormAction): FormState {
         contracts,
         initialized: true
       };
+    case 'AUTOFILL_AI': {
+      const aiScale = action.payload.recommended_stack || '';
+      const aiVolume = action.payload.recommended_legacy_volume || '';
+      const aiIntegration = action.payload.recommended_integration || '';
+      
+      return {
+        ...state,
+        scaleAndInfrastructure: aiScale,
+        legacyVolume: aiVolume,
+        integrationMethod: aiIntegration,
+      };
+    }
     default:
       return state;
   }
@@ -98,6 +111,23 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
     isReverting: false,
     initialized: false,
   });
+
+  const [isRecommending, setIsRecommending] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleRecommend = async () => {
+    setIsRecommending(true);
+    setAiError(null);
+    try {
+      const res = await recommendStage4(sessionId);
+      console.log(res);
+      dispatch({ type: 'AUTOFILL_AI', payload: res });
+    } catch (err: any) {
+      setAiError(handleElicitationError(err).message || 'Failed to generate AI recommendations.');
+    } finally {
+      setIsRecommending(false);
+    }
+  };
 
   useEffect(() => {
     if (session?.stage4TechInputsJson && !state.initialized) {
@@ -137,8 +167,16 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
-        <p className="text-body-sm text-secondary">Technical Context — since you marked yourself as technical, please fill in these details about your infrastructure.</p>
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
+            <p className="text-body-sm text-secondary">Technical Context — since you marked yourself as technical, please fill in these details about your infrastructure.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleRecommend} disabled={isRecommending || state.isSubmitting} className="shrink-0">
+            {isRecommending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : 'Let AI Recommend'}
+          </Button>
+        </div>
+        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
       </div>
       <div className="space-y-6">
         <div className="space-y-2">

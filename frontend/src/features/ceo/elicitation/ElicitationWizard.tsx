@@ -387,7 +387,7 @@ export default function ElicitationWizard() {
           )}
           {state.currentStage === 4 &&
             state.sessionId &&
-            (user?.self_technical || state.forceScenarioA ? (
+            (user?.selfTechnical || state.forceScenarioA ? (
               <Stage4ScenarioA
                 sessionId={state.sessionId}
                 onComplete={handleStageComplete}
