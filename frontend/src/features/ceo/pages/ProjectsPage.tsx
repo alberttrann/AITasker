@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUpdateProjectName } from "@/hooks/use-projects";
+import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUpdateProjectName, useActiveElicitationSession } from "@/hooks/use-projects";
 import { ConfirmModal } from "@/components/ui/modal";
-import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History } from "lucide-react";
+import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket } from "lucide-react";
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { projects, isLoadingProjects } = useProjects();
   const { sessions, isLoadingSessions } = useElicitationSessions();
+  const { activeSession, isLoadingActiveSession } = useActiveElicitationSession();
   const deleteSession = useDeleteElicitationSession();
   const updateProjectName = useUpdateProjectName();
   
@@ -21,9 +22,7 @@ export default function ProjectsPage() {
     return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
   };
 
-  const activeSessions = sessions.filter(s => s.state !== 'COMPLETED' && s.state !== 'ABANDONED').sort((a, b) => getSafeDate(b, 'updatedAt') - getSafeDate(a, 'updatedAt'));
   const allProjects = projects.sort((a, b) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
-  const hasHistory = activeSessions.length > 0 || allProjects.length > 0;
 
   const formatDraftName = (dateString: string) => {
     const date = new Date(dateString);
@@ -51,7 +50,6 @@ export default function ProjectsPage() {
   };
 
   const handleStartNewProject = () => {
-    localStorage.removeItem("currentSessionId");
     navigate("/ceo/elicitation");
   };
 
@@ -82,30 +80,15 @@ export default function ProjectsPage() {
         </div>
       </div>
       
-      {isLoadingProjects || isLoadingSessions ? (
+      {isLoadingProjects || isLoadingSessions || isLoadingActiveSession ? (
         <div className="flex items-center justify-center py-12">
            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : !hasHistory ? (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-12 text-center">
-          <FileText className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-          <h4 className="text-lg font-medium text-slate-900 mb-1">No projects yet</h4>
-          <p className="text-slate-500 mb-6">Start a new project to get matched with top AI experts.</p>
-          <button
-            onClick={handleStartNewProject}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Start New Project
-          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-10">
           
-
-
-          {/* TOP BANNER: Elicitation In Progress */}
-          {activeSessions.length > 0 && (
+          {/* TOP BANNER */}
+          {activeSession?.id ? (
             <div className="mb-10 relative overflow-hidden rounded-2xl bg-slate-900 shadow-xl shadow-blue-900/10 border border-slate-800 transition-all hover:shadow-2xl hover:shadow-blue-900/20 group">
               {/* Decorative background glow */}
               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-500/20 blur-[80px] pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-700"></div>
@@ -118,9 +101,9 @@ export default function ProjectsPage() {
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
                       IN PROGRESS
                     </span>
-                    {((activeSessions[0] as any).scenarioType || activeSessions[0].scenario_type) && (
+                    {((activeSession as any).scenarioType || activeSession.scenario_type) && (
                       <span className="px-3 py-1 bg-white/5 text-slate-300 text-[11px] font-semibold uppercase tracking-wider rounded-full border border-white/10 backdrop-blur-md">
-                        {((activeSessions[0] as any).scenarioType || activeSessions[0].scenario_type).replace(/_/g, ' ')}
+                        {((activeSession as any).scenarioType || activeSession.scenario_type).replace(/_/g, ' ')}
                       </span>
                     )}
                   </div>
@@ -130,24 +113,45 @@ export default function ProjectsPage() {
                   </h4>
 
                   <p className="text-sm font-medium text-slate-400">
-                    Stage {(activeSessions[0] as any).currentStage || activeSessions[0].current_stage || 1} of 5 &middot; Last updated {new Date((activeSessions[0] as any).updatedAt || activeSessions[0].updated_at || new Date()).toLocaleDateString()}
+                    Stage {(activeSession as any).currentStage || activeSession.current_stage || 1} of 5 &middot; Last updated {new Date((activeSession as any).updatedAt || activeSession.updated_at || new Date()).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 z-10 shrink-0">
                   <button
-                    onClick={() => setSessionToDelete(activeSessions[0].id)}
+                    onClick={() => setSessionToDelete(activeSession.id)}
                     className="text-sm font-medium text-slate-400 hover:text-red-400 transition-colors px-4 py-2.5 rounded-xl hover:bg-white/5"
                   >
                     Delete Draft
                   </button>
                   <button
                     onClick={() => {
-                      localStorage.setItem('currentSessionId', activeSessions[0].id);
                       navigate("/ceo/elicitation");
                     }}
                     className="flex items-center justify-center gap-2 px-7 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10"
                   >
                     Continue <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-10 relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-blue-200 group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-50 to-indigo-50/30 rounded-full blur-[60px] -mr-20 -mt-20 pointer-events-none group-hover:from-blue-100/60 group-hover:to-indigo-100/40 transition-colors duration-700"></div>
+              <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex-1 min-w-0 z-10">
+                  <h4 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 tracking-tight">
+                    Ready to build your next AI solution?
+                  </h4>
+                  <p className="text-sm sm:text-base font-medium text-slate-500 max-w-2xl">
+                    Begin the elicitation process to define your requirements, explore possibilities, and get matched with top experts.
+                  </p>
+                </div>
+                <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 z-10 shrink-0">
+                  <button
+                    onClick={handleStartNewProject}
+                    className="flex items-center justify-center gap-2 px-7 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <Rocket className="w-4 h-4 text-blue-300" /> Start Elicitation
                   </button>
                 </div>
               </div>
@@ -268,9 +272,6 @@ export default function ProjectsPage() {
         onConfirm={() => {
           if (sessionToDelete) {
             deleteSession.mutate(sessionToDelete);
-            if (localStorage.getItem("currentSessionId") === sessionToDelete) {
-              localStorage.removeItem("currentSessionId");
-            }
           }
           setSessionToDelete(null);
         }}

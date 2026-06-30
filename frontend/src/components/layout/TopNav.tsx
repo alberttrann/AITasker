@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search } from 'lucide-react';
+import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
@@ -9,7 +9,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
 
 export default function TopNav() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, switchRole } = useAuth();
   const navigate = useNavigate();
   
   // ── Dropdown State ──
@@ -32,6 +32,12 @@ export default function TopNav() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [isSwitchRoleModalOpen, setIsSwitchRoleModalOpen] = useState(false);
+
+  const rolesArray = user?.roles || (user?.activeRole ? [user.activeRole] : []);
+  const hasClient = rolesArray.some(r => r.startsWith('CLIENT'));
+  const hasExpert = rolesArray.includes('EXPERT');
+  const isClientActive = user?.activeRole === 'CLIENT' || user?.activeRole?.startsWith('CLIENT');
 
   const openModal = (mode: 'signin' | 'signup') => {
     setAuthMode(mode);
@@ -275,7 +281,21 @@ const RoleIcon =
 
                 {/* Dropdown Menu */}
                 {activeDropdown === 'profile' && (
-                  <div className="absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-xl py-2 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className={`absolute right-0 top-full mt-3 w-56 bg-surface border border-primary/10 shadow-md rounded-xl pb-2 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300 ${!(hasClient && hasExpert) ? 'pt-2' : ''}`}>
+                    {hasClient && hasExpert && (
+                      <button
+                        onClick={() => {
+                          setActiveDropdown(null);
+                          setIsSwitchRoleModalOpen(true);
+                        }}
+                        disabled={switchRole.isPending}
+                        className="w-full flex items-center justify-center gap-2 px-5 py-3.5 mb-2 text-sm font-bold text-slate-900 bg-[#BEF264] hover:bg-[#aee64c] transition-colors"
+                      >
+                        <RefreshCw size={16} className={switchRole.isPending ? "animate-spin" : ""} />
+                        {switchRole.isPending ? 'Switching...' : `Switch to ${isClientActive ? 'Expert' : 'Client'}`}
+                      </button>
+                    )}
+
                     <Link
                       to={`${dashboardRoute}/profile`} 
                       onClick={() => setActiveDropdown(null)} 
@@ -283,7 +303,6 @@ const RoleIcon =
                     >
                       Profile
                     </Link>
-
 
                     {/* Divider */}
                     <div className="h-[1px] bg-primary/10 my-2 mx-4" />
@@ -318,11 +337,30 @@ const RoleIcon =
       onClose={() => setIsSignOutModalOpen(false)}
       onConfirm={confirmSignOut}
       title="Sign Out"
-      confirmText="Yes, sign out"
+      confirmText="Sign Out"
       cancelText="Cancel"
       isDestructive
     >
       Are you sure you want to sign out?
+    </ConfirmModal>
+
+    {/* Switch Role Modal */}
+    <ConfirmModal
+      isOpen={isSwitchRoleModalOpen}
+      onClose={() => setIsSwitchRoleModalOpen(false)}
+      onConfirm={() => {
+        const newRole = isClientActive ? 'EXPERT' : 'CLIENT';
+        switchRole.mutate({ activeRole: newRole }, {
+          onSuccess: () => {
+            setIsSwitchRoleModalOpen(false);
+          }
+        });
+      }}
+      title={`Switch to ${isClientActive ? 'Expert' : 'Client'}`}
+      confirmText="Confirm"
+      cancelText="Cancel"
+    >
+      Are you sure you want to switch your role to {isClientActive ? 'Expert' : 'Client'}? You can always switch back.
     </ConfirmModal>
     </>
   );

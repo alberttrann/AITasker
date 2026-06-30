@@ -16,6 +16,21 @@ export function useProjects() {
     isLoadingProjects: projectsQuery.isLoading,
   };
 }
+export function useActiveElicitationSession() {
+  const activeSessionQuery = useQuery({
+    queryKey: ['elicitation-sessions', 'active'],
+    queryFn: async () => {
+      const res = await apiClient.get('/elicitation/sessions/active');
+      return res.data;
+    },
+    retry: false
+  });
+
+  return {
+    activeSession: (activeSessionQuery.data as any)?.data ?? activeSessionQuery.data ?? null,
+    isLoadingActiveSession: activeSessionQuery.isLoading,
+  };
+}
 
 export function useElicitationSessions() {
   const sessionsQuery = useQuery({

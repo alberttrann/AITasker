@@ -38,7 +38,6 @@ export default function SessionsListPage() {
   const handleContinueSession = async (id: string) => {
     try {
       await restoreSession.mutateAsync(id);
-      localStorage.setItem('currentSessionId', id);
       navigate("/ceo/elicitation");
     } catch (error) {
       console.error("Failed to restore session", error);

@@ -20,15 +20,6 @@ export function CeoOverview() {
   
   // Use the most recent active session for the banner
   const mostRecentSession = activeSessions.length > 0 ? activeSessions[0] : null;
-  
-  // Update localStorage with the latest session ID to keep it in sync
-  useEffect(() => {
-    if (mostRecentSession) {
-      localStorage.setItem("currentSessionId", mostRecentSession.id);
-    } else {
-      localStorage.removeItem("currentSessionId");
-    }
-  }, [mostRecentSession]);
 /*
   useEffect(() => {
       // DO NOT USE LOCAL STORAGE. Check the actual database.
