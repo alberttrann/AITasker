@@ -58,6 +58,19 @@ export function useRestoreElicitationSession() {
   });
 }
 
+export function useHardDeleteElicitationSession() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/elicitation/sessions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
+    }
+  });
+}
+
 export function useUpdateProjectName() {
   const queryClient = useQueryClient();
   

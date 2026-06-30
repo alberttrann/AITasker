@@ -1,29 +1,45 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useProjects, useElicitationSessions, useDeleteElicitationSession, useRestoreElicitationSession, useUpdateProjectName } from "@/hooks/use-projects";
+import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUpdateProjectName } from "@/hooks/use-projects";
 import { ConfirmModal } from "@/components/ui/modal";
-import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, RotateCcw, Pencil, Check, X } from "lucide-react";
+import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History } from "lucide-react";
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { projects, isLoadingProjects } = useProjects();
   const { sessions, isLoadingSessions } = useElicitationSessions();
   const deleteSession = useDeleteElicitationSession();
-  const restoreSession = useRestoreElicitationSession();
   const updateProjectName = useUpdateProjectName();
   
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
-  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
 
-  const activeSessions = sessions.filter(s => s.state !== 'COMPLETED' && s.state !== 'ABANDONED').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  const abandonedSessions = sessions.filter(s => s.state === 'ABANDONED').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  const allProjects = projects.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const hasHistory = activeSessions.length > 0 || allProjects.length > 0 || abandonedSessions.length > 0;
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const getSafeDate = (obj: any, field: 'updatedAt' | 'createdAt') => {
+    return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
+  };
+
+  const activeSessions = sessions.filter(s => s.state !== 'COMPLETED' && s.state !== 'ABANDONED').sort((a, b) => getSafeDate(b, 'updatedAt') - getSafeDate(a, 'updatedAt'));
+  const allProjects = projects.sort((a, b) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
+  const hasHistory = activeSessions.length > 0 || allProjects.length > 0;
+
+  const formatDraftName = (dateString: string) => {
+    const date = new Date(dateString);
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = String(date.getFullYear()).slice(-2);
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${d}${m}${y}-${hh}${mm}`;
+  };
 
   const handleSaveName = (id: string) => {
-    if (!editNameValue.trim()) return;
+    if (!editNameValue.trim()) {
+      setEditingProjectId(null);
+      return;
+    }
     updateProjectName.mutate(
       { id, projectName: editNameValue.trim() },
       {
@@ -40,7 +56,10 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto">
+    <div className="w-full max-w-5xl mx-auto relative">
+      {openMenuId && (
+        <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+      )}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
@@ -53,25 +72,12 @@ export default function ProjectsPage() {
           <h3 className="text-2xl font-bold text-slate-900">Your Projects</h3>
         </div>
         <div className="flex items-center gap-3">
-          {abandonedSessions.length > 0 && (
-            <button
-              onClick={() => setShowRecycleBin(!showRecycleBin)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors font-medium ${
-                showRecycleBin 
-                  ? "bg-slate-200 border-slate-300 text-slate-900" 
-                  : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
-              }`}
-            >
-              <Trash2 className="w-4 h-4 text-slate-500" />
-              <span>Recycle Bin ({abandonedSessions.length})</span>
-            </button>
-          )}
           <button
-            onClick={handleStartNewProject}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+            onClick={() => navigate('/ceo/session-history')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-lg transition-colors shrink-0"
           >
-            <Plus className="w-5 h-5" />
-            Start New Project
+            <History className="w-4 h-4" />
+            View Session History
           </button>
         </div>
       </div>
@@ -96,146 +102,56 @@ export default function ProjectsPage() {
       ) : (
         <div className="flex flex-col gap-10">
           
-          {/* RECYCLE BIN SECTION */}
-          {showRecycleBin && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 transition-all">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-5 h-5 text-slate-500" />
-                  <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Recycle Bin</h4>
-                </div>
-                <button
-                  onClick={() => setShowRecycleBin(false)}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-700"
-                >
-                  Close Bin
-                </button>
-              </div>
 
-              {abandonedSessions.length === 0 ? (
-                <div className="py-6 text-center text-slate-500 text-sm">
-                  Recycle bin is empty.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {abandonedSessions.map((session) => (
-                    <div key={session.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-semibold uppercase tracking-wider">
-                            <Clock className="w-3.5 h-3.5" />
-                            Abandoned Draft
-                          </span>
-                          {session.scenario_type && (
-                            <span className="px-2 py-0.5 bg-orange-50 text-orange-700 text-[11px] font-semibold uppercase rounded-md border border-orange-100">
-                              {session.scenario_type.replace(/_/g, ' ')}
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="text-lg font-bold text-slate-900 mb-1 truncate">
-                          Project {session.id}
-                        </h4>
-                        <p className="text-sm text-slate-500">
-                          Stage {session.current_stage} of 5 &middot; Last updated {new Date(session.updated_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-center sm:items-end gap-1 mt-2 sm:mt-0 shrink-0">
-                        <button
-                          onClick={() => {
-                            restoreSession.mutate(session.id);
-                          }}
-                          disabled={restoreSession.isPending}
-                          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 font-semibold rounded-lg hover:bg-emerald-100 transition-colors w-full sm:w-auto"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                          {restoreSession.isPending ? "Restoring..." : "Restore draft"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* FALLBACK UI IF NO ACTIVE OR PUBLISHED PROJECTS AND BIN IS CLOSED */}
-          {!showRecycleBin && activeSessions.length === 0 && allProjects.length === 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-12 text-center">
-              <FileText className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-slate-900 mb-1">No active projects</h4>
-              <p className="text-slate-500 mb-6">You have draft projects in your recycle bin, or you can start a new project.</p>
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={() => setShowRecycleBin(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  <Trash2 className="w-5 h-5 text-slate-400" />
-                  Open Recycle Bin ({abandonedSessions.length})
-                </button>
-                <button
-                  onClick={handleStartNewProject}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  Start New Project
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TOP SECTION: Elicitation In Progress */}
+          {/* TOP BANNER: Elicitation In Progress */}
           {activeSessions.length > 0 && (
-            <div>
-              <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Elicitation in progress</h4>
-              <div className="flex flex-col gap-4">
-                {activeSessions.map((session) => (
-                  <div key={session.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-semibold uppercase tracking-wider">
-                          <Clock className="w-3.5 h-3.5" />
-                          Draft
-                        </span>
-                        {session.scenario_type && (
-                          <span className="px-2 py-0.5 bg-orange-50 text-orange-700 text-[11px] font-semibold uppercase rounded-md border border-orange-100">
-                            {session.scenario_type.replace(/_/g, ' ')}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="text-lg font-bold text-slate-900 mb-1 truncate">
-                        Project {session.id}
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        Stage {session.current_stage} of 5 &middot; Last updated {new Date(session.updated_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center sm:items-end gap-1 mt-2 sm:mt-0 shrink-0">
-                      <button
-                        onClick={() => {
-                          localStorage.setItem('currentSessionId', session.id);
-                          navigate("/ceo/elicitation");
-                        }}
-                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-colors w-full sm:w-auto"
-                      >
-                        Continue <ArrowRight className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => setSessionToDelete(session.id)}
-                        className="w-full sm:w-auto text-xs text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-100 font-medium transition-colors mt-1 px-3 py-1.5 rounded-md flex items-center justify-center gap-1.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Delete draft
-                      </button>
-                    </div>
+            <div className="mb-10 relative overflow-hidden rounded-2xl bg-slate-900 shadow-xl shadow-blue-900/10 border border-slate-800 transition-all hover:shadow-2xl hover:shadow-blue-900/20 group">
+              {/* Decorative background glow */}
+              <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-500/20 blur-[80px] pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-700"></div>
+              <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-indigo-500/20 blur-[80px] pointer-events-none group-hover:bg-indigo-500/30 transition-colors duration-700"></div>
+              
+              <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex-1 min-w-0 z-10">
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-[11px] font-bold uppercase tracking-widest border border-blue-400/20 shadow-sm backdrop-blur-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                      IN PROGRESS
+                    </span>
+                    {((activeSessions[0] as any).scenarioType || activeSessions[0].scenario_type) && (
+                      <span className="px-3 py-1 bg-white/5 text-slate-300 text-[11px] font-semibold uppercase tracking-wider rounded-full border border-white/10 backdrop-blur-md">
+                        {((activeSessions[0] as any).scenarioType || activeSessions[0].scenario_type).replace(/_/g, ' ')}
+                      </span>
+                    )}
                   </div>
-                ))}
+                  
+                  <h4 className="text-2xl font-bold text-white mb-2 tracking-tight flex items-center gap-2">
+                    Elicitation in progress
+                  </h4>
+
+                  <p className="text-sm font-medium text-slate-400">
+                    Stage {(activeSessions[0] as any).currentStage || activeSessions[0].current_stage || 1} of 5 &middot; Last updated {new Date((activeSessions[0] as any).updatedAt || activeSessions[0].updated_at || new Date()).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 z-10 shrink-0">
+                  <button
+                    onClick={() => setSessionToDelete(activeSessions[0].id)}
+                    className="text-sm font-medium text-slate-400 hover:text-red-400 transition-colors px-4 py-2.5 rounded-xl hover:bg-white/5"
+                  >
+                    Delete Draft
+                  </button>
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('currentSessionId', activeSessions[0].id);
+                      navigate("/ceo/elicitation");
+                    }}
+                    className="flex items-center justify-center gap-2 px-7 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10"
+                  >
+                    Continue <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          )}
-          
-          {/* DIVIDER */}
-          {(allProjects.length > 0 && activeSessions.length > 0) && (
-            <div className="w-full h-px bg-slate-200"></div>
           )}
 
           {/* BOTTOM SECTION: Published Projects */}
@@ -257,7 +173,7 @@ export default function ProjectsPage() {
                       {project.tier.replace(/_/g, ' ')}
                     </span>
                   )}
-                  {project.self_technical && (
+                  {((project as any).selfTechnical || project.self_technical) && (
                     <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-semibold uppercase rounded-md border border-indigo-100">
                       Self-Managed Tech
                     </span>
@@ -273,12 +189,12 @@ export default function ProjectsPage() {
                       className="flex-1 px-3 py-1 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium"
                       autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveName(project.id);
+                        if (e.key === "Enter") handleSaveName(project.id, false);
                         if (e.key === "Escape") setEditingProjectId(null);
                       }}
                     />
                     <button
-                      onClick={() => handleSaveName(project.id)}
+                      onClick={() => handleSaveName(project.id, false)}
                       disabled={updateProjectName.isPending}
                       className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors shrink-0"
                       title="Save name"
@@ -294,7 +210,7 @@ export default function ProjectsPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 mb-1 group flex-wrap">
+                      <div className="flex items-center gap-2 mb-1 group flex-wrap">
                     <h4 className="text-lg font-bold text-slate-900 truncate max-w-sm sm:max-w-md">
                       {project.projectName || `Project ${project.id}`}
                     </h4>
@@ -312,21 +228,21 @@ export default function ProjectsPage() {
                 )}
                 
                 <p className="text-sm text-slate-500 mb-3">
-                  Published {new Date(project.created_at).toLocaleDateString()}
+                  Published {new Date((project as any).createdAt || project.created_at || new Date()).toLocaleDateString()}
                 </p>
                 
                 {/* Domains and Seams Tags */}
-                {((project.required_domains_json && project.required_domains_json.length > 0) || 
-                  (project.required_seams_json && project.required_seams_json.length > 0)) && (
+                {(((project as any).requiredDomainsJson || project.required_domains_json)?.length > 0 || 
+                  ((project as any).requiredSeamsJson || project.required_seams_json)?.length > 0) && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {project.required_domains_json?.map(d => (
-                      <span key={d.domain_code} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-slate-200">
-                        {d.domain_code.replace(/_/g, ' ')}
+                    {((project as any).requiredDomainsJson || project.required_domains_json)?.map((d: any) => (
+                      <span key={d.domainCode || d.domain_code} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-slate-200">
+                        {(d.domainCode || d.domain_code).replace(/_/g, ' ')}
                       </span>
                     ))}
-                    {project.required_seams_json?.map(s => (
-                      <span key={s.seam_code} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-slate-200">
-                        {s.seam_code.replace(/_/g, ' ')}
+                    {((project as any).requiredSeamsJson || project.required_seams_json)?.map((s: any) => (
+                      <span key={s.seamCode || s.seam_code} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-slate-200">
+                        {(s.seamCode || s.seam_code).replace(/_/g, ' ')}
                       </span>
                     ))}
                   </div>
@@ -365,6 +281,7 @@ export default function ProjectsPage() {
       >
         Are you sure you want to delete this project draft? This action cannot be undone.
       </ConfirmModal>
-    </div>
+
+      </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useReducer, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -204,6 +205,9 @@ export default function ElicitationWizard() {
   const handleStartOver = async () => {
     dispatch({ type: "START_OVER_START" });
     try {
+      if (state.sessionId) {
+        await apiClient.put(`/elicitation/sessions/${state.sessionId}/abandon`);
+      }
       const data = await createSession();
       dispatch({ type: "START_OVER_SUCCESS", payload: { sessionId: data.id } });
     } catch (err: any) {

@@ -45,7 +45,7 @@ export function CeoOverview() {
   return (
     <div className="w-full">
       <DashboardGreeting />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:auto-rows-[180px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:auto-rows-[180px]">
         {/* Subscription Banner */}
         {!hasSubscription && (
           <DashboardBanner

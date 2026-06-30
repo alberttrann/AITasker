@@ -97,7 +97,7 @@ export default function ShortlistView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {experts.map((expert, i) => (
           <MatchCard key={expert.expert_id || i} expert={expert} />
         ))}
