@@ -33,6 +33,16 @@ type WizardState = {
   sessionState: string;
   voidList: VoidItem[];
   archetype: string | null;
+  symptomText: string;
+  acknowledgedVoids: string[];
+  probeResponses: Record<string, string>;
+  techContext: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
   gateResult: GateResult | null;
   error: string | null;
   isLoading: boolean;
@@ -60,12 +70,16 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_ERROR":
       return { ...state, error: action.payload };
     case "STAGE_COMPLETE":
-      const { voidListJson, archetype, gateResult } = action.payload;
+      const { voidListJson, archetype, gateResult, symptomText, acknowledgedVoidCodes, probeResponses, techContext } = action.payload;
       return {
         ...state,
         error: null,
+        symptomText: symptomText ?? state.symptomText,
         voidList: voidListJson || state.voidList,
+        acknowledgedVoids: acknowledgedVoidCodes ?? state.acknowledgedVoids,
         archetype: archetype || state.archetype,
+        probeResponses: probeResponses || state.probeResponses,
+        techContext: techContext || state.techContext,
         gateResult: gateResult || state.gateResult,
         currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
         sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
@@ -93,6 +107,16 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         sessionState: "IN_PROGRESS",
         voidList: [],
         archetype: null,
+        symptomText: "",
+        acknowledgedVoids: [],
+        probeResponses: {},
+        techContext: {
+          scaleAndInfrastructure: "",
+          integrationMethod: "",
+          legacyVolume: "",
+          schemas: [],
+          contracts: [],
+        },
       };
     case "SET_FORCE_SCENARIO_A":
       return { ...state, forceScenarioA: action.payload };
@@ -114,6 +138,16 @@ export default function ElicitationWizard() {
     sessionState: "IN_PROGRESS",
     voidList: [],
     archetype: null,
+    symptomText: "",
+    acknowledgedVoids: [],
+    probeResponses: {},
+    techContext: {
+      scaleAndInfrastructure: "",
+      integrationMethod: "",
+      legacyVolume: "",
+      schemas: [],
+      contracts: [],
+    },
     gateResult: null,
     error: null,
     isLoading: true,
@@ -370,6 +404,7 @@ export default function ElicitationWizard() {
           {state.currentStage === 1 && state.sessionId && (
             <Stage1Symptoms
               sessionId={state.sessionId}
+              initialSymptomText={state.symptomText}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
             />
@@ -378,6 +413,8 @@ export default function ElicitationWizard() {
             <Stage2Archetype
               sessionId={state.sessionId}
               voidList={state.voidList}
+              initialArchetype={state.archetype}
+              initialAcknowledgedVoids={state.acknowledgedVoids}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
               onBack={handleBack}
@@ -387,6 +424,7 @@ export default function ElicitationWizard() {
             <Stage3Probes
               sessionId={state.sessionId}
               archetype={state.archetype}
+              initialResponses={state.probeResponses}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
               onBack={handleBack}
@@ -397,6 +435,7 @@ export default function ElicitationWizard() {
             (user?.self_technical || state.forceScenarioA ? (
               <Stage4ScenarioA
                 sessionId={state.sessionId}
+                initialTechContext={state.techContext}
                 onComplete={handleStageComplete}
                 onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
                 onBack={state.forceScenarioA ? () => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: false }) : handleBack}

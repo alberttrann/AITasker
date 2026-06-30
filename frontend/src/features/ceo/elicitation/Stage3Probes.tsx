@@ -10,6 +10,7 @@ interface Stage3Props {
   onComplete: (data: { probeResponses: Record<string, string> }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
+  initialResponses?: Record<string, string>;
 }
 
 type State = {
@@ -43,11 +44,16 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export default function Stage3Probes({ sessionId, archetype, onComplete, onError, onBack }: Stage3Props) {
+export default function Stage3Probes({ sessionId, archetype, onComplete, onError, onBack, initialResponses = {} }: Stage3Props) {
   const questions = PROBES[archetype] ?? PROBES['1'];
   
   const [state, dispatch] = useReducer(reducer, {
-    answers: { q1: '', q2: '', q3: '', q4: '' },
+    answers: { 
+      q1: initialResponses[questions.q1] ?? '', 
+      q2: initialResponses[questions.q2] ?? '', 
+      q3: initialResponses[questions.q3] ?? '', 
+      q4: initialResponses[questions.q4] ?? '' 
+    },
     vagueAnswers: [],
     isSubmitting: false
   });

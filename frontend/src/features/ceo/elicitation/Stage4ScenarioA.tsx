@@ -9,6 +9,13 @@ interface Stage4AProps {
   onComplete: (data: { gateResult: GateResult }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
+  initialTechContext?: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
 }
 
 type FormState = {
@@ -51,14 +58,14 @@ function formReducer(state: FormState, action: FormAction): FormState {
   }
 }
 
-export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack }: Stage4AProps) {
+export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack, initialTechContext }: Stage4AProps) {
   const [state, dispatch] = useReducer(formReducer, {
-    scaleAndInfrastructure: '',
-    integrationMethod: '',
-    legacyVolume: '',
-    schemas: [],
+    scaleAndInfrastructure: initialTechContext?.scaleAndInfrastructure ?? '',
+    integrationMethod: initialTechContext?.integrationMethod ?? '',
+    legacyVolume: initialTechContext?.legacyVolume ?? '',
+    schemas: initialTechContext?.schemas ?? [],
     schemaInput: '',
-    contracts: [],
+    contracts: initialTechContext?.contracts ?? [],
     contractInput: '',
     isSubmitting: false,
   });
@@ -70,7 +77,16 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
     dispatch({ type: 'SUBMIT_START' });
     try {
       const data = await submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts);
-      onComplete({ gateResult: data as GateResult });
+      onComplete({ 
+        gateResult: data as GateResult,
+        techContext: {
+          scaleAndInfrastructure: state.scaleAndInfrastructure.trim(),
+          integrationMethod: state.integrationMethod.trim(),
+          legacyVolume: state.legacyVolume.trim(),
+          schemas: state.schemas,
+          contracts: state.contracts,
+        }
+      });
     } catch (err: any) {
       onError(handleElicitationError(err).message || 'Failed to submit technical context.');
     } finally {
