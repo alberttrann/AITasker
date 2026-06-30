@@ -92,7 +92,7 @@ export function RoleRoute({ requiredRole, requiredSubtype }: RoleRouteProps) {
 
   const allowed =
     (requiredRole    !== undefined && activeRole    === requiredRole)    ||
-    (requiredSubtype !== undefined && clientSubtype === requiredSubtype);
+    (requiredSubtype !== undefined && activeRole    === 'CLIENT' && clientSubtype === requiredSubtype);
 
   if (!allowed) {
     const basePath = homePath(activeRole, clientSubtype);

@@ -35,7 +35,7 @@ export default function ErrorPage() {
             We lost this page in the void.
           </h2>
 
-          <p className="w-[90%] sm:max-w-6xl max-w-full mx-auto text-base md:text-lg text-primary-dark/80 font-body mb-10 leading-relaxed bg-primary-bg p-4 rounded-[16px] border border-primary-light/30 shrink-0 min-w-0">
+          <p className="w-[90%] sm:max-w-4xl max-w-full mx-auto text-base md:text-lg text-primary-dark/80 font-body mb-10 leading-relaxed bg-primary-bg p-4 rounded-[16px] border border-primary-light/30 shrink-0 min-w-0">
             The link you followed might be broken, or the page has been moved. Let's get you back to familiar territory.
           </p>
 
