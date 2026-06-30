@@ -129,8 +129,8 @@ const RoleIcon =
             to={dashboardRoute} 
             className="relative flex items-center group"
           >
-            <span className="font-headline font-extrabold text-2xl text-primary-dark tracking-tight transition-colors duration-300 hover:text-primary-dark/80">
-              AITasker
+            <span className="font-headline font-extrabold text-3xl text-primary-dark tracking-tight transition-colors duration-300 hover:text-primary-dark/80">
+              AITasker.
             </span>
           </Link>
         </div>
