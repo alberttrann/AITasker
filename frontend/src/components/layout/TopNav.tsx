@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw } from 'lucide-react';
+import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
@@ -334,8 +334,10 @@ const RoleIcon =
                       </Link>
                     )}
 
-                    {/* Divider */}
-                    <div className="h-[1px] bg-primary/10 my-2 mx-4" />
+                    {/* Divider for Promoted Actions */}
+                    {(!(hasClient && hasExpert) || !isPro) && (
+                      <div className="h-[1px] bg-primary/10 my-2 mx-4" />
+                    )}
 
                     {!(hasClient && hasExpert) && (
                       <button
@@ -343,11 +345,25 @@ const RoleIcon =
                           setActiveDropdown(null);
                           setIsAddRoleModalOpen(true);
                         }}
-                        className="px-5 py-3 text-sm text-left font-headline font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors mx-2 mb-2 rounded-lg"
+                        className="px-5 py-3 text-sm text-left font-headline font-extrabold text-emerald-700 bg-transparent hover:bg-emerald-50 transition-colors mx-2 mb-2 rounded-lg"
                       >
                         {isClientActive ? 'Become an Expert' : 'Become a Client'}
                       </button>
                     )}
+
+                    {!isPro && (
+                      <Link
+                        to={`${dashboardRoute}/subscription`}
+                        onClick={() => setActiveDropdown(null)}
+                        className="px-5 py-3 text-sm text-left font-headline font-extrabold text-blue-700 bg-transparent hover:bg-blue-50 transition-colors mx-2 mb-2 rounded-lg flex items-center justify-between"
+                      >
+                        Upgrade to Pro
+                        <Sparkles size={16} />
+                      </Link>
+                    )}
+
+                    {/* Divider before Sign Out */}
+                    <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     
                     <button
                       onClick={() => {
@@ -428,18 +444,37 @@ const RoleIcon =
                 </button>
               )}
 
+              {/* Divider for Promoted Actions */}
+              {(!(hasClient && hasExpert) || !isPro) && (
+                <div className="h-[1px] bg-primary/10 my-2" />
+              )}
+
               {!(hasClient && hasExpert) && (
                 <button
                   onClick={() => {
                     setActiveDropdown(null);
                     setIsAddRoleModalOpen(true);
                   }}
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg font-headline font-extrabold transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-emerald-700 bg-transparent hover:bg-emerald-50 rounded-lg font-headline font-extrabold transition-colors"
                 >
                   <UserPlus size={18} />
                   {isClientActive ? 'Become an Expert' : 'Become a Client'}
                 </button>
               )}
+
+              {!isPro && (
+                <Link
+                  to={`${dashboardRoute}/subscription`}
+                  onClick={() => setActiveDropdown(null)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-blue-700 bg-transparent hover:bg-blue-50 rounded-lg font-headline font-extrabold transition-colors mt-2"
+                >
+                  <Sparkles size={18} />
+                  Upgrade to Pro
+                </Link>
+              )}
+
+              {/* Divider before Sign Out */}
+              <div className="h-[1px] bg-primary/10 my-2" />
 
               <button onClick={() => { setActiveDropdown(null); handleSignOut(); }} className="flex items-center justify-center gap-2 px-4 py-3 mt-2 text-error hover:bg-error/10 rounded-lg font-headline font-bold transition-colors">
                 Sign Out
