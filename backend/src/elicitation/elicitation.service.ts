@@ -324,7 +324,7 @@ export class ElicitationService {
     return this.runSynthesis(updated, techTeamUserId);
   }
 
-  async inviteTechTeam(sessionId: string, ceoUserId: string) {
+  async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, ceoUserId);
 
@@ -334,6 +334,7 @@ export class ElicitationService {
       {
         sessionId: session.id,
         ceoId:     ceoUserId,
+        email:     email,
         jti:       jti,
         purpose:   'tech-team-handoff',
       },
@@ -349,7 +350,7 @@ export class ElicitationService {
     });
 
     const inviteLink =
-      `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/tech-team/register?token=${inviteToken}`;
+      `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/register/handoff/${inviteToken}`;
 
     return {
       invite_token: inviteToken,

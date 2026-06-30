@@ -141,8 +141,9 @@ export async function submitStage4(
 /** Stage 4 — Tech Team handoff submit */
 export async function submitStage4Handoff(sessionId: string, payload: any) {
   const { data } = await apiClient.put(
-    `/elicitation/${sessionId}/stage4-handoff`,
-    payload
+    `/elicitation/sessions/${sessionId}/stage4-handoff`,
+    payload,
+    { timeout: 120_000 }
   );
   return data;
 }

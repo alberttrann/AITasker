@@ -11,6 +11,7 @@ import {
   getSession,
   getActiveSession,
   handleElicitationError,
+  revertSession,
   STAGE_LABELS,
   type GateResult,
   type StageCompleteData,
@@ -36,6 +37,7 @@ type WizardState = {
   isLoading: boolean;
   forceScenarioA: boolean;
   isCancelModalOpen: boolean;
+  archetype: string | null;
 };
 
 type WizardAction =
@@ -57,15 +59,17 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, ...action.payload, isLoading: false };
     case "SET_ERROR":
       return { ...state, error: action.payload };
-    case "STAGE_COMPLETE":
-      const { gateResult } = action.payload;
+    case "STAGE_COMPLETE": {
+      const { gateResult, archetype } = action.payload;
       return {
         ...state,
         error: null,
         gateResult: gateResult || state.gateResult,
+        archetype: archetype || state.archetype,
         currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
         sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
       };
+    }
     case "SYNTHESIS_RESOLVED":
       return {
         ...state,
@@ -117,6 +121,7 @@ export default function ElicitationWizard() {
     isLoading: true,
     forceScenarioA: false,
     isCancelModalOpen: false,
+    archetype: null,
   });
 
   useEffect(() => {
@@ -172,6 +177,7 @@ export default function ElicitationWizard() {
             currentStage: data.currentStage ?? 1,
             sessionState: finalSessionState,
             gateResult: initGateResult as GateResult | null,
+            archetype: data.archetype || null,
           }
         });
 
@@ -197,7 +203,17 @@ export default function ElicitationWizard() {
     dispatch({ type: "SYNTHESIS_RESOLVED", payload: result });
   };
   const handleTechTeamSubmitted = () => dispatch({ type: "TECH_TEAM_SUBMITTED" });
-  const handleReturnToStage = (stage: number) => dispatch({ type: "RETURN_TO_STAGE", payload: stage });
+  const handleReturnToStage = async (stage: number) => {
+    if (state.sessionId) {
+      try {
+        await revertSession(state.sessionId, stage);
+      } catch (err: any) {
+        dispatch({ type: "SET_ERROR", payload: handleElicitationError(err).message });
+        return;
+      }
+    }
+    dispatch({ type: "RETURN_TO_STAGE", payload: stage });
+  };
   const handleBack = () => dispatch({ type: "BACK" });
 
   const handleStartOver = async () => {
@@ -288,6 +304,7 @@ export default function ElicitationWizard() {
         <QualityGatePassed
           projectId={state.gateResult.project_id}
           completenessScore={state.gateResult.completeness_score}
+          archetype={state.archetype!}
           onStartNew={handleStartOver}
         />
       </div>

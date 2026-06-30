@@ -140,9 +140,9 @@ export class ElicitationController {
   @Post('sessions/:id/generate-handoff-link')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async inviteTechTeam(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async inviteTechTeam(@Param('id') id: string, @Body('email') email: string, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
-    return this.elicitationService.inviteTechTeam(id, user.id);
+    return this.elicitationService.inviteTechTeam(id, user.id, email);
   }
 
   // [Pro-C]
