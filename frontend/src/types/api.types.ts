@@ -137,6 +137,7 @@ export interface ProjectDto {
   required_domains_json:     RequiredDomain[];
   milestone_framework_json:  MilestoneFrameworkItem[];
   artifact_a_json:           ArtifactA | null;
+  projectName?:              string | null;
   created_at:                string;
 }
 

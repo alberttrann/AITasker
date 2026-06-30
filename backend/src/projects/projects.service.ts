@@ -25,6 +25,7 @@ export class ProjectsService {
       select: {
         id: true, clientId: true, state: true,
         archetype: true, tier: true, artifactAJson: true,
+        projectName: true,
       },
     });
 
@@ -192,6 +193,7 @@ export class ProjectsService {
       archetype: project.archetype,
       tier: project.tier,
       artifact_a_json: project.artifactAJson,
+      projectName: project.projectName,
     };
   }
 

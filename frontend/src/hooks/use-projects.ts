@@ -37,10 +37,36 @@ export function useDeleteElicitationSession() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await apiClient.delete(`/elicitation/sessions/${id}`);
+      await apiClient.put(`/elicitation/sessions/${id}/abandon`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
+    }
+  });
+}
+
+export function useRestoreElicitationSession() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.put(`/elicitation/sessions/${id}/continue`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
+    }
+  });
+}
+
+export function useUpdateProjectName() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, projectName }: { id: string; projectName: string }) => {
+      await apiClient.put(`/projects/${id}/name`, { projectName });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     }
   });
 }

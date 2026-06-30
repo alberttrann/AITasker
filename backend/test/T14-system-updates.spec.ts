@@ -165,6 +165,15 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
       expect(res.body.state).toBe('ABANDONED');
     });
 
+    it('PUT /elicitation/sessions/:id/continue - marks session as IN_PROGRESS', async () => {
+      const res = await supertest(app.getHttpServer())
+        .put(`/elicitation/sessions/${sessionId}/continue`)
+        .set('Authorization', `Bearer ${ceoToken}`)
+        .expect(200);
+
+      expect(res.body.state).toBe('IN_PROGRESS');
+    });
+
     it('GET /projects - lists CEO projects', async () => {
       // Seed a project
       await prisma.project.create({
