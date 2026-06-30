@@ -32,8 +32,14 @@ export default function DomainDepthGrid({ onSave, initialDomains = [] }: DomainD
   const [error, setError] = useState<string | null>(null);
 
   const updateDepth = (code: string, depth: "SURFACE" | "OPERATIONAL" | "DEEP") => {
-    setDomainStates(prev => prev.map(d => d.domainCode === code ? { ...d, depthLevel: depth } : d));
+    setDomainStates(prev => prev.map(d => {
+      if (d.domainCode === code) {
+        return { ...d, depthLevel: d.depthLevel === depth ? null : depth };
+      }
+      return d;
+    }));
   };
+
 
   const handleSave = async () => {
     setError(null);
