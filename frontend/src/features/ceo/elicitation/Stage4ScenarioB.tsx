@@ -107,18 +107,20 @@ export default function Stage4ScenarioB({
   // Render: before link generated
   if (!inviteSent) {
     return (
-      <div className="mx-auto space-y-4">
-        <h2 className="text-lg font-semibold">
-          Delegate technical details to your team
-        </h2>
-        <p className="text-sm text-gray-600">
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
+          <p className="text-body-sm text-secondary">Delegate technical details to your team</p>
+        </div>
+
+        <p className="text-body-sm text-secondary">
           We'll generate a secure invite link for your tech team member. You'll
           need to share it with them yourself — there's no automatic email for
           this yet. Once they register and submit, you'll see it update here.
         </p>
 
         <div className="space-y-2">
-          <label htmlFor="tech-team-email" className="text-sm font-medium">
+          <label htmlFor="tech-team-email" className="text-body-sm font-semibold text-primary">
             Tech team member's email
           </label>
           <input
@@ -127,16 +129,15 @@ export default function Stage4ScenarioB({
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="name@company.com"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary placeholder:text-secondary transition-shadow hover:border-primary focus:border-2 focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none"
             disabled={isSending}
           />
-          <p className="text-xs text-gray-400">
-            Used to link the account once they register — not used to send an
-            email.
+          <p className="text-caption text-secondary">
+            Used to link the account once they register — not used to send an email.
           </p>
         </div>
 
-        {sendError && <p className="text-sm text-red-600">{sendError}</p>}
+        {sendError && <p className="text-body-sm text-error">{sendError}</p>}
 
         <Button
           onClick={handleGenerateLink}
@@ -146,13 +147,13 @@ export default function Stage4ScenarioB({
         >
           {isSending ? "Generating link…" : "Generate invite link"}
         </Button>
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-4">
           <Button variant="outline" onClick={handleBackClick} disabled={isSending || isReverting}>
             {isReverting ? 'Going back…' : '← Back'}
           </Button>
           <button
             onClick={onFillInMyself}
-            className="text-sm text-gray-500 underline"
+            className="text-body-sm text-secondary hover:text-primary hover:underline transition-colors font-medium"
           >
             Actually, I'll fill in the details myself
           </button>
@@ -164,16 +165,19 @@ export default function Stage4ScenarioB({
   // Render: timed out — let the CEO regenerate or switch to Scenario A
   if (timedOut) {
     return (
-      <div className="mx-auto space-y-4 text-center">
-        <h2 className="text-lg font-semibold">
-          Still waiting on your tech team
-        </h2>
-        <p className="text-sm text-gray-600">
-          It's been a while since the link for <strong>{inviteEmail}</strong>{" "}
+      <div className="space-y-8 text-center">
+        <div>
+          <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
+          <p className="text-body-sm text-secondary">Still waiting on your tech team</p>
+        </div>
+
+        <p className="text-body-sm text-secondary">
+          It's been a while since the link for <strong className="text-primary">{inviteEmail}</strong>{" "}
           was generated. You can generate a new one, or fill in the technical
           details yourself instead.
         </p>
-        <div className="flex flex-col gap-2">
+
+        <div className="mx-auto max-w-sm flex flex-col gap-3 pt-4">
           <Button
             onClick={handleResendInvite}
             variant="outline"
@@ -181,15 +185,15 @@ export default function Stage4ScenarioB({
           >
             Generate a new link
           </Button>
-          {/* Wizard-level fallback — lets the CEO bail to Stage4ScenarioA */}
           <button
             onClick={onFillInMyself}
-            className="text-sm text-gray-500 underline"
+            className="text-body-sm text-secondary hover:text-primary hover:underline transition-colors font-medium mt-2"
           >
             Fill in the details myself instead
           </button>
-          <div className="pt-4 flex justify-center">
-            <Button variant="outline" onClick={handleBackClick} disabled={isReverting}>
+          
+          <div className="pt-6">
+            <Button variant="outline" onClick={handleBackClick} disabled={isReverting} className="w-full">
               {isReverting ? 'Going back…' : '← Back'}
             </Button>
           </div>
@@ -200,9 +204,11 @@ export default function Stage4ScenarioB({
 
   // Render: waiting state (link generated, polling in progress)
   return (
-    <div className="mx-auto space-y-4">
+    <div className="space-y-8">
       {isPollError && !timedOut && (
-        <p className="text-xs text-amber-600 text-center">Having trouble checking status — will keep retrying.</p>
+        <p className="text-caption text-warning text-center bg-warning/10 p-2 rounded-md">
+          Having trouble checking status — will keep retrying.
+        </p>
       )}
       <Stage4HandoffLink
         inviteLink={inviteLink!}
@@ -210,7 +216,7 @@ export default function Stage4ScenarioB({
         onGenerateNew={handleResendInvite}
         onFillInMyself={onFillInMyself}
       />
-      <div className="pt-4">
+      <div className="flex items-center justify-start pt-4 border-t border-slate-100">
         <Button variant="outline" onClick={handleBackClick} disabled={isReverting}>
           {isReverting ? 'Going back…' : '← Back'}
         </Button>

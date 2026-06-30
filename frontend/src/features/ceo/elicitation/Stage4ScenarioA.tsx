@@ -10,6 +10,7 @@ interface Stage4AProps {
   onComplete: (data: { gateResult: GateResult }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
+  isForced?: boolean;
 }
 
 type FormState = {
@@ -96,7 +97,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
   }
 }
 
-export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack }: Stage4AProps) {
+export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack, isForced }: Stage4AProps) {
   const queryClient = useQueryClient();
   const { session, isLoadingSession } = useElicitation(sessionId);
   const [state, dispatch] = useReducer(formReducer, {
@@ -235,6 +236,11 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
       </div>
       <div className="flex items-center justify-between pt-4">
         <Button variant="outline" onClick={async () => {
+          if (isForced) {
+            onBack();
+            return;
+          }
+
           dispatch({ type: 'REVERT_START' });
           try {
             await revertSession(sessionId, 3);
@@ -245,7 +251,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
             dispatch({ type: 'REVERT_END' });
           }
         }} disabled={state.isSubmitting || state.isReverting}>
-          {state.isReverting ? 'Going back…' : '← Back'}
+          {state.isReverting ? 'Going back…' : (isForced ? '← Back to Generate Link' : '← Back')}
         </Button>
         <Button variant="primary" disabled={!canSubmit || state.isSubmitting || state.isReverting} onClick={handleSubmit}>
           {state.isSubmitting ? 'Submitting…' : 'Submit & Generate PRD →'}

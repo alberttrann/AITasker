@@ -410,6 +410,7 @@ export default function ElicitationWizard() {
                 onComplete={handleStageComplete}
                 onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
                 onBack={state.forceScenarioA ? () => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: false }) : handleBack}
+                isForced={state.forceScenarioA}
               />
             ) : (
               <Stage4ScenarioB

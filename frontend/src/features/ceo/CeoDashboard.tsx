@@ -92,46 +92,7 @@ export function CeoOverview() {
         </div>
       </div>
 
-      {/* BOTTOM SECTION: Published Projects */}
-      {allProjects.length > 0 && (
-        <div className="mt-8">
-          <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Projects List</h4>
-          <div className="flex flex-col gap-4">
-            {allProjects.map((project) => (
-              <div key={project.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold uppercase tracking-wider">
-                      <PlayCircle className="w-3.5 h-3.5" />
-                      {project.state.replace(/_/g, ' ')}
-                    </span>
-                    {project.tier && (
-                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[11px] font-semibold uppercase rounded-md border border-purple-100">
-                        {project.tier.replace(/_/g, ' ')}
-                      </span>
-                    )}
-                    {project.selfTechnical && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-semibold uppercase rounded-md border border-indigo-100">
-                        Self-Managed Tech
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mb-1 group flex-wrap">
-                    <h4 className="text-lg font-bold text-slate-900 truncate max-w-sm sm:max-w-md">
-                      {project.projectName || `Project ${project.id}`}
-                    </h4>
-                  </div>
-                  
-                  <p className="text-sm text-slate-500 mb-3">
-                    Created: {new Date(getSafeDate(project, 'createdAt')).toLocaleDateString()} &middot; Last updated: {new Date(getSafeDate(project, 'updatedAt')).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
     </div>
   );
