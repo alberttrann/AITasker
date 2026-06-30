@@ -1,7 +1,8 @@
-import { useReducer } from 'react';
+import { useReducer, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
-import { submitStage4, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
+import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 
 interface Stage4AProps {
@@ -9,13 +10,6 @@ interface Stage4AProps {
   onComplete: (data: { gateResult: GateResult }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
-  initialTechContext?: {
-    scaleAndInfrastructure: string;
-    integrationMethod: string;
-    legacyVolume: string;
-    schemas: string[];
-    contracts: string[];
-  };
 }
 
 type FormState = {
@@ -27,6 +21,8 @@ type FormState = {
   contracts: string[];
   contractInput: string;
   isSubmitting: boolean;
+  isReverting: boolean;
+  initialized: boolean;
 };
 
 type FormAction =
@@ -34,7 +30,10 @@ type FormAction =
   | { type: 'ADD_URL'; listField: 'schemas' | 'contracts'; inputField: 'schemaInput' | 'contractInput' }
   | { type: 'REMOVE_URL'; listField: 'schemas' | 'contracts'; index: number }
   | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_END' };
+  | { type: 'SUBMIT_END' }
+  | { type: 'REVERT_START' }
+  | { type: 'REVERT_END' }
+  | { type: 'INIT_STATE'; payload: any };
 
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
@@ -53,45 +52,76 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, isSubmitting: true };
     case 'SUBMIT_END':
       return { ...state, isSubmitting: false };
+    case 'REVERT_START':
+      return { ...state, isReverting: true };
+    case 'REVERT_END':
+      return { ...state, isReverting: false };
+    case 'INIT_STATE':
+      const currentStackStr = action.payload.current_stack || '';
+      const scaleAndInfrastructure = currentStackStr.split('\nSchemas: ')[0]?.replace('Scale & Infra: ', '') || '';
+      const schemasStr = currentStackStr.split('\nSchemas: ')[1] || '';
+      const schemas = schemasStr === 'None' ? [] : schemasStr.split(', ').filter(Boolean);
+
+      const legacyVolume = (action.payload.data_available || '').replace('Legacy Volume: ', '');
+
+      const latencyReqStr = action.payload.latency_requirement || '';
+      const integrationMethod = latencyReqStr.split('\nContracts: ')[0]?.replace('Integration Method: ', '') || '';
+      const contractsStr = latencyReqStr.split('\nContracts: ')[1] || '';
+      const contracts = contractsStr === 'None' ? [] : contractsStr.split(', ').filter(Boolean);
+
+      return {
+        ...state,
+        scaleAndInfrastructure,
+        legacyVolume,
+        integrationMethod,
+        schemas,
+        contracts,
+        initialized: true
+      };
     default:
       return state;
   }
 }
 
-export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack, initialTechContext }: Stage4AProps) {
+export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack }: Stage4AProps) {
+  const queryClient = useQueryClient();
+  const { session, isLoadingSession } = useElicitation(sessionId);
   const [state, dispatch] = useReducer(formReducer, {
-    scaleAndInfrastructure: initialTechContext?.scaleAndInfrastructure ?? '',
-    integrationMethod: initialTechContext?.integrationMethod ?? '',
-    legacyVolume: initialTechContext?.legacyVolume ?? '',
-    schemas: initialTechContext?.schemas ?? [],
+    scaleAndInfrastructure: '',
+    integrationMethod: '',
+    legacyVolume: '',
+    schemas: [],
     schemaInput: '',
-    contracts: initialTechContext?.contracts ?? [],
+    contracts: [],
     contractInput: '',
     isSubmitting: false,
+    isReverting: false,
+    initialized: false,
   });
+
+  useEffect(() => {
+    if (session?.stage4TechInputsJson && !state.initialized) {
+       dispatch({ type: 'INIT_STATE', payload: session.stage4TechInputsJson });
+    } else if (session && !session.stage4TechInputsJson && !state.initialized) {
+       dispatch({ type: 'INIT_STATE', payload: {} });
+    }
+  }, [session, state.initialized]);
 
   const canSubmit = state.scaleAndInfrastructure.trim().length > 0 && state.integrationMethod.trim().length > 0 && state.legacyVolume.trim().length > 0;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!canSubmit) return;
     dispatch({ type: 'SUBMIT_START' });
-    try {
-      const data = await submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts);
-      onComplete({ 
-        gateResult: data as GateResult,
-        techContext: {
-          scaleAndInfrastructure: state.scaleAndInfrastructure.trim(),
-          integrationMethod: state.integrationMethod.trim(),
-          legacyVolume: state.legacyVolume.trim(),
-          schemas: state.schemas,
-          contracts: state.contracts,
-        }
+    
+    submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      })
+      .catch((err: any) => {
+        onError(handleElicitationError(err).message || 'Failed to submit technical context.');
       });
-    } catch (err: any) {
-      onError(handleElicitationError(err).message || 'Failed to submit technical context.');
-    } finally {
-      dispatch({ type: 'SUBMIT_END' });
-    }
+
+    onComplete({});
   };
 
   const addUrl = (type: 'schema' | 'contract') => {
@@ -166,10 +196,20 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
         </div>
       </div>
       <div className="flex items-center justify-between pt-4">
-        <Button variant="outline" onClick={onBack} disabled={state.isSubmitting}>
-          ← Back
+        <Button variant="outline" onClick={async () => {
+          dispatch({ type: 'REVERT_START' });
+          try {
+            await revertSession(sessionId, 3);
+            await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+            onBack();
+          } catch (err: any) {
+            onError(handleElicitationError(err).message || 'Failed to revert session.');
+            dispatch({ type: 'REVERT_END' });
+          }
+        }} disabled={state.isSubmitting || state.isReverting}>
+          {state.isReverting ? 'Going back…' : '← Back'}
         </Button>
-        <Button variant="primary" disabled={!canSubmit || state.isSubmitting} onClick={handleSubmit}>
+        <Button variant="primary" disabled={!canSubmit || state.isSubmitting || state.isReverting} onClick={handleSubmit}>
           {state.isSubmitting ? 'Submitting…' : 'Submit & Generate PRD →'}
         </Button>
       </div>

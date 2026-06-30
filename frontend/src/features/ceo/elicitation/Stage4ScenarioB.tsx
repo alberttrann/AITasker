@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Stage4HandoffLink from "./Stage4HandoffLink";
-import { inviteTechTeam, getSession } from "@/hooks/use-elicitation";
+import { inviteTechTeam, getSession, revertSession, handleElicitationError, useElicitation } from "@/hooks/use-elicitation";
 import type { Stage4ScenarioBProps } from "@t/ui.types";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Polling configuration
 // Stopgap until a real sockets/notifications module exists on the backend.
@@ -18,14 +18,29 @@ export default function Stage4ScenarioB({
   onFillInMyself,
   onBack,
 }: Stage4ScenarioBProps) {
+  const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
   const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
+
+  const handleBackClick = async () => {
+    setIsReverting(true);
+    setSendError(null);
+    try {
+      await revertSession(sessionId, 3);
+      await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      onBack();
+    } catch (err: any) {
+      setSendError(handleElicitationError(err).message || 'Failed to revert session.');
+      setIsReverting(false);
+    }
+  };
 
   // Generate the handoff invite link
   // NOTE: there is no email-sending infrastructure in this codebase.
@@ -131,8 +146,8 @@ export default function Stage4ScenarioB({
           {isSending ? "Generating link…" : "Generate invite link"}
         </button>
         <div className="flex items-center justify-between pt-2">
-          <Button variant="outline" onClick={onBack} disabled={isSending}>
-            ← Back
+          <Button variant="outline" onClick={handleBackClick} disabled={isSending || isReverting}>
+            {isReverting ? 'Going back…' : '← Back'}
           </Button>
           <button
             onClick={onFillInMyself}
@@ -172,8 +187,8 @@ export default function Stage4ScenarioB({
             Fill in the details myself instead
           </button>
           <div className="pt-4 flex justify-center">
-            <Button variant="outline" onClick={onBack}>
-              ← Back
+            <Button variant="outline" onClick={handleBackClick} disabled={isReverting}>
+              {isReverting ? 'Going back…' : '← Back'}
             </Button>
           </div>
         </div>
@@ -194,8 +209,8 @@ export default function Stage4ScenarioB({
         onFillInMyself={onFillInMyself}
       />
       <div className="pt-4">
-        <Button variant="outline" onClick={onBack}>
-          ← Back
+        <Button variant="outline" onClick={handleBackClick} disabled={isReverting}>
+          {isReverting ? 'Going back…' : '← Back'}
         </Button>
       </div>
     </div>

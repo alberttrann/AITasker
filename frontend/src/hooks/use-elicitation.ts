@@ -191,6 +191,11 @@ export async function abandonSession(sessionId: string) {
   return data;
 }
 
+export async function revertSession(sessionId: string, targetStage: number) {
+  const { data } = await apiClient.put(`/elicitation/sessions/${sessionId}/revert`, { targetStage });
+  return data;
+}
+
 // ─── Shared Constants ─────────────────────────────────────────────────
 
 export const STAGE_LABELS = [

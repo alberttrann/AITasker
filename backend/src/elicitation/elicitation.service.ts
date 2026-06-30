@@ -715,19 +715,19 @@ export class ElicitationService {
 
     const data: any = { currentStage: targetStage, state: 'IN_PROGRESS', updatedAt: new Date() };
 
-    if (targetStage <= 4) data.stage4TechInputsJson = null;
-    if (targetStage <= 3) {
-      data.stage3ProbesJson = null;
-      data.scenarioType = null;
-    }
-    if (targetStage <= 2) {
-      data.archetype = null;
-      data.recommendedArchetypesJson = null;
-    }
-    if (targetStage === 1) {
-      data.stage1SymptomsJson = null;
-      data.voidListJson = [];
-    }
+    // if (targetStage <= 4) data.stage4TechInputsJson = null;
+    // if (targetStage <= 3) {
+    //   data.stage3ProbesJson = null;
+    //   data.scenarioType = null;
+    // }
+    // if (targetStage <= 2) {
+    //   data.archetype = null;
+    //   data.recommendedArchetypesJson = null;
+    // }
+    // if (targetStage === 1) {
+    //   data.stage1SymptomsJson = null;
+    //   data.voidListJson = [];
+    // }
 
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },

@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getSession, type GateResult } from '@/hooks/use-elicitation';
-import { Bot, Loader2, CheckCircle2 } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useFakeProgress } from '@/hooks/use-fake-progress';
 
-const PROGRESS_MESSAGES = [
-  'Analyzing symptom descriptions…',
-  'Matching archetype patterns…',
-  'Building technical footprint…',
-  'Generating milestone framework…',
-  'Running quality gate…',
-];
 
 interface Stage5Props {
   sessionId: string;
@@ -20,13 +13,7 @@ interface Stage5Props {
 }
 
 export default function Stage5Loading({ sessionId, initialGateResult, onComplete, onError }: Stage5Props) {
-  const [messageIndex, setMessageIndex] = useState(0);
   const fakeProgress = useFakeProgress(true, 1500, 95, (prev) => prev + (prev < 50 ? 3 : prev < 80 ? 1.5 : 0.5));
-
-  useEffect(() => {
-    const interval = setInterval(() => setMessageIndex((prev) => (prev + 1) % PROGRESS_MESSAGES.length), 8000);
-    return () => clearInterval(interval);
-  }, []);
 
   const { data: sessionData, isError } = useQuery({
     queryKey: ['elicitation-session', sessionId],
@@ -79,20 +66,6 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
       </div>
       <div className="mx-auto h-4 w-full max-w-2xl overflow-hidden rounded-full bg-primary-bg border border-slate-200">
         <div className="h-full rounded-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${fakeProgress}%` }} />
-      </div>
-      <div className="mx-auto max-w-4sm rounded-lg border border-slate-200 bg-surface p-4 text-left">
-        <ul className="space-y-2">
-          {PROGRESS_MESSAGES.map((msg, i) => {
-            const isActive = i === messageIndex;
-            const isDone = i < messageIndex || (i === 0 && messageIndex === 0);
-            return (
-              <li key={i} className={`flex items-center gap-2 text-body-sm ${isActive ? 'text-primary font-medium' : isDone ? 'text-success' : 'text-secondary'}`}>
-                <span className="w-5 flex justify-center items-center">{isActive ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : isDone ? <CheckCircle2 className="w-4 h-4 text-success" /> : <div className="w-4 h-4 border-2 border-slate-300 rounded-sm" />}</span>
-                {msg}
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </div>
   );

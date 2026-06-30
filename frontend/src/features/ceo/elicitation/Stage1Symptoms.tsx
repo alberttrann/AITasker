@@ -18,17 +18,25 @@ interface Stage1Props {
     symptomText?: string;
   }) => void;
   onError: (msg: string) => void;
-  initialSymptomText?: string;
 }
 
 export default function Stage1Symptoms({
   sessionId,
   onComplete,
   onError,
-  initialSymptomText = "",
 }: Stage1Props) {
-  const [symptomText, setSymptomText] = useState(initialSymptomText);
+  const [symptomText, setSymptomText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`stage1_${sessionId}`);
+    if (saved) setSymptomText(saved);
+  }, [sessionId]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setSymptomText(e.target.value);
+    localStorage.setItem(`stage1_${sessionId}`, e.target.value);
+  };
   const [voidList, setVoidList] = useState<VoidItem[]>([]);
   const [acknowledgedVoids, setAcknowledgedVoids] = useState<Set<string>>(
     new Set(),
@@ -46,7 +54,7 @@ export default function Stage1Symptoms({
     try {
       const data = await submitStage1(sessionId, symptomText.trim());
       const voids = (data.voidListJson as VoidItem[]) ?? [];
-      
+
       if (voids.length === 0) {
         // AI found no specific gaps, automatically proceed to Stage 2
         onComplete({
@@ -93,7 +101,10 @@ export default function Stage1Symptoms({
           </p>
         </div>
         <div className="mx-auto mt-4 h-2 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
-          <div className="h-2 bg-blue-600 transition-all duration-1000 ease-out" style={{ width: `${fakeProgress}%` }} />
+          <div
+            className="h-2 bg-blue-600 transition-all duration-1000 ease-out"
+            style={{ width: `${fakeProgress}%` }}
+          />
         </div>
         <p className="text-caption text-secondary">
           AI is extracting symptoms, detecting gaps…
@@ -149,11 +160,13 @@ export default function Stage1Symptoms({
                       onChange={() => toggleAcknowledge(v.void_code)}
                       className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all cursor-pointer"
                     />
-                    <span className={`text-body-sm font-medium transition-colors select-none ${
-                      acknowledgedVoids.has(v.void_code)
-                        ? "text-success"
-                        : "text-tertiary group-hover:text-primary"
-                    }`}>
+                    <span
+                      className={`text-body-sm font-medium transition-colors select-none ${
+                        acknowledgedVoids.has(v.void_code)
+                          ? "text-success"
+                          : "text-tertiary group-hover:text-primary"
+                      }`}
+                    >
                       I understand
                     </span>
                   </label>
@@ -195,12 +208,13 @@ export default function Stage1Symptoms({
 
       <div className="rounded-lg bg-primary-bg p-4">
         <p className="text-body font-medium text-primary flex items-center gap-2">
-          <Bot className="w-5 h-5 text-primary" /> What problem are you trying to solve with AI?
+          <Bot className="w-5 h-5 text-primary" /> What problem are you trying
+          to solve with AI?
         </p>
         <p className="mt-1 text-body-sm text-secondary">
-          Write a detailed description of your project. Include what the
-          current process looks like, what you want AI to help with, and any
-          constraints or requirements.
+          Write a detailed description of your project. Include what the current
+          process looks like, what you want AI to help with, and any constraints
+          or requirements.
         </p>
       </div>
 
@@ -208,7 +222,7 @@ export default function Stage1Symptoms({
         <Label>Project Description</Label>
         <textarea
           value={symptomText}
-          onChange={(e) => setSymptomText(e.target.value)}
+          onChange={handleChange}
           placeholder="We have a recommendation engine that currently uses rule-based filtering. We process about 10,000 items per day and want to switch to AI-powered ranking…"
           rows={8}
           disabled={isSubmitting}
