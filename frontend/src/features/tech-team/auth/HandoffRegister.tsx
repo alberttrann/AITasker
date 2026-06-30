@@ -23,8 +23,9 @@ export function HandoffRegister() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, logout } = useAuthStore();
-  const { registerHandoff } = useAuth();
+  const { registerHandoff, login } = useAuth();
   
+  const [isLoginMode, setIsLoginMode] = useState(false);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
@@ -34,9 +35,9 @@ export function HandoffRegister() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If user is already logged in, log them out
-    if (isAuthenticated) {
-      logout();
+    // If user is already logged in from a previous session, log them out silently on mount
+    if (useAuthStore.getState().isAuthenticated) {
+      useAuthStore.getState().logout();
     }
     
     if (!token) {
@@ -55,26 +56,37 @@ export function HandoffRegister() {
     if (payload.email) {
       setEmail(payload.email);
     }
+    
+    // Save sessionId to sessionStorage so TechTeamDashboard can render Stage4Form
+    if (payload.sessionId) {
+      sessionStorage.setItem('handoff_sessionId', payload.sessionId);
+    }
+
     setIsLoading(false);
-  }, [token, isAuthenticated, logout, navigate]);
+  }, [token, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !password) return;
+    if (!password) return;
+    if (!isLoginMode && !fullName) return;
     
     setIsSubmitting(true);
     setError(null);
     
     try {
-      await registerHandoff.mutateAsync({
-        token,
-        fullName,
-        password,
-        // we can pass phone down if we adapt the hook
-      });
+      if (isLoginMode) {
+        await login.mutateAsync({ email, password });
+      } else {
+        await registerHandoff.mutateAsync({
+          invite_token: token || '',
+          email,
+          fullName,
+          password,
+        });
+      }
       // The hook does the redirect inside onSuccess
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to register. Please try again.');
+      setError(err.response?.data?.message || `Failed to ${isLoginMode ? 'log in' : 'register'}. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -93,10 +105,10 @@ export function HandoffRegister() {
       <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-8 shadow-xl shadow-slate-200/50">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
-            Tech Team Registration
+            Tech Team {isLoginMode ? 'Login' : 'Registration'}
           </h2>
           <p className="text-sm text-slate-500">
-            You've been invited to join an AI project. Complete your registration below.
+            You've been invited to join an AI project. {isLoginMode ? 'Log in to continue.' : 'Complete your registration below.'}
           </p>
         </div>
 
@@ -118,18 +130,20 @@ export function HandoffRegister() {
             />
           </div>
 
-          <div className="space-y-2 text-left">
-            <Label htmlFor="fullName">Full Name</Label>
-            <input
-              id="fullName"
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              placeholder="e.g. John Doe"
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          {!isLoginMode && (
+            <div className="space-y-2 text-left">
+              <Label htmlFor="fullName">Full Name</Label>
+              <input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                placeholder="e.g. John Doe"
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
 
           <div className="space-y-2 text-left">
             <Label htmlFor="password">Password</Label>
@@ -139,37 +153,52 @@ export function HandoffRegister() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="Create a password"
+              placeholder={isLoginMode ? 'Enter your password' : 'Create a password'}
               className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div className="space-y-2 text-left">
-            <Label htmlFor="phone">Phone (Optional)</Label>
-            <input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+84..."
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          {!isLoginMode && (
+            <div className="space-y-2 text-left">
+              <Label htmlFor="phone">Phone (Optional)</Label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+84..."
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
 
           <Button
             type="submit"
             variant="primary"
             className="w-full py-2.5 mt-2"
-            disabled={isSubmitting || !fullName || !password}
+            disabled={isSubmitting || !password || (!isLoginMode && !fullName)}
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Registering...
+                <Loader2 className="h-4 w-4 animate-spin" /> {isLoginMode ? 'Logging in...' : 'Registering...'}
               </span>
             ) : (
-              'Create Account'
+              isLoginMode ? 'Log In' : 'Create Account'
             )}
           </Button>
+          
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLoginMode(!isLoginMode);
+                setError(null);
+              }}
+              className="text-sm text-brand-600 hover:underline"
+            >
+              {isLoginMode ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

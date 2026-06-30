@@ -27,12 +27,12 @@ export default function ErrorPage() {
           <div className="inline-flex items-center justify-center px-4 py-2 mb-8 rounded-full bg-cream border-2 border-coral shadow-sm backdrop-blur-md relative z-20">
             <span className="flex w-3 h-3 rounded-full bg-coral mr-2 animate-pulse shadow-coral-glow"></span>
             <span className="font-headline text-xs md:text-sm text-primary-dark uppercase tracking-widest font-extrabold">
-              System Route Missing
+              Page Not Found
             </span>
           </div>
 
           <h2 className="text-xl md:text-4xl font-headline font-extrabold text-primary-dark mb-4 tracking-wide shrink-0 min-w-0">
-            We lost this page in the void.
+            Oops! We couldn't find this page.
           </h2>
 
           <p className="w-[90%] sm:max-w-4xl max-w-full mx-auto text-base md:text-lg text-primary-dark/80 font-body mb-10 leading-relaxed bg-primary-bg p-4 rounded-[16px] border border-primary-light/30 shrink-0 min-w-0">

@@ -34,7 +34,7 @@ export interface UserDto {
   subscriptionExpires:     string | null;
   sepay_bank_account_xid:   string | null;
   bank_linked_at:           string | null;
-  self_technical:           boolean;
+  selfTechnical:            boolean;
   is_active:                boolean;
   activeRoleProfile:       ActiveRoleProfile | null;
   createdAt:               string;
@@ -132,7 +132,7 @@ export interface ProjectDto {
   state:                     ProjectState;
   archetype:                 ArchetypeCode | null;
   tier:                      ProjectTier | null;
-  self_technical:            boolean;
+  selfTechnical:            boolean;
   required_seams_json:       RequiredSeam[];
   required_domains_json:     RequiredDomain[];
   milestone_framework_json:  MilestoneFrameworkItem[];

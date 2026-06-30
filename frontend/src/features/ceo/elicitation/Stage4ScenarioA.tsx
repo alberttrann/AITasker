@@ -1,14 +1,16 @@
-import { useReducer } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
-import { submitStage4, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
-import { X } from 'lucide-react';
+import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
+import { useQueryClient } from '@tanstack/react-query';
+import { X, Loader2 } from 'lucide-react';
 
 interface Stage4AProps {
   sessionId: string;
   onComplete: (data: { gateResult: GateResult }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
+  isForced?: boolean;
 }
 
 type FormState = {
@@ -20,6 +22,8 @@ type FormState = {
   contracts: string[];
   contractInput: string;
   isSubmitting: boolean;
+  isReverting: boolean;
+  initialized: boolean;
 };
 
 type FormAction =
@@ -27,7 +31,11 @@ type FormAction =
   | { type: 'ADD_URL'; listField: 'schemas' | 'contracts'; inputField: 'schemaInput' | 'contractInput' }
   | { type: 'REMOVE_URL'; listField: 'schemas' | 'contracts'; index: number }
   | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_END' };
+  | { type: 'SUBMIT_END' }
+  | { type: 'REVERT_START' }
+  | { type: 'REVERT_END' }
+  | { type: 'INIT_STATE'; payload: any }
+  | { type: 'AUTOFILL_AI'; payload: any };
 
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
@@ -46,12 +54,52 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, isSubmitting: true };
     case 'SUBMIT_END':
       return { ...state, isSubmitting: false };
+    case 'REVERT_START':
+      return { ...state, isReverting: true };
+    case 'REVERT_END':
+      return { ...state, isReverting: false };
+    case 'INIT_STATE':
+      const currentStackStr = action.payload.current_stack || '';
+      const scaleAndInfrastructure = currentStackStr.split('\nSchemas: ')[0]?.replace('Scale & Infra: ', '') || '';
+      const schemasStr = currentStackStr.split('\nSchemas: ')[1] || '';
+      const schemas = schemasStr === 'None' ? [] : schemasStr.split(', ').filter(Boolean);
+
+      const legacyVolume = (action.payload.data_available || '').replace('Legacy Volume: ', '');
+
+      const latencyReqStr = action.payload.latency_requirement || '';
+      const integrationMethod = latencyReqStr.split('\nContracts: ')[0]?.replace('Integration Method: ', '') || '';
+      const contractsStr = latencyReqStr.split('\nContracts: ')[1] || '';
+      const contracts = contractsStr === 'None' ? [] : contractsStr.split(', ').filter(Boolean);
+
+      return {
+        ...state,
+        scaleAndInfrastructure,
+        legacyVolume,
+        integrationMethod,
+        schemas,
+        contracts,
+        initialized: true
+      };
+    case 'AUTOFILL_AI': {
+      const aiScale = action.payload.recommended_stack || '';
+      const aiVolume = action.payload.recommended_legacy_volume || '';
+      const aiIntegration = action.payload.recommended_integration || '';
+      
+      return {
+        ...state,
+        scaleAndInfrastructure: aiScale,
+        legacyVolume: aiVolume,
+        integrationMethod: aiIntegration,
+      };
+    }
     default:
       return state;
   }
 }
 
-export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack }: Stage4AProps) {
+export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack, isForced }: Stage4AProps) {
+  const queryClient = useQueryClient();
+  const { session, isLoadingSession } = useElicitation(sessionId);
   const [state, dispatch] = useReducer(formReducer, {
     scaleAndInfrastructure: '',
     integrationMethod: '',
@@ -61,21 +109,50 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
     contracts: [],
     contractInput: '',
     isSubmitting: false,
+    isReverting: false,
+    initialized: false,
   });
+
+  const [isRecommending, setIsRecommending] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleRecommend = async () => {
+    setIsRecommending(true);
+    setAiError(null);
+    try {
+      const res = await recommendStage4(sessionId);
+      console.log(res);
+      dispatch({ type: 'AUTOFILL_AI', payload: res });
+    } catch (err: any) {
+      setAiError(handleElicitationError(err).message || 'Failed to generate AI recommendations.');
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.stage4TechInputsJson && !state.initialized) {
+       dispatch({ type: 'INIT_STATE', payload: session.stage4TechInputsJson });
+    } else if (session && !session.stage4TechInputsJson && !state.initialized) {
+       dispatch({ type: 'INIT_STATE', payload: {} });
+    }
+  }, [session, state.initialized]);
 
   const canSubmit = state.scaleAndInfrastructure.trim().length > 0 && state.integrationMethod.trim().length > 0 && state.legacyVolume.trim().length > 0;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!canSubmit) return;
     dispatch({ type: 'SUBMIT_START' });
-    try {
-      const data = await submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts);
-      onComplete({ gateResult: data as GateResult });
-    } catch (err: any) {
-      onError(handleElicitationError(err).message || 'Failed to submit technical context.');
-    } finally {
-      dispatch({ type: 'SUBMIT_END' });
-    }
+    
+    submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      })
+      .catch((err: any) => {
+        onError(handleElicitationError(err).message || 'Failed to submit technical context.');
+      });
+
+    onComplete({});
   };
 
   const addUrl = (type: 'schema' | 'contract') => {
@@ -91,8 +168,16 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
-        <p className="text-body-sm text-secondary">Technical Context — since you marked yourself as technical, please fill in these details about your infrastructure.</p>
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
+            <p className="text-body-sm text-secondary">Technical Context — since you marked yourself as technical, please fill in these details about your infrastructure.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleRecommend} disabled={isRecommending || state.isSubmitting} className="shrink-0">
+            {isRecommending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : 'Let AI Recommend'}
+          </Button>
+        </div>
+        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
       </div>
       <div className="space-y-6">
         <div className="space-y-2">
@@ -150,10 +235,25 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
         </div>
       </div>
       <div className="flex items-center justify-between pt-4">
-        <Button variant="outline" onClick={onBack} disabled={state.isSubmitting}>
-          ← Back
+        <Button variant="outline" onClick={async () => {
+          if (isForced) {
+            onBack();
+            return;
+          }
+
+          dispatch({ type: 'REVERT_START' });
+          try {
+            await revertSession(sessionId, 3);
+            await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+            onBack();
+          } catch (err: any) {
+            onError(handleElicitationError(err).message || 'Failed to revert session.');
+            dispatch({ type: 'REVERT_END' });
+          }
+        }} disabled={state.isSubmitting || state.isReverting}>
+          {state.isReverting ? 'Going back…' : (isForced ? '← Back to Generate Link' : '← Back')}
         </Button>
-        <Button variant="primary" disabled={!canSubmit || state.isSubmitting} onClick={handleSubmit}>
+        <Button variant="primary" disabled={!canSubmit || state.isSubmitting || state.isReverting} onClick={handleSubmit}>
           {state.isSubmitting ? 'Submitting…' : 'Submit & Generate PRD →'}
         </Button>
       </div>

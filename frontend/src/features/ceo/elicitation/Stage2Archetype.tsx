@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
-import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS } from '@/hooks/use-elicitation';
+import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, AlertTriangle } from 'lucide-react';
 
 const getIcon = (code: string) => {
@@ -19,16 +20,32 @@ const getIcon = (code: string) => {
 
 interface Stage2Props {
   sessionId: string;
-  voidList: VoidItem[];
-  onComplete: (data: { archetype: string; acknowledgedVoidCodes?: string[] }) => void;
+  onComplete: (data: any) => void;
   onError: (msg: string) => void;
   onBack: () => void;
 }
 
-export default function Stage2Archetype({ sessionId, voidList, onComplete, onError, onBack }: Stage2Props) {
+export default function Stage2Archetype({ sessionId, onComplete, onError, onBack }: Stage2Props) {
+  const queryClient = useQueryClient();
+  const { session, isLoadingSession } = useElicitation(sessionId);
   const [selected, setSelected] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
+  const [initialized, setInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
+
+  useEffect(() => {
+    if (session && !initialized) {
+      if (session.archetype) setSelected(session.archetype);
+      if (session.voidListJson) {
+        const ack = session.voidListJson.filter((v: any) => v.injected).map((v: any) => v.void_code);
+        setAcknowledged(new Set(ack));
+      }
+      setInitialized(true);
+    }
+  }, [session, initialized]);
+
+  const voidList = (session?.voidListJson as VoidItem[]) ?? [];
 
   const toggleAcknowledge = (code: string) => {
     setAcknowledged((prev) => {
@@ -43,7 +60,8 @@ export default function Stage2Archetype({ sessionId, voidList, onComplete, onErr
     setIsSubmitting(true);
     try {
       await submitStage2(sessionId, selected, [...acknowledged]);
-      onComplete({ archetype: selected, acknowledgedVoidCodes: [...acknowledged] });
+      await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      onComplete({});
     } catch (err: any) {
       onError(handleElicitationError(err).message || 'Failed to save archetype selection.');
     } finally {
@@ -91,10 +109,20 @@ export default function Stage2Archetype({ sessionId, voidList, onComplete, onErr
       )}
 
       <div className="flex items-center justify-between pt-4">
-        <Button variant="outline" onClick={onBack} disabled={isSubmitting}>
-          ← Back
+        <Button variant="outline" onClick={async () => {
+          setIsReverting(true);
+          try {
+            await revertSession(sessionId, 1);
+            await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+            onBack();
+          } catch (err: any) {
+            onError(handleElicitationError(err).message || 'Failed to revert session.');
+            setIsReverting(false);
+          }
+        }} disabled={isSubmitting || isReverting}>
+          {isReverting ? 'Going back…' : '← Back'}
         </Button>
-        <Button variant="primary" disabled={!selected || isSubmitting} onClick={handleContinue}>
+        <Button variant="primary" disabled={!selected || isSubmitting || isReverting} onClick={handleContinue}>
           {isSubmitting ? 'Saving…' : 'Continue to Stage 3 →'}
         </Button>
       </div>

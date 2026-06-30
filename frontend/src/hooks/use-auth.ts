@@ -86,7 +86,7 @@ const login = useMutation({
   });
 
   const registerHandoff = useMutation({
-    mutationFn: async (payload: { token: string; fullName: string; password: string }) => {
+    mutationFn: async (payload: { invite_token: string; email: string; fullName: string; password: string }) => {
       const { data } = await apiClient.post<{ access_token: string; refresh_token: string }>('/auth/register/handoff', payload);
       return data;
     },

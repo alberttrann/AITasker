@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [isSwitchRoleOpen, setIsSwitchRoleOpen] = useState(false);
+  const [showProExpiry, setShowProExpiry] = useState(false);
 
   // Wallet data
   const { data: wallet } = useWallet();
@@ -126,10 +127,21 @@ export default function ProfilePage() {
                 {/* Badges */}
                 <div className="flex flex-wrap gap-2 mt-1">
                   {user?.subscriptionTier === 'pro' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm">
-                      <Sparkles size={12} strokeWidth={2.5} />
-                      Pro Tier
-                    </span>
+                    <div className="relative flex items-center">
+                      <button 
+                        onClick={() => setShowProExpiry(!showProExpiry)}
+                        onBlur={() => setShowProExpiry(false)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm hover:opacity-90 transition-opacity"
+                      >
+                        <Sparkles size={12} strokeWidth={2.5} />
+                        Pro Tier
+                      </button>
+                      {showProExpiry && user?.subscriptionExpires && (
+                        <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
+                          Expires on: {new Date(user.subscriptionExpires).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-[4px]">
                       <Sparkles size={12} strokeWidth={2.5} />

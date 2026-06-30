@@ -91,35 +91,52 @@ export default function MatchCard({ expert }: MatchCardProps) {
         onClose={() => setIsModalOpen(false)} 
         title="Expert Profile"
       >
-        <div className="space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-[18px] font-headline font-semibold text-primary">
+        <div className="space-y-4">
+          {/* Avatar, Name & Strength */}
+          <div className="flex items-center gap-4 border-b border-slate-100 pb-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+              <span className="text-xl font-bold">{name.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[16px] font-headline font-semibold text-primary">
                 {name}
               </h3>
-              <p className="text-body-sm text-secondary">ID: {expert.expert_id}</p>
             </div>
             <div className="text-right">
-              <span className={`inline-flex items-center rounded-[4px] px-[12px] py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${strengthStyle}`}>
+              <span className={`inline-flex items-center rounded-[4px] px-[12px] py-[4px] text-[10px] font-bold uppercase tracking-[0.5px] ${strengthStyle}`}>
                 {strengthDisplay}
               </span>
             </div>
           </div>
 
+          {/* Domains Section */}
+          {profile?.domainDepths && profile.domainDepths.length > 0 && (
+            <div>
+              <h4 className="text-[13px] font-semibold text-primary mb-1.5">Domain</h4>
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {profile.domainDepths.map((domain: any) => (
+                  <div key={domain.domainCode} className="text-[12px] text-secondary">
+                    <span className="font-medium text-primary">{domain.domainCode}</span>: {domain.depthLevel}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Seam Coverage Section */}
           {gaps.length > 0 && (
             <div>
-              <h4 className="text-[14px] font-semibold text-primary mb-2">Seam Coverage</h4>
-              <div className="flex flex-col gap-2">
+              <h4 className="text-[13px] font-semibold text-primary mb-1.5">Seam Coverage</h4>
+              <div className="flex flex-col gap-1.5">
                 {gaps.map((g) => {
                   const isVerified = profile?.seamClaims?.some(
                     (sc: any) => sc.seamCode === g.seam_code && (sc.verificationTier === 'EVIDENCE_BACKED' || sc.verificationTier === 'VERIFIED')
                   );
                   
                   return (
-                    <div key={g.seam_code} className="flex items-center gap-3">
+                    <div key={g.seam_code} className="flex items-center gap-2">
                       <span
-                        className={`h-3 w-3 rounded-full shrink-0 ${
+                        className={`h-2.5 w-2.5 rounded-full shrink-0 ${
                           g.color === 'green'
                             ? 'bg-success'
                             : g.color === 'amber'
@@ -127,15 +144,15 @@ export default function MatchCard({ expert }: MatchCardProps) {
                               : 'bg-error'
                         }`}
                       />
-                      <span className="text-[14px] text-secondary flex items-center gap-2">
+                      <span className="text-[13px] text-secondary flex items-center gap-2">
                         {g.seam_code} 
                         {g.color === 'green' && ' (Full Coverage)'}
                         {g.color === 'amber' && ' (Partial Coverage)'}
                         {g.color === 'red' && ' (Gap)'}
                         
                         {isVerified && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
-                            <CheckCircle className="h-3 w-3" /> AI Verified
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 uppercase tracking-wide">
+                            <CheckCircle className="h-2.5 w-2.5" /> AI Verified
                           </span>
                         )}
                       </span>
@@ -146,29 +163,15 @@ export default function MatchCard({ expert }: MatchCardProps) {
             </div>
           )}
 
-          {/* Domains Section */}
-          {profile?.domains && profile.domains.length > 0 && (
-            <div>
-              <h4 className="text-[14px] font-semibold text-primary mb-2">Domains</h4>
-              <div className="flex flex-col gap-2">
-                {profile.domains.map((domain: any) => (
-                  <div key={domain.code} className="text-[14px] text-secondary">
-                    <span className="font-medium text-primary">{domain.code}</span>: {domain.depth}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Stack Tags Section */}
           {stackTags.length > 0 && (
             <div>
-              <h4 className="text-[14px] font-semibold text-primary mb-2">Technical Stack</h4>
-              <div className="flex flex-wrap gap-2">
+              <h4 className="text-[13px] font-semibold text-primary mb-1.5">Technical Stack</h4>
+              <div className="flex flex-wrap gap-1.5">
                 {stackTags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded bg-primary-bg px-2 py-1 text-[13px] text-secondary border border-slate-200"
+                    className="rounded bg-slate-50 px-2 py-0.5 text-[12px] text-secondary border border-slate-200"
                   >
                     {tag}
                   </span>
@@ -177,45 +180,6 @@ export default function MatchCard({ expert }: MatchCardProps) {
             </div>
           )}
 
-          {/* Contact Information Section */}
-          <div>
-            <h4 className="text-[14px] font-semibold text-primary mb-2">Contact Information</h4>
-            <div className="flex flex-col gap-2 text-[14px] text-secondary">
-              <p><span className="font-medium text-primary">Email:</span> {profile?.contactEmail || 'Not provided'}</p>
-              {profile?.linkedIn && <p><span className="font-medium text-primary">LinkedIn:</span> <a href={profile.linkedIn} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{profile.linkedIn}</a></p>}
-              {profile?.github && <p><span className="font-medium text-primary">GitHub:</span> <a href={profile.github} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{profile.github}</a></p>}
-            </div>
-          </div>
-
-          {/* Verification History Section */}
-          <div>
-            <h4 className="text-[14px] font-semibold text-primary mb-2">Verification History</h4>
-            <div className="flex flex-col gap-2">
-              {profile?.seamClaims && profile.seamClaims.length > 0 ? (
-                profile.seamClaims.map((claim: any, index: number) => (
-                  <div key={index} className="flex flex-col rounded-lg border border-slate-200 p-3 bg-slate-50">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-[14px] text-primary">{claim.seamCode}</span>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        claim.verificationTier === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
-                        claim.verificationTier === 'EVIDENCE_BACKED' ? 'bg-blue-100 text-blue-800' :
-                        'bg-slate-200 text-slate-700'
-                      }`}>
-                        {claim.verificationTier}
-                      </span>
-                    </div>
-                    {claim.evidenceUrl && (
-                      <a href={claim.evidenceUrl} target="_blank" rel="noreferrer" className="text-[12px] text-blue-600 hover:underline truncate">
-                        Evidence Link
-                      </a>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-[13px] text-secondary">No verification history available.</p>
-              )}
-            </div>
-          </div>
         </div>
       </Modal>
     </>

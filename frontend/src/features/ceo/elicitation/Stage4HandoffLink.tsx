@@ -25,7 +25,7 @@ export default function Stage4HandoffLink({
   };
 
   return (
-    <div className="space-y-6 text-center">
+    <div className="space-y-8 text-center">
       <div>
         <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
         <p className="text-body-sm text-secondary">Invite Your Tech Team</p>

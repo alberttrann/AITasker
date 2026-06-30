@@ -7,6 +7,14 @@ export default function DashboardGreeting() {
   
   const firstName = user.fullName.split(' ')[0];
 
+  const hour = new Date().getHours();
+  let greetingText = 'Good evening';
+  if (hour >= 5 && hour < 12) {
+    greetingText = 'Good morning';
+  } else if (hour >= 12 && hour < 18) {
+    greetingText = 'Good afternoon';
+  }
+
   return (
     <div className="relative w-full py-1 mb-8 flex flex-col items-center justify-center">
       {/* Ambient glowing background effect that bleeds seamlessly */}
@@ -14,7 +22,7 @@ export default function DashboardGreeting() {
 
       {/* Greeting Text */}
       <h1 className="relative z-10 text-3xl sm:text-3xl font-normal text-slate-900 tracking-tight text-center font-headline">
-        Welcome back, <i><span className="text-primary-dark">{firstName}</span></i>
+        {greetingText}, <i><span className="text-primary-dark">{firstName}</span></i>
       </h1>
     </div>
   );

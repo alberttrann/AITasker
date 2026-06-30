@@ -1,6 +1,6 @@
-import React, { useReducer } from 'react';
+import React, { useReducer, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { submitStage4Handoff } from '../../../hooks/use-elicitation';
-import Stage4Submitted from './Stage4Submitted';
 import { AlertTriangle, X } from 'lucide-react';
 
 type FormState = {
@@ -57,7 +57,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 export default function Stage4Form() {
-  const sessionId = sessionStorage.getItem('handoff_sessionId');
+  const navigate = useNavigate();
+  const [sessionId] = useState(() => sessionStorage.getItem('handoff_sessionId'));
 
   const [state, dispatch] = useReducer(formReducer, {
     scaleAndInfrastructure: '',
@@ -131,6 +132,7 @@ export default function Stage4Form() {
       // Dọn dẹp session ID khỏi storage khi thành công
       sessionStorage.removeItem('handoff_sessionId');
       dispatch({ type: 'SUBMIT_SUCCESS' });
+      navigate('/tech-team/submitted');
     } catch (err: any) {
       const serverMessage = err.response?.data?.message;
       dispatch({
@@ -157,7 +159,8 @@ export default function Stage4Form() {
   }
 
   if (state.isSubmitted) {
-    return <Stage4Submitted />;
+    // Already navigating to the submitted page, just render nothing while transitioning
+    return null;
   }
 
   return (

@@ -11,6 +11,7 @@ import {
   getSession,
   getActiveSession,
   handleElicitationError,
+  revertSession,
   STAGE_LABELS,
   type GateResult,
   type StageCompleteData,
@@ -31,13 +32,12 @@ type WizardState = {
   sessionId: string | null;
   currentStage: number;
   sessionState: string;
-  voidList: VoidItem[];
-  archetype: string | null;
   gateResult: GateResult | null;
   error: string | null;
   isLoading: boolean;
   forceScenarioA: boolean;
   isCancelModalOpen: boolean;
+  archetype: string | null;
 };
 
 type WizardAction =
@@ -59,17 +59,17 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, ...action.payload, isLoading: false };
     case "SET_ERROR":
       return { ...state, error: action.payload };
-    case "STAGE_COMPLETE":
-      const { voidListJson, archetype, gateResult } = action.payload;
+    case "STAGE_COMPLETE": {
+      const { gateResult, archetype } = action.payload;
       return {
         ...state,
         error: null,
-        voidList: voidListJson || state.voidList,
-        archetype: archetype || state.archetype,
         gateResult: gateResult || state.gateResult,
+        archetype: archetype || state.archetype,
         currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
         sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
       };
+    }
     case "SYNTHESIS_RESOLVED":
       return {
         ...state,
@@ -81,7 +81,13 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "RETURN_TO_STAGE":
       return { ...state, currentStage: action.payload, gateResult: null, sessionState: "IN_PROGRESS" };
     case "BACK":
-      return { ...state, currentStage: Math.max(1, state.currentStage - 1), error: null };
+      return { 
+        ...state, 
+        currentStage: Math.max(1, state.currentStage - 1), 
+        sessionState: "IN_PROGRESS",
+        gateResult: null,
+        error: null 
+      };
     case "START_OVER_START":
       return { ...state, isLoading: true, error: null, gateResult: null };
     case "START_OVER_SUCCESS":
@@ -91,8 +97,6 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         sessionId: action.payload.sessionId,
         currentStage: 1,
         sessionState: "IN_PROGRESS",
-        voidList: [],
-        archetype: null,
       };
     case "SET_FORCE_SCENARIO_A":
       return { ...state, forceScenarioA: action.payload };
@@ -112,13 +116,12 @@ export default function ElicitationWizard() {
     sessionId: null,
     currentStage: 1,
     sessionState: "IN_PROGRESS",
-    voidList: [],
-    archetype: null,
     gateResult: null,
     error: null,
     isLoading: true,
     forceScenarioA: false,
     isCancelModalOpen: false,
+    archetype: null,
   });
 
   useEffect(() => {
@@ -173,9 +176,8 @@ export default function ElicitationWizard() {
             sessionId: data.id,
             currentStage: data.currentStage ?? 1,
             sessionState: finalSessionState,
-            voidList: data.currentStage > 1 ? ((data.voidListJson as VoidItem[]) ?? []) : [],
-            archetype: data.currentStage > 1 ? (data.archetype ?? null) : null,
             gateResult: initGateResult as GateResult | null,
+            archetype: data.archetype || null,
           }
         });
 
@@ -201,7 +203,17 @@ export default function ElicitationWizard() {
     dispatch({ type: "SYNTHESIS_RESOLVED", payload: result });
   };
   const handleTechTeamSubmitted = () => dispatch({ type: "TECH_TEAM_SUBMITTED" });
-  const handleReturnToStage = (stage: number) => dispatch({ type: "RETURN_TO_STAGE", payload: stage });
+  const handleReturnToStage = async (stage: number) => {
+    if (state.sessionId) {
+      try {
+        await revertSession(state.sessionId, stage);
+      } catch (err: any) {
+        dispatch({ type: "SET_ERROR", payload: handleElicitationError(err).message });
+        return;
+      }
+    }
+    dispatch({ type: "RETURN_TO_STAGE", payload: stage });
+  };
   const handleBack = () => dispatch({ type: "BACK" });
 
   const handleStartOver = async () => {
@@ -292,7 +304,7 @@ export default function ElicitationWizard() {
         <QualityGatePassed
           projectId={state.gateResult.project_id}
           completenessScore={state.gateResult.completeness_score}
-          archetype={state.archetype ?? ""}
+          archetype={state.archetype!}
           onStartNew={handleStartOver}
         />
       </div>
@@ -377,16 +389,14 @@ export default function ElicitationWizard() {
           {state.currentStage === 2 && state.sessionId && (
             <Stage2Archetype
               sessionId={state.sessionId}
-              voidList={state.voidList}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
               onBack={handleBack}
             />
           )}
-          {state.currentStage === 3 && state.sessionId && state.archetype && (
+          {state.currentStage === 3 && state.sessionId && (
             <Stage3Probes
               sessionId={state.sessionId}
-              archetype={state.archetype}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
               onBack={handleBack}
@@ -394,12 +404,13 @@ export default function ElicitationWizard() {
           )}
           {state.currentStage === 4 &&
             state.sessionId &&
-            (user?.self_technical || state.forceScenarioA ? (
+            (user?.selfTechnical || state.forceScenarioA ? (
               <Stage4ScenarioA
                 sessionId={state.sessionId}
                 onComplete={handleStageComplete}
                 onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
                 onBack={state.forceScenarioA ? () => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: false }) : handleBack}
+                isForced={state.forceScenarioA}
               />
             ) : (
               <Stage4ScenarioB

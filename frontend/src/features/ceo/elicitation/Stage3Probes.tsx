@@ -1,13 +1,13 @@
-import { useReducer } from 'react';
+import { useReducer, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
-import { submitStage3, handleElicitationError, PROBES, ARCHETYPE_LABELS } from '@/hooks/use-elicitation';
+import { submitStage3, handleElicitationError, PROBES, ARCHETYPE_LABELS, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 
 interface Stage3Props {
   sessionId: string;
-  archetype: string;
-  onComplete: (data: { probeResponses: Record<string, string> }) => void;
+  onComplete: (data: any) => void;
   onError: (msg: string) => void;
   onBack: () => void;
 }
@@ -16,13 +16,18 @@ type State = {
   answers: Record<string, string>;
   vagueAnswers: Array<{question: string; reason: string}>;
   isSubmitting: boolean;
+  isReverting: boolean;
+  initialized: boolean;
 };
 
 type Action = 
   | { type: 'SET_ANSWER'; key: string; value: string; questionLabel: string }
   | { type: 'SET_VAGUE_ANSWERS'; vagueAnswers: Array<{question: string; reason: string}> }
   | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_END' };
+  | { type: 'SUBMIT_END' }
+  | { type: 'REVERT_START' }
+  | { type: 'REVERT_END' }
+  | { type: 'INIT_STATE'; payload: Record<string, string>; questions: Record<string, string> };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -38,19 +43,47 @@ function reducer(state: State, action: Action): State {
       return { ...state, isSubmitting: true };
     case 'SUBMIT_END':
       return { ...state, isSubmitting: false };
+    case 'REVERT_START':
+      return { ...state, isReverting: true };
+    case 'REVERT_END':
+      return { ...state, isReverting: false };
+    case 'INIT_STATE':
+      return { 
+        ...state, 
+        initialized: true,
+        answers: {
+          q1: action.payload[action.questions.q1] || '',
+          q2: action.payload[action.questions.q2] || '',
+          q3: action.payload[action.questions.q3] || '',
+          q4: action.payload[action.questions.q4] || ''
+        }
+      };
     default:
       return state;
   }
 }
 
-export default function Stage3Probes({ sessionId, archetype, onComplete, onError, onBack }: Stage3Props) {
+export default function Stage3Probes({ sessionId, onComplete, onError, onBack }: Stage3Props) {
+  const queryClient = useQueryClient();
+  const { session, isLoadingSession } = useElicitation(sessionId);
+  const archetype = session?.archetype || '1';
   const questions = PROBES[archetype] ?? PROBES['1'];
   
   const [state, dispatch] = useReducer(reducer, {
     answers: { q1: '', q2: '', q3: '', q4: '' },
     vagueAnswers: [],
-    isSubmitting: false
+    isSubmitting: false,
+    isReverting: false,
+    initialized: false
   });
+
+  useEffect(() => {
+    if (session?.stage3ProbesJson && !state.initialized) {
+       dispatch({ type: 'INIT_STATE', payload: session.stage3ProbesJson, questions });
+    } else if (session && !session.stage3ProbesJson && !state.initialized) {
+       dispatch({ type: 'INIT_STATE', payload: {}, questions });
+    }
+  }, [session, state.initialized, questions]);
 
   const allFilled = Object.values(state.answers).every((a) => a.trim().length > 0);
 
@@ -75,7 +108,8 @@ export default function Stage3Probes({ sessionId, archetype, onComplete, onError
         dispatch({ type: 'SET_VAGUE_ANSWERS', vagueAnswers: data.vague_answers });
         return;
       }
-      onComplete({ probeResponses });
+      await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      onComplete({});
     } catch (err: any) {
       onError(handleElicitationError(err).message || 'Failed to submit probe answers.');
     } finally {
@@ -117,10 +151,20 @@ export default function Stage3Probes({ sessionId, archetype, onComplete, onError
       </div>
 
       <div className="flex items-center justify-between pt-4">
-        <Button variant="outline" onClick={onBack} disabled={state.isSubmitting}>
-          ← Back
+        <Button variant="outline" onClick={async () => {
+          dispatch({ type: 'REVERT_START' });
+          try {
+            await revertSession(sessionId, 2);
+            await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+            onBack();
+          } catch (err: any) {
+            onError(handleElicitationError(err).message || 'Failed to revert session.');
+            dispatch({ type: 'REVERT_END' });
+          }
+        }} disabled={state.isSubmitting || state.isReverting}>
+          {state.isReverting ? 'Going back…' : '← Back'}
         </Button>
-        <Button variant="primary" disabled={!allFilled || state.isSubmitting} onClick={handleSubmit}>
+        <Button variant="primary" disabled={!allFilled || state.isSubmitting || state.isReverting} onClick={handleSubmit}>
           {state.isSubmitting ? 'Submitting…' : 'Continue to Stage 4 →'}
         </Button>
       </div>

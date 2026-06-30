@@ -42,6 +42,7 @@ export class AuthService {
       clientSubtype: user.clientSubtype ?? null,
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
+      selfTechnical: user.selfTechnical,
     };
   }
 

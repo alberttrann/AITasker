@@ -57,6 +57,15 @@ export interface StageCompleteData {
   archetype?: string;
   probeResponses?: Record<string, string>;
   gateResult?: GateResult;
+  symptomText?: string;
+  acknowledgedVoidCodes?: string[];
+  techContext?: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
 }
 
 // ─── API Methods ──────────────────────────────────────────────────────
@@ -132,8 +141,17 @@ export async function submitStage4(
 /** Stage 4 — Tech Team handoff submit */
 export async function submitStage4Handoff(sessionId: string, payload: any) {
   const { data } = await apiClient.put(
-    `/elicitation/${sessionId}/stage4-handoff`,
-    payload
+    `/elicitation/sessions/${sessionId}/stage4-handoff`,
+    payload,
+    { timeout: 120_000 }
+  );
+  return data;
+}
+
+/** Stage 4 — Let AI recommend tech context (non-technical CEO fallback) */
+export async function recommendStage4(sessionId: string) {
+  const { data } = await apiClient.post(
+    `/elicitation/sessions/${sessionId}/stage4-recommend`
   );
   return data;
 }
@@ -179,6 +197,11 @@ export async function getActiveSession() {
 
 export async function abandonSession(sessionId: string) {
   const { data } = await apiClient.put(`/elicitation/sessions/${sessionId}/abandon`);
+  return data;
+}
+
+export async function revertSession(sessionId: string, targetStage: number) {
+  const { data } = await apiClient.put(`/elicitation/sessions/${sessionId}/revert`, { targetStage });
   return data;
 }
 
