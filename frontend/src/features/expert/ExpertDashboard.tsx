@@ -17,32 +17,37 @@ export function ExpertOverview() {
   return (
     <div className="w-full">
       <DashboardGreeting />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:auto-rows-[180px]">
-        {/* Subscription Banner */}
-        {!hasSubscription && (
+      {/* Subscription Banner */}
+      {!hasSubscription && (
+        <div className="mb-8">
           <DashboardBanner
             title="Upgrade to Expert Pro"
             description="Supercharge your earnings with priority project matching, premium profile placement, and 0% withdrawal fees."
             icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
             buttonText="Upgrade now"
-            className="lg:col-span-3 lg:row-span-1 h-full"
             onButtonClick={() => navigate('/expert/subscription')}
           />
-        )}
-        {/* Missing Profile Banner */}
-        {!isLoadingProfile && !hasClaimedProfile && (
-          <DashboardBanner
-            title="Build Your Expert Profile"
-            description="You haven't built your expert profile yet. Define your domains, integration seams, and tech stack to get matched with high-value AI projects."
-            icon={<Edit3 className="h-5 w-5 text-blue-400" />}
-            buttonText="Build Profile"
-            theme="blue"
-            className="lg:col-span-3 lg:row-span-1 h-full"
-            onButtonClick={() => navigate('/expert/expert-profile')}
-          />
-        )}
-        
-      </div>
+        </div>
+      )}
+
+      {/* Action Required Section */}
+      {!isLoadingProfile && !hasClaimedProfile && (
+        <div className="mb-8">
+          <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Action Required</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <DashboardBanner
+              topLabel="Recommended for you"
+              title="Build Your Expert Profile"
+              description="Define your tech stack to get matched."
+              icon={<Edit3 className="h-6 w-6" />}
+              buttonText="Build Profile"
+              theme="outline"
+              className="lg:col-span-2"
+              onButtonClick={() => navigate('/expert/expert-profile')}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

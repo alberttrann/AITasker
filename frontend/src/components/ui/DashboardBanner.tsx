@@ -6,7 +6,8 @@ interface DashboardBannerProps {
   icon: React.ReactNode;
   buttonText: string;
   onButtonClick: () => void;
-  theme?: 'emerald' | 'blue';
+  theme?: 'emerald' | 'blue' | 'outline' | 'outline-purple';
+  topLabel?: string;
   className?: string;
 }
 
@@ -17,10 +18,49 @@ export function DashboardBanner({
   buttonText,
   onButtonClick,
   theme = 'emerald',
+  topLabel,
   className = ""
 }: DashboardBannerProps) {
   const isEmerald = theme === 'emerald';
+  const isOutline = theme === 'outline' || theme === 'outline-purple';
 
+  if (isOutline) {
+    return (
+      <div className={`relative overflow-hidden rounded-xl bg-white p-5 border border-slate-200 shadow-sm flex flex-col justify-center transition-all hover:border-slate-300 hover:shadow-md ${className}`}>
+        {topLabel && (
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 block">
+            {topLabel}
+          </span>
+        )}
+        
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-800 border border-slate-200/60">
+            {icon}
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-bold text-slate-900 leading-tight mb-1">
+              {title}
+            </h3>
+            <div className="text-sm text-slate-600 leading-snug">
+              {description}
+            </div>
+          </div>
+          
+          <div className="flex-shrink-0 mt-3 sm:mt-0">
+            <button
+              onClick={onButtonClick}
+              className="whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-slate-800 bg-white border border-slate-300 shadow-sm transition-all hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 active:scale-95"
+            >
+              {buttonText}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy Emerald / Blue Subscription Banner style
   const orbsClass = isEmerald
     ? "bg-emerald-500/20"
     : "bg-blue-500/20";
@@ -39,9 +79,10 @@ export function DashboardBanner({
     ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20 hover:bg-emerald-400 hover:shadow-emerald-500/30 focus:ring-emerald-500/30"
     : "bg-blue-500 text-white shadow-blue-500/20 hover:bg-blue-400 hover:shadow-blue-500/30 focus:ring-blue-500/30";
 
+  const containerClass = `relative overflow-hidden rounded-2xl bg-slate-900 p-8 shadow-xl border border-slate-800 flex flex-col justify-center ${className}`;
+
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-slate-900 p-8 shadow-xl border border-slate-800 flex flex-col justify-center ${className}`}>
-      {/* Subtle graphic background elements */}
+    <div className={containerClass}>
       <div className="absolute inset-0 pointer-events-none">
         {/* Glowing orbs */}
         <div className={`absolute -right-20 -top-32 h-96 w-96 rounded-full blur-[80px] ${orbsClass}`} />
@@ -61,24 +102,26 @@ export function DashboardBanner({
 
       <div className="relative z-10 w-full flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 min-w-0 text-white sm:pr-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`shrink-0 p-1.5 rounded-lg border ${iconBgClass}`}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${iconBgClass}`}>
               {icon}
             </div>
-            <h2 className="text-2xl font-bold sm:text-3xl tracking-tight text-white truncate">
+            <h3 className="font-headline text-2xl font-bold tracking-tight text-white">
               {title}
-            </h2>
+            </h3>
           </div>
-          <div className="text-slate-300 text-sm sm:text-base leading-relaxed mt-1 break-words">
+          <div className="text-[15px] font-medium leading-relaxed text-slate-300">
             {description}
           </div>
         </div>
-        <button
-          onClick={onButtonClick}
-          className={`shrink-0 whitespace-nowrap rounded-xl px-8 py-3.5 font-bold shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-4 active:scale-95 ${buttonClass}`}
-        >
-          {buttonText}
-        </button>
+        <div>
+          <button
+            onClick={onButtonClick}
+            className={`shrink-0 whitespace-nowrap rounded-xl px-7 py-3 font-bold shadow-lg transition-all focus:outline-none focus:ring-4 active:scale-95 ${buttonClass}`}
+          >
+            {buttonText}
+          </button>
+        </div>
       </div>
     </div>
   );

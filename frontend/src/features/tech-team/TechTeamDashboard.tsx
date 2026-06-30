@@ -19,7 +19,7 @@ export default function TechTeamDashboard() {
           // Hiển thị giao diện Dashboard mặc định của Tech Team khi không có form cần điền
           <div className="space-y-6 animate-in fade-in duration-300">
             <DashboardGreeting />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:auto-rows-[180px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:auto-rows-[180px]">
               <div className="lg:col-span-3 lg:row-span-1 h-full">
                 <div className="bg-white h-full rounded-xl border border-slate-200/80 p-6 flex flex-col justify-center shadow-[0px_2px_6px_rgba(15,23,42,0.03)]">
                   <h1 className="text-2xl font-bold text-slate-900 font-['Plus_Jakarta_Sans']">

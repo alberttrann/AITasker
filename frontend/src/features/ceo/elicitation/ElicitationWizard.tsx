@@ -1,5 +1,6 @@
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -8,6 +9,7 @@ import type { VoidItem } from "@t/jsonb.types";
 import {
   createSession,
   getSession,
+  getActiveSession,
   handleElicitationError,
   STAGE_LABELS,
   type GateResult,
@@ -104,6 +106,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 export default function ElicitationWizard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const initPromiseRef = useRef<Promise<any> | null>(null);
 
   const [state, dispatch] = useReducer(wizardReducer, {
     sessionId: null,
@@ -123,22 +126,23 @@ export default function ElicitationWizard() {
 
     const init = async () => {
       try {
-        const storedId = localStorage.getItem("currentSessionId");
-        let data;
-
-        if (storedId) {
-          try {
-            data = await getSession(storedId);
-          } catch {
-            data = await createSession();
-          }
-        } else {
-          data = await createSession();
+        if (!initPromiseRef.current) {
+          initPromiseRef.current = (async () => {
+            let data = null;
+            try {
+              data = await getActiveSession();
+            } catch {
+              data = null;
+            }
+            if (!data || !data.id) {
+              data = await createSession();
+            }
+            return data;
+          })();
         }
 
+        const data = await initPromiseRef.current;
         if (cancelled) return;
-
-        localStorage.setItem("currentSessionId", data.id);
 
         let initGateResult = null;
         let finalSessionState = data.state ?? "IN_PROGRESS";
@@ -195,7 +199,6 @@ export default function ElicitationWizard() {
   const handleStageComplete = (data: StageCompleteData) => dispatch({ type: "STAGE_COMPLETE", payload: data });
   const handleSynthesisResolved = (result: GateResult) => {
     dispatch({ type: "SYNTHESIS_RESOLVED", payload: result });
-    if (result.gate_passed) localStorage.removeItem("currentSessionId");
   };
   const handleTechTeamSubmitted = () => dispatch({ type: "TECH_TEAM_SUBMITTED" });
   const handleReturnToStage = (stage: number) => dispatch({ type: "RETURN_TO_STAGE", payload: stage });
@@ -204,6 +207,9 @@ export default function ElicitationWizard() {
   const handleStartOver = async () => {
     dispatch({ type: "START_OVER_START" });
     try {
+      if (state.sessionId) {
+        await apiClient.put(`/elicitation/sessions/${state.sessionId}/abandon`);
+      }
       const data = await createSession();
       dispatch({ type: "START_OVER_SUCCESS", payload: { sessionId: data.id } });
     } catch (err: any) {
@@ -244,8 +250,7 @@ export default function ElicitationWizard() {
   const handleCancelSession = () => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: true });
 
   const confirmCancelSession = () => {
-    localStorage.removeItem("currentSessionId");
-    navigate("/ceo");
+    navigate("/ceo/projects");
   };
 
   if (state.isLoading) {
@@ -312,8 +317,8 @@ export default function ElicitationWizard() {
   return (
     <div className="mx-auto max-w-6xl relative pt-4">
       <div className="absolute top-0 right-0 z-10">
-        <Button variant="ghost" size="sm" onClick={handleCancelSession} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-          Cancel Session
+        <Button variant="ghost" size="sm" onClick={handleCancelSession} className="text-slate-500 hover:text-slate-700 hover:bg-slate-50">
+          Exit Session
         </Button>
       </div>
       <div className="mb-10 mt-8">
@@ -419,12 +424,11 @@ export default function ElicitationWizard() {
         isOpen={state.isCancelModalOpen}
         onClose={() => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false })}
         onConfirm={confirmCancelSession}
-        title="Cancel Session"
-        confirmText="Yes, abandon"
-        cancelText="Keep working"
-        isDestructive
+        title="Exit Session"
+        confirmText="Exit Session"
+        cancelText="Cancel"
       >
-        Are you sure you want to abandon this session? All progress will be lost.
+        Are you sure you want to exit? Your progress will be saved as a draft and you can continue later.
       </ConfirmModal>
     </div>
   );
