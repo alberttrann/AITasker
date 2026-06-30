@@ -525,6 +525,7 @@ export class ElicitationService {
         data: {
           clientId:               session.userId,
           elicitationSessionId:   session.id,
+          projectName:            artifactA.project_name ?? 'Untitled AI Project',
           state:                  'PUBLISHED',
           archetype:              artifactA.archetype   ?? null,
           tier:                   artifactA.volume_tier ?? null,

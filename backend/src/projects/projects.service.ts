@@ -265,4 +265,16 @@ export class ProjectsService {
     }
     return [];
   }
+
+  async updateProjectName(projectId: string, userId: string, projectName: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.clientId !== userId) throw new ForbiddenException('Only the owner can rename the project');
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { projectName },
+      select: { id: true, projectName: true } // Trả về gọn nhẹ cho FE
+    });
+  }
 }
