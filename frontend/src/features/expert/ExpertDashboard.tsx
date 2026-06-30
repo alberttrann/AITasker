@@ -30,10 +30,10 @@ export function ExpertOverview() {
         </div>
       )}
 
-      {/* Action Required Section */}
-      {!isLoadingProfile && !hasClaimedProfile && (
+      {/* Workspace Section */}
+      {!isLoadingProfile && (
         <div className="mb-8">
-          <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Action Required</h4>
+          <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <DashboardBanner
               topLabel="Recommended for you"

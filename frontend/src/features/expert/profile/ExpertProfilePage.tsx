@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import ProfileBuilder from './ProfileBuilder';
 import PortfolioSubmitForm from '../verification/PortfolioSubmitForm';
-import { ShieldCheck, PlusCircle, CheckCircle, Edit3, ArrowUpCircle, X, Lock } from 'lucide-react';
+import { ShieldCheck, PlusCircle, CheckCircle, Edit3, ArrowUpCircle, X, Lock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 
@@ -19,8 +19,6 @@ export default function ExpertProfilePage() {
       </div>
     );
   }
-
-  const hasClaimedProfile = profile && (profile.domainDepths?.length > 0 || profile.seamClaims?.length > 0 || profile.profile?.stackTagsJson?.length > 0);
 
   if (isBuilding) {
     return <ProfileBuilder onCancel={() => setIsBuilding(false)} />;
@@ -39,33 +37,11 @@ export default function ExpertProfilePage() {
     );
   }
 
-  if (!hasClaimedProfile) {
-    return (
-      <div className="w-full max-w-5xl mx-auto py-16 px-4 sm:px-6 flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6">
-          <ShieldCheck className="w-12 h-12" />
-        </div>
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Expert Profile Not Claimed</h1>
-        <p className="text-gray-500 text-lg max-w-2xl mb-8">
-          You haven't built your expert profile yet. Define your domains, integration seams, and tech stack to get matched with high-value AI projects.
-        </p>
-        <Button 
-          onClick={() => setIsBuilding(true)} 
-          variant="primary" 
-          className="py-4 px-8 text-lg flex items-center gap-2 rounded-xl shadow-lg hover:shadow-blue-500/20"
-        >
-          <PlusCircle className="w-5 h-5" />
-          Build Your Profile Now
-        </Button>
-      </div>
-    );
-  }
-
-  // They HAVE claimed it, show the summary.
-  const domains = profile.domainDepths || [];
-  const seams = profile.seamClaims || [];
-  const stackTags = profile.profile?.stackTagsJson || [];
-  const engagementModel = profile.profile?.engagementModel || 'MILESTONE';
+  // Ensure profile properties exist before accessing
+  const domains = profile?.domainDepths || [];
+  const seams = profile?.seamClaims || [];
+  const stackTags = profile?.profile?.stackTagsJson || [];
+  const engagementModel = profile?.profile?.engagementModel || 'MILESTONE';
 
   const getDomainLabel = (code: string) => {
     const map: Record<string, string> = {
@@ -95,6 +71,15 @@ export default function ExpertProfilePage() {
     return map[code] || code;
   };
 
+  const missingDomains = domains.length === 0;
+  const missingSeams = seams.length === 0;
+  const missingStack = stackTags.length === 0;
+  
+  const missingParts = [];
+  if (missingDomains) missingParts.push('Domain Expertise');
+  if (missingSeams) missingParts.push('Seam Claims');
+  if (missingStack) missingParts.push('Tech Stack');
+
   return (
     <div className="w-full max-w-5xl mx-auto py-12 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
@@ -110,6 +95,24 @@ export default function ExpertProfilePage() {
           Edit Profile
         </Button>
       </div>
+
+      {missingParts.length > 0 && (
+        <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-amber-800 font-bold flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Incomplete Profile
+            </h3>
+            <p className="text-amber-700 text-sm mt-1">
+              Your profile is missing the following sections: <span className="font-semibold">{missingParts.join(', ')}</span>.
+              Completing your profile significantly increases your chances of matching with high-value projects.
+            </p>
+          </div>
+          <Button onClick={() => setIsBuilding(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold border-none shrink-0 shadow-sm transition-colors">
+            Complete Profile
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Domains Review */}

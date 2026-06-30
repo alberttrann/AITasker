@@ -9,11 +9,11 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
 
 export default function TopNav() {
-  const { user, isAuthenticated, logout, switchRole } = useAuth();
+  const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   
   // ── Dropdown State ──
-  type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | null;
+  type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | 'mobile' | null;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
   const navRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +33,7 @@ export default function TopNav() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [isSwitchRoleModalOpen, setIsSwitchRoleModalOpen] = useState(false);
+  const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
 
   const rolesArray = user?.roles || (user?.activeRole ? [user.activeRole] : []);
   const hasClient = rolesArray.some(r => r.startsWith('CLIENT'));
@@ -42,6 +43,15 @@ export default function TopNav() {
   const openModal = (mode: 'signin' | 'signup') => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
+  };
+
+  const confirmAddRole = () => {
+    // If they are currently active as Client, they don't have Expert, so add EXPERT.
+    // Otherwise add CLIENT_CEO.
+    const newRole = isClientActive ? 'EXPERT' : 'CLIENT_CEO';
+    addRole.mutate({ newRole }, {
+      onSuccess: () => setIsAddRoleModalOpen(false)
+    });
   };
 
   const getBasePath = () => {
@@ -126,12 +136,12 @@ const RoleIcon =
         </div>
 
         {/* Middle: Search Bar */}
-        <div className="flex flex-1 mx-4 md:mx-8 lg:mx-12">
-          <div className="w-full flex items-stretch group border-[1.5px] border-primary-dark/30 rounded overflow-hidden transition-colors duration-300 hover:border-primary-dark/50 focus-within:border-primary-dark">
+        <div className="flex flex-1 mx-4 md:mx-8 lg:mx-12 min-w-0">
+          <div className="w-full flex items-stretch group border-[1.5px] border-primary-dark/30 rounded overflow-hidden transition-colors duration-300 hover:border-primary-dark/50 focus-within:border-primary-dark min-w-0">
             <input 
               type="text" 
               placeholder="Search..." 
-              className="flex-1 min-w-0 bg-transparent pl-4 pr-3 py-3 text-sm font-medium text-primary-dark placeholder:text-primary-dark/50 focus:outline-none"
+              className="flex-1 min-w-0 w-full bg-transparent pl-4 pr-3 py-3 text-sm font-medium text-primary-dark placeholder:text-primary-dark/50 focus:outline-none"
             />
             <button className="flex items-center justify-center shrink-0 aspect-square bg-primary-dark text-white hover:bg-primary-dark/90 transition-colors duration-300">
               <Search size={20} strokeWidth={1.5} />
@@ -301,8 +311,18 @@ const RoleIcon =
                       onClick={() => setActiveDropdown(null)} 
                       className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                     >
-                      Profile
+                      Account
                     </Link>
+
+                    {rawRole === 'EXPERT' && (
+                      <Link
+                        to={`/expert/expert-profile`} 
+                        onClick={() => setActiveDropdown(null)} 
+                        className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
+                      >
+                        Expert Profile
+                      </Link>
+                    )}
 
                     {rawRole === 'CEO' && (
                       <Link
@@ -316,6 +336,18 @@ const RoleIcon =
 
                     {/* Divider */}
                     <div className="h-[1px] bg-primary/10 my-2 mx-4" />
+
+                    {!(hasClient && hasExpert) && (
+                      <button
+                        onClick={() => {
+                          setActiveDropdown(null);
+                          setIsAddRoleModalOpen(true);
+                        }}
+                        className="px-5 py-3 text-sm text-left font-headline font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors mx-2 mb-2 rounded-lg"
+                      >
+                        {isClientActive ? 'Become an Expert' : 'Become a Client'}
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => {
@@ -333,7 +365,89 @@ const RoleIcon =
           )}
         </div>
 
+        {/* Mobile Menu Toggle */}
+        <div className="flex md:hidden items-center shrink-0">
+          <button
+            aria-label="Menu"
+            onClick={() => setActiveDropdown(activeDropdown === 'mobile' ? null : 'mobile')}
+            className="p-2 text-primary-dark hover:bg-primary-dark/10 rounded-lg transition-colors"
+          >
+            {activeDropdown === 'mobile' ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {activeDropdown === 'mobile' && (
+        <div className="absolute top-full left-0 right-0 bg-surface border-b border-primary/10 shadow-lg md:hidden z-50 flex flex-col p-4 gap-2 animate-in fade-in slide-in-from-top-4">
+          {!isAuthenticated ? (
+            <>
+              <button onClick={() => { openModal('signin'); setActiveDropdown(null); }} className="w-full text-left font-headline font-bold px-4 py-3 hover:bg-primary-bg rounded-lg">Sign In</button>
+              <button onClick={() => { openModal('signup'); setActiveDropdown(null); }} className="w-full text-center font-headline font-bold px-4 py-3 bg-primary text-white rounded-lg mt-2">Join</button>
+            </>
+          ) : (
+            <>
+              <Link to={`${dashboardRoute}/wallet`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <Wallet size={20} className="text-slate-500" /> Wallet <span className="ml-auto font-bold">{formatVND(availableBalance)}</span>
+              </Link>
+              <Link to={`${dashboardRoute}/notifications`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <div className="flex items-center gap-3">
+                  <Bell size={20} className="text-slate-500" /> Notifications
+                </div>
+                {unreadNotifications > 0 && <span className="bg-coral text-white text-xs px-2 py-0.5 rounded-full font-bold">{unreadNotifications}</span>}
+              </Link>
+              <Link to={`${dashboardRoute}/profile`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <User size={20} className="text-slate-500" /> Account
+              </Link>
+              
+              {rawRole === 'EXPERT' && (
+                <Link to="/expert/expert-profile" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                  <Award size={20} className="text-slate-500" /> Expert Profile
+                </Link>
+              )}
+              {rawRole === 'CEO' && (
+                <Link to={`${dashboardRoute}/projects`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                  <Briefcase size={20} className="text-slate-500" /> Projects
+                </Link>
+              )}
+              
+              <div className="h-[1px] bg-primary/10 my-2" />
+
+              {hasClient && hasExpert && (
+                <button
+                  onClick={() => {
+                    setActiveDropdown(null);
+                    setIsSwitchRoleModalOpen(true);
+                  }}
+                  disabled={switchRole.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-slate-900 bg-[#BEF264] hover:bg-[#aee64c] rounded-lg font-headline font-bold transition-colors"
+                >
+                  <RefreshCw size={18} className={switchRole.isPending ? "animate-spin" : ""} />
+                  {switchRole.isPending ? 'Switching...' : `Switch to ${isClientActive ? 'Expert' : 'Client'}`}
+                </button>
+              )}
+
+              {!(hasClient && hasExpert) && (
+                <button
+                  onClick={() => {
+                    setActiveDropdown(null);
+                    setIsAddRoleModalOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg font-headline font-extrabold transition-colors"
+                >
+                  <UserPlus size={18} />
+                  {isClientActive ? 'Become an Expert' : 'Become a Client'}
+                </button>
+              )}
+
+              <button onClick={() => { setActiveDropdown(null); handleSignOut(); }} className="flex items-center justify-center gap-2 px-4 py-3 mt-2 text-error hover:bg-error/10 rounded-lg font-headline font-bold transition-colors">
+                Sign Out
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
     </header>
     {/* ── Render the Modal ── */}
@@ -371,6 +485,18 @@ const RoleIcon =
       cancelText="Cancel"
     >
       Are you sure you want to switch your role to {isClientActive ? 'Expert' : 'Client'}? You can always switch back.
+    </ConfirmModal>
+
+    {/* Add Role Modal */}
+    <ConfirmModal
+      isOpen={isAddRoleModalOpen}
+      onClose={() => setIsAddRoleModalOpen(false)}
+      onConfirm={confirmAddRole}
+      title={isClientActive ? "Become an Expert" : "Become a Client"}
+      confirmText={addRole.isPending ? "Loading..." : "Confirm"}
+      cancelText="Cancel"
+    >
+      Are you sure you want to add the {isClientActive ? 'Expert' : 'Client'} role to your account? You will be able to switch seamlessly between both roles anytime.
     </ConfirmModal>
     </>
   );

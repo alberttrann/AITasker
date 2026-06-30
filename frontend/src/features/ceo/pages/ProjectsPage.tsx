@@ -144,40 +144,43 @@ export default function ProjectsPage() {
               </div>
             </div>
           ) : (
-            <div className="mb-10 relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-blue-200 group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-50 to-indigo-50/30 rounded-full blur-[60px] -mr-20 -mt-20 pointer-events-none group-hover:from-blue-100/60 group-hover:to-indigo-100/40 transition-colors duration-700"></div>
-              <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div className="flex-1 min-w-0 z-10">
-                  <h4 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 tracking-tight">
-                    Ready to build your next AI solution?
+            <div className="mb-10 relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 shadow-xl shadow-blue-900/10 transition-all hover:shadow-2xl hover:shadow-blue-900/20 group">
+              {/* Premium abstract background glows */}
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-accent/20 via-emerald-500/10 to-blue-500/5 rounded-full blur-[80px] -mr-40 -mt-40 pointer-events-none group-hover:from-accent/30 transition-all duration-700 mix-blend-screen"></div>
+              <div className="absolute bottom-0 left-0 w-72 h-72 bg-gradient-to-tr from-blue-500/10 to-transparent rounded-full blur-[60px] -ml-20 -mb-20 pointer-events-none mix-blend-screen"></div>
+              
+              <div className="relative p-8 sm:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8 z-10">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight">
+                    Ready to build your next <span className="text-accent bg-clip-text text-transparent bg-gradient-to-r from-accent to-emerald-300">AI solution?</span>
                   </h4>
-                  <p className="text-sm sm:text-base font-medium text-slate-500 max-w-2xl">
+                  <p className="text-base font-medium text-slate-300 max-w-2xl leading-relaxed">
                     Begin the elicitation process to define your requirements, explore possibilities, and get matched with top experts.
                   </p>
                 </div>
-                <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 z-10 shrink-0">
+                <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-4 shrink-0">
                   {!isSubscribed ? (
                     <button
                       onClick={() => navigate('/ceo/subscription')}
-                      className="flex items-center justify-center gap-2 px-7 py-3 bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-md hover:bg-emerald-500 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                      className="flex items-center justify-center gap-2 px-8 py-4 bg-accent text-slate-900 font-extrabold rounded-xl transition-all shadow-[0_0_20px_rgba(190,242,100,0.3)] hover:bg-accent-light hover:shadow-[0_0_30px_rgba(190,242,100,0.5)] hover:-translate-y-1 active:translate-y-0"
                     >
-                      <Rocket className="w-4 h-4 text-emerald-100" />
+                      <Rocket className="w-5 h-5 text-emerald-700" />
                       Subscribe to Pro
                     </button>
                   ) : (
                     <button
                       onClick={handleStartNewProject}
                       disabled={isFetchingActiveSession}
-                      className={`flex items-center justify-center gap-2 px-7 py-3 bg-slate-900 text-white font-bold rounded-xl transition-all shadow-md ${
+                      className={`flex items-center justify-center gap-2 px-8 py-4 bg-white text-slate-900 font-extrabold rounded-xl transition-all shadow-md ${
                         isFetchingActiveSession 
                           ? 'opacity-70 cursor-not-allowed' 
-                          : 'hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                          : 'hover:bg-slate-50 hover:shadow-lg hover:shadow-white/20 hover:-translate-y-1 active:translate-y-0'
                       }`}
                     >
                       {isFetchingActiveSession ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
-                        <Rocket className="w-4 h-4 text-blue-300" />
+                        <Rocket className="w-5 h-5 text-blue-600" />
                       )} 
                       {isFetchingActiveSession ? 'Checking...' : 'Start Elicitation'}
                     </button>

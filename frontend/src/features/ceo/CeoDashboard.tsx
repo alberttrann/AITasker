@@ -72,7 +72,7 @@ export function CeoOverview() {
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <DashboardBanner
-            topLabel="AI Assistant"
+            topLabel="Create a project"
             title="AI Elicitation Engine"
             description={
               mostRecentSession ? (
