@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { useWallet, useUserProfile } from '@/hooks/use-wallet';
@@ -22,6 +23,7 @@ export default function ExpertWallet() {
   const { user } = useAuth();
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const [showProExpiry, setShowProExpiry] = useState(false);
 
   const availableBalance = wallet?.availableBalance ?? 0;
   const lockedBalance = wallet?.lockedBalance ?? 0;
@@ -65,9 +67,20 @@ export default function ExpertWallet() {
                   Expert
                 </span>
                 {user?.subscriptionTier && user.subscriptionTier !== 'free' && (
-                  <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-md tracking-wide uppercase">
-                    {user.subscriptionTier}
-                  </span>
+                  <div className="relative flex items-center">
+                    <button 
+                      onClick={() => setShowProExpiry(!showProExpiry)}
+                      onBlur={() => setShowProExpiry(false)}
+                      className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-md tracking-wide uppercase hover:opacity-90 transition-opacity"
+                    >
+                      {user.subscriptionTier}
+                    </button>
+                    {showProExpiry && user?.subscriptionExpires && (
+                      <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
+                        Expires on: {new Date(user.subscriptionExpires).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {user?.subscriptionTier === 'free' && (
                   <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md tracking-wide uppercase">
@@ -200,7 +213,7 @@ export default function ExpertWallet() {
       </div>
 
       {/* ─── Transaction History & Top-Up ───────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2">
           <TransactionHistory />
         </div>

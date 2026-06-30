@@ -4,6 +4,7 @@ import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUp
 import { ConfirmModal } from "@/components/ui/modal";
 import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
@@ -13,6 +14,8 @@ export default function ProjectsPage() {
   const { activeSession, isLoadingActiveSession, isFetchingActiveSession } = useActiveElicitationSession();
   const deleteSession = useDeleteElicitationSession();
   const updateProjectName = useUpdateProjectName();
+  const { user } = useAuth();
+  const isSubscribed = user?.subscriptionTier === 'pro';
   
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
@@ -153,22 +156,32 @@ export default function ProjectsPage() {
                   </p>
                 </div>
                 <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 z-10 shrink-0">
-                  <button
-                    onClick={handleStartNewProject}
-                    disabled={isFetchingActiveSession}
-                    className={`flex items-center justify-center gap-2 px-7 py-3 bg-slate-900 text-white font-bold rounded-xl transition-all shadow-md ${
-                      isFetchingActiveSession 
-                        ? 'opacity-70 cursor-not-allowed' 
-                        : 'hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
-                    }`}
-                  >
-                    {isFetchingActiveSession ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Rocket className="w-4 h-4 text-blue-300" />
-                    )} 
-                    {isFetchingActiveSession ? 'Checking...' : 'Start Elicitation'}
-                  </button>
+                  {!isSubscribed ? (
+                    <button
+                      onClick={() => navigate('/ceo/subscription')}
+                      className="flex items-center justify-center gap-2 px-7 py-3 bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-md hover:bg-emerald-500 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      <Rocket className="w-4 h-4 text-emerald-100" />
+                      Subscribe to Pro
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleStartNewProject}
+                      disabled={isFetchingActiveSession}
+                      className={`flex items-center justify-center gap-2 px-7 py-3 bg-slate-900 text-white font-bold rounded-xl transition-all shadow-md ${
+                        isFetchingActiveSession 
+                          ? 'opacity-70 cursor-not-allowed' 
+                          : 'hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                      }`}
+                    >
+                      {isFetchingActiveSession ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Rocket className="w-4 h-4 text-blue-300" />
+                      )} 
+                      {isFetchingActiveSession ? 'Checking...' : 'Start Elicitation'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

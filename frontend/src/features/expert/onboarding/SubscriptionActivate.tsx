@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
 import { useUser } from '@/hooks/use-user';
 import { useSubscription } from '@/hooks/use-subscription';
+import { SubscriptionPrice } from '@/types/enums';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -21,7 +22,7 @@ export default function SubscriptionActivate() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const price = 5000;
+  const price = SubscriptionPrice.EXPERT;
   const canAfford = availableBalance >= price;
 
   const handleActivate = () => {

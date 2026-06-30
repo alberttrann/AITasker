@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@hooks/use-auth';
 import { useNavigate } from 'react-router-dom';
 import { TransactionHistory } from './TransactionHistory';
@@ -9,6 +10,7 @@ import { useWallet } from '@/hooks/use-wallet';
 export default function WalletPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [showProExpiry, setShowProExpiry] = useState(false);
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
 
   // Real balances via useWallet hook
@@ -56,9 +58,20 @@ export default function WalletPage() {
                       : user?.activeRole || 'USER'}
                   </span>
                   {user?.subscriptionTier && user.subscriptionTier !== 'free' && (
-                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-md tracking-wide uppercase">
-                      {user.subscriptionTier}
-                    </span>
+                    <div className="relative flex items-center">
+                      <button 
+                        onClick={() => setShowProExpiry(!showProExpiry)}
+                        onBlur={() => setShowProExpiry(false)}
+                        className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-md tracking-wide uppercase hover:opacity-90 transition-opacity"
+                      >
+                        {user.subscriptionTier}
+                      </button>
+                      {showProExpiry && user?.subscriptionExpires && (
+                        <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
+                          Expires on: {new Date(user.subscriptionExpires).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
                   )}
                   {user?.subscriptionTier === 'free' && (
                     <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md tracking-wide uppercase">
