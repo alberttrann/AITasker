@@ -304,6 +304,16 @@ const RoleIcon =
                       Profile
                     </Link>
 
+                    {rawRole === 'CEO' && (
+                      <Link
+                        to={`${dashboardRoute}/projects`} 
+                        onClick={() => setActiveDropdown(null)} 
+                        className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
+                      >
+                        Projects
+                      </Link>
+                    )}
+
                     {/* Divider */}
                     <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     

@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { 
   useElicitationSessions, 
   useRestoreElicitationSession, 
-  useHardDeleteElicitationSession 
+  useHardDeleteElicitationSession,
+  useActiveElicitationSession,
+  useDeleteElicitationSession
 } from "@/hooks/use-projects";
 import { ConfirmModal } from "@/components/ui/modal";
 import { ArrowLeft, Clock, Trash2, ArrowRight } from "lucide-react";
@@ -13,9 +15,12 @@ export default function SessionsListPage() {
   const { sessions, isLoadingSessions } = useElicitationSessions();
   const restoreSession = useRestoreElicitationSession();
   const hardDeleteSession = useHardDeleteElicitationSession();
+  const { activeSession } = useActiveElicitationSession();
+  const abandonSession = useDeleteElicitationSession();
 
   const [sessionToHardDelete, setSessionToHardDelete] = useState<string | null>(null);
   const [showEmptyBinConfirm, setShowEmptyBinConfirm] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const getSafeDate = (obj: any, field: 'updatedAt' | 'createdAt') => {
     return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
@@ -37,10 +42,15 @@ export default function SessionsListPage() {
 
   const handleContinueSession = async (id: string) => {
     try {
+      setRestoringId(id);
+      if (activeSession?.id && activeSession.id !== id) {
+        await abandonSession.mutateAsync(activeSession.id);
+      }
       await restoreSession.mutateAsync(id);
       navigate("/ceo/elicitation");
     } catch (error) {
       console.error("Failed to restore session", error);
+      setRestoringId(null);
     }
   };
 
@@ -129,11 +139,11 @@ export default function SessionsListPage() {
                   </button>
                   <button
                     onClick={() => handleContinueSession(session.id)}
-                    disabled={restoreSession.isPending}
-                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition-colors w-full sm:w-auto"
+                    disabled={restoringId === session.id}
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition-colors w-full sm:w-auto disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    {restoreSession.isPending ? "Restoring..." : "Continue with this session"}
-                    {!restoreSession.isPending && <ArrowRight className="w-4 h-4" />}
+                    {restoringId === session.id ? "Restoring..." : "Continue with this session"}
+                    {restoringId !== session.id && <ArrowRight className="w-4 h-4" />}
                   </button>
                 </div>
               </div>

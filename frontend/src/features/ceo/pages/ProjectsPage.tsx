@@ -1,16 +1,22 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUpdateProjectName, useActiveElicitationSession } from "@/hooks/use-projects";
 import { ConfirmModal } from "@/components/ui/modal";
 import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ProjectsPage() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { projects, isLoadingProjects } = useProjects();
   const { sessions, isLoadingSessions } = useElicitationSessions();
-  const { activeSession, isLoadingActiveSession } = useActiveElicitationSession();
+  const { activeSession, isLoadingActiveSession, isFetchingActiveSession } = useActiveElicitationSession();
   const deleteSession = useDeleteElicitationSession();
   const updateProjectName = useUpdateProjectName();
+  
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
+  }, [queryClient]);
   
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -149,9 +155,19 @@ export default function ProjectsPage() {
                 <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 z-10 shrink-0">
                   <button
                     onClick={handleStartNewProject}
-                    className="flex items-center justify-center gap-2 px-7 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                    disabled={isFetchingActiveSession}
+                    className={`flex items-center justify-center gap-2 px-7 py-3 bg-slate-900 text-white font-bold rounded-xl transition-all shadow-md ${
+                      isFetchingActiveSession 
+                        ? 'opacity-70 cursor-not-allowed' 
+                        : 'hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                    }`}
                   >
-                    <Rocket className="w-4 h-4 text-blue-300" /> Start Elicitation
+                    {isFetchingActiveSession ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Rocket className="w-4 h-4 text-blue-300" />
+                    )} 
+                    {isFetchingActiveSession ? 'Checking...' : 'Start Elicitation'}
                   </button>
                 </div>
               </div>
@@ -159,9 +175,19 @@ export default function ProjectsPage() {
           )}
 
           {/* BOTTOM SECTION: Published Projects */}
-          {allProjects.length > 0 && (
-            <div>
-              <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Projects List</h4>
+          <div>
+            <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Projects List</h4>
+            {allProjects.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <FileText className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">No projects yet</h3>
+                <p className="text-slate-500 max-w-sm">
+                  When you complete an elicitation session, your published projects will appear here.
+                </p>
+              </div>
+            ) : (
               <div className="flex flex-col gap-4">
                 
                 {allProjects.map((project) => (
@@ -232,7 +258,7 @@ export default function ProjectsPage() {
                 )}
                 
                 <p className="text-sm text-slate-500 mb-3">
-                  Published {new Date((project as any).createdAt || project.created_at || new Date()).toLocaleDateString()}
+                  Created: {new Date(getSafeDate(project, 'createdAt')).toLocaleDateString()} &middot; Last updated: {new Date(getSafeDate(project, 'updatedAt')).toLocaleDateString()}
                 </p>
                 
                 {/* Domains and Seams Tags */}
@@ -261,8 +287,8 @@ export default function ProjectsPage() {
             </div>
           ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

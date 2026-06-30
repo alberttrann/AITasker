@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
@@ -106,6 +106,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 export default function ElicitationWizard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const initPromiseRef = useRef<Promise<any> | null>(null);
 
   const [state, dispatch] = useReducer(wizardReducer, {
     sessionId: null,
@@ -125,17 +126,22 @@ export default function ElicitationWizard() {
 
     const init = async () => {
       try {
-        let data;
-        try {
-          data = await getActiveSession();
-        } catch {
-          data = null;
+        if (!initPromiseRef.current) {
+          initPromiseRef.current = (async () => {
+            let data = null;
+            try {
+              data = await getActiveSession();
+            } catch {
+              data = null;
+            }
+            if (!data || !data.id) {
+              data = await createSession();
+            }
+            return data;
+          })();
         }
 
-        if (!data || !data.id) {
-          data = await createSession();
-        }
-
+        const data = await initPromiseRef.current;
         if (cancelled) return;
 
         let initGateResult = null;

@@ -29,6 +29,7 @@ export function useActiveElicitationSession() {
   return {
     activeSession: (activeSessionQuery.data as any)?.data ?? activeSessionQuery.data ?? null,
     isLoadingActiveSession: activeSessionQuery.isLoading,
+    isFetchingActiveSession: activeSessionQuery.isFetching,
   };
 }
 
