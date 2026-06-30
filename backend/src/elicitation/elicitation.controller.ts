@@ -176,6 +176,15 @@ export class ElicitationController {
     return this.elicitationService.abandonSession(id, user.id);
   }
 
+  // [Pro-C]
+  @Put('sessions/:id/continue')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async continueSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.continueSession(id, user.id);
+  }
+
   private assertCeoOnly(user: AuthUser) {
     if (user.clientSubtype !== 'CEO') {
       throw new ForbiddenException('Only the CEO may perform this action.');

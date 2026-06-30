@@ -678,6 +678,17 @@ export class ElicitationService {
     });
   }
 
+  async continueSession(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+    if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
+
+    return this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: { state: 'IN_PROGRESS', updatedAt: new Date() },
+    });
+  }
+
   async revertSession(sessionId: string, userId: string, targetStage: number) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
