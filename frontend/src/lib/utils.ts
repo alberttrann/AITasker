@@ -6,5 +6,5 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatVND(amount: number): string {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' ROBUX';
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VND';
 }

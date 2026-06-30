@@ -24,7 +24,7 @@ export default function ProfilePage() {
   const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.locked_balance ?? 0;
 
   const maskData = (data: string | null | undefined) => {
-    if (!data) return 'N/A';
+    if (!data) return 'Not specified';
 
     // 1. Email Masking Logic
     if (data.includes('@')) {
@@ -86,9 +86,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6">
-      
-      <div className="w-full max-w-5xl mx-auto">
+    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
         {/* Page Header */}
         <div className="mb-6 flex items-center gap-3">
           <button 
@@ -108,7 +106,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Main Unified Card */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
           
           {/* ── 1. Identity Section ── */}
           <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -167,11 +165,19 @@ export default function ProfilePage() {
                    {switchRole.isPending ? 'Switching...' : `Continue as ${isClient ? 'Expert' : 'Client'}`}
                  </button>
               )}
+              {isExpert && (
+                <Link 
+                  to="/expert/expert-profile"
+                  className="text-sm font-medium text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap text-center shadow-sm"
+                >
+                  Expert Profile
+                </Link>
+              )}
               <Link 
                 to="../account-setting"
                 className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap text-center"
               >
-                Edit Profile
+                Edit
               </Link>
             </div>
           </div>
@@ -184,7 +190,7 @@ export default function ProfilePage() {
               <span className="text-sm font-medium text-slate-500">Email Address</span>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-slate-900 font-medium">
-                  {showEmail ? (user?.email || 'N/A') : maskData(user?.email)}
+                  {showEmail ? (user?.email || 'Not specified') : maskData(user?.email)}
                 </span>
                 <button 
                   onClick={() => setShowEmail(!showEmail)}
@@ -201,7 +207,7 @@ export default function ProfilePage() {
               <span className="text-sm font-medium text-slate-500">Phone Number</span>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-slate-900 font-medium">
-                  {showPhone ? (user?.phone || 'N/A') : maskData(user?.phone)}
+                  {showPhone ? (user?.phone || 'Not specified') : maskData(user?.phone)}
                 </span>
                 <button 
                   onClick={() => setShowPhone(!showPhone)}
@@ -363,7 +369,6 @@ export default function ProfilePage() {
           </div>
 
         </div>
-      </div>
 
       <ConfirmModal
         isOpen={isSignOutOpen}

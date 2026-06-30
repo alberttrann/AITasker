@@ -32,7 +32,7 @@ export default function SubscriptionActivate() {
       {
         onSuccess: async (data) => {
           store.setTokens(data.access_token, ''); 
-          queryClient.invalidateQueries({ queryKey: ['user'] });
+          await queryClient.refetchQueries({ queryKey: ['user', 'me'] });
           await queryClient.refetchQueries({ queryKey: ['wallet'] });
           setIsSuccess(true);
         },
@@ -82,9 +82,9 @@ export default function SubscriptionActivate() {
             <Button
               className="w-full py-6 text-lg font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all relative z-10 shrink-0"
               variant="primary"
-              onClick={() => navigate('/ceo/elicitation')}
+              onClick={() => navigate('/ceo')}
             >
-              Start Your First AI Project
+              Back to Dashboard
             </Button>
           </div>
         </div>

@@ -46,7 +46,7 @@ export default function ExpertProfilePage() {
           <ShieldCheck className="w-12 h-12" />
         </div>
         <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Expert Profile Not Claimed</h1>
-        <p className="text-gray-500 text-lg max-w-5xl mb-8">
+        <p className="text-gray-500 text-lg max-w-2xl mb-8">
           You haven't built your expert profile yet. Define your domains, integration seams, and tech stack to get matched with high-value AI projects.
         </p>
         <Button 

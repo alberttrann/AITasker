@@ -281,25 +281,10 @@ const RoleIcon =
                       onClick={() => setActiveDropdown(null)} 
                       className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                     >
-                      User Profile
+                      Profile
                     </Link>
-                    {user?.activeRole === 'EXPERT' && (
-                      <Link
-                        to={`${dashboardRoute}/expert-profile`} 
-                        onClick={() => setActiveDropdown(null)} 
-                        className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
-                      >
-                        Expert Profile
-                      </Link>
-                    )}
-                    <Link
-                      to={`${dashboardRoute}/account-setting`}
-                      onClick={() => setActiveDropdown(null)}
-                      className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
-                    >
-                      Account Configuration
-                    </Link>
-                    
+
+
                     {/* Divider */}
                     <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     
