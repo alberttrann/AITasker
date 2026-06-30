@@ -237,6 +237,7 @@ def _validate_stage5_response(raw: dict) -> Stage5Response:
     valid_archetypes = VALID_ARCHETYPE_CODES
     valid_tiers = {"TIER_1", "TIER_2", "TIER_3"}
     artifact_a = {
+        "project_name":    str(raw_a.get("project_name", "AI Project")),
         "business_intent": str(raw_a.get("business_intent", "")),
         "archetype":       raw_a.get("archetype", "1")
                            if raw_a.get("archetype") in valid_archetypes

@@ -30,6 +30,7 @@ export interface MilestoneFrameworkItem {
 }
 
 export interface ArtifactA {
+  project_name:    string;
   business_intent: string;
   archetype:       ArchetypeCode;
   stack_tags:      string[];

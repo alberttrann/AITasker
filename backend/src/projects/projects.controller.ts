@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Request, Put, Body } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -54,5 +54,17 @@ export class ProjectsController {
     const activeRole = req.user.activeRole;
     const clientSubtype = req.user.clientSubtype;
     return this.projectsService.findProjectArtifactB(projectId, userId, activeRole, clientSubtype);
+  }
+
+  @Put(':id/name')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  async updateProjectName(
+    @Param('id') projectId: string, 
+    @Body('projectName') projectName: string,
+    @Request() req: any
+  ) {
+    return this.projectsService.updateProjectName(projectId, req.user.id, projectName);
   }
 }

@@ -24,6 +24,7 @@ Return a JSON object with EXACTLY this shape — all 6 keys required:
     }
   ],
   "artifact_a_json": {
+    "project_name":     "3-5 word professional title for this project",
     "business_intent":  "2-3 sentence plain-English project summary for expert shortlist",
     "archetype":        "1 | 2 | 3 | 4 | 5 | 6",
     "stack_tags":       ["Python", "FastAPI", "etc"],
