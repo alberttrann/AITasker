@@ -203,7 +203,7 @@ export default function ProjectsPage() {
                       {project.tier.replace(/_/g, ' ')}
                     </span>
                   )}
-                  {((project as any).selfTechnical || project.self_technical) && (
+                  {project.selfTechnical && (
                     <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-semibold uppercase rounded-md border border-indigo-100">
                       Self-Managed Tech
                     </span>
