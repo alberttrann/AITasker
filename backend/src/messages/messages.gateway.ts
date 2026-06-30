@@ -1,14 +1,22 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, ConnectedSocket, MessageBody,
-  OnGatewayConnection, OnGatewayDisconnect, } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { JwtService } from '@nestjs/jwt'; 
+import { JwtService } from '@nestjs/jwt';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: {
-    origin: '*', 
+    origin: '*',
   },
 })
 export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -24,48 +32,81 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     try {
       const token = this.extractToken(client);
       if (!token) {
-        client.disconnect(); // Ngắt kết nối ngay nếu không gửi kèm token xác thực
+        client.disconnect();
         return;
       }
-      
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET,
-      });
-      client.data.user = payload; 
+
+      const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_SECRET });
+      client.data.user = payload;
+
+      // Join a room named after the user's ID for personal notifications
+      client.join(payload.sub);
     } catch (error) {
-      client.disconnect(); 
+      client.disconnect();
     }
   }
 
-  // Trigger kích hoạt khi thiết bị ngắt kết nối
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket) {}
+
+  // Listen for internal server events and push them to the specific user's socket
+  @OnEvent('socket.broadcast')
+  handleSocketBroadcast(data: { userId: string; event: string; payload: any }) {
+    if (!this.server) return;
+    this.server.to(data.userId).emit(data.event, data.payload);
   }
 
   @SubscribeMessage('joinRoom')
-  handleJoinRoom(
+  async handleJoinRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody('engagementId') engagementId: string,
+    @MessageBody() body: { engagementId?: string; projectId?: string },
   ) {
-    if (engagementId) {
-      client.join(engagementId); 
+    const user = client.data.user;
+    if (!user) {
+      client.emit('error', { message: 'Invalid join request.' });
+      return;
+    }
+
+    const { engagementId, projectId } = body;
+    if (!!engagementId === !!projectId) {
+      client.emit('error', { message: 'Provide exactly one of engagementId or projectId.' });
+      return;
+    }
+
+    try {
+      if (engagementId) {
+        await this.messagesService.assertPartyToEngagement(engagementId, user.sub);
+        client.join(engagementId);
+      } else {
+        await this.messagesService.assertPartyToProject(projectId!, {
+          id: user.sub,
+          activeRole: user.activeRole,
+        });
+        client.join(projectId!);
+      }
+    } catch {
+      client.emit('error', { message: 'You are not authorized to join this chat.' });
     }
   }
 
   @SubscribeMessage('sendMessage')
-  @UsePipes(new ValidationPipe({ transform: true })) 
-  async handleSendMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() dto: CreateMessageDto,
-  ) {
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleSendMessage(@ConnectedSocket() client: Socket, @MessageBody() dto: CreateMessageDto) {
     const user = client.data.user;
     if (!user) {
       client.emit('error', { message: 'Unauthorized socket connection.' });
       return;
     }
 
-    const savedMessage = await this.messagesService.createMessage(user.sub, dto);
-
-    this.server.to(dto.engagement_id).emit('newMessage', savedMessage);
+    try {
+      const savedMessage = await this.messagesService.createMessage(
+        { id: user.sub, activeRole: user.activeRole },
+        dto,
+      );
+      const room = dto.engagement_id || dto.project_id;
+      this.server.to(room!).emit('newMessage', savedMessage);
+    } catch (err: any) {
+      client.emit('error', { message: err.message || 'Failed to send message.' });
+    }
   }
 
   private extractToken(client: Socket): string | null {

@@ -1,0 +1,86 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ListingsService } from './listings.service';
+import { CreateListingDto, ListServicesFilterDto } from './dto/create-listing.dto';
+import { UpdateListingDto } from './dto/update-listing.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+
+@ApiTags('Listings')
+@Controller('services')
+@UseGuards(JwtAuthGuard, RolesGuard)
+// GET /services is open to all authenticated users per docs/04 §0.11 K row 133.
+// Other routes (POST/PUT/purchase) narrow roles at the method level.
+@Roles('CLIENT', 'EXPERT', 'ADMIN')
+export class ListingsController {
+  constructor(private readonly listingsService: ListingsService) {}
+
+  @ApiBearerAuth('JWT')
+  @Get()
+  // GET /services — browse marketplace (state = PUBLISHED only).
+  // Blueprint: docs/04-endpoints.md §0.11 K row 133.
+  async list(@Query() filter: ListServicesFilterDto) {
+    return this.listingsService.list(filter);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get(':id')
+  // GET /services/:id — single listing detail (with reputation aggregates).
+  // Blueprint: docs/04-endpoints.md §0.11 K row 134.
+  // Guard (in service): state != PUBLISHED AND not owner/admin → 404.
+  async findOne(
+    @CurrentUser() user: { id: string; activeRole: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingsService.findOne(id, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post()
+  // POST /services — EXPERT creates a service listing at state: DRAFT.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 135.
+  // Method-level @Roles('EXPERT') overrides the class-level gate.
+  @Roles('EXPERT')
+  async create(@CurrentUser() user: { id: string }, @Body() body: CreateListingDto) {
+    return this.listingsService.create(user.id, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id')
+  // PUT /services/:id — owner updates draft listing or transitions DRAFT → PUBLISHED.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 136.
+  // Guard (in service): not owner → 403 · SUSPENDED → 422 · serviceType after PUBLISHED → 422.
+  @Roles('EXPERT')
+  async update(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateListingDto,
+  ) {
+    return this.listingsService.update(id, user.id, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post(':id/purchase')
+  // POST /services/:id/purchase — CEO purchases a published service.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 137.
+  // Guard (in service): CEO role → 403 · !PUBLISHED → 422 · balance < price → 422.
+  @Roles('CLIENT')
+  async purchase(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingsService.purchase(id, user);
+  }
+}

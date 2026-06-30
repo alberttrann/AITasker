@@ -1,0 +1,144 @@
+import { Injectable, NotFoundException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
+import { CreateSubmissionDto } from './dto/create-submission.dto';
+import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
+
+@Injectable()
+export class SubmissionsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async submitMilestones(milestoneId: string, expertId: string, dto: CreateSubmissionDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    const incompleteRequiredDodCount = await this.prisma.milestoneDodItem.count({
+      where: {
+        milestoneId: milestoneId,
+        isRequired: true,
+        status: { not: 'COMPLETED' },
+      },
+    });
+
+    if (incompleteRequiredDodCount > 0) {
+      const incompleteItems = await this.prisma.milestoneDodItem.findMany({
+        where: {
+          milestoneId: milestoneId,
+          isRequired: true,
+          status: { not: 'COMPLETED' },
+        },
+        select: {
+          id: true,
+          itemDescription: true,
+        },
+      });
+
+      throw new UnprocessableEntityException({
+        statusCode: 422,
+        error: 'REQUIRED_DOD_INCOMPLETE',
+        message: 'You cannot submit deliverables while required DoD items are incomplete.',
+        missing_items: incompleteItems,
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const submission = await tx.milestoneSubmission.create({
+        data: {
+          milestoneId: milestoneId,
+          expertId: expertId,
+          description: dto.description,
+          filesJson: dto.files_json || [],
+        },
+      });
+
+      await tx.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          state: 'SUBMITTED',
+          submittedAt: new Date(),
+        },
+      });
+
+      return submission;
+    });
+  }
+
+  async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    return this.prisma.paygatedDocument.create({
+      data: {
+        milestoneId: milestoneId,
+        documentUrl: dto.document_url,
+        releaseState: 'STAGED',
+        stagedAt: new Date(),
+      },
+    });
+  }
+
+  async downloadDocument(
+    milestoneId: string,
+    user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: true },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    // Party-checks for highly sensitive artifact access
+    const isExpertParty = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
+    const isAdmin = user.activeRole === 'ADMIN';
+    
+    let isLinkedTechTeam = false;
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && milestone.engagement.projectId) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId: user.id } });
+      isLinkedTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
+    }
+
+    if (!isExpertParty && !isLinkedTechTeam && !isAdmin) {
+      throw new ForbiddenException(
+        "You are not authorized to access this milestone's pay-gated documents.",
+      );
+    }
+
+    const docs = await this.prisma.paygatedDocument.findMany({
+      where: {
+        milestoneId: milestoneId,
+        releaseState: 'RELEASED',
+      },
+    });
+
+    if (docs.length === 0) {
+      const stagedCount = await this.prisma.paygatedDocument.count({
+        where: {
+          milestoneId: milestoneId,
+          releaseState: 'STAGED',
+        },
+      });
+
+      if (stagedCount > 0) {
+        throw new ForbiddenException(
+          'These documents are locked until payment is secured in escrow.',
+        );
+      }
+
+      throw new NotFoundException('No released documents found for this milestone.');
+    }
+
+    return docs;
+  }
+}

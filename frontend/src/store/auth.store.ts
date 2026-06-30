@@ -38,20 +38,28 @@ export const useAuthStore = create<AuthState>()(
       clientSubtype:   null,
 
       setTokens: (access, refresh) =>
-        set({ accessToken: access, refreshToken: refresh, isAuthenticated: true }),
+        set((state) => ({ accessToken: access, refreshToken: refresh || state.refreshToken })),
 
-      setUser: (user) =>
+      setUser: (user) => {
+        let subtype = user.clientSubtype ?? null;
+        if (!subtype && user.activeRole === 'CLIENT') {
+          if (user.roles?.includes('CLIENT_CEO')) subtype = 'CEO';
+          else if (user.roles?.includes('CLIENT_TECH_TEAM')) subtype = 'TECH_TEAM';
+        }
+        const updatedUser = { ...user, clientSubtype: subtype };
         set({
-          user,
-          activeRole:    user.active_role,
-          clientSubtype: user.client_subtype ?? null,
-        }),
+          user: updatedUser,
+          isAuthenticated: true,
+          activeRole:    updatedUser.activeRole,
+          clientSubtype: subtype,
+        });
+      },
 
       switchRole: (role, subtype) =>
         set((s) => ({
           activeRole:    role,
           clientSubtype: subtype ?? null,
-          user:          s.user ? { ...s.user, active_role: role, client_subtype: subtype ?? null } : s.user,
+          user:          s.user ? { ...s.user, activeRole: role, clientSubtype: subtype ?? null } : s.user,
         })),
 
       logout: () =>
@@ -66,10 +74,13 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'aitasker-auth',
-      // Only persist tokens — user object is re-fetched on load
       partialize: (s) => ({
         accessToken:  s.accessToken,
         refreshToken: s.refreshToken,
+        user:            s.user,             
+        isAuthenticated: s.isAuthenticated,  
+        activeRole:      s.activeRole,       
+        clientSubtype:   s.clientSubtype,    
       }),
     }
   )
