@@ -107,16 +107,9 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         sessionState: "IN_PROGRESS",
         voidList: [],
         archetype: null,
-        symptomText: "",
+        // We do NOT reset symptomText, probeResponses, or techContext here
+        // so that the user doesn't lose their typed data when starting over.
         acknowledgedVoids: [],
-        probeResponses: {},
-        techContext: {
-          scaleAndInfrastructure: "",
-          integrationMethod: "",
-          legacyVolume: "",
-          schemas: [],
-          contracts: [],
-        },
       };
     case "SET_FORCE_SCENARIO_A":
       return { ...state, forceScenarioA: action.payload };

@@ -46,9 +46,18 @@ export default function Stage1Symptoms({
     try {
       const data = await submitStage1(sessionId, symptomText.trim());
       const voids = (data.voidListJson as VoidItem[]) ?? [];
-      setVoidList(voids);
-      setAcknowledgedVoids(new Set());
-      setShowResults(true);
+      
+      if (voids.length === 0) {
+        // AI found no specific gaps, automatically proceed to Stage 2
+        onComplete({
+          voidListJson: [],
+          symptomText: symptomText.trim(),
+        });
+      } else {
+        setVoidList(voids);
+        setAcknowledgedVoids(new Set());
+        setShowResults(true);
+      }
     } catch (err: any) {
       const { message } = handleElicitationError(err);
       onError(message || "AI service is busy. Please try again.");
