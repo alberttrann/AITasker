@@ -23,11 +23,13 @@ interface Stage2Props {
   onComplete: (data: { archetype: string; acknowledgedVoidCodes?: string[] }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
+  initialArchetype?: string | null;
+  initialAcknowledgedVoids?: string[];
 }
 
-export default function Stage2Archetype({ sessionId, voidList, onComplete, onError, onBack }: Stage2Props) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
+export default function Stage2Archetype({ sessionId, voidList, onComplete, onError, onBack, initialArchetype, initialAcknowledgedVoids = [] }: Stage2Props) {
+  const [selected, setSelected] = useState<string | null>(initialArchetype ?? null);
+  const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set(initialAcknowledgedVoids));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleAcknowledge = (code: string) => {

@@ -57,6 +57,15 @@ export interface StageCompleteData {
   archetype?: string;
   probeResponses?: Record<string, string>;
   gateResult?: GateResult;
+  symptomText?: string;
+  acknowledgedVoidCodes?: string[];
+  techContext?: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
 }
 
 // ─── API Methods ──────────────────────────────────────────────────────

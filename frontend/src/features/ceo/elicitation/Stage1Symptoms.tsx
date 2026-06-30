@@ -15,17 +15,19 @@ interface Stage1Props {
   sessionId: string;
   onComplete: (data: {
     voidListJson: VoidItem[];
-    stage1SymptomsJson?: string[];
+    symptomText?: string;
   }) => void;
   onError: (msg: string) => void;
+  initialSymptomText?: string;
 }
 
 export default function Stage1Symptoms({
   sessionId,
   onComplete,
   onError,
+  initialSymptomText = "",
 }: Stage1Props) {
-  const [symptomText, setSymptomText] = useState("");
+  const [symptomText, setSymptomText] = useState(initialSymptomText);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [voidList, setVoidList] = useState<VoidItem[]>([]);
   const [acknowledgedVoids, setAcknowledgedVoids] = useState<Set<string>>(
@@ -160,7 +162,7 @@ export default function Stage1Symptoms({
             onClick={() =>
               onComplete({
                 voidListJson: voidList,
-                stage1SymptomsJson: [symptomText],
+                symptomText: symptomText,
               })
             }
           >
