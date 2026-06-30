@@ -667,6 +667,15 @@ export class ElicitationService {
     });
   }
 
+  // 1. Get the currently active IN_PROGRESS session for the banner
+  async getActiveSession(userId: string) {
+    const session = await this.prisma.elicitationSession.findFirst({
+      where: { userId, state: 'IN_PROGRESS' },
+    });
+    return session || null;
+  }
+
+  // 2. Abandon a session so the user can "Start Over"
   async abandonSession(sessionId: string, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
@@ -675,6 +684,14 @@ export class ElicitationService {
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: { state: 'ABANDONED', updatedAt: new Date() },
+    });
+  }
+
+  // 3. Get session history 
+  async getSessionHistory(userId: string) {
+    return this.prisma.elicitationSession.findMany({
+      where: { userId, state: { in: ['ABANDONED', 'RETURNED'] } },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

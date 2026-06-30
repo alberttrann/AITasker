@@ -172,6 +172,16 @@ export function handleElicitationError(err: any): {
   };
 }
 
+export async function getActiveSession() {
+  const { data } = await apiClient.get('/elicitation/sessions/active');
+  return data;
+}
+
+export async function abandonSession(sessionId: string) {
+  const { data } = await apiClient.put(`/elicitation/sessions/${sessionId}/abandon`);
+  return data;
+}
+
 // ─── Shared Constants ─────────────────────────────────────────────────
 
 export const STAGE_LABELS = [
