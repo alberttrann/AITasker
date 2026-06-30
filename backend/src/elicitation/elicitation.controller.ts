@@ -167,6 +167,22 @@ export class ElicitationController {
     return this.elicitationService.revertSession(id, user.id, dto.targetStage);
   }
 
+  @Get('sessions/active')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getActiveSession(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getActiveSession(user.id);
+  }
+
+  @Get('sessions/history')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getSessionHistory(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSessionHistory(user.id);
+  }
+
   // [Pro-C]
   @Put('sessions/:id/abandon')
   @UseGuards(SubscriptionGuard)

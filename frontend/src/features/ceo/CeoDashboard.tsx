@@ -7,6 +7,7 @@ import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock } from 
 import { DashboardBanner } from "@/components/ui/DashboardBanner";
 
 import { useAuth } from "@/hooks/use-auth";
+//import { getActiveSession } from "@/hooks/use-elicitation"; // <-- Import cai nay de cap nhat ne
 
 export function CeoOverview() {
   const { user } = useAuth();
@@ -28,7 +29,18 @@ export function CeoOverview() {
       localStorage.removeItem("currentSessionId");
     }
   }, [mostRecentSession]);
-
+/*
+  useEffect(() => {
+      // DO NOT USE LOCAL STORAGE. Check the actual database.
+      if (hasSubscription) {
+        getActiveSession()
+          .then((session) => {
+            setHasActiveSession(!!session);
+          })
+          .catch(() => setHasActiveSession(false));
+      }
+    }, [hasSubscription]);
+*/
   const hasSubscription = user?.subscriptionTier === "pro";
 
   const getStageName = (stage: number) => {

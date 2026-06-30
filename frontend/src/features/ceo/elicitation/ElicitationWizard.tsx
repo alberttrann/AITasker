@@ -211,6 +211,36 @@ export default function ElicitationWizard() {
     }
   };
 
+  /*
+
+  const handleStartOver = async () => {
+      setIsLoading(true);
+      setError(null);
+      setGateResult(null);
+      try {
+        // 1. ABANDON session cu trong db
+        if (sessionId) {
+          await abandonSession(sessionId);
+          localStorage.removeItem("currentSessionId");
+        }
+        
+        // 2. createSession dua cai móws
+        const data = await createSession();
+        setSessionId(data.id);
+        localStorage.setItem("currentSessionId", data.id);
+        
+        setCurrentStage(data.currentStage ?? 1);
+        setSessionState("IN_PROGRESS");
+        setVoidList([]);
+        setArchetype(null);
+      } catch (err: any) {
+        setError(handleElicitationError(err).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  */
+
   const handleCancelSession = () => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: true });
 
   const confirmCancelSession = () => {
