@@ -194,6 +194,7 @@ model Project {
   id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clientId               String              @map("client_id") @db.Uuid
   elicitationSessionId   String?             @unique @map("elicitation_session_id") @db.Uuid
+  projectName            String?             @map("project_name")
   state                  String              @default("PUBLISHED")
   archetype              String?
   tier                   String?
