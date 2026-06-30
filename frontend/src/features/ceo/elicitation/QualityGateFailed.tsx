@@ -65,9 +65,6 @@ export default function QualityGateFailed({
           >
             Go Back to Stage {returnToStage}
           </Button>
-          <Button variant="ghost" onClick={onStartOver}>
-            Start Over
-          </Button>
         </div>
       </CardContent>
     </Card>

@@ -18,6 +18,8 @@ import ExpertDashboard, {
   ExpertOverview,
 } from "@features/expert/ExpertDashboard";
 import TechTeamDashboard from "@features/tech-team/TechTeamDashboard";
+import TechTeamOverview from "@features/tech-team/TechTeamOverview";
+import Stage4Submitted from "@features/tech-team/stage4/Stage4Submitted";
 import AdminDashboard from "@features/admin/AdminDashboard";
 import ProfilePage from "./components/pages/UserProfilePage";
 import ProfileSettingPage from "./components/pages/ProfileSettingPage";
@@ -77,7 +79,10 @@ export default function App() {
 
         <Route element={<RoleRoute requiredSubtype="TECH_TEAM" />}>
           {/* /tech-team/* — scoped to one linked project forever */}
-          <Route path="/tech-team/*" element={<TechTeamDashboard />} />
+          <Route path="/tech-team" element={<TechTeamDashboard />}>
+            <Route index element={<TechTeamOverview />} />
+            <Route path="submitted" element={<Stage4Submitted />} />
+          </Route>
         </Route>
 
         <Route element={<RoleRoute requiredRole="ADMIN" />}>

@@ -138,13 +138,14 @@ export default function Stage4ScenarioB({
 
         {sendError && <p className="text-sm text-red-600">{sendError}</p>}
 
-        <button
+        <Button
           onClick={handleGenerateLink}
           disabled={isSending || !inviteEmail.trim()}
-          className="w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full"
+          variant="primary"
         >
           {isSending ? "Generating link…" : "Generate invite link"}
-        </button>
+        </Button>
         <div className="flex items-center justify-between pt-2">
           <Button variant="outline" onClick={handleBackClick} disabled={isSending || isReverting}>
             {isReverting ? 'Going back…' : '← Back'}
@@ -173,12 +174,13 @@ export default function Stage4ScenarioB({
           details yourself instead.
         </p>
         <div className="flex flex-col gap-2">
-          <button
+          <Button
             onClick={handleResendInvite}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium"
+            variant="outline"
+            className="w-full"
           >
             Generate a new link
-          </button>
+          </Button>
           {/* Wizard-level fallback — lets the CEO bail to Stage4ScenarioA */}
           <button
             onClick={onFillInMyself}
