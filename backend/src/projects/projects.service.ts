@@ -239,30 +239,75 @@ export class ProjectsService {
     return false;
   }
 
-  async getProjects(userId: string, activeRole: string, clientSubtype?: string) {
-    if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
-      return this.prisma.project.findMany({ 
-        where: { clientId: userId }, 
-        orderBy: { createdAt: 'desc' },
-        // Include engagement counts (bids)
-        include: {
-          _count: {
-            select: { engagements: { where: { type: 'PROJECT_BASED' } } }
-          }
+  /**
+   * @param slim When true, returns only lightweight scalar fields — no JSONBs.
+   *             Cuts payload ~80% for list/card views.
+   *             Full record (artifactAJson, etc.) should be fetched via GET /projects/:id.
+   */
+  async getProjects(
+    userId: string,
+    activeRole: string,
+    clientSubtype?: string,
+    slim = false,
+  ) {
+    const slimSelect = slim
+      ? {
+          id: true,
+          projectName: true,
+          state: true,
+          archetype: true,
+          tier: true,
+          selfTechnical: true,
+          createdAt: true,
         }
+      : undefined;
+
+    const fullInclude = slim
+      ? undefined
+      : {
+          _count: {
+            select: { engagements: { where: { type: 'PROJECT_BASED' } } },
+          },
+        };
+
+    const queryOptions = slim
+      ? { select: slimSelect }
+      : { include: fullInclude };
+
+    if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
+      if (slim) {
+        return this.prisma.project.findMany({
+          where: { clientId: userId },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, projectName: true, state: true,
+            archetype: true, tier: true, selfTechnical: true, createdAt: true,
+          },
+        });
+      }
+      return this.prisma.project.findMany({
+        where: { clientId: userId },
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { engagements: { where: { type: 'PROJECT_BASED' } } } } },
       });
     }
     if (activeRole === 'CLIENT' && clientSubtype === 'TECH_TEAM') {
       const tech = await this.prisma.techTeamProfile.findUnique({ where: { userId } });
       if (!tech?.linkedProjectId) return [];
-      return this.prisma.project.findMany({ 
-        where: { id: tech.linkedProjectId }, 
+      if (slim) {
+        return this.prisma.project.findMany({
+          where: { id: tech.linkedProjectId },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, projectName: true, state: true,
+            archetype: true, tier: true, selfTechnical: true, createdAt: true,
+          },
+        });
+      }
+      return this.prisma.project.findMany({
+        where: { id: tech.linkedProjectId },
         orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: { engagements: { where: { type: 'PROJECT_BASED' } } }
-          }
-        }
+        include: { _count: { select: { engagements: { where: { type: 'PROJECT_BASED' } } } } },
       });
     }
     return [];

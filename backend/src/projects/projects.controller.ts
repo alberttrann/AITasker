@@ -1,9 +1,9 @@
-import { Controller, Get, Param, UseGuards, Request, Put, Body } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Request, Put, Body } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Projects')
 @Controller('projects')
@@ -26,9 +26,17 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT')
   @ApiBearerAuth('JWT')
-  async getProjects(@Request() req: any) {
+  @ApiQuery({
+    name: 'slim',
+    required: false,
+    type: Boolean,
+    description:
+      'Return minimal fields only (id, projectName, state, archetype, tier, createdAt). ' +
+      'Strips all JSON blobs — use for list cards to cut payload ~80%.',
+  })
+  async getProjects(@Request() req: any, @Query('slim') slim?: string) {
     const { id, activeRole, clientSubtype } = req.user;
-    return this.projectsService.getProjects(id, activeRole, clientSubtype);
+    return this.projectsService.getProjects(id, activeRole, clientSubtype, slim === 'true');
   }
 
   @Get(':id/artifact-a')

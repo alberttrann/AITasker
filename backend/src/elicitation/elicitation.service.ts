@@ -376,6 +376,28 @@ export class ElicitationService {
   }
 
   // Private helpers
+  async saveDraft(
+    sessionId: string,
+    userId: string,
+    symptomTextDraft: string,
+  ): Promise<{ saved: boolean; reason?: string }> {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
+    if (session.currentStage !== 1) {
+      return { saved: false, reason: 'stage_already_submitted' };
+    }
+    if (session.state !== 'IN_PROGRESS') {
+      return { saved: false, reason: 'session_not_active' };
+    }
+
+    await this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: { symptomTextDraft },
+    });
+
+    return { saved: true };
+  }
 
   private async findSessionOrThrow(sessionId: string) {
     const session = await this.prisma.elicitationSession.findUnique({

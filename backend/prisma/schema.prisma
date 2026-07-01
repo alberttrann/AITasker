@@ -180,6 +180,7 @@ model ElicitationSession {
   handoffTokenJti           String?   @map("handoff_token_jti")
   handoffConsumedAt         DateTime? @map("handoff_consumed_at") @db.Timestamptz(6)
   recommendedArchetypesJson Json?     @map("recommended_archetypes_json")
+  symptomTextDraft          String?   @map("symptom_text_draft")
 
   user    User     @relation(fields: [userId], references: [id])
   project Project?
@@ -211,10 +212,24 @@ model Project {
   techTeamProfiles   TechTeamProfile[]
   engagements        Engagement[]
   messages           Message[]
+  shortlistCache     ProjectShortlistCache?
 
   @@index([clientId])
   @@index([state])
   @@map("projects")
+}
+
+model ProjectShortlistCache {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String   @unique @map("project_id") @db.Uuid
+  resultsJson Json     @default("[]") @map("results_json")
+  generatedAt DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+  /// 'AUTO' = seeded at publish time via event; 'FORCE_REFRESH' = CEO triggered re-score
+  source      String   @default("AUTO")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_shortlist_cache")
 }
 
 model ExpertDomainDepth {

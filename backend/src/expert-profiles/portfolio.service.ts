@@ -214,4 +214,53 @@ export class PortfolioService {
       evaluatedAt: submission.evaluatedAt,
     };
   }
+
+  /**
+   * Returns all portfolio submissions for the given expert user, joining
+   * back to the seam claim for display context (seam code + current tier).
+   * Used by GET /portfolio-submissions (list) for VerificationHistoryPage.
+   *
+   * NOTE: advisoryNote lives on platform_decisions, not on the submission row.
+   * This method re-joins through platformDecisions inline for efficiency.
+   */
+  async getMySubmissions(userId: string) {
+    // Fetch submissions whose linked seam claim belongs to this expert
+    const submissions = await this.prisma.portfolioSubmission.findMany({
+      where: { expertId: userId },
+      orderBy: { submittedAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        llmConfidence: true,
+        evaluatedAt: true,
+        submittedAt: true,
+        seamClaim: {
+          select: {
+            id: true,
+            seamCode: true,
+            verificationTier: true,
+            submissionCount: true,
+          },
+        },
+      },
+    });
+
+    // Attach the advisory note from platform_decisions for each submission
+    const withNotes = await Promise.all(
+      submissions.map(async (sub) => {
+        const decision = await this.prisma.platformDecision.findFirst({
+          where: { entityType: 'portfolio_submissions', entityId: sub.id },
+          orderBy: { createdAt: 'desc' },
+          select: { advisoryNote: true },
+        });
+        return {
+          ...sub,
+          createdAt: sub.submittedAt,   
+          advisoryNote: decision?.advisoryNote ?? null,
+        };
+      }),
+    );
+
+    return withNotes;
+  }
 }
