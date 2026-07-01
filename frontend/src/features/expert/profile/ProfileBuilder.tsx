@@ -12,12 +12,12 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'domains' | 'seams' | 'tags' | 'review'>('domains');
   
-  const [selectedDomains, setSelectedDomains] = useState<DomainDepth[]>([]);
-  const [selectedSeams, setSelectedSeams] = useState<SeamClaim[]>([]);
-  const [stackTags, setStackTags] = useState<string[]>([]);
-  const [engagementModel, setEngagementModel] = useState<string>('MILESTONE');
-  
   const { profile, isLoadingProfile } = useExpertProfile();
+
+  const [selectedDomains, setSelectedDomains] = useState<DomainDepth[]>(() => profile?.domainDepths || []);
+  const [selectedSeams, setSelectedSeams] = useState<SeamClaim[]>(() => profile?.seamClaims || []);
+  const [stackTags, setStackTags] = useState<string[]>(() => profile?.profile?.stackTagsJson || []);
+  const [engagementModel, setEngagementModel] = useState<string>(() => profile?.profile?.engagementModel || 'MILESTONE');
 
   useEffect(() => {
     if (profile) {
@@ -119,6 +119,11 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
           {activeTab === 'domains' && (
             <DomainDepthGrid 
               initialDomains={selectedDomains}
+              lockedDomainCodes={Array.from(new Set(
+                selectedSeams
+                  .filter((s: any) => s.verificationTier === 'VERIFIED' || s.verificationTier === 'EVIDENCE_BACKED')
+                  .flatMap((s: any) => (s.seamCode || s.code || '').split('↔'))
+              ))}
               onSave={(domains) => {
                 setSelectedDomains(domains);
                 setActiveTab('seams');
@@ -129,6 +134,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
           {activeTab === 'seams' && (
             <SeamClaimsGrid 
               initialSeams={selectedSeams}
+              selectedDomainCodes={selectedDomains.map(d => d.domainCode)}
               onSave={(seams) => {
                 setSelectedSeams(seams);
                 setActiveTab('tags');

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { SeamClaim } from '@/types/ui.types';
 import { Spinner } from '@/components/ui/Spinner';
-import { CheckCircle, Lock } from 'lucide-react';
+import { CheckCircle, Lock, AlertTriangle } from 'lucide-react';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;
   initialSeams?: SeamClaim[];
+  selectedDomainCodes?: string[];
 }
 
 const SEAMS = [
@@ -22,7 +23,7 @@ const SEAMS = [
   { code: 'E↔F', label: 'Scalable RAG', hint: 'Scaling vector search and retrieval infrastructure' },
 ];
 
-export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaimsGridProps) {
+export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDomainCodes = [] }: SeamClaimsGridProps) {
   const [seamStates, setSeamStates] = useState<SeamClaim[]>(() => {
     return SEAMS.map(s => {
       const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === s.code);
@@ -40,11 +41,25 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
     setSeamStates(prev => prev.map(s => s.code === code ? { ...s, checked: !s.checked } : s));
   };
 
-  const selectedCount = seamStates.filter(s => s.checked).length;
+  const getValidSeams = () => {
+    return seamStates.filter(s => {
+      if (!s.checked) return false;
+      const requiredDomains = s.code.split('↔');
+      const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
+      
+      const existing = (initialSeams || []).find((is: any) => (is.seamCode || is.code) === s.code);
+      const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
+      
+      return hasRequiredDomains || isVerified;
+    });
+  };
+
+  const validSeams = getValidSeams();
+  const selectedCount = validSeams.length;
 
   const handleSave = async () => {
     setError(null);
-    const selectedSeams = seamStates.filter(s => s.checked);
+    const selectedSeams = validSeams;
     
     if (selectedSeams.length < 2 || selectedSeams.length > 5) {
       setError('Please select between 2 and 5 seams.');
@@ -88,20 +103,31 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
           const isChecked = currentState?.checked;
           const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === seam.code);
           const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
+          
+          const requiredDomains = seam.code.split('↔');
+          const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
+          
+          const isInvalid = !hasRequiredDomains && !isVerified;
+          const isDisabled = isInvalid || isVerified;
 
           return (
             <label 
               key={seam.code} 
-              className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-                isChecked ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200 bg-white hover:bg-gray-50'
+              className={`flex items-start gap-3 p-4 border rounded-lg transition-colors ${
+                isInvalid ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200' :
+                isVerified ? 'cursor-not-allowed border-blue-500 bg-blue-50/30' :
+                isChecked ? 'cursor-pointer border-blue-500 bg-blue-50/30' : 'cursor-pointer border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
               <div className="mt-1">
                 <input
                   type="checkbox"
                   checked={isChecked}
-                  onChange={() => toggleSeam(seam.code)}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  disabled={isDisabled}
+                  onChange={() => {
+                    if (!isDisabled) toggleSeam(seam.code);
+                  }}
+                  className={`w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${isDisabled ? 'cursor-not-allowed' : ''} ${isInvalid ? 'opacity-50' : ''}`}
                 />
               </div>
               <div>
@@ -122,6 +148,16 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [] }: SeamClaims
                   )}
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">{seam.hint}</p>
+                {isInvalid && (
+                  <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Requires domains {requiredDomains.join(' and ')}
+                  </p>
+                )}
+                {isVerified && (
+                  <p className="text-xs text-blue-600 mt-1 font-medium">
+                    Verified seams cannot be removed.
+                  </p>
+                )}
               </div>
             </label>
           );

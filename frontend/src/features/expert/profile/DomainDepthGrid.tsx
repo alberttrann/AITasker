@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { DomainDepth } from '@/types/ui.types';
 import { Spinner } from '@/components/ui/Spinner';
+import { Lock } from 'lucide-react';
 
 interface DomainDepthGridProps {
   onSave: (domains: DomainDepth[]) => void;
   initialDomains?: DomainDepth[];
+  lockedDomainCodes?: string[];
 }
 
 const DOMAINS = [
@@ -17,7 +19,7 @@ const DOMAINS = [
   { code: 'F', label: 'MLOps & Production AI', hint: 'Serving, observability, evals, and infrastructure' },
 ];
 
-export default function DomainDepthGrid({ onSave, initialDomains = [] }: DomainDepthGridProps) {
+export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDomainCodes = [] }: DomainDepthGridProps) {
   const [domainStates, setDomainStates] = useState<DomainDepth[]>(() => {
     return DOMAINS.map(d => {
       const existing = initialDomains.find(id => id.domainCode === d.code);
@@ -32,6 +34,14 @@ export default function DomainDepthGrid({ onSave, initialDomains = [] }: DomainD
   const [error, setError] = useState<string | null>(null);
 
   const updateDepth = (code: string, depth: "SURFACE" | "OPERATIONAL" | "DEEP") => {
+    if (lockedDomainCodes.includes(code)) {
+      const currentState = domainStates.find(d => d.domainCode === code);
+      if (currentState?.depthLevel === depth) {
+        // Prevent unselecting a locked domain
+        return;
+      }
+    }
+
     setDomainStates(prev => prev.map(d => {
       if (d.domainCode === code) {
         return { ...d, depthLevel: d.depthLevel === depth ? null : depth };
@@ -89,12 +99,20 @@ export default function DomainDepthGrid({ onSave, initialDomains = [] }: DomainD
         {DOMAINS.map(domain => {
           const currentState = domainStates.find(d => d.domainCode === domain.code);
           const isSelected = currentState?.depthLevel !== null;
+          const isLocked = lockedDomainCodes.includes(domain.code);
 
           return (
             <div key={domain.code} className={`border p-4 rounded-lg transition-colors ${isSelected ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-white'}`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
-                  <h3 className="font-semibold">{domain.code} · {domain.label}</h3>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    {domain.code} · {domain.label}
+                    {isLocked && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wide border border-blue-200">
+                        <Lock className="h-3 w-3" /> Required for Verified Seam
+                      </span>
+                    )}
+                  </h3>
                   <p className="text-xs text-gray-500 mt-1">{domain.hint}</p>
                 </div>
                 
