@@ -32,6 +32,7 @@ import ExpertSubscriptionActivate from "@features/expert/onboarding/Subscription
 import ElicitationWizard from "@features/ceo/elicitation/ElicitationWizard";
 import ShortlistView from "@features/ceo/shortlist/ShortlistView";
 import ProjectsPage from "@features/ceo/pages/ProjectsPage";
+import ProjectDetailPage from "@features/ceo/pages/ProjectDetailPage";
 import SessionsListPage from "@features/ceo/pages/SessionsListPage";
 import ExpertProfilePage from "@features/expert/profile/ExpertProfilePage";
 
@@ -51,6 +52,8 @@ export default function App() {
           <Route path="/ceo" element={<CeoDashboard />}>
             <Route index element={<CeoOverview />} />
             <Route path="projects" element={<ProjectsPage />} />
+            <Route path="project/:id" element={<ProjectDetailPage />} />
+            <Route path="projects/:id" element={<ProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />

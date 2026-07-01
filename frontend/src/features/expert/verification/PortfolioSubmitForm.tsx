@@ -125,12 +125,12 @@ export default function PortfolioSubmitForm() {
     setResultData(null);
   };
 
-  const selectedSeamData = eligibleSeams.find(s => s.id === selectedSeamId);
+  const selectedSeamData = profile?.seamClaims?.find((s: any) => s.id === selectedSeamId) || eligibleSeams.find(s => s.id === selectedSeamId);
 
   if (resultView === 'success') {
     return (
       <Tier2Success 
-        seamCode={selectedSeamData?.seamCode || 'Unknown'} 
+        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
         llmConfidence={resultData?.llmConfidence || 0} 
         onClose={handleReset} 
         onSubmitAnother={handleReset} 
@@ -141,7 +141,7 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'rejected') {
     return (
       <Tier2Rejected 
-        seamCode={selectedSeamData?.seamCode || 'Unknown'} 
+        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
         llmConfidence={resultData?.llmConfidence || 0} 
         advisoryNote={resultData?.advisoryNote}
         attemptsRemaining={5 - (resultData?.submissionCount ?? (selectedSeamData?.submissionCount || 0))}
@@ -154,7 +154,7 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'lockout') {
     return (
       <VerificationLockout 
-        seamCode={selectedSeamData?.seamCode || 'Unknown'} 
+        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
         lockedUntil={resultData?.lockedUntil || new Date(Date.now() + 86400000).toISOString()}
         onClose={handleReset}
       />
@@ -235,7 +235,7 @@ export default function PortfolioSubmitForm() {
             >
               <option value="" disabled>Select a seam to verify...</option>
               {eligibleSeams.map(s => (
-                <option key={s.id} value={s.id}>{s.seamCode} · {getSeamLabel(s.seamCode)}</option>
+                <option key={s.id} value={s.id}>{s.seamCode || s.code || s.seam_code} · {getSeamLabel(s.seamCode || s.code || s.seam_code)}</option>
               ))}
             </select>
             {selectedSeamData && (
