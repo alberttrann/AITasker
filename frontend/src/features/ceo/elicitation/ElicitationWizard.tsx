@@ -58,7 +58,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "INIT_SUCCESS":
       return { ...state, ...action.payload, isLoading: false };
     case "SET_ERROR":
-      return { ...state, error: action.payload };
+      return { ...state, error: action.payload, isLoading: false };
     case "STAGE_COMPLETE": {
       const { gateResult, archetype } = action.payload;
       return {
@@ -219,7 +219,7 @@ export default function ElicitationWizard() {
   const handleStartOver = async () => {
     dispatch({ type: "START_OVER_START" });
     try {
-      if (state.sessionId) {
+      if (state.sessionId && state.sessionState !== "COMPLETED") {
         await apiClient.put(`/elicitation/sessions/${state.sessionId}/abandon`);
       }
       const data = await createSession();
