@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, AlertTriangle, Info } from 'lucide-react';
 import { Button } from './Button';
 
 export interface ModalProps {
@@ -74,6 +74,7 @@ export interface ConfirmModalProps extends ModalProps {
   confirmText?: string;
   cancelText?: string;
   isDestructive?: boolean;
+  isInfo?: boolean;
 }
 
 export function ConfirmModal({ 
@@ -85,11 +86,30 @@ export function ConfirmModal({
   confirmText = "Confirm", 
   cancelText = "Cancel",
   isDestructive = false,
+  isInfo = false,
   className,
   hideCloseButton
 }: ConfirmModalProps) {
+  
+  let TitleWithIcon = title;
+  if (isDestructive && title) {
+    TitleWithIcon = (
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="text-amber-500 w-5 h-5 flex-shrink-0" />
+        <span>{title}</span>
+      </div>
+    );
+  } else if (isInfo && title) {
+    TitleWithIcon = (
+      <div className="flex items-center gap-2">
+        <Info className="text-blue-500 w-5 h-5 flex-shrink-0" />
+        <span>{title}</span>
+      </div>
+    );
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} className={className} hideCloseButton={hideCloseButton}>
+    <Modal isOpen={isOpen} onClose={onClose} title={TitleWithIcon} className={className} hideCloseButton={hideCloseButton}>
       <div className="font-body text-[16px] leading-[1.6] text-[#64748B] mb-8">
         {children}
       </div>

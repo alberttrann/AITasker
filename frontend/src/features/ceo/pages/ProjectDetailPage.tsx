@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useProject, useUpdateProjectName } from "@/hooks/use-projects";
+import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
+import { ARCHETYPES } from "@/hooks/use-elicitation";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { project, isLoadingProject } = useProject(id || "");
+  const { projects, isLoadingProjects } = useProjects();
+  
+  const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
+  const isLoadingProject = isLoadingProjects;
+  
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const updateProjectName = useUpdateProjectName();
@@ -56,7 +61,9 @@ export default function ProjectDetailPage() {
   const seams = project.requiredSeamsJson || (project as any).required_seams_json || [];
   const artifactA = project.artifactAJson || (project as any).artifact_a_json || null;
   const milestones = project.milestoneFrameworkJson || (project as any).milestone_framework_json || [];
+  
   const archetype = project.archetype;
+  const archetypeData = archetype ? ARCHETYPES.find(a => a.code === archetype) : null;
 
   return (
     <div className="w-full max-w-5xl mx-auto relative px-4 sm:px-0">
@@ -140,9 +147,9 @@ export default function ProjectDetailPage() {
                   {project.tier.replace(/_/g, ' ')}
                 </span>
               )}
-              {archetype && (
+              {archetypeData && (
                 <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold uppercase tracking-wider rounded-md border border-amber-100">
-                  {archetype.replace(/_/g, ' ')}
+                  {archetypeData.icon} {archetypeData.label}
                 </span>
               )}
               {project.selfTechnical && (

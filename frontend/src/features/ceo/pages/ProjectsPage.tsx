@@ -277,22 +277,7 @@ export default function ProjectsPage() {
                   Created: {new Date(getSafeDate(project, 'createdAt')).toLocaleDateString()}
                 </p>
                 
-                {/* Domains and Seams Tags */}
-                {(((project as any).requiredDomainsJson || project.required_domains_json)?.length > 0 || 
-                  ((project as any).requiredSeamsJson || project.required_seams_json)?.length > 0) && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {((project as any).requiredDomainsJson || project.required_domains_json)?.map((d: any) => (
-                      <span key={d.domainCode || d.domain_code} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-slate-200">
-                        {(d.domainCode || d.domain_code).replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                    {((project as any).requiredSeamsJson || project.required_seams_json)?.map((s: any) => (
-                      <span key={s.seamCode || s.seam_code} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-slate-200">
-                        {(s.seamCode || s.seam_code).replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* Domains and Seams Tags removed for slim view */}
               </div>
               <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
                 <Link

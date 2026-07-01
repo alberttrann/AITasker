@@ -41,16 +41,18 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
     setSeamStates(prev => prev.map(s => s.code === code ? { ...s, checked: !s.checked } : s));
   };
 
-  const getValidSeams = () => {
+    const getValidSeams = () => {
     return seamStates.filter(s => {
       if (!s.checked) return false;
       const requiredDomains = s.code.split('↔');
       const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
       
       const existing = (initialSeams || []).find((is: any) => (is.seamCode || is.code) === s.code);
+      const hasSubmissions = (existing?.submissionCount || 0) > 0;
       const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
+      const cannotRemove = isVerified || hasSubmissions;
       
-      return hasRequiredDomains || isVerified;
+      return hasRequiredDomains || cannotRemove;
     });
   };
 
@@ -103,19 +105,21 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
           const isChecked = currentState?.checked;
           const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === seam.code);
           const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
+          const hasSubmissions = (existing?.submissionCount || 0) > 0;
+          const cannotRemove = isVerified || hasSubmissions;
           
           const requiredDomains = seam.code.split('↔');
           const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
           
-          const isInvalid = !hasRequiredDomains && !isVerified;
-          const isDisabled = isInvalid || isVerified;
+          const isInvalid = !hasRequiredDomains && !cannotRemove;
+          const isDisabled = isInvalid || cannotRemove;
 
           return (
             <label 
               key={seam.code} 
               className={`flex items-start gap-3 p-4 border rounded-lg transition-colors ${
                 isInvalid ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200' :
-                isVerified ? 'cursor-not-allowed border-blue-500 bg-blue-50/30' :
+                cannotRemove ? 'cursor-not-allowed border-blue-500 bg-blue-50/30' :
                 isChecked ? 'cursor-pointer border-blue-500 bg-blue-50/30' : 'cursor-pointer border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
@@ -153,9 +157,9 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
                     <AlertTriangle className="w-3 h-3" /> Requires domains {requiredDomains.join(' and ')}
                   </p>
                 )}
-                {isVerified && (
+                {cannotRemove && (
                   <p className="text-xs text-blue-600 mt-1 font-medium">
-                    Verified seams cannot be removed.
+                    {isVerified ? 'Verified seams cannot be removed.' : 'Seams with portfolio evidence cannot be removed.'}
                   </p>
                 )}
               </div>
