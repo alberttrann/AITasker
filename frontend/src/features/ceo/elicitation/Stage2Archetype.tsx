@@ -46,6 +46,7 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
   }, [session, initialized]);
 
   const voidList = (session?.voidListJson as VoidItem[]) ?? [];
+  const recommended = (session?.recommendedArchetypesJson as string[]) || [];
 
   const toggleAcknowledge = (code: string) => {
     setAcknowledged((prev) => {
@@ -80,11 +81,28 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {ARCHETYPES.map((a) => {
           const isSelected = selected === a.code;
+          const isRecommended = recommended.length === 0 || recommended.includes(a.code);
+          
+          let cardClasses = 'rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm ';
+          if (isSelected) {
+            cardClasses += 'border-primary bg-primary/5 shadow-sm';
+          } else if (isRecommended) {
+            cardClasses += 'border-brand-200 bg-brand-50 hover:border-brand-400';
+          } else {
+            cardClasses += 'border-slate-200 bg-surface opacity-60 hover:opacity-100 hover:border-primary/30';
+          }
+
           return (
-            <button key={a.code} onClick={() => setSelected(a.code)}
-              className={`rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-surface hover:border-primary/30'}`}>
-              <div className="mb-2">{getIcon(a.code)}</div>
-              <h4 className="mt-2 font-headline text-primary">{a.label}</h4>
+            <button key={a.code} onClick={() => setSelected(a.code)} className={cardClasses}>
+              <div className="flex justify-between items-start">
+                <div className={`mb-2 ${!isRecommended && 'grayscale opacity-75'}`}>{getIcon(a.code)}</div>
+                {isRecommended && recommended.length > 0 && (
+                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-700 uppercase tracking-wider">
+                    Recommended
+                  </span>
+                )}
+              </div>
+              <h4 className={`mt-2 font-headline ${isRecommended ? 'text-primary' : 'text-slate-500'}`}>{a.label}</h4>
               <p className="mt-1 text-body-sm text-secondary">{a.desc}</p>
             </button>
           );
