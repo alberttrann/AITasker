@@ -17,21 +17,7 @@ export function useProjects() {
   };
 }
 
-export function useProject(id: string) {
-  const projectQuery = useQuery({
-    queryKey: ['projects', id],
-    queryFn: async () => {
-      const res = await apiClient.get<{ data: ProjectDto } | ProjectDto>(`/projects/${id}`);
-      return (res.data as any)?.data ?? res.data;
-    },
-    enabled: !!id,
-  });
 
-  return {
-    project: projectQuery.data,
-    isLoadingProject: projectQuery.isLoading,
-  };
-}
 export function useActiveElicitationSession() {
   const activeSessionQuery = useQuery({
     queryKey: ['elicitation-sessions', 'active'],
@@ -137,15 +123,21 @@ export function useSlimProjects() {
  * Hits GET /projects/:id — includes artifactAJson, milestoneFrameworkJson, etc.
  */
 export function useProject(projectId: string | undefined) {
-  return useQuery({
-    queryKey: ['project', projectId],
+  const query = useQuery({
+    queryKey: ['projects', projectId],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/projects/${projectId}`);
-      return data;
+      const { data } = await apiClient.get<{ data: ProjectDto } | ProjectDto>(`/projects/${projectId}`);
+      return ((data as any)?.data ?? data) as ProjectDto;
     },
     enabled: !!projectId,
     staleTime: Infinity, // Published project spec doesn't change
   });
+
+  return {
+    ...query,
+    project: query.data,
+    isLoadingProject: query.isLoading,
+  };
 }
  
 /**
