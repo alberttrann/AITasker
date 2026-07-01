@@ -170,8 +170,7 @@ export class ElicitationService {
     const recommended = (session.recommendedArchetypesJson as string[]) ?? [];
     if (recommended.length > 0 && !recommended.includes(archetype)) {
       throw new BadRequestException(
-        `Archetype ${archetype} is not among the AI-recommended options for this project: ` +
-        `${recommended.join(', ')}.`,
+        `Based on your Stage 1 symptoms, please select one of the AI-recommended archetypes instead.`
       );
     }
 
@@ -734,7 +733,7 @@ export class ElicitationService {
     this.assertOwnership(session, userId);
 
     if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
-    if (targetStage >= session.currentStage) throw new BadRequestException('Can only revert backwards.');
+    if (targetStage > session.currentStage) throw new BadRequestException('Can only revert backwards.');
 
     const data: any = { currentStage: targetStage, state: 'IN_PROGRESS', updatedAt: new Date() };
 

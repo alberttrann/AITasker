@@ -16,6 +16,22 @@ export function useProjects() {
     isLoadingProjects: projectsQuery.isLoading,
   };
 }
+
+export function useProject(id: string) {
+  const projectQuery = useQuery({
+    queryKey: ['projects', id],
+    queryFn: async () => {
+      const res = await apiClient.get<{ data: ProjectDto } | ProjectDto>(`/projects/${id}`);
+      return (res.data as any)?.data ?? res.data;
+    },
+    enabled: !!id,
+  });
+
+  return {
+    project: projectQuery.data,
+    isLoadingProject: projectQuery.isLoading,
+  };
+}
 export function useActiveElicitationSession() {
   const activeSessionQuery = useQuery({
     queryKey: ['elicitation-sessions', 'active'],

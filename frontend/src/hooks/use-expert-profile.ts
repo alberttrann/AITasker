@@ -19,14 +19,9 @@ export function useExpertProfile() {
 
   const saveDomains = useMutation({
     mutationFn: async (domains: { domainCode: string; depthLevel: string }[]) => {
-      await Promise.all(
-        domains.map(d =>
-          apiClient.post('/expert-profile/domains', {
-            domainCode: d.domainCode,
-            depthLevel: d.depthLevel,
-          })
-        )
-      );
+      await apiClient.put('/expert-profile/domains/sync', {
+        domains: domains.map(d => ({ domainCode: d.domainCode, depthLevel: d.depthLevel })),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });

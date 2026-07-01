@@ -58,12 +58,12 @@ export default function QualityGateFailed({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex justify-center mt-4">
           <Button
-            variant="secondary"
-            onClick={() => onReturnToStage(returnToStage)}
+            variant="primary"
+            onClick={() => onReturnToStage(1)}
           >
-            Go Back to Stage {returnToStage}
+            Return to Stage 1
           </Button>
         </div>
       </CardContent>
