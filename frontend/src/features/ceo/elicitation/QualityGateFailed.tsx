@@ -61,7 +61,7 @@ export default function QualityGateFailed({
         <div className="flex justify-center mt-4">
           <Button
             variant="primary"
-            onClick={onStartOver}
+            onClick={() => onReturnToStage(1)}
           >
             Return to Stage 1
           </Button>
