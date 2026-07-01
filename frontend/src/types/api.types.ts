@@ -114,15 +114,16 @@ export interface ExpertSeamClaimDto {
 }
 
 export interface ElicitationSessionDto {
-  id:            string;
-  user_id:       string;
-  current_stage: number;
-  archetype:     ArchetypeCode | null;
-  scenario_type: ScenarioType | null;
-  void_list_json: object[];
-  state:         ElicitationState;
-  created_at:    string;
-  updated_at:    string;
+  id:                  string;
+  user_id:             string;
+  current_stage:       number;
+  archetype:           ArchetypeCode | null;
+  scenario_type:       ScenarioType | null;
+  void_list_json:      object[];
+  state:               ElicitationState;
+  symptom_text_draft:  string | null;   
+  created_at:          string;
+  updated_at:          string;
 }
 
 export interface ProjectDto {
@@ -283,9 +284,35 @@ export interface ReviewDto {
 }
 
 export interface ShortlistDto {
-  project_id: string;
-  results:    MatchResult[];
+  project_id:   string;
+  results:      MatchResult[];
   generated_at: string;
+}
+
+export interface PortfolioSubmissionDetailDto {
+  id:                      string;
+  status:                  'PENDING' | 'APPROVED' | 'REJECTED';
+  llmConfidence:           number | null;
+  evaluatedAt:             string | null;
+  advisoryNote:            string | null;
+  attemptsRemaining?:      number;
+  lockedUntil:             string | null;
+  evaluationTierUpgraded?: boolean;
+}
+
+export interface PortfolioListItemDto {
+  id:            string;
+  status:        'PENDING' | 'APPROVED' | 'REJECTED';
+  llmConfidence: number | null;
+  evaluatedAt:   string | null;
+  advisoryNote:  string | null;
+  createdAt:     string;
+  seamClaim: {
+    id:               string;
+    seamCode:         string;
+    verificationTier: string;
+    submissionCount:  number;
+  };
 }
 
 export interface PlatformDecisionDto {

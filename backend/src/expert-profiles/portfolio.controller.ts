@@ -46,6 +46,18 @@ export class PortfolioController {
     return this.portfolioService.submit(user.id, dto);
   }
 
+  /**
+   * GET /portfolio-submissions
+   * Returns all portfolio submissions made by the authenticated expert,
+   * newest first. Each item includes the seam code and current verification
+   * tier from the linked claim, used to render VerificationHistoryPage.
+   */
+  @Get()
+  @Roles('EXPERT')
+  async getMySubmissions(@CurrentUser() user: { id: string }) {
+    return this.portfolioService.getMySubmissions(user.id);
+  }
+
   @Get(':id')
   @Roles('EXPERT', 'ADMIN')
   async getById(@Param('id') id: string, @CurrentUser() user: { id: string; activeRole: string }) {

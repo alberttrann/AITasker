@@ -1,6 +1,6 @@
 import { ApiTags } from '@nestjs/swagger';
 import {
-  Controller, Post, Put, Get,
+  Controller, Post, Put, Patch, Get,
   Param, Body, UseGuards, ForbiddenException,
 } from '@nestjs/common';
 import { ElicitationService }     from './elicitation.service';
@@ -16,6 +16,7 @@ import { Stage4Dto }              from './dto/stage4.dto';
 import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
 import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
 import { RevertSessionDto } from './dto/revert-session.dto';
+import { PatchSessionDraftDto } from './dto/patch-session-draft.dto';
 import { Delete } from '@nestjs/common';
 
 interface AuthUser {
@@ -224,5 +225,17 @@ export class ElicitationController {
   async deleteSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
     return this.elicitationService.deleteSession(id, user.id);
+  }
+
+  @Patch('sessions/:id/draft')
+  @Roles('CLIENT')
+  @UseGuards(SubscriptionGuard)
+  async saveDraft(
+    @Param('id') id: string,
+    @Body() dto: PatchSessionDraftDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.saveDraft(id, user.id, dto.symptomTextDraft ?? '');
   }
 }
