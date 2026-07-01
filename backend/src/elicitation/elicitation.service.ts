@@ -712,7 +712,7 @@ export class ElicitationService {
     this.assertOwnership(session, userId);
 
     if (session.state === 'COMPLETED') throw new ConflictException('Already completed.');
-    if (targetStage >= session.currentStage) throw new BadRequestException('Can only revert backwards.');
+    if (targetStage > session.currentStage) throw new BadRequestException('Can only revert backwards.');
 
     const data: any = { currentStage: targetStage, state: 'IN_PROGRESS', updatedAt: new Date() };
 
