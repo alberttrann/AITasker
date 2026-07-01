@@ -170,8 +170,7 @@ export class ElicitationService {
     const recommended = (session.recommendedArchetypesJson as string[]) ?? [];
     if (recommended.length > 0 && !recommended.includes(archetype)) {
       throw new BadRequestException(
-        `Archetype ${archetype} is not among the AI-recommended options for this project: ` +
-        `${recommended.join(', ')}.`,
+        `Based on your Stage 1 symptoms, please select one of the AI-recommended archetypes instead.`
       );
     }
 
