@@ -9,6 +9,8 @@ import {
   submitStage1,
   handleElicitationError,
   VOID_DESCRIPTIONS,
+  useElicitation,
+  saveDraft,
 } from "@/hooks/use-elicitation";
 
 interface Stage1Props {
@@ -25,17 +27,26 @@ export default function Stage1Symptoms({
   onComplete,
   onError,
 }: Stage1Props) {
+  const { session } = useElicitation(sessionId);
   const [symptomText, setSymptomText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`stage1_${sessionId}`);
-    if (saved) setSymptomText(saved);
-  }, [sessionId]);
+    if (session && !initialized) {
+      if (session.symptomTextDraft) {
+        setSymptomText(session.symptomTextDraft);
+      }
+      setInitialized(true);
+    }
+  }, [session, initialized]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setSymptomText(e.target.value);
-    localStorage.setItem(`stage1_${sessionId}`, e.target.value);
+  };
+
+  const handleBlur = () => {
+    saveDraft(sessionId, symptomText).catch(() => {});
   };
   const [voidList, setVoidList] = useState<VoidItem[]>([]);
   const [acknowledgedVoids, setAcknowledgedVoids] = useState<Set<string>>(
@@ -118,12 +129,12 @@ export default function Stage1Symptoms({
   if (showResults && voidList.length > 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-h2 font-headline text-primary">Stage 1 of 5</h2>
-          <p className="text-body-sm text-secondary">
-            Tell us about your AI needs
-          </p>
-        </div>
+      <div className="text-center mb-6">
+        <h2 className="text-h2 font-headline text-primary">Stage 1 of 5</h2>
+        <p className="mt-2 text-body text-secondary max-w-md mx-auto">
+          Tell us about your AI needs
+        </p>
+      </div>
 
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
           <p className="text-body-sm font-medium text-primary">
@@ -143,8 +154,10 @@ export default function Stage1Symptoms({
               key={v.void_code}
               className="rounded-lg border border-slate-200 bg-surface p-4"
             >
-              <div className="flex items-start gap-3">
-                <Chip variant={sev as "error" | "warning"}>{v.severity}</Chip>
+              <div className="flex items-center gap-4">
+                <div className="w-24 shrink-0 flex justify-center">
+                  <Chip variant={sev as "error" | "warning"} className="text-sm px-4 py-1.5">{v.severity}</Chip>
+                </div>
                 <div className="flex-1 text-left">
                   <p className="text-body font-semibold text-primary">
                     {v.void_code.replace(/_/g, " ")}
@@ -199,9 +212,9 @@ export default function Stage1Symptoms({
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="text-center mb-6">
         <h2 className="text-h2 font-headline text-primary">Stage 1 of 5</h2>
-        <p className="text-body-sm text-secondary">
+        <p className="mt-2 text-body text-secondary max-w-md mx-auto">
           Tell us about your AI needs
         </p>
       </div>
@@ -223,6 +236,7 @@ export default function Stage1Symptoms({
         <textarea
           value={symptomText}
           onChange={handleChange}
+          onBlur={handleBlur}
           placeholder="We have a recommendation engine that currently uses rule-based filtering. We process about 10,000 items per day and want to switch to AI-powered ranking…"
           rows={8}
           disabled={isSubmitting}

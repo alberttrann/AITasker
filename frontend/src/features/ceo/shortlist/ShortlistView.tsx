@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { getShortlist } from '@/hooks/use-matching';
+import { useShortlist } from '@/hooks/use-matching';
 import { useProjects } from '@/hooks/use-projects';
 import { Spinner } from '@/components/ui/Spinner';
 import { RefreshCw } from 'lucide-react';
@@ -16,22 +15,17 @@ export default function ShortlistView() {
   const projectName = project?.projectName || `Project ${projectId}`;
 
   const {
-    data,
+    experts,
     isLoading,
-    error,
-    refetch,
-    isFetching,
-    dataUpdatedAt,
-  } = useQuery({
-    queryKey: ['shortlist', projectId],
-    queryFn: () => getShortlist(projectId!),
-    enabled: !!projectId,
-  });
+    isRefreshing,
+    refreshError: error,
+    lastUpdatedAt,
+    refresh
+  } = useShortlist(projectId);
 
-  const experts = data?.results ?? [];
   const errorMessage = error ? ((error as any).response?.data?.message || 'Failed to load matched experts. Please try again.') : null;
 
-  const formattedDate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : null;
+  const formattedDate = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : null;
 
   // ── Loading ─────────────────────────────────────────────────────
 
@@ -54,7 +48,7 @@ export default function ShortlistView() {
     return (
       <div className="space-y-4 py-12 text-center">
         <p className="text-body-lg font-headline text-error">{errorMessage}</p>
-        <Button variant="secondary" onClick={() => navigate(`/ceo/projects`)}>
+        <Button variant="secondary" onClick={() => navigate(`/ceo/projects/${projectId}`)}>
           Back to Project
         </Button>
       </div>
@@ -95,11 +89,11 @@ export default function ShortlistView() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="flex items-center gap-2">
-            <RefreshCw size={16} className={isFetching ? "animate-spin" : ""} />
-            {isFetching ? "Refreshing..." : "Refresh Matches"}
+          <Button variant="outline" onClick={() => refresh()} disabled={isRefreshing} className="flex items-center gap-2">
+            <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+            {isRefreshing ? "Refreshing..." : "Refresh Matches"}
           </Button>
-          <Button variant="secondary" onClick={() => navigate(`/ceo/projects`)}>
+          <Button variant="secondary" onClick={() => navigate(`/ceo/projects/${projectId}`)}>
             Back to Project
           </Button>
         </div>

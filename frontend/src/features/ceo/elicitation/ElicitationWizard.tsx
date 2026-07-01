@@ -265,6 +265,7 @@ export default function ElicitationWizard() {
     navigate("/ceo/projects");
   };
 
+
   if (state.isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -303,8 +304,6 @@ export default function ElicitationWizard() {
       <div className="mx-auto max-w-6xl py-8">
         <QualityGatePassed
           projectId={state.gateResult.project_id}
-          completenessScore={state.gateResult.completeness_score}
-          archetype={state.archetype!}
           onStartNew={handleStartOver}
         />
       </div>
@@ -315,7 +314,6 @@ export default function ElicitationWizard() {
     return (
       <div className="mx-auto max-w-6xl py-8">
         <QualityGateFailed
-          completenessScore={state.gateResult.completeness_score}
           advisoryNote={state.gateResult.advisory_note}
           flaggedVoid={state.gateResult.flagged_void ?? ""}
           returnToStage={state.gateResult.return_to_stage}

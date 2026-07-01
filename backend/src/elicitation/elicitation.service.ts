@@ -144,6 +144,10 @@ export class ElicitationService {
       symptom_text: symptomText,
     });
 
+    if (!aiResponse.symptoms || aiResponse.symptoms.length === 0) {
+      throw new BadRequestException("We couldn't detect any specific project requirements from your text. Please provide a bit more detail about what you want to build.");
+    }
+
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {

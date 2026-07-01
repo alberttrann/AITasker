@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
-import { X, Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Server, X } from 'lucide-react';
 
 interface Stage4AProps {
   sessionId: string;
@@ -167,18 +167,18 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex justify-between items-start gap-4">
-          <div>
-            <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
-            <p className="text-body-sm text-secondary">Technical Context — since you marked yourself as technical, please fill in these details about your infrastructure.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleRecommend} disabled={isRecommending || state.isSubmitting} className="shrink-0">
+      <div className="text-center mb-6">
+        <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
+        <p className="mt-2 text-body text-secondary max-w-md mx-auto">
+          Technical Context — since you marked yourself as technical, please fill in these details about your infrastructure.
+        </p>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" onClick={handleRecommend} disabled={isRecommending || state.isSubmitting}>
             {isRecommending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : 'Let AI Recommend'}
           </Button>
         </div>
-        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
       </div>
+        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
       <div className="space-y-6">
         <div className="space-y-2">
           <Label>Scale and Infrastructure</Label>

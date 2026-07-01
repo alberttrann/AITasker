@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Loader2, Link as LinkIcon, AlertTriangle, KeyRound } from 'lucide-react';
 import Stage4HandoffLink from "./Stage4HandoffLink";
 import { inviteTechTeam, getSession, revertSession, handleElicitationError, useElicitation } from "@/hooks/use-elicitation";
 import type { Stage4ScenarioBProps } from "@t/ui.types";
@@ -108,16 +109,12 @@ export default function Stage4ScenarioB({
   if (!inviteSent) {
     return (
       <div className="space-y-8">
-        <div>
+        <div className="text-center mb-6">
           <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
-          <p className="text-body-sm text-secondary">Delegate technical details to your team</p>
+          <p className="mt-2 text-body text-secondary max-w-md mx-auto">
+            Delegate technical details to your team. We'll generate a secure invite link for them to complete this stage.
+          </p>
         </div>
-
-        <p className="text-body-sm text-secondary">
-          We'll generate a secure invite link for your tech team member. You'll
-          need to share it with them yourself — there's no automatic email for
-          this yet. Once they register and submit, you'll see it update here.
-        </p>
 
         <div className="space-y-2">
           <label htmlFor="tech-team-email" className="text-body-sm font-semibold text-primary">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useExpertProfile } from '@/hooks/use-expert-profile';
+import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
 import { Modal } from '@/components/ui/modal';
 import { CheckCircle } from 'lucide-react';
@@ -18,10 +18,12 @@ const STRENGTH_STYLES: Record<string, string> = {
 
 export default function MatchCard({ expert }: MatchCardProps) {
   // Fetch public profile since matching backend strips it
-  const { getPublicProfile } = useExpertProfile();
   const { data: profile, isLoading } = useQuery({
     queryKey: ['expertProfile', expert.expert_id],
-    queryFn: () => getPublicProfile(expert.expert_id),
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/users/${expert.expert_id}/public-profile`);
+      return data;
+    },
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);

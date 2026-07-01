@@ -284,7 +284,7 @@ export default function ProjectsPage() {
                   to={`/ceo/shortlist/${project.id}`}
                   className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 hover:text-blue-900 transition-colors border border-blue-200"
                 >
-                  View Shortlist <ArrowRight className="w-4 h-4" />
+                  View Matched Experts <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
                   to={`/ceo/projects/${project.id}`}

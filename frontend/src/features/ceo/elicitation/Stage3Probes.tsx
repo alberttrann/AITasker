@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 import { submitStage3, handleElicitationError, PROBES, ARCHETYPE_LABELS, revertSession, useElicitation } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, MessageSquare } from 'lucide-react';
 
 interface Stage3Props {
   sessionId: string;
@@ -122,9 +122,11 @@ export default function Stage3Probes({ sessionId, onComplete, onError, onBack }:
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="text-center mb-6">
         <h2 className="text-h2 font-headline text-primary">Stage 3 of 5</h2>
-        <p className="text-body-sm text-secondary">Infrastructure Details — {ARCHETYPE_LABELS[archetype] ?? 'Unknown Archetype'}</p>
+        <p className="mt-2 text-body text-secondary max-w-md mx-auto">
+          Infrastructure Details — {ARCHETYPE_LABELS[archetype] ?? 'Unknown Archetype'}
+        </p>
       </div>
 
       {state.vagueAnswers.length > 0 && (

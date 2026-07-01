@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
+import type { DepthLevel } from '@/types/enums';
 
 export function useExpertProfile() {
   const queryClient = useQueryClient();
@@ -56,4 +57,18 @@ export function useExpertProfile() {
     saveSeams,
     saveStackAndModel,
   };
+}
+
+export function useUpdateDomainDepth() {
+  const queryClient = useQueryClient();
+ 
+  return useMutation({
+    mutationFn: async ({ id, depthLevel }: { id: string; depthLevel: DepthLevel }) => {
+      const { data } = await apiClient.put(`/expert-profile/domains/${id}`, { depthLevel });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });
+    },
+  });
 }

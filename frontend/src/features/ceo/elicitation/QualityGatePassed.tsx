@@ -1,81 +1,107 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/Card";
-import { ARCHETYPE_LABELS } from "@/hooks/use-elicitation";
-import { PartyPopper, Clipboard, Calendar, Tag } from 'lucide-react';
+import { PartyPopper, Folder, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useProject } from "@/hooks/use-projects";
 
 interface QualityGatePassedProps {
   projectId: string;
-  completenessScore: number;
-  archetype: string;
   onStartNew: () => void;
 }
 
 export default function QualityGatePassed({
   projectId,
-  completenessScore,
-  archetype,
   onStartNew,
 }: QualityGatePassedProps) {
   const navigate = useNavigate();
-  const pct = Math.round(completenessScore * 100);
+  const { project, isLoading } = useProject(projectId);
+
 
   return (
-    <Card elevated>
-      <CardContent className="space-y-8 pt-6 text-center">
-        <div className="flex justify-center"><PartyPopper className="w-16 h-16 text-success" /></div>
-        <div>
-          <h2 className="text-h2 font-headline text-primary">
-            Your Project Has Been Published!
-          </h2>
-          <p className="mt-2 text-body text-secondary">
-            AI experts are now being matched to your project. You'll be notified
-            when bids start arriving.
-          </p>
+    <div className="space-y-10 max-w-2xl mx-auto py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="text-center">
+        <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-500/10 text-emerald-600 rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-emerald-500/10">
+          <PartyPopper className="w-10 h-10" />
         </div>
-        <div className="space-y-2">
-          <p className="text-body-sm font-medium text-success">
-            Status: Verified & Passed
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-primary-bg p-4 text-left">
-          <div className="space-y-2">
-            <p className="text-body-sm">
-              <span className="font-medium text-primary"><Clipboard className="w-4 h-4 mr-1 inline" /> Project ID: </span>
-              <span className="text-secondary font-mono text-caption">
-                {projectId}
-              </span>
-            </p>
-            <p className="text-body-sm">
-              <span className="font-medium text-primary"><Calendar className="w-4 h-4 mr-1 inline" /> Published: </span>
-              <span className="text-secondary">
-                {new Date().toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            </p>
-            <p className="text-body-sm">
-              <span className="font-medium text-primary"><Tag className="w-4 h-4 mr-1 inline" /> Archetype: </span>
-              <span className="text-secondary">
-                {ARCHETYPE_LABELS[archetype] ?? archetype}
-              </span>
-            </p>
+        <h2 className="text-4xl font-headline font-bold text-slate-900 mb-4 tracking-tight">
+          Your Project is Live!
+        </h2>
+        <p className="text-lg text-slate-500 max-w-md mx-auto leading-relaxed">
+          AI experts are now being matched to your project. You'll be notified the moment bids start arriving.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="bg-slate-50 border-b border-slate-100 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Status</p>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span className="font-semibold text-slate-900">Verified & Passed</span>
+            </div>
+          </div>
+          <div className="sm:text-right mt-2 sm:mt-0">
+            <Button 
+              variant="link" 
+              className="text-primary p-0 h-auto font-medium group" 
+              onClick={() => navigate(`/ceo/projects/${projectId}`)}
+            >
+              View Project Detail
+              <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
+            </Button>
           </div>
         </div>
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            variant="primary"
-            onClick={() => navigate(`/ceo/shortlist/${projectId}`)}
-          >
-            View Matched Experts
-          </Button>
-          <Button variant="secondary" onClick={onStartNew}>
-            Start New Project
-          </Button>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
+            <div className="flex items-center gap-3 text-slate-600">
+              <div className="p-2 rounded-lg bg-slate-100 text-slate-500">
+                <Folder className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Project Name</span>
+            </div>
+            {isLoading ? (
+              <span className="text-sm font-medium text-slate-400 animate-pulse bg-slate-100 px-3 py-1.5 rounded-lg">Loading...</span>
+            ) : (
+              <span className="text-sm font-medium text-slate-900">
+                {project?.projectName || "Unnamed Project"}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
+            <div className="flex items-center gap-3 text-slate-600">
+              <div className="p-2 rounded-lg bg-slate-100 text-slate-500">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Published Date</span>
+            </div>
+            <span className="font-medium text-slate-900">
+              {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+            </span>
+          </div>
+
+
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full sm:w-auto font-semibold px-8 py-6 text-base"
+          onClick={() => navigate(`/ceo/shortlist/${projectId}`)}
+        >
+          View Matched Experts
+        </Button>
+        <Button 
+          variant="outline" 
+          size="lg"
+          className="w-full sm:w-auto font-semibold px-8 py-6 text-base border-2"
+          onClick={onStartNew}
+        >
+          Start New Project
+        </Button>
+      </div>
+    </div>
   );
 }
