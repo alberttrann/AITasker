@@ -119,11 +119,17 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
           {activeTab === 'domains' && (
             <DomainDepthGrid 
               initialDomains={selectedDomains}
-              lockedDomainCodes={Array.from(new Set(
+              lockedDomainsRecord={
                 selectedSeams
-                  .filter((s: any) => s.verificationTier === 'VERIFIED' || s.verificationTier === 'EVIDENCE_BACKED')
-                  .flatMap((s: any) => (s.seamCode || s.code || '').split('↔'))
-              ))}
+                  .filter((s: any) => s.verificationTier === 'VERIFIED' || s.verificationTier === 'EVIDENCE_BACKED' || (s.submissionCount || 0) > 0)
+                  .reduce((acc: Record<string, string>, s: any) => {
+                    const domains = (s.seamCode || s.code || '').split('↔');
+                    domains.forEach((d: string) => {
+                      if (!acc[d]) acc[d] = s.seamCode || s.code;
+                    });
+                    return acc;
+                  }, {})
+              }
               onSave={(domains) => {
                 setSelectedDomains(domains);
                 setActiveTab('seams');

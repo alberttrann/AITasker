@@ -1,4 +1,4 @@
-import React, { useReducer, useState } from 'react';
+import React, { useReducer, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitStage4Handoff } from '../../../hooks/use-elicitation';
 import { AlertTriangle, X } from 'lucide-react';
@@ -59,6 +59,14 @@ function formReducer(state: FormState, action: FormAction): FormState {
 export default function Stage4Form() {
   const navigate = useNavigate();
   const [sessionId] = useState(() => sessionStorage.getItem('handoff_sessionId'));
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const [state, dispatch] = useReducer(formReducer, {
     scaleAndInfrastructure: '',
@@ -141,6 +149,7 @@ export default function Stage4Form() {
           ? serverMessage[0]
           : serverMessage || 'An unexpected error occurred during submission. Please try again.'
       });
+      setCooldown(10);
     }
   };
 
@@ -388,10 +397,10 @@ export default function Stage4Form() {
         {/* Nút Submit */}
         <button
           type="submit"
-          disabled={state.isSubmitting}
+          disabled={state.isSubmitting || cooldown > 0}
           className="w-full h-[48px] bg-primary text-white rounded font-semibold text-sm hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
         >
-          {state.isSubmitting ? 'Submitting Technical Context...' : 'Submit Technical Context →'}
+          {state.isSubmitting ? 'Submitting Technical Context...' : cooldown > 0 ? `Wait ${cooldown}s` : 'Submit Technical Context →'}
         </button>
       </form>
     </div>

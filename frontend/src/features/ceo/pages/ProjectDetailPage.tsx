@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useProject, useUpdateProjectName } from "@/hooks/use-projects";
+import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
+import { ARCHETYPES } from "@/hooks/use-elicitation";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { project, isLoadingProject } = useProject(id || "");
+  const { projects, isLoadingProjects } = useProjects();
+  
+  const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
+  const isLoadingProject = isLoadingProjects;
+  
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const updateProjectName = useUpdateProjectName();
@@ -56,7 +61,9 @@ export default function ProjectDetailPage() {
   const seams = project.requiredSeamsJson || (project as any).required_seams_json || [];
   const artifactA = project.artifactAJson || (project as any).artifact_a_json || null;
   const milestones = project.milestoneFrameworkJson || (project as any).milestone_framework_json || [];
+  
   const archetype = project.archetype;
+  const archetypeData = archetype ? ARCHETYPES.find(a => a.code === archetype) : null;
 
   return (
     <div className="w-full max-w-5xl mx-auto relative px-4 sm:px-0">
@@ -71,18 +78,10 @@ export default function ProjectDetailPage() {
           </button>
           <h3 className="text-2xl font-bold text-slate-900">Project Details</h3>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to={`/ceo/shortlist/${project.id}`}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            View Shortlist <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
           <div className="flex-1 min-w-0">
             {isEditingName ? (
               <div className="flex items-center gap-2 mb-4 w-full max-w-xl">
@@ -140,9 +139,9 @@ export default function ProjectDetailPage() {
                   {project.tier.replace(/_/g, ' ')}
                 </span>
               )}
-              {archetype && (
+              {archetypeData && (
                 <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold uppercase tracking-wider rounded-md border border-amber-100">
-                  {archetype.replace(/_/g, ' ')}
+                  {archetypeData.icon} {archetypeData.label}
                 </span>
               )}
               {project.selfTechnical && (
@@ -154,6 +153,14 @@ export default function ProjectDetailPage() {
             <p className="text-slate-500 font-medium">
               Created on {getSafeDate(project, 'createdAt')}
             </p>
+          </div>
+          <div className="shrink-0 flex items-start">
+            <Link
+              to={`/ceo/shortlist/${project.id}`}
+              className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
+            >
+              View Matched Experts <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
 

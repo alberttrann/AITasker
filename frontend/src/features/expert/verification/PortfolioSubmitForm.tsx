@@ -4,7 +4,8 @@ import { usePortfolio } from '@/hooks/use-portfolio';
 import Tier2Success from './Tier2Success';
 import Tier2Rejected from './Tier2Rejected';
 import VerificationLockout from './VerificationLockout';
-import { Loader2, Send, FileText, CheckSquare, AlertCircle } from 'lucide-react';
+import { AlertTriangle, ChevronRight, FileText, Plus, Search, Send, X, AlertCircle, Loader2, CheckSquare } from 'lucide-react';
+import { ConfirmModal } from '@/components/ui/Modal';
 import { Link } from 'react-router-dom';
 
 export default function PortfolioSubmitForm() {
@@ -20,6 +21,7 @@ export default function PortfolioSubmitForm() {
   
   const [resultView, setResultView] = useState<'form' | 'success' | 'rejected' | 'lockout'>('form');
   const [resultData, setResultData] = useState<any>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const getSeamLabel = (code: string) => {
     const map: Record<string, string> = {
@@ -47,7 +49,7 @@ export default function PortfolioSubmitForm() {
     }
   }, [profile, resultView]);
 
-  const handleSubmit = async () => {
+  const handleOpenModal = () => {
     if (!selectedSeamId) {
       setError("Please select a seam.");
       return;
@@ -60,7 +62,12 @@ export default function PortfolioSubmitForm() {
       setError("Decision points must be at least 20 characters.");
       return;
     }
+    setError(null);
+    setShowConfirmModal(true);
+  };
 
+  const handleSubmit = async () => {
+    setShowConfirmModal(false);
     setError(null);
     setIsSubmitting(true);
     
@@ -290,7 +297,7 @@ export default function PortfolioSubmitForm() {
 
           <div className="pt-6 border-t border-gray-100">
             <button
-              onClick={handleSubmit}
+              onClick={handleOpenModal}
               disabled={!selectedSeamId || description.length < 50 || decisions.length < 20}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-transform active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex justify-center items-center gap-2 shadow-sm"
             >
@@ -300,6 +307,18 @@ export default function PortfolioSubmitForm() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleSubmit}
+        title="Confirm Submission"
+        confirmText="Submit Evidence"
+        cancelText="Cancel"
+        isDestructive={true}
+      >
+        Once you submit evidence for this seam, it becomes <strong>permanently locked</strong> to your profile and cannot be removed, regardless of whether the evaluation succeeds or fails.
+      </ConfirmModal>
     </div>
   );
 }

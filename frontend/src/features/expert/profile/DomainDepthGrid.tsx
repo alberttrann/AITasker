@@ -7,7 +7,7 @@ import { Lock } from 'lucide-react';
 interface DomainDepthGridProps {
   onSave: (domains: DomainDepth[]) => void;
   initialDomains?: DomainDepth[];
-  lockedDomainCodes?: string[];
+  lockedDomainsRecord?: Record<string, string>;
 }
 
 const DOMAINS = [
@@ -19,7 +19,7 @@ const DOMAINS = [
   { code: 'F', label: 'MLOps & Production AI', hint: 'Serving, observability, evals, and infrastructure' },
 ];
 
-export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDomainCodes = [] }: DomainDepthGridProps) {
+export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDomainsRecord = {} }: DomainDepthGridProps) {
   const [domainStates, setDomainStates] = useState<DomainDepth[]>(() => {
     return DOMAINS.map(d => {
       const existing = initialDomains.find(id => id.domainCode === d.code);
@@ -34,7 +34,7 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
   const [error, setError] = useState<string | null>(null);
 
   const updateDepth = (code: string, depth: "SURFACE" | "OPERATIONAL" | "DEEP") => {
-    if (lockedDomainCodes.includes(code)) {
+    if (lockedDomainsRecord[code]) {
       const currentState = domainStates.find(d => d.domainCode === code);
       if (currentState?.depthLevel === depth) {
         // Prevent unselecting a locked domain
@@ -99,7 +99,7 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
         {DOMAINS.map(domain => {
           const currentState = domainStates.find(d => d.domainCode === domain.code);
           const isSelected = currentState?.depthLevel !== null;
-          const isLocked = lockedDomainCodes.includes(domain.code);
+          const lockedBySeam = lockedDomainsRecord[domain.code];
 
           return (
             <div key={domain.code} className={`border p-4 rounded-lg transition-colors ${isSelected ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-white'}`}>
@@ -107,9 +107,9 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
                 <div className="flex-1">
                   <h3 className="font-semibold flex items-center gap-2">
                     {domain.code} · {domain.label}
-                    {isLocked && (
+                    {lockedBySeam && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wide border border-blue-200">
-                        <Lock className="h-3 w-3" /> Required for Verified Seam
+                        <Lock className="h-3 w-3" /> Required for Seam {lockedBySeam}
                       </span>
                     )}
                   </h3>

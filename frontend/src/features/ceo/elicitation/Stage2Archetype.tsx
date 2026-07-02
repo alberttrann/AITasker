@@ -4,7 +4,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
 import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS, revertSession, useElicitation } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, AlertTriangle } from 'lucide-react';
+import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, AlertTriangle, Layers } from 'lucide-react';
 
 const getIcon = (code: string) => {
   switch (code) {
@@ -47,6 +47,8 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
 
   const voidList = (session?.voidListJson as VoidItem[]) ?? [];
   const recommended = (session?.recommendedArchetypesJson as string[]) || [];
+  
+  const allVoidsAcknowledged = voidList.length === 0 || voidList.every(v => acknowledged.has(v.void_code));
 
   const toggleAcknowledge = (code: string) => {
     setAcknowledged((prev) => {
@@ -57,7 +59,7 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
   };
 
   const handleContinue = async () => {
-    if (!selected) return;
+    if (!selected || !allVoidsAcknowledged) return;
     setIsSubmitting(true);
     try {
       await submitStage2(sessionId, selected, [...acknowledged]);
@@ -72,37 +74,38 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="text-center mb-6">
         <h2 className="text-h2 font-headline text-primary">Stage 2 of 5</h2>
-        <p className="text-body-sm text-secondary">What kind of AI project is this?</p>
+        <p className="mt-2 text-body text-secondary max-w-md mx-auto">
+          What kind of AI project is this? Select the project type that best fits your needs.
+        </p>
       </div>
-      <p className="text-body text-secondary">Select the project type that best fits your needs:</p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {ARCHETYPES.map((a) => {
           const isSelected = selected === a.code;
           const isRecommended = recommended.length === 0 || recommended.includes(a.code);
           
-          let cardClasses = 'rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm ';
+          let cardClasses = 'relative rounded-xl border-2 p-5 text-left transition-all duration-200 ';
           if (isSelected) {
-            cardClasses += 'border-primary bg-primary/5 shadow-sm';
-          } else if (isRecommended) {
-            cardClasses += 'border-brand-200 bg-brand-50 hover:border-brand-400';
+            cardClasses += 'border-primary bg-primary/5 shadow-md ring-1 ring-primary transform scale-[1.02] z-10';
+          } else if (!isRecommended) {
+            cardClasses += 'border-slate-200 bg-slate-50 opacity-50 grayscale cursor-not-allowed';
           } else {
-            cardClasses += 'border-slate-200 bg-surface opacity-60 hover:opacity-100 hover:border-primary/30';
+            cardClasses += 'border-slate-300 bg-white hover:border-slate-400 hover:shadow-sm';
           }
 
           return (
-            <button key={a.code} onClick={() => setSelected(a.code)} className={cardClasses}>
+            <button key={a.code} disabled={!isRecommended} onClick={() => setSelected(a.code)} className={cardClasses}>
               <div className="flex justify-between items-start">
-                <div className={`mb-2 ${!isRecommended && 'grayscale opacity-75'}`}>{getIcon(a.code)}</div>
+                <div className="mb-2">{getIcon(a.code)}</div>
                 {isRecommended && recommended.length > 0 && (
                   <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-700 uppercase tracking-wider">
                     Recommended
                   </span>
                 )}
               </div>
-              <h4 className={`mt-2 font-headline ${isRecommended ? 'text-primary' : 'text-slate-500'}`}>{a.label}</h4>
+              <h4 className="mt-2 font-headline font-semibold text-slate-900">{a.label}</h4>
               <p className="mt-1 text-body-sm text-secondary">{a.desc}</p>
             </button>
           );
@@ -140,7 +143,7 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
         }} disabled={isSubmitting || isReverting}>
           {isReverting ? 'Going back…' : '← Back'}
         </Button>
-        <Button variant="primary" disabled={!selected || isSubmitting || isReverting} onClick={handleContinue}>
+        <Button variant="primary" disabled={!selected || !allVoidsAcknowledged || isSubmitting || isReverting} onClick={handleContinue}>
           {isSubmitting ? 'Saving…' : 'Continue to Stage 3 →'}
         </Button>
       </div>
