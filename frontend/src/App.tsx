@@ -62,6 +62,7 @@ export default function App() {
             <Route path="subscription" element={<SubscriptionActivate />} />
             <Route path="elicitation" element={<ElicitationWizard />} />
             <Route path="shortlist/:projectId" element={<ShortlistView />} />
+            <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
           </Route>
         </Route>
 

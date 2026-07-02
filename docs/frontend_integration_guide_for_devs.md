@@ -934,13 +934,13 @@ import VerificationHistoryPage from "@features/expert/verification/VerificationH
 **Priority CAO:**
 - [x] `Stage1Symptoms.tsx` — thêm debounced `saveDraft()` + `symptomTextDraft` prop + draft indicator
 - [x] `ElicitationWizard.tsx` — thêm `symptomTextDraft` vào state + pass xuống Stage1
-- [ ] `SessionsListPage.tsx` — dùng `useSessionHistory()` + hiện RETURNED sessions
+- [x] `SessionsListPage.tsx` — dùng `useSessionHistory()` + hiện RETURNED sessions
 - [x] `ShortlistView.tsx` — dùng `useShortlist()` hook thay bare `useQuery`
-- [ ] `App.tsx` — thêm routes mới (Partially done)
+- [x] `App.tsx` — thêm routes mới
 
 **Priority TRUNG:**
 - [x] `ProjectDetailPage.tsx` — CREATE NEW (`/ceo/projects/:projectId`)
-- [ ] `VerificationHistoryPage.tsx` — CREATE NEW (`/expert/verification-history`)
+- [x] `VerificationHistoryPage.tsx` — CREATE NEW (`/expert/verification-history`)
 - [ ] `ExpertProfilePage.tsx` — thêm "View History" button + `useNavigate`
 - [ ] `Stage5Loading.tsx` — thêm retry button khi AI timeout
 - [ ] `DomainDepthGrid.tsx` — phân biệt create vs update domain depth
