@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { UpdateMilestoneDoDItemDto } from './dto/update-dod-item.dto';
 import { PrismaService } from '../database/prisma.service';
-import { CreateDodItemDto } from "./dto/create-dod-item.dto";
+import { CreateDodItemDto } from './dto/create-dod-item.dto';
 
 @Injectable()
 export class DodService {
@@ -26,32 +26,32 @@ export class DodService {
       },
     });
   }
-async updateDodStatus(itemId: string, milestoneId: string,   dto: UpdateMilestoneDoDItemDto) {
+
+  async updateDodStatus(itemId: string, dto: UpdateMilestoneDoDItemDto) {
     const dodItem = await this.prisma.milestoneDodItem.findUnique({
       where: { id: itemId },
     });
     if (!dodItem) {
-      throw new NotFoundException('DoD item with ID ${itemId} not found');
+      throw new NotFoundException(`DoD item with ID ${itemId} not found`);
     }
 
-    if (dodItem.milestoneId !== milestoneId) {
-      throw new BadRequestException('DoD item does not belong to the specified milestone.');
-    }
-if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE') {
-      throw new BadRequestException('Cannot mark a required DoD item as NOT_APPLICABLE');
+    if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE') {
+      throw new BadRequestException(`Cannot mark a required DoD item as NOT_APPLICABLE`);
     }
 
     if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note) {
-      throw new BadRequestException('Completion note is required for required DoD items when status is not COMPLETED');
+      throw new BadRequestException(
+        `Completion note is required for required DoD items when status is not COMPLETED`,
+      );
     }
 
     return this.prisma.milestoneDodItem.update({
       where: { id: itemId },
       data: {
         status: dto.status,
-        completionNote:    dto.status === 'COMPLETED'      ? dto.completion_note     : null,
+        completionNote: dto.status === 'COMPLETED' ? dto.completion_note : null,
         notApplicableNote: dto.status === 'NOT_APPLICABLE' ? dto.not_applicable_note : null,
-        completedAt:       dto.status === 'COMPLETED'      ? new Date()              : null,
+        completedAt: dto.status === 'COMPLETED' ? new Date() : null,
       },
     });
   }
