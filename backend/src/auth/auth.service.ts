@@ -294,6 +294,84 @@ export class AuthService {
     });
   }
 
+  async claimHandoff(userId: string, inviteToken: string) {
+    let payload: { sessionId: string; ceoId: string; jti: string; purpose: string };
+    try {
+      payload = await this.jwtService.verifyAsync(inviteToken);
+    } catch {
+      throw new UnauthorizedException('This invite link has expired or is invalid.');
+    }
+
+    if (payload.purpose !== 'tech-team-handoff') {
+      throw new UnauthorizedException('Invalid invite token.');
+    }
+
+    const session = await this.prisma.elicitationSession.findUnique({
+      where: { id: payload.sessionId },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException(
+        'This invite link refers to a session that no longer exists.',
+      );
+    }
+    if (session.handoffTokenJti !== payload.jti) {
+      throw new UnauthorizedException(
+        'This invite link has been superseded by a newer one. Ask the CEO to resend.',
+      );
+    }
+    if (session.handoffConsumedAt !== null) {
+      throw new UnauthorizedException('This invite link has already been used.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const roles = user.roles as string[];
+      const updatedRoles = Array.from(new Set([...roles, UserRoleItem.CLIENT_CEO]));
+
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          roles: updatedRoles,
+          activeRole: ActiveRole.CLIENT,
+          clientSubtype: ClientSubType.TECH_TEAM,
+        },
+      });
+
+      // Tạo profile hoặc cập nhật liên kết mới sang CEO dự án này
+      await tx.techTeamProfile.upsert({
+        where: { userId },
+        create: {
+          userId,
+          linkedClientId: payload.ceoId,
+          linkedProjectId: null,
+        },
+        update: {
+          linkedClientId: payload.ceoId,
+          linkedProjectId: null,
+        },
+      });
+
+      await tx.elicitationSession.update({
+        where: { id: payload.sessionId },
+        data: { handoffConsumedAt: new Date() },
+      });
+
+      const access_token = await this.jwtGeneratePayload(updatedUser);
+      return {
+        access_token,
+        user: this.toAuthUserResponse(updatedUser),
+      };
+    });
+  }
+
   async verifyTaxCode(verifyTaxCodeDto: VerifyTaxCodeDto) {
     const taxCode = verifyTaxCodeDto.taxCode;
 
