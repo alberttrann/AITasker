@@ -36,6 +36,11 @@ import ProjectDetailPage from "@features/ceo/pages/ProjectDetailPage";
 import SessionsListPage from "@features/ceo/pages/SessionsListPage";
 import ExpertProfilePage from "@features/expert/profile/ExpertProfilePage";
 import VerificationHistoryPage from "@features/expert/verification/VerificationHistoryPage";
+import CeoNdaClickThrough from "@features/ceo/connection/NdaClickThrough";
+import ExpertNdaClickThrough from "@features/expert/connection/NdaClickThrough";
+import BidForm from "@features/expert/bidding/BidForm";
+import BidReviewList from "@features/tech-team/bids/BidReviewList";
+import BidReviewDetail from "@features/tech-team/bids/BidReviewDetail";
 
 export default function App() {
   return (
@@ -62,7 +67,14 @@ export default function App() {
             <Route path="subscription" element={<SubscriptionActivate />} />
             <Route path="elicitation" element={<ElicitationWizard />} />
             <Route path="shortlist/:projectId" element={<ShortlistView />} />
-            <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
+            <Route
+              path="projects/:projectId/shortlist"
+              element={<ShortlistView />}
+            />
+            <Route
+              path="engagements/:engagementId/nda"
+              element={<CeoNdaClickThrough />}
+            />
           </Route>
         </Route>
 
@@ -75,10 +87,18 @@ export default function App() {
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
-            <Route path="verification-history" element={<VerificationHistoryPage />} />
+            <Route
+              path="verification-history"
+              element={<VerificationHistoryPage />}
+            />
             <Route
               path="subscription"
               element={<ExpertSubscriptionActivate />}
+            />
+            <Route path="bids/:projectId" element={<BidForm />} />
+            <Route
+              path="engagements/:engagementId/nda"
+              element={<ExpertNdaClickThrough />}
             />
           </Route>
         </Route>
@@ -89,6 +109,8 @@ export default function App() {
             <Route index element={<TechTeamOverview />} />
             <Route path="submitted" element={<Stage4Submitted />} />
           </Route>
+          <Route path="bids" element={<BidReviewList />} />
+          <Route path="bids/:bidId" element={<BidReviewDetail />} />
         </Route>
 
         <Route element={<RoleRoute requiredRole="ADMIN" />}>
