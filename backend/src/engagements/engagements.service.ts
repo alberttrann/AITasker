@@ -6,7 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
-import { EventEmitter2 } from '@nestjs/event-emitter'; 
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype: string | null };
 
@@ -15,8 +15,7 @@ export class EngagementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) 
-    {}
+  ) {}
 
   // GET /engagements — list own engagements (or all for ADMIN).
   // Blueprint: docs/04-endpoints.md §0.11 L row 145.
@@ -185,8 +184,8 @@ export class EngagementsService {
           type: 'system',
           title: 'Project Connected!',
           body: 'The CEO has signed the NDA. You now have access to Artifact B (Technical Specs).',
-          link: `/expert/projects/${engagement.projectId}`
-        }
+          link: `/expert/projects/${engagement.projectId}`,
+        },
       });
     }
 
@@ -261,8 +260,8 @@ export class EngagementsService {
           type: 'system',
           title: 'Expert Connected!',
           body: 'The expert has signed the NDA and joined the project workspace.',
-          link: `/ceo/projects/${engagement.projectId}`
-        }
+          link: `/ceo/projects/${engagement.projectId}`,
+        },
       });
     }
     const expert = await this.prisma.user.findUnique({
