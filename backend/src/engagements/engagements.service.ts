@@ -6,12 +6,17 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
+import { EventEmitter2 } from '@nestjs/event-emitter'; 
 
 type ActorUser = { id: string; activeRole: string; clientSubtype: string | null };
 
 @Injectable()
 export class EngagementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) 
+    {}
 
   // GET /engagements — list own engagements (or all for ADMIN).
   // Blueprint: docs/04-endpoints.md §0.11 L row 145.
@@ -172,6 +177,19 @@ export class EngagementsService {
     // 6. Set client_nda_accepted_at. If expert has also accepted, transition to CONNECTED.
     const bothAccepted = engagement.expertNdaAcceptedAt !== null;
 
+    if (bothAccepted) {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.expertId,
+        event: 'notification:generic',
+        payload: {
+          type: 'system',
+          title: 'Project Connected!',
+          body: 'The CEO has signed the NDA. You now have access to Artifact B (Technical Specs).',
+          link: `/expert/projects/${engagement.projectId}`
+        }
+      });
+    }
+
     return this.prisma.engagement.update({
       where: { id },
       data: {
@@ -234,6 +252,19 @@ export class EngagementsService {
     // 6. Non-blocking bank-link prompt (docs/03 §BR-ART-07).
     //    If the expert has no linked bank account, surface a prompt so they
     //    know they'll need it before withdrawal.
+
+    if (bothAccepted) {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.clientId,
+        event: 'notification:generic',
+        payload: {
+          type: 'system',
+          title: 'Expert Connected!',
+          body: 'The expert has signed the NDA and joined the project workspace.',
+          link: `/ceo/projects/${engagement.projectId}`
+        }
+      });
+    }
     const expert = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { sepayBankAccountXid: true },

@@ -9,7 +9,7 @@ import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@store/auth.store';
 import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
-
+import { useQueryClient } from '@tanstack/react-query';
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:3001';
 
 const SocketContext = createContext<Socket | null>(null);
@@ -34,7 +34,7 @@ const SocketContext = createContext<Socket | null>(null);
 export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
-
+  const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
   const activeEngagement = useEngagementStore((s) => s.activeEngagementId);
@@ -95,6 +95,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         body:  data.body,
         link:  data.link || '',
       });
+
+      // 1. Tech Team submitted Stage 4 -> Auto-advance CEO's Wizard
+      if (data.title === 'Technical Context Submitted') {
+        queryClient.invalidateQueries({ queryKey: ['elicitation'] });
+      }
+      
+      // 2. NDAs Signed -> Auto-unlock Artifact B & update project state
+      if (data.title.includes('Project Connected') || data.title.includes('Expert Connected')) {
+        queryClient.invalidateQueries({ queryKey: ['project'] });
+        queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      }
+
+      // 3. New Bids or Tech Reviews -> Refresh CEO/Expert dashboards
+      if (data.title.includes('New Expert Bid') || data.title.includes('Tech Review Passed')) {
+        queryClient.invalidateQueries({ queryKey: ['engagements'] });
+        queryClient.invalidateQueries({ queryKey: ['bids'] });
+      }
     });
 
     socket.on('bid:updated', (data: {
@@ -110,6 +127,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       });
     });
 
+    queryClient.invalidateQueries({ queryKey: ['engagements'] });
+    queryClient.invalidateQueries({ queryKey: ['bids'] });
+
     socket.on('milestone:updated', (data: {
       engagement_id:   string;
       milestone_number: number;
@@ -123,6 +143,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         meta:  { engagement_id: data.engagement_id },
       });
     });
+    
+    queryClient.invalidateQueries({ queryKey: ['milestones'] });
+    queryClient.invalidateQueries({ queryKey: ['engagements'] });
 
     socket.on('payment:confirmed', (data: {
       engagement_id:   string;

@@ -347,6 +347,16 @@ export class ElicitationService {
       },
     });
 
+    this.eventEmitter.emit('socket.broadcast', {
+      userId: session.userId, // The CEO
+      event: 'notification:generic',
+      payload: {
+        type: 'system',
+        title: 'Technical Context Submitted',
+        body: 'Your Tech Lead has completed Stage 4. Synthesis will begin shortly.',
+      }
+    });
+
     return { success: true };
   }
 
