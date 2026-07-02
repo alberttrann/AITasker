@@ -38,6 +38,7 @@ type WizardState = {
   forceScenarioA: boolean;
   isCancelModalOpen: boolean;
   archetype: string | null;
+  symptomTextDraft: string | null;
 };
 
 type WizardAction =
@@ -60,12 +61,13 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_ERROR":
       return { ...state, error: action.payload, isLoading: false };
     case "STAGE_COMPLETE": {
-      const { gateResult, archetype } = action.payload;
+      const { gateResult, archetype, symptomText } = action.payload;
       return {
         ...state,
         error: null,
         gateResult: gateResult || state.gateResult,
         archetype: archetype || state.archetype,
+        symptomTextDraft: symptomText || state.symptomTextDraft,
         currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
         sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
       };
@@ -122,6 +124,7 @@ export default function ElicitationWizard() {
     forceScenarioA: false,
     isCancelModalOpen: false,
     archetype: null,
+    symptomTextDraft: null,
   });
 
   useEffect(() => {
@@ -178,6 +181,7 @@ export default function ElicitationWizard() {
             sessionState: finalSessionState,
             gateResult: initGateResult as GateResult | null,
             archetype: data.archetype || null,
+            symptomTextDraft: data.symptomTextDraft ?? data.symptom_text_draft ?? null,
           }
         });
 
@@ -380,6 +384,7 @@ export default function ElicitationWizard() {
           {state.currentStage === 1 && state.sessionId && (
             <Stage1Symptoms
               sessionId={state.sessionId}
+              symptomTextDraft={state.symptomTextDraft}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
             />
