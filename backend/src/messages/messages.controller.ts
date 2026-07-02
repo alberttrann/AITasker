@@ -3,7 +3,14 @@ import { MessagesService } from './messages.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 @ApiTags('Messages')
 @ApiBearerAuth()
@@ -15,8 +22,16 @@ export class MessagesController {
   @Get('engagements/:id/messages')
   @ApiOperation({ summary: 'Retrieve chat history with cursor-based pagination' })
   @ApiParam({ name: 'id', description: 'The ID of the active engagement' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of messages to retrieve per page (default is 50)' })
-  @ApiQuery({ name: 'cursorId', required: false, description: 'The ID of the last message from the previous page' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of messages to retrieve per page (default is 50)',
+  })
+  @ApiQuery({
+    name: 'cursorId',
+    required: false,
+    description: 'The ID of the last message from the previous page',
+  })
   @ApiResponse({ status: 200, description: 'Successfully retrieved chat history.' })
   @ApiResponse({ status: 401, description: 'Unauthorized connection.' })
   @ApiResponse({ status: 404, description: 'Engagement not found.' })
@@ -34,8 +49,16 @@ export class MessagesController {
   @Get('projects/:id/messages')
   @ApiOperation({ summary: 'Retrieve pre-bid project Q&A thread with cursor-based pagination' })
   @ApiParam({ name: 'id', description: 'The ID of the published project' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of messages to retrieve per page (default is 50)' })
-  @ApiQuery({ name: 'cursorId', required: false, description: 'The ID of the last message from the previous page' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of messages to retrieve per page (default is 50)',
+  })
+  @ApiQuery({
+    name: 'cursorId',
+    required: false,
+    description: 'The ID of the last message from the previous page',
+  })
   @ApiResponse({ status: 200, description: 'Successfully retrieved project Q&A thread.' })
   @ApiResponse({ status: 403, description: 'Project not open for questions, or not authorized.' })
   @ApiResponse({ status: 404, description: 'Project not found.' })
