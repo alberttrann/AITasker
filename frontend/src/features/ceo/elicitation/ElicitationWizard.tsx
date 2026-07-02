@@ -13,6 +13,7 @@ import {
   handleElicitationError,
   revertSession,
   STAGE_LABELS,
+  setSelfTechnical,
   type GateResult,
   type StageCompleteData,
 } from "@/hooks/use-elicitation";
@@ -228,6 +229,16 @@ export default function ElicitationWizard() {
   };
   const handleBack = () => dispatch({ type: "BACK" });
 
+  const handleSetSelfTechnical = async (value: boolean) => {
+    if (!state.sessionId) return;
+    try {
+      await setSelfTechnical(state.sessionId, value);
+      dispatch({ type: "SET_FORCE_SCENARIO_A", payload: value });
+    } catch (err: any) {
+      dispatch({ type: "SET_ERROR", payload: "Failed to update technical preference." });
+    }
+  };
+
   const handleStartOver = async () => {
     dispatch({ type: "START_OVER_START" });
     try {
@@ -420,14 +431,14 @@ export default function ElicitationWizard() {
                 sessionId={state.sessionId}
                 onComplete={handleStageComplete}
                 onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
-                onBack={state.forceScenarioA ? () => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: false }) : handleBack}
+                onBack={state.forceScenarioA ? () => handleSetSelfTechnical(false) : handleBack}
                 isForced={state.forceScenarioA}
               />
             ) : (
               <Stage4ScenarioB
                 sessionId={state.sessionId}
                 onTechTeamSubmitted={handleTechTeamSubmitted}
-                onFillInMyself={() => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: true })}
+                onFillInMyself={() => handleSetSelfTechnical(true)}
                 onBack={handleBack}
               />
             ))}

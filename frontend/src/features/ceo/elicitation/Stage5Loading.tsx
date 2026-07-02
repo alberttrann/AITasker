@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { submitStage5, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
+import { submitStage5, retrySynthesis, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
 import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface Stage5Props {
   sessionId: string;
@@ -13,6 +14,8 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
   const [cooldown, setCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [synthError, setSynthError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const hasStartedRef = useRef(false);
 
@@ -37,16 +40,32 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
 
   const triggerSynthesis = async () => {
     setErrorMsg(null);
+    setSynthError(null);
     setIsSynthesizing(true);
     try {
       const data = await submitStage5(sessionId);
-      onComplete(data);
+      onComplete(data as GateResult);
     } catch (err: any) {
       const { message } = handleElicitationError(err);
-      setErrorMsg(message || 'Synthesis failed. Please try again.');
+      setSynthError(message || 'Synthesis failed. Please try again.');
       setCooldown(30);
     } finally {
       setIsSynthesizing(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    setSynthError(null);
+    try {
+      const result = await retrySynthesis(sessionId);
+      onComplete(result as GateResult);
+    } catch (err: any) {
+      setSynthError(
+        err?.response?.data?.message ?? "AI service unavailable. Try again in a moment."
+      );
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -75,18 +94,12 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
         )}
       </div>
 
-      {errorMsg && (
-        <div className="mt-8 space-y-4 max-w-md mx-auto">
-          <div className="p-4 bg-error/10 border border-error/20 rounded-md text-error text-sm text-left">
-            <strong>Error:</strong> {errorMsg}
-          </div>
-          <Button
-            variant="primary"
-            className="w-full"
-            disabled={cooldown > 0 || isSynthesizing}
-            onClick={triggerSynthesis}
-          >
-            {cooldown > 0 ? `Wait ${cooldown}s` : 'Retry Synthesis'}
+      {synthError && (
+        <div className="mt-8 space-y-4 max-w-md mx-auto text-center">
+          <p className="text-body-sm text-error">{synthError}</p>
+          <Button onClick={handleRetry} disabled={isRetrying} variant="primary" className="w-full">
+            {isRetrying ? <Loader2 className="w-4 h-4 animate-spin mr-2 inline" /> : null}
+            Try Again
           </Button>
         </div>
       )}
