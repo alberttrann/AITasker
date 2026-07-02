@@ -1,0 +1,338 @@
+import { useState, useRef, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Spinner } from '@/components/ui/Spinner';
+import { ConfirmModal } from '@/components/ui/modal';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Shield,
+  ArrowLeft,
+  Clock,
+  Banknote,
+} from 'lucide-react';
+import type { EngagementDto } from '@/types/api.types';
+
+// ── Inline hooks ─────────────────────────────────────────────────
+
+/** GET /engagements/:id */
+function useEngagement(id: string | undefined) {
+  return useQuery({
+    queryKey: ['engagements', id],
+    queryFn: async () => {
+      const { data } = await apiClient.get<EngagementDto>(`/engagements/${id}`);
+      return data;
+    },
+    enabled: !!id,
+    staleTime: 15_000,
+    refetchInterval: 5_000, // Poll for CEO's signature
+  });
+}
+
+/** POST /engagements/:id/connect — NO body */
+function useAcceptConnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (engagementId: string) => {
+      const { data } = await apiClient.post(
+        `/engagements/${engagementId}/connect`
+      );
+      return data;
+    },
+    onSuccess: (_, engagementId) => {
+      qc.invalidateQueries({ queryKey: ['engagements', engagementId] });
+      qc.invalidateQueries({ queryKey: ['engagements'] });
+    },
+  });
+}
+
+// ── NDA text ─────────────────────────────────────────────────────
+
+const NDA_TEXT = `
+NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is entered into by and between the Client ("Disclosing Party") and the Expert ("Receiving Party") for the purpose of preventing the unauthorized disclosure of Confidential Information.
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION
+"Confidential Information" means any information disclosed by the Disclosing Party to the Receiving Party, either directly or indirectly, in writing, orally or by inspection of tangible objects, including without limitation: project specifications, technical requirements, business processes, source code, algorithms, trade secrets, and any other proprietary information.
+
+2. OBLIGATIONS OF RECEIVING PARTY
+The Receiving Party shall: (a) hold the Confidential Information in strict confidence; (b) not disclose Confidential Information to any third party; (c) use Confidential Information solely for the purpose of the engagement; and (d) return or destroy all Confidential Information upon termination of the engagement.
+
+3. TERM
+This Agreement shall remain in effect for the duration of the engagement and for a period of two (2) years following its termination.
+
+4. GOVERNING LAW
+This Agreement shall be governed by and construed in accordance with the laws of Vietnam.
+
+By signing below, both parties acknowledge that they have read and understood this Agreement and agree to be bound by its terms.
+`.trim();
+
+export default function ExpertNdaClickThrough() {
+  const { engagementId } = useParams<{ engagementId: string }>();
+  const navigate = useNavigate();
+
+  const { data: engagement, isLoading, error, refetch } =
+    useEngagement(engagementId);
+  const acceptConnect = useAcceptConnect();
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [showSignConfirm, setShowSignConfirm] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [promptBank, setPromptBank] = useState(false);
+
+  const engAny = engagement as any;
+  const ceoSigned = !!engAny?.clientNdaAcceptedAt;
+  const alreadySigned = !!engAny?.expertNdaAcceptedAt;
+  const isConnected = engAny?.state === 'CONNECTED';
+
+  // ── Scroll detection ───────────────────────────────────────────
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 50) {
+      setHasScrolledToBottom(true);
+    }
+  }, []);
+
+  // ── Sign handler ───────────────────────────────────────────────
+
+  const handleSign = () => {
+    if (!engagementId) return;
+    setServerError(null);
+    acceptConnect.mutate(engagementId, {
+      onSuccess: (data: any) => {
+        if (data?.prompt_bank_link) {
+          setPromptBank(true);
+        }
+      },
+      onError: (err: any) => {
+        const msg =
+          err?.response?.data?.message || 'Failed to accept connection.';
+        setServerError(Array.isArray(msg) ? msg[0] : msg);
+      },
+    });
+  };
+
+  // ── Loading ────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Spinner size="xl" className="mx-auto" />
+      </div>
+    );
+  }
+
+  // ── Error ──────────────────────────────────────────────────────
+
+  if (error || !engagement) {
+    const msg =
+      (error as any)?.response?.data?.message || 'Engagement not found.';
+    return (
+      <div className="py-24 text-center space-y-4">
+        <AlertTriangle className="mx-auto h-8 w-8 text-[#EAB308]" />
+        <p className="text-body-lg font-headline text-[#EF4444]">{msg}</p>
+        <div className="flex justify-center gap-3">
+          <Button variant="secondary" onClick={() => refetch()}>
+            Retry
+          </Button>
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Already Connected ──────────────────────────────────────────
+
+  if (isConnected) {
+    return (
+      <div className="mx-auto max-w-[640px] py-16 text-center space-y-4">
+        <CheckCircle2 className="mx-auto h-12 w-12 text-[#22C55E]" />
+        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+          Connected
+        </h1>
+        <p className="text-body text-[#64748B]">
+          You are now connected with the client. You can start working together.
+        </p>
+        <Button
+          variant="primary"
+          onClick={() =>
+            navigate(`/engagements/${engagementId}/messages`)
+          }
+        >
+          Open Messages
+        </Button>
+      </div>
+    );
+  }
+
+  // ── Waiting for CEO ─────────────────────────────────────────────
+
+  if (!ceoSigned && !alreadySigned) {
+    return (
+      <div className="mx-auto max-w-[640px] py-16 text-center space-y-4">
+        <Clock className="mx-auto h-12 w-12 text-[#0EA5E9] animate-pulse" />
+        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+          Waiting for Client
+        </h1>
+        <p className="text-body text-[#64748B]">
+          The client needs to sign the NDA first. You'll be notified when
+          they're ready.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Render: CEO signed, expert needs to sign ───────────────────
+
+  return (
+    <div className="mx-auto max-w-[640px] space-y-6">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
+      >
+        <ArrowLeft size={14} />
+        Back
+      </button>
+
+      <div>
+        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+          Non-Disclosure Agreement
+        </h1>
+        <p className="mt-1 text-body text-[#64748B]">
+          The client has signed the NDA. Please review and sign to connect.
+        </p>
+      </div>
+
+      {/* Already signed by Expert */}
+      {alreadySigned && (
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
+          <div>
+            <p className="text-[14px] font-medium text-[#16A34A]">
+              NDA Signed ✓
+            </p>
+            <p className="text-[12px] text-[#15803D]">
+              Signed on{' '}
+              {new Date(engAny.expertNdaAcceptedAt).toLocaleDateString(
+                'en-GB',
+                {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Server error */}
+      {serverError && (
+        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
+          <p className="text-[14px] text-[#DC2626]">{serverError}</p>
+        </div>
+      )}
+
+      {/* NDA text */}
+      <Card>
+        <CardContent className="p-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="max-h-[360px] overflow-y-auto p-6"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Shield className="h-5 w-5 text-[#0F172A]" />
+              <h2 className="font-headline text-[18px] font-semibold text-[#0F172A]">
+                NDA Agreement
+              </h2>
+            </div>
+            <pre className="font-body text-[14px] leading-[1.7] text-[#334155] whitespace-pre-wrap">
+              {NDA_TEXT}
+            </pre>
+          </div>
+          {!hasScrolledToBottom && !alreadySigned && (
+            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3">
+              <p className="text-[12px] text-[#94A3B8] text-center">
+                Scroll to the bottom to enable signing
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bank link prompt */}
+      {promptBank && (
+        <div className="rounded-[8px] border border-[#FED7AA] bg-[#FFF7ED] p-4 flex items-start gap-3">
+          <Banknote className="h-5 w-5 shrink-0 text-[#EA580C] mt-0.5" />
+          <div>
+            <p className="text-[14px] font-medium text-[#C2410C]">
+              Don't forget to link your bank account!
+            </p>
+            <p className="mt-1 text-[13px] text-[#9A3412]">
+              You need a linked bank account to receive milestone payments.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={() => navigate('/expert/wallet/link-bank')}
+            >
+              Link Bank Account
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Sign button */}
+      {!alreadySigned && (
+        <div className="space-y-3">
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={!hasScrolledToBottom || acceptConnect.isPending}
+            onClick={() => setShowSignConfirm(true)}
+          >
+            {acceptConnect.isPending ? (
+              <span className="flex items-center gap-2">
+                <Spinner size="sm" /> Signing…
+              </span>
+            ) : (
+              'Sign NDA & Connect'
+            )}
+          </Button>
+          {!hasScrolledToBottom && (
+            <p className="text-[12px] text-[#94A3B8] text-center">
+              Please scroll through the entire agreement before signing.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Sign Confirmation */}
+      <ConfirmModal
+        isOpen={showSignConfirm}
+        onClose={() => setShowSignConfirm(false)}
+        onConfirm={handleSign}
+        title="Sign NDA & Connect"
+        confirmText="I Agree & Connect"
+        isInfo
+      >
+        By signing, you confirm that you have read and agree to the terms of
+        this Non-Disclosure Agreement. You will be connected with the client.
+      </ConfirmModal>
+    </div>
+  );
+}
