@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -145,6 +146,20 @@ export class ExpertProfileService {
 
   async syncSeamClaims(userId: string, seams: string[]) {
     return this.prisma.$transaction(async (tx) => {
+      // 1. Tìm các seam mà user đang muốn xoá
+      const seamsToDelete = await tx.expertSeamClaim.findMany({
+        where: { expertId: userId, seamCode: { notIn: seams } },
+      });
+
+      // 2. Chặn xoá nếu đã có lịch sử submit (để chống việc bypass anti-spam lockout 5 lần)
+      const invalidDeletions = seamsToDelete.filter(s => s.submissionCount > 0);
+      if (invalidDeletions.length > 0) {
+        const lockedSeams = invalidDeletions.map(s => s.seamCode).join(', ');
+        throw new BadRequestException(
+          `Cannot remove seams with verification history (${lockedSeams}). This preserves platform verification integrity.`
+        );
+      }
+
       await tx.expertSeamClaim.deleteMany({
         where: { expertId: userId, seamCode: { notIn: seams } },
       });
