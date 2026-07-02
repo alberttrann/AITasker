@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 
 export default function ElicitationWizard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const initPromiseRef = useRef<Promise<any> | null>(null);
 
@@ -129,6 +130,7 @@ export default function ElicitationWizard() {
 
   useEffect(() => {
     let cancelled = false;
+    const resumeSessionId = location.state?.resumeSessionId;
 
     const init = async () => {
       try {
@@ -136,7 +138,11 @@ export default function ElicitationWizard() {
           initPromiseRef.current = (async () => {
             let data = null;
             try {
-              data = await getActiveSession();
+              if (resumeSessionId) {
+                data = await getSession(resumeSessionId);
+              } else {
+                data = await getActiveSession();
+              }
             } catch {
               data = null;
             }

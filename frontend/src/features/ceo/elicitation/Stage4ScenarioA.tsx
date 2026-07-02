@@ -115,6 +115,14 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
 
   const [isRecommending, setIsRecommending] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const handleRecommend = async () => {
     setIsRecommending(true);
@@ -147,12 +155,13 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
     submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts)
       .then(() => {
         queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+        onComplete({});
       })
       .catch((err: any) => {
         onError(handleElicitationError(err).message || 'Failed to submit technical context.');
+        dispatch({ type: 'SUBMIT_ERROR', payload: handleElicitationError(err).message });
+        setCooldown(10);
       });
-
-    onComplete({});
   };
 
   const addUrl = (type: 'schema' | 'contract') => {
@@ -253,8 +262,12 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
         }} disabled={state.isSubmitting || state.isReverting}>
           {state.isReverting ? 'Going back…' : (isForced ? '← Back to Generate Link' : '← Back')}
         </Button>
-        <Button variant="primary" disabled={!canSubmit || state.isSubmitting || state.isReverting} onClick={handleSubmit}>
-          {state.isSubmitting ? 'Submitting…' : 'Submit & Generate PRD →'}
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={!canSubmit || state.isSubmitting || cooldown > 0}
+        >
+          {state.isSubmitting ? 'Submitting...' : cooldown > 0 ? `Wait ${cooldown}s` : 'Submit Technical Context →'}
         </Button>
       </div>
     </div>

@@ -139,6 +139,16 @@ export async function submitStage4(
   return data;
 }
 
+/** Stage 5 — Trigger the actual synthesis process. Returns GateResult. */
+export async function submitStage5(sessionId: string) {
+  const { data } = await apiClient.post(
+    `/elicitation/sessions/${sessionId}/stage5`,
+    {},
+    { timeout: 120_000 },
+  );
+  return data;
+}
+
 /** Stage 4 — Tech Team handoff submit */
 export async function submitStage4Handoff(sessionId: string, payload: any) {
   const { data } = await apiClient.put(

@@ -35,7 +35,15 @@ export default function Stage1Symptoms({
   const [initialized, setInitialized] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   useEffect(() => {
     if (!initialized) {
@@ -121,6 +129,7 @@ export default function Stage1Symptoms({
     } catch (err: any) {
       const { message } = handleElicitationError(err);
       onError(message || "AI service is busy. Please try again.");
+      setCooldown(10);
     } finally {
       setIsSubmitting(false);
     }
@@ -304,10 +313,10 @@ export default function Stage1Symptoms({
         </span>
         <Button
           variant="primary"
-          disabled={isSubmitting || symptomText.trim().length < minLength}
+          disabled={isSubmitting || symptomText.trim().length < minLength || cooldown > 0}
           onClick={handleSubmit}
         >
-          Analyze my project →
+          {cooldown > 0 ? `Wait ${cooldown}s` : "Analyze my project →"}
         </Button>
       </div>
     </div>

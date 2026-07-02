@@ -268,7 +268,9 @@ export class ElicitationService {
   async processStage4(sessionId: string, dto: Stage4Dto, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
-    this.assertStage(session, 4);
+    if (session.currentStage !== 4 && session.currentStage !== 5) {
+      throw new BadRequestException(`Session is at stage ${session.currentStage}, expected stage 4 or 5 (retry).`);
+    }
 
     const techInputs = {
       current_stack:       dto.current_stack,
@@ -286,7 +288,7 @@ export class ElicitationService {
       },
     });
 
-    return this.runSynthesis(updated);
+    return { success: true };
   }
 
   async processStage4Handoff(
@@ -306,7 +308,9 @@ export class ElicitationService {
       );
     }
 
-    this.assertStage(session, 4);
+    if (session.currentStage !== 4 && session.currentStage !== 5) {
+      throw new BadRequestException(`Session is at stage ${session.currentStage}, expected stage 4 or 5 (retry).`);
+    }
 
     const techInputs = {
       current_stack:       dto.current_stack,
@@ -324,7 +328,15 @@ export class ElicitationService {
       },
     });
 
-    return this.runSynthesis(updated, techTeamUserId);
+    return { success: true };
+  }
+
+  async processStage5(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+    this.assertStage(session, 5);
+
+    return this.runSynthesis(session);
   }
 
   async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {
