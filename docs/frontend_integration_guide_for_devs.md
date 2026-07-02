@@ -472,7 +472,7 @@ const returnedSessions = sessions
 **File:** `frontend/src/features/ceo/pages/ProjectDetailPage.tsx` (CREATE NEW)  
 **Route:** `/ceo/projects/:projectId`  
 **BE Status:** ✅ `GET /projects/:id`  
-**FE Status:** ❌ File chưa tồn tại
+**FE Status:** ✅ DONE
 
 **Response của `GET /projects/:id`:**
 ```typescript
@@ -599,7 +599,7 @@ Không cần sửa. Chỉ cần route `/ceo/projects/:projectId` được regist
 
 **File:** `frontend/src/features/ceo/shortlist/ShortlistView.tsx`  
 **BE Status:** ✅ `GET /matching/:projectId/shortlist?refresh=true`  
-**FE Status:** 🔧 Hook đã patch. Component cần update.
+**FE Status:** ✅ DONE
 
 **Những field có trong mỗi `MatchResult` (sau khi qua `mapShortlistForFrontend`):**
 ```typescript
@@ -932,17 +932,17 @@ import VerificationHistoryPage from "@features/expert/verification/VerificationH
 ### Frontend còn lại (❌ TODO)
 
 **Priority CAO:**
-- [ ] `Stage1Symptoms.tsx` — thêm debounced `saveDraft()` + `symptomTextDraft` prop + draft indicator
-- [ ] `ElicitationWizard.tsx` — thêm `symptomTextDraft` vào state + pass xuống Stage1
-- [ ] `SessionsListPage.tsx` — dùng `useSessionHistory()` + hiện RETURNED sessions
-- [ ] `ShortlistView.tsx` — dùng `useShortlist()` hook thay bare `useQuery`
-- [ ] `App.tsx` — thêm routes mới
+- [x] `Stage1Symptoms.tsx` — thêm debounced `saveDraft()` + `symptomTextDraft` prop + draft indicator
+- [x] `ElicitationWizard.tsx` — thêm `symptomTextDraft` vào state + pass xuống Stage1
+- [x] `SessionsListPage.tsx` — dùng `useSessionHistory()` + hiện RETURNED sessions
+- [x] `ShortlistView.tsx` — dùng `useShortlist()` hook thay bare `useQuery`
+- [x] `App.tsx` — thêm routes mới
 
 **Priority TRUNG:**
-- [ ] `ProjectDetailPage.tsx` — CREATE NEW (`/ceo/projects/:projectId`)
-- [ ] `VerificationHistoryPage.tsx` — CREATE NEW (`/expert/verification-history`)
+- [x] `ProjectDetailPage.tsx` — CREATE NEW (`/ceo/projects/:projectId`)
+- [x] `VerificationHistoryPage.tsx` — CREATE NEW (`/expert/verification-history`)
 - [ ] `ExpertProfilePage.tsx` — thêm "View History" button + `useNavigate`
-- [ ] `Stage5Loading.tsx` — thêm retry button khi AI timeout
+- [x] `Stage5Loading.tsx` — thêm retry button khi AI timeout
 - [ ] `DomainDepthGrid.tsx` — phân biệt create vs update domain depth
 
 **Priority THẤP:**

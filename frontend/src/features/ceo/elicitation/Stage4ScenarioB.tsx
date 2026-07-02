@@ -5,6 +5,7 @@ import { inviteTechTeam, getSession, revertSession, handleElicitationError, useE
 import type { Stage4ScenarioBProps } from "@t/ui.types";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/auth.store";
 
 // Polling configuration
 // Stopgap until a real sockets/notifications module exists on the backend.
@@ -20,6 +21,7 @@ export default function Stage4ScenarioB({
   onBack,
 }: Stage4ScenarioBProps) {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -50,6 +52,11 @@ export default function Stage4ScenarioB({
   // (Slack, Zalo, etc). This is intentional, not a missing feature.
   const handleGenerateLink = useCallback(async () => {
     if (!inviteEmail.trim()) return;
+
+    if (user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase()) {
+      setSendError("You cannot invite yourself. Please enter your tech lead's email.");
+      return;
+    }
 
     setIsSending(true);
     setSendError(null);
@@ -138,7 +145,12 @@ export default function Stage4ScenarioB({
 
         <Button
           onClick={handleGenerateLink}
-          disabled={isSending || !inviteEmail.trim()}
+          disabled={
+            isSending || 
+            !inviteEmail.trim() || 
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim()) ||
+            (!!user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase())
+          }
           className="w-full"
           variant="primary"
         >

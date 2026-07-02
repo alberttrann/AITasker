@@ -57,6 +57,14 @@ export class ElicitationController {
     return this.elicitationService.abandonSession(id, user.id);
   }
 
+  @Get('sessions/history')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getSessionHistory(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSessionHistory(user.id);
+  }
+
   // [Pro-C]
   @Get('sessions/:id')
   @UseGuards(SubscriptionGuard)
@@ -120,8 +128,6 @@ export class ElicitationController {
     return this.elicitationService.processStage4(id, body, user.id);
   }
 
-  // [None] — Tech Team doesn't have their own Pro-C subscription; they act
-  // on the CEO's already-gated session. 
   @Put('sessions/:id/stage4-handoff')
   @Roles('CLIENT')
   async processStage4Handoff(
@@ -131,10 +137,21 @@ export class ElicitationController {
   ) {
     if (user.clientSubtype !== 'TECH_TEAM') {
       throw new ForbiddenException(
-        'Only a Tech Team member may submit Stage 4 via the handoff route.',
+        'Only a delegated Tech Team member can submit this form.',
       );
     }
     return this.elicitationService.processStage4Handoff(id, body, user.id);
+  }
+
+  @Post('sessions/:id/stage5')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async processStage5(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage5(id, user.id);
   }
 
   // [Pro-C]
@@ -186,13 +203,6 @@ export class ElicitationController {
     return this.elicitationService.revertSession(id, user.id, dto.targetStage);
   }
 
-  @Get('sessions/history')
-  @UseGuards(SubscriptionGuard)
-  @Roles('CLIENT')
-  async getSessionHistory(@CurrentUser() user: AuthUser) {
-    this.assertCeoOnly(user);
-    return this.elicitationService.getSessionHistory(user.id);
-  }
 
   // [Pro-C]
   @Put('sessions/:id/continue')

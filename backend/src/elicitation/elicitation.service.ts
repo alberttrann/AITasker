@@ -100,10 +100,29 @@ export class ElicitationService {
     });
     if (!session) throw new NotFoundException('Elicitation session not found.');
     this.assertOwnership(session, userId);
+
+    let gateResult = undefined;
+    if (session.state === 'RETURNED') {
+      const decision = await this.prisma.platformDecision.findFirst({
+        where: { entityId: session.id, decisionType: 'SPEC_AUTO_RETURN' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (decision) {
+        gateResult = {
+          gate_passed: false,
+          completeness_score: decision.llmConfidence,
+          advisory_note: decision.advisoryNote,
+          return_to_stage: session.currentStage,
+          flagged_void: null,
+        };
+      }
+    }
+
     return {
       ...session,
       project_id: session.project?.id,
       projectId: session.project?.id,
+      gateResult,
     };
   }
 
@@ -143,11 +162,11 @@ export class ElicitationService {
     const aiResponse = await this.fastapiClient.stage1Extract({
       symptom_text: symptomText,
     });
-
     if (!aiResponse.symptoms || aiResponse.symptoms.length === 0) {
-      throw new BadRequestException("We couldn't detect any specific project requirements from your text. Please provide a bit more detail about what you want to build.");
+      throw new BadRequestException(
+        'Your description does not contain any recognizable technical or business symptoms. Please provide more detail about your project.'
+      );
     }
-
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
@@ -268,7 +287,9 @@ export class ElicitationService {
   async processStage4(sessionId: string, dto: Stage4Dto, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
-    this.assertStage(session, 4);
+    if (session.currentStage !== 4 && session.currentStage !== 5) {
+      throw new BadRequestException(`Session is at stage ${session.currentStage}, expected stage 4 or 5 (retry).`);
+    }
 
     const techInputs = {
       current_stack:       dto.current_stack,
@@ -286,7 +307,7 @@ export class ElicitationService {
       },
     });
 
-    return this.runSynthesis(updated);
+    return { success: true };
   }
 
   async processStage4Handoff(
@@ -306,7 +327,9 @@ export class ElicitationService {
       );
     }
 
-    this.assertStage(session, 4);
+    if (session.currentStage !== 4 && session.currentStage !== 5) {
+      throw new BadRequestException(`Session is at stage ${session.currentStage}, expected stage 4 or 5 (retry).`);
+    }
 
     const techInputs = {
       current_stack:       dto.current_stack,
@@ -324,7 +347,15 @@ export class ElicitationService {
       },
     });
 
-    return this.runSynthesis(updated, techTeamUserId);
+    return { success: true };
+  }
+
+  async processStage5(sessionId: string, userId: string) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+    this.assertStage(session, 5);
+
+    return this.runSynthesis(session);
   }
 
   async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {

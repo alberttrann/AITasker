@@ -69,5 +69,7 @@ RULES:
 - Set payment_amount_vnd = 0 on all milestones (client sets actual amounts).
 - completeness_score: 0.0-1.0. Score < 0.70 = spec returned to CEO for more input.
   Penalise: missing success metrics, vague scope, no integration details, unclear data.
+  Penalise for the technical context provided (infrastructure, integration, scale) is gibberish, evasive, or impossible
+  to build a real real architecture upon.
 - artifact_b_json is for tech-qualified experts only — be specific about data, stack, contracts.
 - schemas and contracts arrays: empty [] unless CEO provided actual URLs or file references.

@@ -55,4 +55,14 @@ export class AuthController {
   verifyTaxCode(@Body() verifyTaxCodeDto: VerifyTaxCodeDto) {
     return this.authService.verifyTaxCode(verifyTaxCodeDto);
   }
+
+  @ApiBearerAuth('JWT')
+  @UseGuards(JwtAuthGuard)
+  @Post('claim-handoff')
+  claimHandoff(
+    @CurrentUser() user: AuthUser,
+    @Body('invite_token') inviteToken: string,
+  ) {
+    return this.authService.claimHandoff(user.id, inviteToken);
+  }
 }

@@ -35,6 +35,7 @@ import ProjectsPage from "@features/ceo/pages/ProjectsPage";
 import ProjectDetailPage from "@features/ceo/pages/ProjectDetailPage";
 import SessionsListPage from "@features/ceo/pages/SessionsListPage";
 import ExpertProfilePage from "@features/expert/profile/ExpertProfilePage";
+import VerificationHistoryPage from "@features/expert/verification/VerificationHistoryPage";
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="subscription" element={<SubscriptionActivate />} />
             <Route path="elicitation" element={<ElicitationWizard />} />
             <Route path="shortlist/:projectId" element={<ShortlistView />} />
+            <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
           </Route>
         </Route>
 
@@ -73,6 +75,7 @@ export default function App() {
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
+            <Route path="verification-history" element={<VerificationHistoryPage />} />
             <Route
               path="subscription"
               element={<ExpertSubscriptionActivate />}

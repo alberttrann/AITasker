@@ -4,7 +4,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
-import { Loader2, Copyright } from 'lucide-react';
+import { Loader2, Copyright, UserCheck, LogOut } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 function decodeJwt(token: string) {
   try {
@@ -22,8 +23,8 @@ function decodeJwt(token: string) {
 export function HandoffRegister() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuthStore();
-  const { registerHandoff, login } = useAuth();
+  const { isAuthenticated, logout, user, setTokens, setUser } = useAuthStore();
+  const { registerHandoff } = useAuth();
   
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -57,21 +58,25 @@ export function HandoffRegister() {
       sessionStorage.setItem('handoff_sessionId', payload.sessionId);
     }
 
-    // Handle users who are already logged in
-    const authState = useAuthStore.getState();
-    if (authState.isAuthenticated) {
-      if (authState.activeRole === 'CLIENT' && authState.clientSubtype === 'TECH_TEAM') {
-        // Tech Team is already logged in, redirect them directly to their dashboard
-        navigate('/tech-team/dashboard');
-        return;
-      } else {
-        // Log out the CEO or other roles so they don't accidentally submit as themselves
-        authState.logout();
-      }
-    }
-
     setIsLoading(false);
   }, [token, navigate]);
+
+  const handleClaimHandoff = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const { data } = await apiClient.post('/auth/claim-handoff', {
+        invite_token: token,
+      });
+      setTokens(data.access_token, '');
+      setUser(data.user);
+      navigate('/tech-team', { replace: true });
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to claim invite. This link might be invalid or used.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +88,11 @@ export function HandoffRegister() {
     
     try {
       if (isLoginMode) {
-        await login.mutateAsync({ email, password });
+        // Manual login to avoid useAuth's auto-redirect, allowing the UI to show Accept Invitation
+        const { data } = await apiClient.post('/auth/login', { email, password });
+        setTokens(data.access_token, data.refresh_token ?? '');
+        const { data: userData } = await apiClient.get('/users/me');
+        setUser(userData);
       } else {
         await registerHandoff.mutateAsync({
           invite_token: token || '',
@@ -92,7 +101,6 @@ export function HandoffRegister() {
           password,
         });
       }
-      // The hook does the redirect inside onSuccess
     } catch (err: any) {
       setError(err.response?.data?.message || `Failed to ${isLoginMode ? 'log in' : 'register'}. Please try again.`);
     } finally {
@@ -144,32 +152,77 @@ export function HandoffRegister() {
 
         {/* Right Side - Form */}
         <div className="w-full md:w-1/2 p-8 sm:p-12 relative flex flex-col justify-center bg-white">
-          <div className="text-center md:text-left mb-8">
-            <h2 className="font-headline text-3xl font-bold text-slate-900 mb-2">
-              {isLoginMode ? 'Sign In' : 'Create Account'}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {isLoginMode ? 'Welcome back! Log in to access your project.' : 'Complete your tech team registration below.'}
-            </p>
-          </div>
-
           {error && (
             <div className="mb-6 rounded-lg border border-error/20 bg-error/5 p-3 text-sm text-error text-center">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2 text-left">
-              <Label htmlFor="email">Email</Label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                disabled
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-500 cursor-not-allowed"
-              />
+          {isAuthenticated ? (
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <UserCheck size={32} />
+              </div>
+              
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Accept Invitation</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  You are logged in as <strong className="text-slate-900">{user?.fullName}</strong> ({user?.email}). Do you want to use this account to join the project as Tech Team?
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <Button
+                  onClick={handleClaimHandoff}
+                  disabled={isSubmitting}
+                  className="w-full py-3 font-bold"
+                  variant="primary"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Processing...
+                    </span>
+                  ) : (
+                    'Accept & Join Tech Team'
+                  )}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setError(null);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
+                >
+                  <LogOut size={16} />
+                  Sign out to use another account
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="text-center md:text-left mb-8">
+                <h2 className="font-headline text-3xl font-bold text-slate-900 mb-2">
+                  {isLoginMode ? 'Sign In' : 'Create Account'}
+                </h2>
+                <p className="text-sm text-slate-500">
+                  {isLoginMode ? 'Welcome back! Log in to access your project.' : 'Complete your tech team registration below.'}
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="email">Email</Label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => isLoginMode && setEmail(e.target.value)}
+                    disabled={true}
+                    className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed`}
+                  />
+                </div>
 
             {!isLoginMode && (
               <div className="space-y-2 text-left">
@@ -241,6 +294,8 @@ export function HandoffRegister() {
               </button>
             </div>
           </form>
+          </>
+          )}
         </div>
       </div>
     </div>

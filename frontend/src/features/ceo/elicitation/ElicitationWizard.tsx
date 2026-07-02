@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   handleElicitationError,
   revertSession,
   STAGE_LABELS,
+  setSelfTechnical,
   type GateResult,
   type StageCompleteData,
 } from "@/hooks/use-elicitation";
@@ -38,6 +39,7 @@ type WizardState = {
   forceScenarioA: boolean;
   isCancelModalOpen: boolean;
   archetype: string | null;
+  symptomTextDraft: string | null;
 };
 
 type WizardAction =
@@ -60,12 +62,13 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_ERROR":
       return { ...state, error: action.payload, isLoading: false };
     case "STAGE_COMPLETE": {
-      const { gateResult, archetype } = action.payload;
+      const { gateResult, archetype, symptomText } = action.payload;
       return {
         ...state,
         error: null,
         gateResult: gateResult || state.gateResult,
         archetype: archetype || state.archetype,
+        symptomTextDraft: symptomText || state.symptomTextDraft,
         currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
         sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
       };
@@ -109,6 +112,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 
 export default function ElicitationWizard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const initPromiseRef = useRef<Promise<any> | null>(null);
 
@@ -122,10 +126,12 @@ export default function ElicitationWizard() {
     forceScenarioA: false,
     isCancelModalOpen: false,
     archetype: null,
+    symptomTextDraft: null,
   });
 
   useEffect(() => {
     let cancelled = false;
+    const resumeSessionId = location.state?.resumeSessionId;
 
     const init = async () => {
       try {
@@ -133,7 +139,11 @@ export default function ElicitationWizard() {
           initPromiseRef.current = (async () => {
             let data = null;
             try {
-              data = await getActiveSession();
+              if (resumeSessionId) {
+                data = await getSession(resumeSessionId);
+              } else {
+                data = await getActiveSession();
+              }
             } catch {
               data = null;
             }
@@ -161,6 +171,8 @@ export default function ElicitationWizard() {
                   completeness_score: full.completeness_score ?? full.completenessScore ?? 0,
                   project_id: full.project_id ?? full.projectId ?? "",
                 };
+              } else if (full.state === "RETURNED" && full.gateResult) {
+                initGateResult = full.gateResult;
               }
             }
           } catch {
@@ -178,6 +190,7 @@ export default function ElicitationWizard() {
             sessionState: finalSessionState,
             gateResult: initGateResult as GateResult | null,
             archetype: data.archetype || null,
+            symptomTextDraft: data.symptomTextDraft ?? data.symptom_text_draft ?? null,
           }
         });
 
@@ -215,6 +228,16 @@ export default function ElicitationWizard() {
     dispatch({ type: "RETURN_TO_STAGE", payload: stage });
   };
   const handleBack = () => dispatch({ type: "BACK" });
+
+  const handleSetSelfTechnical = async (value: boolean) => {
+    if (!state.sessionId) return;
+    try {
+      await setSelfTechnical(state.sessionId, value);
+      dispatch({ type: "SET_FORCE_SCENARIO_A", payload: value });
+    } catch (err: any) {
+      dispatch({ type: "SET_ERROR", payload: "Failed to update technical preference." });
+    }
+  };
 
   const handleStartOver = async () => {
     dispatch({ type: "START_OVER_START" });
@@ -380,6 +403,7 @@ export default function ElicitationWizard() {
           {state.currentStage === 1 && state.sessionId && (
             <Stage1Symptoms
               sessionId={state.sessionId}
+              symptomTextDraft={state.symptomTextDraft}
               onComplete={handleStageComplete}
               onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
             />
@@ -407,14 +431,14 @@ export default function ElicitationWizard() {
                 sessionId={state.sessionId}
                 onComplete={handleStageComplete}
                 onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
-                onBack={state.forceScenarioA ? () => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: false }) : handleBack}
+                onBack={state.forceScenarioA ? () => handleSetSelfTechnical(false) : handleBack}
                 isForced={state.forceScenarioA}
               />
             ) : (
               <Stage4ScenarioB
                 sessionId={state.sessionId}
                 onTechTeamSubmitted={handleTechTeamSubmitted}
-                onFillInMyself={() => dispatch({ type: "SET_FORCE_SCENARIO_A", payload: true })}
+                onFillInMyself={() => handleSetSelfTechnical(true)}
                 onBack={handleBack}
               />
             ))}

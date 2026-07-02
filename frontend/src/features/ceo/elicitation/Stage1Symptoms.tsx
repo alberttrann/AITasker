@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { Chip } from "@/components/ui/Chip";
@@ -12,9 +12,11 @@ import {
   useElicitation,
   saveDraft,
 } from "@/hooks/use-elicitation";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Stage1Props {
   sessionId: string;
+  symptomTextDraft?: string | null;
   onComplete: (data: {
     voidListJson: VoidItem[];
     symptomText?: string;
@@ -24,29 +26,71 @@ interface Stage1Props {
 
 export default function Stage1Symptoms({
   sessionId,
+  symptomTextDraft,
   onComplete,
   onError,
 }: Stage1Props) {
+  const queryClient = useQueryClient();
   const { session } = useElicitation(sessionId);
   const [symptomText, setSymptomText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (session && !initialized) {
-      if (session.symptomTextDraft) {
-        setSymptomText(session.symptomTextDraft);
-      }
-      setInitialized(true);
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
     }
-  }, [session, initialized]);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (!initialized) {
+      const local = localStorage.getItem(`stage1_${sessionId}`);
+      if (local) {
+        setSymptomText(local);
+        setInitialized(true);
+      } else if (symptomTextDraft) {
+        setSymptomText(symptomTextDraft);
+        setInitialized(true);
+      } else if (session) {
+        if (session.symptomTextDraft) {
+          setSymptomText(session.symptomTextDraft);
+        }
+        setInitialized(true);
+      }
+    }
+  }, [session, symptomTextDraft, sessionId, initialized]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setSymptomText(e.target.value);
+    const value = e.target.value;
+    setSymptomText(value);
+    localStorage.setItem(`stage1_${sessionId}`, value);
+    setIsTyping(true);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        await saveDraft(sessionId, value);
+        setLastSavedAt(new Date());
+        setIsTyping(false);
+      } catch {
+        /* silent */
+      }
+    }, 2000);
   };
 
   const handleBlur = () => {
-    saveDraft(sessionId, symptomText).catch(() => {});
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    saveDraft(sessionId, symptomText)
+      .then(() => {
+        setLastSavedAt(new Date());
+        setIsTyping(false);
+      })
+      .catch(() => {});
   };
   const [voidList, setVoidList] = useState<VoidItem[]>([]);
   const [acknowledgedVoids, setAcknowledgedVoids] = useState<Set<string>>(
@@ -59,20 +103,29 @@ export default function Stage1Symptoms({
 
   const handleSubmit = async () => {
     if (!symptomText.trim() || symptomText.trim().length < minLength) return;
+
+    // Force an immediate save of the final text, cancelling any pending debounces
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    saveDraft(sessionId, symptomText.trim()).catch(() => {});
+
     setIsSubmitting(true);
     setShowResults(false);
 
     try {
       const data = await submitStage1(sessionId, symptomText.trim());
+      await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      
       const voids = (data.voidListJson as VoidItem[]) ?? [];
 
       if (voids.length === 0) {
         // AI found no specific gaps, automatically proceed to Stage 2
+        localStorage.removeItem(`stage1_${sessionId}`);
         onComplete({
           voidListJson: [],
           symptomText: symptomText.trim(),
         });
       } else {
+        // Do NOT clear localStorage yet; they are still on Stage 1 (Results Screen)
         setVoidList(voids);
         setAcknowledgedVoids(new Set());
         setShowResults(true);
@@ -80,6 +133,7 @@ export default function Stage1Symptoms({
     } catch (err: any) {
       const { message } = handleElicitationError(err);
       onError(message || "AI service is busy. Please try again.");
+      setCooldown(10);
     } finally {
       setIsSubmitting(false);
     }
@@ -129,12 +183,12 @@ export default function Stage1Symptoms({
   if (showResults && voidList.length > 0) {
     return (
       <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-h2 font-headline text-primary">Stage 1 of 5</h2>
-        <p className="mt-2 text-body text-secondary max-w-md mx-auto">
-          Tell us about your AI needs
-        </p>
-      </div>
+        <div className="text-center mb-6">
+          <h2 className="text-h2 font-headline text-primary">Stage 1 of 5</h2>
+          <p className="mt-2 text-body text-secondary max-w-md mx-auto">
+            Tell us about your AI needs
+          </p>
+        </div>
 
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
           <p className="text-body-sm font-medium text-primary">
@@ -156,7 +210,12 @@ export default function Stage1Symptoms({
             >
               <div className="flex items-center gap-4">
                 <div className="w-24 shrink-0 flex justify-center">
-                  <Chip variant={sev as "error" | "warning"} className="text-sm px-4 py-1.5">{v.severity}</Chip>
+                  <Chip
+                    variant={sev as "error" | "warning"}
+                    className="text-sm px-4 py-1.5"
+                  >
+                    {v.severity}
+                  </Chip>
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-body font-semibold text-primary">
@@ -194,12 +253,13 @@ export default function Stage1Symptoms({
           <Button
             variant="primary"
             disabled={!allHighVoidsAcknowledged}
-            onClick={() =>
+            onClick={() => {
+              localStorage.removeItem(`stage1_${sessionId}`);
               onComplete({
                 voidListJson: voidList,
                 symptomText: symptomText,
-              })
-            }
+              });
+            }}
           >
             Continue to Stage 2 →
           </Button>
@@ -245,17 +305,22 @@ export default function Stage1Symptoms({
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-caption text-secondary">
+        <span className="text-caption text-secondary flex items-center gap-2">
           {symptomText.trim().length < minLength
             ? `Min ${minLength} characters required`
             : `${symptomText.trim().length} characters`}
+          {isTyping ? (
+            <span className="text-slate-400 font-medium italic">Saving...</span>
+          ) : lastSavedAt ? (
+            <span className="text-success font-medium">✓ Draft saved</span>
+          ) : null}
         </span>
         <Button
           variant="primary"
-          disabled={isSubmitting || symptomText.trim().length < minLength}
+          disabled={isSubmitting || symptomText.trim().length < minLength || cooldown > 0}
           onClick={handleSubmit}
         >
-          Analyze my project →
+          {cooldown > 0 ? `Wait ${cooldown}s` : "Analyze my project →"}
         </Button>
       </div>
     </div>

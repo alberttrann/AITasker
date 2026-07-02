@@ -3,6 +3,21 @@ import type { PortfolioSubmissionDetailDto, PortfolioListItemDto } from '@/types
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /**
+ * useMyPortfolioSubmissions — fetch all submissions for the authenticated expert.
+ * Corresponds to GET /portfolio-submissions
+ */
+export function useMyPortfolioSubmissions() {
+  return useQuery({
+    queryKey: ['portfolio-submissions'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/portfolio-submissions');
+      return (Array.isArray(data) ? data : (data as any)?.data ?? []) as PortfolioListItemDto[];
+    },
+    staleTime: 60_000,
+  });
+}
+
+/**
  * usePortfolioSubmission — fetch a single submission by ID.
  * Used in VerificationHistoryPage detail expansion.
  * Corresponds to GET /portfolio-submissions/:id
