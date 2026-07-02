@@ -170,6 +170,8 @@ export default function ElicitationWizard() {
                   completeness_score: full.completeness_score ?? full.completenessScore ?? 0,
                   project_id: full.project_id ?? full.projectId ?? "",
                 };
+              } else if (full.state === "RETURNED" && full.gateResult) {
+                initGateResult = full.gateResult;
               }
             }
           } catch {

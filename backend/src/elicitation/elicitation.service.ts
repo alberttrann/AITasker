@@ -100,10 +100,29 @@ export class ElicitationService {
     });
     if (!session) throw new NotFoundException('Elicitation session not found.');
     this.assertOwnership(session, userId);
+
+    let gateResult = undefined;
+    if (session.state === 'RETURNED') {
+      const decision = await this.prisma.platformDecision.findFirst({
+        where: { entityId: session.id, decisionType: 'SPEC_AUTO_RETURN' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (decision) {
+        gateResult = {
+          gate_passed: false,
+          completeness_score: decision.llmConfidence,
+          advisory_note: decision.advisoryNote,
+          return_to_stage: session.currentStage,
+          flagged_void: null,
+        };
+      }
+    }
+
     return {
       ...session,
       project_id: session.project?.id,
       projectId: session.project?.id,
+      gateResult,
     };
   }
 

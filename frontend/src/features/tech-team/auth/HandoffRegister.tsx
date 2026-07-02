@@ -219,12 +219,8 @@ export function HandoffRegister() {
                     type="email"
                     value={email}
                     onChange={(e) => isLoginMode && setEmail(e.target.value)}
-                    disabled={!isLoginMode}
-                    className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none ${
-                      isLoginMode 
-                        ? 'bg-white border-slate-200 text-slate-900 focus:border-primary' 
-                        : 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed'
-                    }`}
+                    disabled={true}
+                    className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed`}
                   />
                 </div>
 

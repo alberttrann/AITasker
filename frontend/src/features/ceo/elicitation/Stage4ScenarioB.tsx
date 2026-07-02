@@ -145,7 +145,12 @@ export default function Stage4ScenarioB({
 
         <Button
           onClick={handleGenerateLink}
-          disabled={isSending || !inviteEmail.trim() || (!!user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase())}
+          disabled={
+            isSending || 
+            !inviteEmail.trim() || 
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim()) ||
+            (!!user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase())
+          }
           className="w-full"
           variant="primary"
         >

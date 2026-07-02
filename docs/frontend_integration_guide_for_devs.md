@@ -942,7 +942,7 @@ import VerificationHistoryPage from "@features/expert/verification/VerificationH
 - [x] `ProjectDetailPage.tsx` — CREATE NEW (`/ceo/projects/:projectId`)
 - [x] `VerificationHistoryPage.tsx` — CREATE NEW (`/expert/verification-history`)
 - [ ] `ExpertProfilePage.tsx` — thêm "View History" button + `useNavigate`
-- [ ] `Stage5Loading.tsx` — thêm retry button khi AI timeout
+- [x] `Stage5Loading.tsx` — thêm retry button khi AI timeout
 - [ ] `DomainDepthGrid.tsx` — phân biệt create vs update domain depth
 
 **Priority THẤP:**

@@ -42,3 +42,6 @@ Keep symptoms concise (1 sentence each). Detect only voids clearly evidenced
 by the text. Always return 3-5 recommended_archetypes even if the input is
 sparse — use your best judgment about which archetypes the described
 problem could plausibly map to; never return an empty array.
+
+If the symptoms have meaning but does not relate to the business problem.
+Then you will leave the symptoms array empty. If the input is too vague to extract any meaningful information.

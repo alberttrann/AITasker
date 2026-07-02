@@ -12,6 +12,7 @@ import {
   useElicitation,
   saveDraft,
 } from "@/hooks/use-elicitation";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Stage1Props {
   sessionId: string;
@@ -29,6 +30,7 @@ export default function Stage1Symptoms({
   onComplete,
   onError,
 }: Stage1Props) {
+  const queryClient = useQueryClient();
   const { session } = useElicitation(sessionId);
   const [symptomText, setSymptomText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,6 +113,8 @@ export default function Stage1Symptoms({
 
     try {
       const data = await submitStage1(sessionId, symptomText.trim());
+      await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+      
       const voids = (data.voidListJson as VoidItem[]) ?? [];
 
       if (voids.length === 0) {
