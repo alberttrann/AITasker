@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
+import { useSocket } from '@/hooks/use-socket';
 import { Modal } from '@/components/ui/modal';
-import { CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/Spinner';
+import { CheckCircle, Send } from 'lucide-react';
 
 interface MatchCardProps {
   expert: MatchResult;
+  projectId: string;
 }
 
 const STRENGTH_STYLES: Record<string, string> = {
@@ -16,7 +20,7 @@ const STRENGTH_STYLES: Record<string, string> = {
   WEAK_MATCH: 'bg-red-50 text-red-600',
 };
 
-export default function MatchCard({ expert }: MatchCardProps) {
+export default function MatchCard({ expert, projectId }: MatchCardProps) {
   // Fetch public profile since matching backend strips it
   const { data: profile, isLoading } = useQuery({
     queryKey: ['expertProfile', expert.expert_id],
@@ -26,7 +30,11 @@ export default function MatchCard({ expert }: MatchCardProps) {
     },
   });
 
+  const socket = useSocket();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [invited, setInvited] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const name = isLoading ? 'Loading Expert...' : profile?.fullName || 'Expert';
   const strength = expert.strength_label || 'POSSIBLE_MATCH';
@@ -90,7 +98,7 @@ export default function MatchCard({ expert }: MatchCardProps) {
 
       <Modal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => { setIsModalOpen(false); setInviteError(null); }} 
         title="Expert Profile"
       >
         <div className="space-y-4">
@@ -182,8 +190,67 @@ export default function MatchCard({ expert }: MatchCardProps) {
             </div>
           )}
 
+          {/* ── Invite Button (Socket.io — NOT REST POST /bids) ── */}
+          <div className="mt-6 border-t border-slate-100 pt-4">
+            {inviteError && (
+              <p className="mb-3 text-[12px] text-[#EF4444]" role="alert">
+                {inviteError}
+              </p>
+            )}
+            {invited ? (
+              <Button variant="ghost" className="w-full cursor-default" disabled>
+                <CheckCircle size={14} className="mr-1.5" />
+                Invited ✓
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                className="w-full"
+                disabled={isInviting}
+                onClick={handleInvite}
+                aria-label={`Invite ${name} to bid`}
+              >
+                {isInviting ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" /> Inviting…
+                  </span>
+                ) : (
+                  <>
+                    <Send size={14} className="mr-1.5" />
+                    Invite to Bid
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </Modal>
     </>
   );
+
+  // ── Socket.io invite handler ───────────────────────────────────
+
+  async function handleInvite() {
+    if (!socket) {
+      setInviteError('Connection lost. Please refresh the page.');
+      return;
+    }
+    setIsInviting(true);
+    setInviteError(null);
+
+    try {
+      // Join the project pre-bid chat room
+      socket.emit('joinRoom', { projectId });
+      // Send invitation message
+      socket.emit('sendMessage', {
+        project_id: projectId,
+        content: `I'd like to invite you to submit a bid for this project.`,
+      });
+      setInvited(true);
+    } catch {
+      setInviteError('Failed to send invitation. Please try again.');
+    } finally {
+      setIsInviting(false);
+    }
+  }
 }

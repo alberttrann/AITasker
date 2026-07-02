@@ -1,39 +1,36 @@
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, FileText, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AlertTriangle, FileText, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
 
 // ── Inline hooks ─────────────────────────────────────────────────
 
-/** GET /engagements — TECH_TEAM role-scoped to linked project */
-function useBidsForTechTeam() {
+/** GET /engagements — CEO role-scoped to their projects */
+function useBidsForCeo(projectId: string | undefined) {
   const user = useAuthStore((s) => s.user);
-  const techTeamId = user?.id;
-
   return useQuery({
-    queryKey: ['bids', 'tech-team'],
+    queryKey: ['bids', 'ceo', projectId],
     queryFn: async () => {
       const { data } = await apiClient.get<EngagementDto[]>('/engagements');
       return data;
     },
-    enabled: !!techTeamId,
+    enabled: !!projectId && !!user,
     staleTime: 10_000,
-    // ⚠️ Polling fallback — BE doesn't emit bid:updated yet
-    refetchInterval: 5_000,
+    refetchInterval: 5_000, // Polling until BE emits bid:updated
   });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-const TECH_STATUS_STYLES: Record<string, { bg: string; text: string; label: string; icon: typeof Clock }> = {
-  PENDING: { bg: 'bg-[#EAB30815]', text: 'text-[#CA8A04]', label: 'Pending Review', icon: Clock },
-  APPROVED: { bg: 'bg-[#22C55E15]', text: 'text-[#16A34A]', label: 'Approved', icon: CheckCircle2 },
-  REVISION_REQUESTED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Revision Requested', icon: AlertCircle },
+const CEO_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  PENDING: { bg: 'bg-[#EAB30815]', text: 'text-[#CA8A04]', label: 'Pending' },
+  APPROVED: { bg: 'bg-[#22C55E15]', text: 'text-[#16A34A]', label: 'Accepted' },
+  DECLINED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Declined' },
 };
 
 function formatVND(n: number) {
@@ -41,19 +38,19 @@ function formatVND(n: number) {
 }
 
 function formatDate(d: string) {
-  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—';
 }
 
 type BidWithEngagement = CapabilityBidDto & { engagementId: string; expertName?: string };
 
-// ── Component ────────────────────────────────────────────────────
-
-export default function BidReviewList() {
+export default function CeoBidList() {
+  const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { data: engagements, isLoading, error, refetch } = useBidsForTechTeam();
+  const { data: engagements, isLoading, error, refetch } = useBidsForCeo(projectId);
 
-  // Extract bids from engagements
+  // Filter to this project + extract bids
   const bids: BidWithEngagement[] = (engagements || [])
+    .filter((eng: any) => eng.projectId === projectId || eng.project_id === projectId)
     .flatMap((eng: any) => {
       const bid = eng.capabilityBid;
       if (!bid) return [];
@@ -66,12 +63,12 @@ export default function BidReviewList() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">Bid Reviews</h1>
+        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">Bids Received</h1>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="animate-pulse rounded-[8px] border border-[#E2E8F0] bg-white p-6">
-              <div className="h-5 w-48 rounded bg-[#F1F5F9]" />
-              <div className="mt-3 h-4 w-32 rounded bg-[#F1F5F9]" />
+              <div className="h-5 w-40 rounded bg-[#F1F5F9]" />
+              <div className="mt-2 h-4 w-24 rounded bg-[#F1F5F9]" />
             </div>
           ))}
         </div>
@@ -97,15 +94,22 @@ export default function BidReviewList() {
   if (bids.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">Bid Reviews</h1>
+        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">Bids Received</h1>
         <div className="rounded-[8px] border border-dashed border-[#E2E8F0] bg-[#F8FAFC] p-12 text-center">
           <FileText className="mx-auto h-10 w-10 text-[#94A3B8]" />
           <p className="mt-4 text-body text-[#64748B]">
             No bids have been submitted yet.
           </p>
           <p className="mt-1 text-[14px] text-[#94A3B8]">
-            Experts are preparing their proposals.
+            Invite experts from the shortlist to get started.
           </p>
+          <Button
+            variant="secondary"
+            className="mt-4"
+            onClick={() => navigate(`/ceo/projects/${projectId}/shortlist`)}
+          >
+            View Shortlist
+          </Button>
         </div>
       </div>
     );
@@ -115,58 +119,66 @@ export default function BidReviewList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
-            Bid Reviews
-          </h1>
-          <p className="mt-1 text-body text-[#64748B]">
-            {bids.length} bid{bids.length !== 1 ? 's' : ''} submitted
-          </p>
-        </div>
+      <div>
+        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+          Bids Received
+        </h1>
+        <p className="mt-1 text-body text-[#64748B]">
+          {bids.length} bid{bids.length !== 1 ? 's' : ''} for your project
+        </p>
       </div>
 
       <div className="space-y-3">
         {bids.map((bid) => {
-          const techStatus = bid.techStatus || 'PENDING';
-          const style = TECH_STATUS_STYLES[techStatus] || TECH_STATUS_STYLES.PENDING;
-          const StatusIcon = style.icon;
-          const totalPrice =
-            bid.conditionalPricingJson || (bid as any).conditional_pricing_json
-              ? ((bid.conditionalPricingJson || (bid as any).conditional_pricing_json) as any[])
-                  ?.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0) || 0
-              : 0;
+          const ceoStatus = bid.ceoStatus || 'PENDING';
+          const ceoStyle = CEO_STATUS_STYLES[ceoStatus] || CEO_STATUS_STYLES.PENDING;
+          const pricing: any[] = (bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json || [];
+          const totalPrice = pricing.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0);
+          const canDecide = bid.techStatus === 'APPROVED' && ceoStatus === 'PENDING';
 
           return (
-            <Card
-              key={bid.id}
-              className="cursor-pointer transition-shadow hover:shadow-md"
-              onClick={() => navigate(`/tech-team/bids/${bid.id}`)}
-            >
+            <Card key={bid.id} className="transition-shadow hover:shadow-md">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-headline text-[16px] font-semibold text-[#0F172A] truncate">
-                      {bid.expertName}
-                    </h3>
-                    <p className="mt-1 text-[13px] text-[#64748B] line-clamp-2">
-                      {(bid as any).approach_summary || bid.approachSummary || 'No summary provided'}
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-headline text-[16px] font-semibold text-[#0F172A]">
+                        {bid.expertName}
+                      </h3>
+                      {canDecide && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#059669]/10 px-2 py-0.5 text-[11px] font-medium text-[#059669]">
+                          Ready to decide
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[13px] text-[#64748B] line-clamp-2">
+                      {(bid as any).approachSummary || (bid as any).approach_summary || 'No summary'}
                     </p>
                     <div className="mt-3 flex items-center gap-3 text-[12px] text-[#94A3B8]">
-                      <span>Submitted {formatDate((bid as any).createdAt || (bid as any).submitted_at)}</span>
+                      <span>{formatDate((bid as any).createdAt || (bid as any).submitted_at)}</span>
                       <span>·</span>
                       <span className="font-headline font-semibold text-[#0F172A]">
                         {formatVND(totalPrice)}
                       </span>
+                      <span>·</span>
+                      <span
+                        className={`inline-flex items-center rounded-[4px] px-2 py-0.5 text-[11px] font-medium uppercase ${ceoStyle.bg} ${ceoStyle.text}`}
+                      >
+                        {ceoStyle.label}
+                      </span>
                     </div>
                   </div>
-                  <div className="shrink-0">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-[4px] px-[12px] py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${style.bg} ${style.text}`}
+                  <div className="shrink-0 flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/ceo/project/${projectId}/bids/${bid.id}`);
+                      }}
                     >
-                      <StatusIcon size={12} />
-                      {style.label}
-                    </span>
+                      View <ArrowRight size={14} className="ml-1" />
+                    </Button>
                   </div>
                 </div>
               </CardContent>

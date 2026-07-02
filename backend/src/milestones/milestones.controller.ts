@@ -1,44 +1,37 @@
-import { Controller, Post, Get, Body, UseGuards, Put, Param } from '@nestjs/common';
-import { MilestonesService }  from './milestones.service';
-import { CreateMilestoneDto } from './dto/create-milestone.dto';
-
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard }   from '../common/guards/roles.guard';
-import { Roles }        from '../common/decorators/roles.decorator';
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { RolesGuard } from "@common/guards/roles.guard";
+import { Put, Controller, Param, Body, UseGuards, Post} from "@nestjs/common";
+import { DodService } from "./dod.service";
+import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
+import { Roles } from "@common/decorators/roles.decorator";
+import { CreateDodItemDto } from "./dto/create-dod-item.dto";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthUser } from '../auth/strategies/jwt.strategy';
 
-@ApiTags('Milestones')
+
+@ApiTags('DoD Checklist') 
 @ApiBearerAuth('JWT')
-@Controller('milestones')
+@Controller('milestones/:id/dod')
 @UseGuards(JwtAuthGuard, RolesGuard)
-export class MilestonesController {
-  constructor(private readonly milestonesService: MilestonesService) {}
+export class DodController {
+    constructor (private readonly dodService: DodService) {}
 
-  @Post()
-  @Roles('CLIENT')
-  @ApiOperation({ summary: 'Create a new milestone' }) 
-  @ApiResponse({ status: 201, description: 'Milestone created successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid input data.' })
-  async createMilestone(@Body() dto: CreateMilestoneDto) {
-    return this.milestonesService.createMilestone(dto);
-  }
+    @Post('items') 
+    @Roles('EXPERT', 'CLIENT') 
+    @ApiOperation({ summary: 'Add a new item to the DoD checklist' })
+    async createDodItem(
+    @Param('id') milestoneId: string,
+    @Body() dto: CreateDodItemDto,
+     ) {
+    return this.dodService.create(milestoneId, dto);
+    }
 
-  @Get(':id')
-  @Roles('CLIENT', 'EXPERT', 'ADMIN')
-  @ApiOperation({ summary: 'Get a milestone by id, including criteria' })
-  @ApiResponse({ status: 200, description: 'Milestone detail.' })
-  @ApiResponse({ status: 404, description: 'Milestone not found.' })
-  async getMilestone(@Param('id') id: string) {
-    return this.milestonesService.getMilestone(id);
-  }
-
-  @Put(':id/fund')    
-  @Roles('CLIENT')
-  @ApiOperation({ summary: 'Initiate funding for a milestone' })
-  @ApiResponse({ status: 200, description: 'Milestone status updated to AWAITING_PAYMENT.' })
-  async fundMilestone(@Param('id') id: string) {
-    return this.milestonesService.initiateFunding(id);  
-  }
+    @Put(':itemId')
+    @Roles('EXPERT')
+    async updateDodStatus (
+        @Param('itemId') itemId: string,
+        @Param('id') milestoneId: string,
+        @Body() dto: UpdateMilestoneDoDItemDto,
+    ) {
+        return this.dodService.updateDodStatus(itemId, milestoneId ,dto);
+    }
 }

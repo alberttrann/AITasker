@@ -26,21 +26,23 @@ export class DodService {
       },
     });
   }
-
-  async updateDodStatus(itemId: string, dto: UpdateMilestoneDoDItemDto) {
+async updateDodStatus(itemId: string, milestoneId: string,   dto: UpdateMilestoneDoDItemDto) {
     const dodItem = await this.prisma.milestoneDodItem.findUnique({
       where: { id: itemId },
     });
     if (!dodItem) {
-      throw new NotFoundException(`DoD item with ID ${itemId} not found`);
+      throw new NotFoundException('DoD item with ID ${itemId} not found');
     }
 
-    if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE') {
-      throw new BadRequestException(`Cannot mark a required DoD item as NOT_APPLICABLE`);
+    if (dodItem.milestoneId !== milestoneId) {
+      throw new BadRequestException('DoD item does not belong to the specified milestone.');
+    }
+if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE') {
+      throw new BadRequestException('Cannot mark a required DoD item as NOT_APPLICABLE');
     }
 
     if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note) {
-      throw new BadRequestException(`Completion note is required for required DoD items when status is not COMPLETED`);
+      throw new BadRequestException('Completion note is required for required DoD items when status is not COMPLETED');
     }
 
     return this.prisma.milestoneDodItem.update({
