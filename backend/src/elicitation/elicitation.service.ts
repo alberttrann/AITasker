@@ -143,11 +143,11 @@ export class ElicitationService {
     const aiResponse = await this.fastapiClient.stage1Extract({
       symptom_text: symptomText,
     });
-
     if (!aiResponse.symptoms || aiResponse.symptoms.length === 0) {
-      throw new BadRequestException("We couldn't detect any specific project requirements from your text. Please provide a bit more detail about what you want to build.");
+      throw new BadRequestException(
+        'Your description does not contain any recognizable technical or business symptoms. Please provide more detail about your project.'
+      );
     }
-
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
