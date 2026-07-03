@@ -9,8 +9,23 @@ export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
 
   async connectToRedis(redisUrl: string): Promise<void> {
-    const pubClient = createClient({ url: redisUrl });
+    const isTls = redisUrl.startsWith('rediss://');
+    const socketOptions = isTls ? { tls: true, rejectUnauthorized: false } : {};
+
+    const pubClient = createClient({ 
+      url: redisUrl,
+      socket: socketOptions
+    });
     const subClient = pubClient.duplicate();
+
+    // Attach error listeners to catch connection drops and prevent unhandled exceptions from crashing the process
+    pubClient.on('error', (err) => {
+      this.logger.error('Redis Publisher Client Error:', err);
+    });
+
+    subClient.on('error', (err) => {
+      this.logger.error('Redis Subscriber Client Error:', err);
+    });
 
     await Promise.all([pubClient.connect(), subClient.connect()]);
 
