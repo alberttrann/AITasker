@@ -11,6 +11,7 @@ import { CheckCircle, Send } from 'lucide-react';
 interface MatchCardProps {
   expert: MatchResult;
   projectId: string;
+  projectName?: string;
 }
 
 const STRENGTH_STYLES: Record<string, string> = {
@@ -20,7 +21,7 @@ const STRENGTH_STYLES: Record<string, string> = {
   WEAK_MATCH: 'bg-red-50 text-red-600',
 };
 
-export default function MatchCard({ expert, projectId }: MatchCardProps) {
+export default function MatchCard({ expert, projectId, projectName }: MatchCardProps) {
   // Fetch public profile since matching backend strips it
   const { data: profile, isLoading } = useQuery({
     queryKey: ['expertProfile', expert.expert_id],
@@ -265,8 +266,9 @@ export default function MatchCard({ expert, projectId }: MatchCardProps) {
       socket.emit('joinRoom', { projectId });
       // Send invitation message
       socket.emit('sendMessage', {
+        expert_id: expert.expert_id,
         project_id: projectId,
-        content: `I'd like to invite you to submit a bid for this project.`,
+        content: `Hi ${name},\n\nI'd like to invite you to submit a bid for ${projectName || 'this project'}. Your expertise looks like a great fit for what we're building, and I'd love to see your proposal.`,
       });
       setInvited(true);
     } catch {
