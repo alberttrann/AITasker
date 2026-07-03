@@ -8,6 +8,7 @@ import {
   IsOptional,
   MinLength,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 
 export class RegisterUserDto {
@@ -30,4 +31,8 @@ export class RegisterUserDto {
   @IsNotEmpty()
   @IsEnum(UserRoleItem)
   roles: UserRoleItem;
+
+  @IsOptional()
+  @IsBoolean()
+  selfTechnical?: boolean;
 }

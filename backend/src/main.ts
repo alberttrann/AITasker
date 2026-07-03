@@ -1,3 +1,12 @@
+declare global {
+  interface BigInt {
+    toJSON(): string;
+  }
+}
+ 
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -6,7 +15,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
 
   app.useGlobalPipes(
     new ZodValidationPipe(),
@@ -17,6 +28,7 @@ async function bootstrap() {
   const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
     .split(',')
     .map((o) => o.trim())
+    .map((o) => o.replace(/\/$/, ''))
     .filter(Boolean);
 
   app.enableCors({

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@lib/api-client';
 import { useAuthStore } from '@store/auth.store';
 import type { WalletDto, WalletTransactionDto } from '@t/api.types';
@@ -53,3 +53,32 @@ export function useSubscriptionStatus() {
     enabled: isAuthenticated,
   });
 }
+
+export function useTopUpWallet() {
+  return useMutation({
+    mutationFn: async (amount: number) => {
+      const { data } = await apiClient.post<{
+        qrCodeUrl: string;
+        paymentReference: string;
+      }>('/wallets/virtual-accounts/topup', { amount });
+      return data;
+    },
+  });
+}
+
+/**
+ * Fetches the current user profile for bank-linked status checks.
+ */
+export function useUserProfile() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  return useQuery({
+    queryKey: ['user', 'profile'],
+    queryFn:  async () => {
+      const { data } = await apiClient.get<import('@t/api.types').UserDto>('/users/me');
+      return data;
+    },
+    enabled: isAuthenticated,
+  });
+}
+

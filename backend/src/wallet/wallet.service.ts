@@ -7,6 +7,13 @@ import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';
 @Injectable()
 export class WalletService {
   constructor(private prisma: PrismaService) {}
+  // Helper function
+  async getWalletId(userId: string) {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId: userId } });
+
+    return wallet.id;
+  }
+
   async getWalletBalance(userId: string) {
     const wallet = await this.prisma.wallet.findUnique({
       where: {
@@ -23,12 +30,6 @@ export class WalletService {
       availableBalance: Number(wallet.availableBalance),
       lockedBalance: Number(wallet.lockedBalance),
     };
-  }
-
-    // Hàm giả lập trả về ID ví tạm thời
-  async getWalletId(userId: string): Promise<string> {
-    
-    return 'temp-wallet-id';
   }
 
   async getWalletTransaction(userId: string) {
@@ -73,5 +74,5 @@ export class WalletService {
       qrCodeUrl: qrCodeUrl,
       paymentReference: vaNumber,
     };
-}
+  }
 }

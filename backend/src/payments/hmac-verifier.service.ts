@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { log } from 'node:console';
 import * as crypto from 'node:crypto';
 
 @Injectable()

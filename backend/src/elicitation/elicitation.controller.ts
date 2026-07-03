@@ -1,65 +1,251 @@
+import { ApiTags } from '@nestjs/swagger';
 import {
-  Controller,
-  Post,
-  Put,
-  Param,
-  Body,
-  UseGuards,
+  Controller, Post, Put, Patch, Get,
+  Param, Body, UseGuards, ForbiddenException,
 } from '@nestjs/common';
-import { ElicitationService } from './elicitation.service';
-import { JwtAuthGuard }       from '../common/guards/jwt-auth.guard';
-import { RolesGuard }         from '../common/guards/roles.guard';
-import { Roles }              from '../common/decorators/roles.decorator';
-import { CurrentUser }        from '../common/decorators/current-user.decorator';
-import { Stage1Dto }          from './dto/stage1.dto';
-import { Stage2Dto }          from './dto/stage2.dto';
+import { ElicitationService }     from './elicitation.service';
+import { JwtAuthGuard }           from '../common/guards/jwt-auth.guard';
+import { RolesGuard }             from '../common/guards/roles.guard';
+import { SubscriptionGuard }      from '../common/guards/subscription.guard';
+import { Roles }                  from '../common/decorators/roles.decorator';
+import { CurrentUser }            from '../common/decorators/current-user.decorator';
+import { Stage1Dto }              from './dto/stage1.dto';
+import { Stage2Dto }              from './dto/stage2.dto';
+import { Stage3Dto }              from './dto/stage3.dto';
+import { Stage4Dto }              from './dto/stage4.dto';
+import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
+import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
+import { RevertSessionDto } from './dto/revert-session.dto';
+import { PatchSessionDraftDto } from './dto/patch-session-draft.dto';
+import { Delete } from '@nestjs/common';
 
-// Elicitation controller
-// All routes require an authenticated CLIENT (CEO or TECH_TEAM role).
-//
-// Blueprint guard order:
-//   1. JwtAuthGuard   — validates token, populates req.user
-//   2. RolesGuard     — checks activeRole === 'CLIENT'
-//   3. SubscriptionGuard — TODO: add once subscriptions are wired;
-//      elicitation requires Client Pro (subscription_client_tier = 'pro')
+interface AuthUser {
+  id:             string;
+  activeRole:     string;
+  clientSubtype?: string | null;
+}
+
+@ApiTags('Elicitation')
 @Controller('elicitation')
-@UseGuards(JwtAuthGuard, RolesGuard)    // applied to every route in this controller
-@Roles('CLIENT')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ElicitationController {
   constructor(private readonly elicitationService: ElicitationService) {}
 
-  // POST /elicitation/sessions
-  // Blueprint: CREATE elicitation session for authenticated CEO.
-  // FIX (blocking): was reading req.user.id with auth guard commented out →
-  // TypeError at runtime. Now uses @CurrentUser() decorator which reads from
-  // the request object populated by JwtAuthGuard.
+  // [None] — session creation is free; gating starts at Stage 1.
   @Post('sessions')
-  async createSession(@CurrentUser() user: { id: string }) {
+  @Roles('CLIENT')
+  async createSession(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
     return this.elicitationService.createSession(user.id);
   }
 
-  // PUT /elicitation/sessions/:id/stage1
-  // Note for frontend team: this endpoint uses PUT (not POST).
-  // Update your api-client calls accordingly.
-  // TODO: align HTTP verb with frontend expectations in next PR (PUT vs POST).
+  // [Pro-C]
+  @Get('sessions/active')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getActiveSession(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getActiveSession(user.id);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/abandon')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async abandonSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.abandonSession(id, user.id);
+  }
+
+  @Get('sessions/history')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getSessionHistory(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSessionHistory(user.id);
+  }
+
+  // [Pro-C]
+  @Get('sessions/:id')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSession(id, user.id);
+  }
+
+  // [Pro-C]
   @Put('sessions/:id/stage1')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
   async processStage1(
     @Param('id') id: string,
     @Body() body: Stage1Dto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.elicitationService.processStage1(id, body.symptomText);
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage1(id, body.symptomText, user.id);
   }
 
-  // PUT /elicitation/sessions/:id/stage2
+  // [Pro-C]
   @Put('sessions/:id/stage2')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
   async processStage2(
     @Param('id') id: string,
     @Body() body: Stage2Dto,
+    @CurrentUser() user: AuthUser,
   ) {
+    this.assertCeoOnly(user);
     return this.elicitationService.processStage2(
-      id,
-      body.archetype,
-      body.acknowledgedVoidCodes,
+      id, body.archetype, user.id, body.acknowledgedVoidCodes,
     );
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/stage3')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async processStage3(
+    @Param('id') id: string,
+    @Body() body: Stage3Dto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage3(id, body.probeResponses, user.id);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/stage4')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async processStage4(
+    @Param('id') id: string,
+    @Body() body: Stage4Dto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage4(id, body, user.id);
+  }
+
+  @Put('sessions/:id/stage4-handoff')
+  @Roles('CLIENT')
+  async processStage4Handoff(
+    @Param('id') id: string,
+    @Body() body: Stage4HandoffDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (user.clientSubtype !== 'TECH_TEAM') {
+      throw new ForbiddenException(
+        'Only a delegated Tech Team member can submit this form.',
+      );
+    }
+    return this.elicitationService.processStage4Handoff(id, body, user.id);
+  }
+
+  @Post('sessions/:id/stage5')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async processStage5(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.processStage5(id, user.id);
+  }
+
+  // [Pro-C]
+  @Post('sessions/:id/generate-handoff-link')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async inviteTechTeam(@Param('id') id: string, @Body('email') email: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.inviteTechTeam(id, user.id, email);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/self-technical')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async setSelfTechnical(
+    @Param('id') id: string,
+    @Body() body: SetSelfTechnicalDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.setSelfTechnical(id, user.id, body.selfTechnical);
+  }
+
+  // [Pro-C]
+  @Post('sessions/:id/retry-synthesis')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async retryFailedSynthesis(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.retryFailedSynthesis(id, user.id);
+  }
+
+  // [Pro-C]
+  @Get('sessions')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async getSessionsList(@CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.getSessions(user.id);
+  }
+
+  // [Pro-C]
+  @Put('sessions/:id/revert')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async revertSession(@Param('id') id: string, @Body() dto: RevertSessionDto, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.revertSession(id, user.id, dto.targetStage);
+  }
+
+
+  // [Pro-C]
+  @Put('sessions/:id/continue')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async continueSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.continueSession(id, user.id);
+  }
+
+  private assertCeoOnly(user: AuthUser) {
+    if (user.clientSubtype !== 'CEO') {
+      throw new ForbiddenException('Only the CEO may perform this action.');
+    }
+  }
+
+  // [Pro-C]
+  @Post('sessions/:id/stage4-recommend')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async recommendTechContext(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.recommendTechContext(id, user.id);
+  }
+  
+  // [Pro-C]
+  @Delete('sessions/:id')
+  @UseGuards(SubscriptionGuard)
+  @Roles('CLIENT')
+  async deleteSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.deleteSession(id, user.id);
+  }
+
+  @Patch('sessions/:id/draft')
+  @Roles('CLIENT')
+  @UseGuards(SubscriptionGuard)
+  async saveDraft(
+    @Param('id') id: string,
+    @Body() dto: PatchSessionDraftDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    this.assertCeoOnly(user);
+    return this.elicitationService.saveDraft(id, user.id, dto.symptomTextDraft ?? '');
   }
 }

@@ -8,7 +8,7 @@ import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { StagePaygatedDocDto } from "./dto/stage-paygated-doc.dto";
 
 @ApiTags('submissions') 
-@ApiBearerAuth()
+@ApiBearerAuth('JWT')
 @Controller('submissions') 
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionsController {

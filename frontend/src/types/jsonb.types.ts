@@ -30,6 +30,7 @@ export interface MilestoneFrameworkItem {
 }
 
 export interface ArtifactA {
+  project_name:    string;
   business_intent: string;
   archetype:       ArchetypeCode;
   stack_tags:      string[];
@@ -89,4 +90,9 @@ export interface MatchResult {
   composite_score: number;
   strength_label:  string;
   gap_map:         GapMapItem[];
+  expert_profile?: {
+    fullName: string;
+    domains: { code: string; depth: string }[];
+    stack_tags: string[];
+  };
 }

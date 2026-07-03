@@ -1,14 +1,17 @@
+import { Outlet, useLocation } from 'react-router-dom';
+import TopNav from '../../components/layout/TopNav'; 
+
 export default function TechTeamDashboard() {
+  const location = useLocation();
+  // Evaluated on every render (including route changes)
+  const isFillingForm = !!sessionStorage.getItem('handoff_sessionId');
+
   return (
-    <div className="p-md sm:p-lg bg-background min-h-screen">
-      <div className="bg-surface rounded-xl border border-outline-variant p-md shadow-sm">
-        <h1 className="font-headline-md text-headline-md text-primary mb-xs">
-          Tech Team Dashboard
-        </h1>
-        <p className="font-body-md text-body-md text-on-surface-variant">
-          You are currently viewing the Tech Team overview page.
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-['DM_Sans']">
+      {!isFillingForm && <TopNav />}
+      <main className="flex-grow w-full max-w-[1440px] mx-auto px-6 py-8">
+        <Outlet />
+      </main>
     </div>
   );
 }

@@ -1,20 +1,26 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService }      from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
+import { VAEntityType }       from '@common/enums/va-entity-type.enum';
+import { MilestoneState }     from '@common/enums/milestone-state.enum';
+import { LedgerService }      from '@shared/ledger/ledger.service';
+import { FastapiClient }      from '../elicitation/fastapi.client';
 
 @Injectable()
 export class MilestonesService {
-  // Inject PrismaService để thao tác với các bảng dữ liệu
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ledgerService: LedgerService,
+    private readonly fastapiClient: FastapiClient,
+  ) {}
 
-  async getMilestone(id: string) {
+  async getMilestone(milestoneId: string) {
     const milestone = await this.prisma.milestone.findUnique({
-      where: { id },
-      include: { acceptanceCriteria: true },
+      where: { id: milestoneId },
+      include: { acceptanceCriteria: true, dodItems: true },
     });
-
     if (!milestone) {
-      throw new NotFoundException('Milestone cannot be found.');
+      throw new NotFoundException('Milestone not found.');
     }
     return milestone;
   }
@@ -28,82 +34,104 @@ export class MilestonesService {
       throw new BadRequestException('payment_amount_vnd must be greater than zero.');
     }
 
-    // FIX [BLOCK-8]: milestone + criteria must be atomic.
-    // If criteria insertion fails, the milestone is rolled back automatically.
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      let milestone;
+      try {
+        milestone = await tx.milestone.create({
+          data: {
+            engagementId:         dto.engagement_id,
+            milestoneNumber:      dto.milestone_number,
+            deliverableStatement: dto.deliverable_statement,
+            signOffAuthority:     dto.sign_off_authority,
+            paymentAmountVnd:     dto.payment_amount_vnd,
+            state:                'DEFINED',
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          throw new ConflictException(
+            `Milestone number ${dto.milestone_number} already exists for this engagement.`,
+          );
+        }
+        throw err;
+      }
 
-      // Count existing milestones inside the transaction to minimise the
-      // numbering race condition. The unique DB index on
-      // (engagement_id, milestone_number) is the hard safety net.
-      const existingCount = await tx.milestone.count({
-        where: { engagementId: dto.engagement_id },
-      });
+      const createdCriteria = [];
+      for (const c of dto.criteria) {
+        const criterion = await tx.acceptanceCriterion.create({
+          data: {
+            milestoneId:    milestone.id,
+            criterionText:  c.criterion_text,
+            isRequired:     c.is_required ?? true,
+            verifiedByRole: dto.sign_off_authority,
+          },
+        });
+        createdCriteria.push(criterion);
+      }
 
-      const milestone = await tx.milestone.create({
-        data: {
-          engagementId:         dto.engagement_id,
-          milestoneNumber:      existingCount + 1,
-          deliverableStatement: dto.deliverable_statement,
-          signOffAuthority:     dto.sign_off_authority,
-          paymentAmountVnd:     dto.payment_amount_vnd,
-          state:                'DEFINED',
-        },
-      });
-
-      // FIX [BLOCK-6]: criteria were validated but never written to DB.
-      // FIX [BLOCK-7]: verified_by_role is NOT NULL in schema.
-      //   At creation time criteria are not yet verified (verified_at stays null).
-      //   verifiedByRole defaults to sign_off_authority — that actor is responsible
-      //   for signing off each criterion at milestone approval time.
-      await tx.acceptanceCriterion.createMany({
-        data: dto.criteria.map((c) => ({
-          milestoneId:    milestone.id,
-          criterionText:  c.criterion_text,
-          isRequired:     c.is_required ?? true,
-          verifiedByRole: dto.sign_off_authority,
-        })),
-      });
-
-      // Return milestone with persisted criteria so callers see the full record.
       return tx.milestone.findUnique({
         where:   { id: milestone.id },
         include: { acceptanceCriteria: true },
       });
     });
-  }
 
+    if (result?.acceptanceCriteria) {
+      for (const criterion of result.acceptanceCriteria) {
+        try {
+          const check = await this.fastapiClient.criterionCheck({
+            criterion_text: criterion.criterionText,
+          });
+
+          if (check.is_subjective) {
+            await this.prisma.platformDecision.create({
+              data: {
+                decisionType: 'CRITERION_QUALITY_GATE',
+                entityType:   'acceptance_criteria',
+                entityId:     criterion.id,
+                decision:     'FLAGGED',
+                advisoryNote: check.suggestions.join(' | ') || null,
+              },
+            });
+          }
+        } catch (err) {
+          // Advisory-only — swallow and move on. Milestone/criteria are
+          // already safely persisted regardless of this outcome.
+        }
+      }
+    }
+
+    return result;
+  }
 
   async initiateFunding(milestoneId: string) {
     const milestone = await this.prisma.milestone.findUnique({
-      where: { id : milestoneId },
+      where: { id: milestoneId },
     });
 
-    if (!milestone ) {
+    if (!milestone) {
       throw new BadRequestException('Milestone cannot be found');
     }
 
-    // Tạo một Mã tài khoản ảo VA (có 6 chữ số) cố định số tiền thông qua SePay 
     const vaNumber = `VA-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // Tạo bản ghi trong bảng virtual_accounts để SePay IPN đối khớp sau này
     await this.prisma.virtualAccount.create({
       data: {
-        entityType: 'MILESTONE',
+        entityType: VAEntityType.MILESTONE,
         entityId: milestoneId,
         vaNumber: vaNumber,
-        amountVnd: milestone.paymentAmountVnd,
-        expiresAt : new Date(Date.now() + 24 * 60 * 60 * 1000), // Hết hạn sau 24 giờ
-        status : 'ACTIVE',
+        fixedAmount: milestone.paymentAmountVnd,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        status: 'ACTIVE',
       },
     });
 
     return this.prisma.milestone.update({
       where: { id: milestoneId },
       data: {
-        state : 'AWAITING_PAYMENT',
+        state: 'AWAITING_PAYMENT',
         vaNumber: vaNumber,
-        va_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), 
+        vaExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
   }
-  }
+}

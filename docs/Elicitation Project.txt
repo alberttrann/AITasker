@@ -1,0 +1,23 @@
+SECTION 1: Stage 1 Input
+We are a mid-sized law firm with over 50,000 legal documents, case files, and contracts stored across SharePoint and a legacy on-premise file server. Currently, our paralegals spend on average 3-4 hours a day manually searching for precedents and specific clauses across these disparate systems. We want an AI system that can ingest all these documents, allow our staff to ask natural language questions, and return accurate, cited answers from our internal knowledge base to significantly reduce research time. We need this to be highly secure and never hallucinate legal facts.
+
+SECTION 2: Stage 3 Q1 Answer
+About 150 internal staff, primarily lawyers and paralegals, generating roughly 2,000 queries per day.
+
+SECTION 3: Stage 3 Q2 Answer
+They would have to fallback to manual search. Because we deal with legal matters, any provided answer must strictly cite the exact document and page number so a human can verify it.
+
+SECTION 4: Stage 3 Q3 Answer
+Yes, it needs to pull from Microsoft SharePoint (cloud) and our legacy SMB file share (on-premise). Documents are mostly PDFs and Word files.
+
+SECTION 5: Stage 3 Q4 Answer
+An answer should ideally appear within 3-5 seconds. Anything longer than 10 seconds will disrupt the workflow.
+
+SECTION 6: Stage 4 - Scale & Infrastructure
+We are currently using Azure for our cloud infrastructure and Active Directory for identity management. The on-premise server is a standard Windows Server 2019 instance.
+
+SECTION 7: Stage 4 - Integration Method
+We prefer REST APIs, and the solution needs to integrate with Azure AD for single sign-on and document-level access control.
+
+SECTION 8: Stage 4 - Legacy Volume
+~5TB of historical legal documents. Most are OCR'd PDFs and docx files.

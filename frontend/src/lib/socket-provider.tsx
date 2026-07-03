@@ -66,22 +66,35 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     // Event handlers
 
-    socket.on('message:new', (data: {
-      engagement_id: string;
-      sender_name:   string;
-      preview:       string;
-    }) => {
-      incrementUnread(data.engagement_id);
+    socket.on('newMessage', (data: any) => {
+      const engagementId = data.engagementId || data.projectId;
+      if (!engagementId) return;
+
+      incrementUnread(engagementId);
       // Only show notification if user is not currently in that conversation
-      if (activeEngagement !== data.engagement_id) {
+      if (activeEngagement !== engagementId) {
         addNotification({
           type:  'message',
-          title: `New message from ${data.sender_name}`,
-          body:  data.preview,
-          link:  `/engagements/${data.engagement_id}/messages`,
-          meta:  { engagement_id: data.engagement_id },
+          title: `New message from ${data.sender?.fullName || 'someone'}`,
+          body:  data.content ? (data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content) : 'Attachment',
+          link:  data.engagementId ? `/engagements/${engagementId}/messages` : `/projects/${engagementId}`,
+          meta:  { engagement_id: engagementId },
         });
       }
+    });
+
+    socket.on('notification:generic', (data: {
+      type: string;
+      title: string;
+      body: string;
+      link?: string;
+    }) => {
+      addNotification({
+        type:  data.type as any || 'system',
+        title: data.title,
+        body:  data.body,
+        link:  data.link || '',
+      });
     });
 
     socket.on('bid:updated', (data: {

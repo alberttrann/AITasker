@@ -2,8 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@store/auth.store';
 import { apiClient } from '@lib/api-client';
+import { useNotificationsStore } from '@/store/notifications.store';
 import type { AuthTokens, UserDto } from '@t/api.types';
-import type { ActiveRole, ClientSubtype } from '@t/enums';
+import type { ActiveRole, ClientSubtype, UserRoleItem } from '@t/enums';
 
 /**
  * useAuth — the single hook every component uses for auth actions.
@@ -15,56 +16,85 @@ export function useAuth() {
   const store        = useAuthStore();
 
 // Register
-  const register = useMutation({
-    mutationFn: async (creds: { fullname: string; email: string; phone?: string ;password: string ; role: ActiveRole}) => {
-      // Assuming your backend returns the same auth payload (tokens + user) upon registration
-      const { data } = await apiClient.post<AuthTokens & { user: UserDto }>(
-        '/auth/register',
-        creds
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      // Auto-login the user right after successful registration
-      store.setTokens(data.access_token, data.refresh_token);
-      store.setUser(data.user);
-      redirectByRole(data.user.active_role, data.user.client_subtype ?? undefined, navigate);
-    },
-  });
+ const register = useMutation({
+  mutationFn: async (creds: { fullName: string; email: string; phone?: string; taxCode?: string; password: string; roles: UserRoleItem }) => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
+      '/auth/register',
+      creds
+    );
+    return data;
+  },
+  onSuccess: async (data) => {
+    store.setTokens(data.access_token, data.refresh_token ?? '');
+    const { data: user } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(user);
+    redirectByRole(user, navigate);
+  },
+});
  
   // Login 
-  const login = useMutation({
-    mutationFn: async (creds: { email: string; password: string }) => {
-      const { data } = await apiClient.post<AuthTokens & { user: UserDto }>(
-        '/auth/login',
-        creds
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      store.setTokens(data.access_token, data.refresh_token);
-      store.setUser(data.user);
-      redirectByRole(data.user.active_role, data.user.client_subtype ?? undefined, navigate);
-    },
-  });
+const login = useMutation({
+  mutationFn: async (creds: { email: string; password: string }) => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
+      '/auth/login',
+      creds
+    );
+    return data;
+  },
+  onSuccess: async (data) => {
+    store.setTokens(data.access_token, data.refresh_token ?? '');
+    const { data: user } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(user);
+    redirectByRole(user, navigate);
+  },
+});
 
   // Logout 
   const logout = () => {
     store.logout();
+    useNotificationsStore.getState().clear();
     queryClient.clear();
-    navigate('/login');
+    navigate('/');
   };
 
   // Switch active role 
   const switchRole = useMutation({
-    mutationFn: async (payload: { role: ActiveRole; subtype?: ClientSubtype }) => {
-      const { data } = await apiClient.put<UserDto>('/auth/switch-role', payload);
+    mutationFn: async (payload: { activeRole: ActiveRole }) => {
+      const { data } = await apiClient.put<{ access_token: string }>('/auth/switch-role', payload);
       return data;
     },
-    onSuccess: (user) => {
+    onSuccess: async (data) => {
+      store.setTokens(data.access_token, null);
+      const { data: userRes } = await apiClient.get<UserDto>('/users/me');
+      store.setUser(userRes);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      redirectByRole(userRes, navigate, true);
+    },
+  });
+
+  // Add a second role
+  const addRole = useMutation({
+    mutationFn: async (payload: { newRole: UserRoleItem }) => {
+      const { data } = await apiClient.post<{ success: boolean }>('/users/me/add-role', payload);
+      return data;
+    },
+    onSuccess: async () => {
+      const { data: user } = await apiClient.get<UserDto>('/users/me');
       store.setUser(user);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      redirectByRole(user.active_role, user.client_subtype ?? undefined, navigate);
+    },
+  });
+
+  const registerHandoff = useMutation({
+    mutationFn: async (payload: { invite_token: string; email: string; fullName: string; password: string }) => {
+      const { data } = await apiClient.post<{ access_token: string; refresh_token: string }>('/auth/register/handoff', payload);
+      return data;
+    },
+    onSuccess: async (data) => {
+      store.setTokens(data.access_token, data.refresh_token);
+      const { data: user } = await apiClient.get<UserDto>('/users/me');
+      store.setUser(user);
+      redirectByRole(user, navigate);
     },
   });
 
@@ -80,18 +110,33 @@ export function useAuth() {
     login,
     logout,
     switchRole,
+    addRole,
+    registerHandoff,
   };
 }
 
 // Role-based redirect helper
 function redirectByRole(
-  role:     ActiveRole,
-  subtype:  ClientSubtype | undefined,
-  navigate: ReturnType<typeof useNavigate>
+  user:     UserDto,
+  navigate: ReturnType<typeof useNavigate>,
+  isSwitchRole: boolean = false
 ) {
-  if (role === 'ADMIN')  { navigate('/admin');       return; }
-  if (role === 'EXPERT') { navigate('/expert');      return; }
-  if (subtype === 'CEO')       { navigate('/ceo');       return; }
-  if (subtype === 'TECH_TEAM') { navigate('/tech-team'); return; }
-  navigate('/');
+  const role = user.activeRole;
+  let subtype = user.clientSubtype;
+  
+  // Fallback: if backend didn't return clientSubtype explicitly, infer it from the roles array
+  if (!subtype && role === 'CLIENT') {
+    if (user.roles?.includes('CLIENT_CEO')) subtype = 'CEO';
+    else if (user.roles?.includes('CLIENT_TECH_TEAM')) subtype = 'TECH_TEAM';
+  }
+
+  let basePath = '/';
+  if (role === 'CLIENT' && subtype === 'CEO')       { basePath = '/ceo'; }
+  else if (role === 'CLIENT' && subtype === 'TECH_TEAM') { basePath = '/tech-team'; }
+  else if (role === 'EXPERT')                       { basePath = '/expert'; }
+  else if (role === 'ADMIN')                        { basePath = '/admin'; }
+
+  // U7: remove stay in profile page after switch, go to dashboard after switch.
+  // U6: fix back button routing bug -> use replace: true so we don't build history of wrong roles
+  navigate(basePath, { replace: true });
 }

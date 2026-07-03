@@ -35,6 +35,7 @@ env/
 ENV/
 ai-service/venv/
 ai-service/.venv/
+ai-service/.env/
 
 __pycache__/
 *.py[cod]
@@ -54,8 +55,8 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 var/
 *.manifest
@@ -157,4 +158,13 @@ SEED_PASSWORDS.txt
 backend/dist/
 node_modules/
 
+<<<<<<< HEAD
 .pi/
+=======
+skills-lock.json
+.agents/
+.pi/
+.agy/
+
+docs/implement/
+>>>>>>> ba16f4cc0a682f946a78fc51a927c857ee897b65

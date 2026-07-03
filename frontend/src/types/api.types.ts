@@ -24,36 +24,36 @@ export interface AuthTokens {
 export interface UserDto {
   id:                       string;
   email:                    string;
-  full_name:                string;
+  fullName:                string;
   phone:                    string | null;
+  taxCode:                  string | null;
   roles:                    string[];
-  active_role:              ActiveRole;
-  client_subtype:           ClientSubtype | null;
-  subscription_client_tier: SubscriptionTier;
-  subscription_expert_tier: SubscriptionTier;
-  sub_client_expires_at:    string | null;
-  sub_expert_expires_at:    string | null;
+  activeRole:              ActiveRole;
+  clientSubtype:           ClientSubtype | null;
+  subscriptionTier:        SubscriptionTier;
+  subscriptionExpires:     string | null;
   sepay_bank_account_xid:   string | null;
   bank_linked_at:           string | null;
-  self_technical:           boolean;
+  selfTechnical:            boolean;
   is_active:                boolean;
-  created_at:               string;
+  activeRoleProfile:       ActiveRoleProfile | null;
+  createdAt:               string;
 }
 
 export interface WalletDto {
   id:                string;
-  user_id:           string;
-  available_balance: number;
-  locked_balance:    number;
+  userId:           string;
+  availableBalance: number;
+  lockedBalance:    number;
 }
 
 export interface WalletTransactionDto {
   id:               string;
-  wallet_id:        string;
+  walletId:        string;
   amount:           number;
-  transaction_type: WalletTxType;
-  reference_id:     string | null;
-  created_at:       string;
+  transactionType: WalletTxType;
+  referenceId:     string | null;
+  createdAt:       string;
 }
 
 export interface VirtualAccountDto {
@@ -79,12 +79,22 @@ export interface WithdrawalRequestDto {
 }
 
 export interface ExpertProfileDto {
-  user_id:                string;
+  userId:                string;
   bio:                    string | null;
-  engagement_model:       EngagementModel | null;
-  stack_tags_json:        string[];
-  archetype_history_json: object[];
+  engagementModel:       EngagementModel | null;
+  stackTagsJson:         string[];
+  archetypeHistoryJson:  object[];
 }
+
+export interface ClientProfileDto {
+  userId:       string;
+  companyName:  string | null;
+  industry:     string | null;
+  ceoName:      string | null;
+  isTaxVerified?: boolean;
+}
+
+export type ActiveRoleProfile = ExpertProfileDto | ClientProfileDto;
 
 export interface ExpertDomainDepthDto {
   id:                string;
@@ -104,15 +114,16 @@ export interface ExpertSeamClaimDto {
 }
 
 export interface ElicitationSessionDto {
-  id:            string;
-  user_id:       string;
-  current_stage: number;
-  archetype:     ArchetypeCode | null;
-  scenario_type: ScenarioType | null;
-  void_list_json: object[];
-  state:         ElicitationState;
-  created_at:    string;
-  updated_at:    string;
+  id:                  string;
+  user_id:             string;
+  current_stage:       number;
+  archetype:           ArchetypeCode | null;
+  scenario_type:       ScenarioType | null;
+  void_list_json:      object[];
+  state:               ElicitationState;
+  symptom_text_draft:  string | null;   
+  created_at:          string;
+  updated_at:          string;
 }
 
 export interface ProjectDto {
@@ -122,11 +133,12 @@ export interface ProjectDto {
   state:                     ProjectState;
   archetype:                 ArchetypeCode | null;
   tier:                      ProjectTier | null;
-  self_technical:            boolean;
+  selfTechnical:            boolean;
   required_seams_json:       RequiredSeam[];
   required_domains_json:     RequiredDomain[];
   milestone_framework_json:  MilestoneFrameworkItem[];
   artifact_a_json:           ArtifactA | null;
+  projectName?:              string | null;
   created_at:                string;
 }
 
@@ -272,9 +284,35 @@ export interface ReviewDto {
 }
 
 export interface ShortlistDto {
-  project_id: string;
-  results:    MatchResult[];
+  project_id:   string;
+  results:      MatchResult[];
   generated_at: string;
+}
+
+export interface PortfolioSubmissionDetailDto {
+  id:                      string;
+  status:                  'PENDING' | 'APPROVED' | 'REJECTED';
+  llmConfidence:           number | null;
+  evaluatedAt:             string | null;
+  advisoryNote:            string | null;
+  attemptsRemaining?:      number;
+  lockedUntil:             string | null;
+  evaluationTierUpgraded?: boolean;
+}
+
+export interface PortfolioListItemDto {
+  id:            string;
+  status:        'PENDING' | 'APPROVED' | 'REJECTED';
+  llmConfidence: number | null;
+  evaluatedAt:   string | null;
+  advisoryNote:  string | null;
+  createdAt:     string;
+  seamClaim: {
+    id:               string;
+    seamCode:         string;
+    verificationTier: string;
+    submissionCount:  number;
+  };
 }
 
 export interface PlatformDecisionDto {
@@ -293,6 +331,12 @@ export interface PaginatedResponse<T> {
   total: number;
   page:  number;
   limit: number;
+}
+
+export interface GenerateHandoffLinkResponse {
+  invite_token: string;
+  invite_link: string;
+  expires_in: string;
 }
 
 export interface ApiError {

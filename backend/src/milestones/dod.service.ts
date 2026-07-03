@@ -1,13 +1,13 @@
-import { BadRequestException, Body, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
 import { PrismaService } from "../database/prisma.service";
 import { CreateDodItemDto } from "./dto/create-dod-item.dto";
 
-@Injectable() 
+@Injectable()
 export class DodService {
- constructor (private readonly prisma : PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-    async create(milestoneId: string, dto: CreateDodItemDto) {
+  async create(milestoneId: string, dto: CreateDodItemDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
     });
@@ -20,9 +20,9 @@ export class DodService {
       data: {
         milestoneId: milestoneId,
         itemDescription: dto.item_description,
-        isRequired: dto.is_required ?? true, 
+        isRequired: dto.is_required ?? true,
         status: 'PENDING',
-        mapsToCriterionId: dto.maps_to_criterion_id || null, 
+        mapsToCriterionId: dto.maps_to_criterion_id || null,
       },
     });
   }
@@ -46,9 +46,9 @@ export class DodService {
             where: { id: itemId },
             data: {
                 status: dto.status,
-                completion_note: dto.status === 'COMPLETED' ? dto.completion_note : null,
-                not_applicable_note: dto.status === 'NOT_APPLICABLE' ? dto.not_applicable_note : null,
-                completed_at: dto.status === 'COMPLETED' ? new Date() : null,
+            completionNote: dto.status === 'COMPLETED' ? dto.completion_note : null,
+            notApplicableNote: dto.status === 'NOT_APPLICABLE' ? dto.not_applicable_note : null,
+            completedAt: dto.status === 'COMPLETED' ? new Date() : null,
             }
         });
   }
