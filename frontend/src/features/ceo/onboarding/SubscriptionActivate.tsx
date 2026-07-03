@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { useUser } from '@/hooks/use-user';
 import { SubscriptionPrice } from '@/types/enums';
@@ -32,9 +33,21 @@ export default function SubscriptionActivate() {
       { activeRole: user?.activeRole || 'CLIENT' },
       {
         onSuccess: async (data) => {
+          // 1. Save the new access token
           store.setTokens(data.access_token, ''); 
-          await queryClient.refetchQueries({ queryKey: ['user', 'me'] });
-          await queryClient.refetchQueries({ queryKey: ['wallet'] });
+          
+          // 2. Fetch the fresh profile directly using the new token to guarantee store updates
+          const { data: freshUser } = await apiClient.get('/users/me', {
+            headers: { Authorization: `Bearer ${data.access_token}` }
+          });
+          
+          // 3. Sync both Zustand and React Query cache immediately
+          store.setUser(freshUser);
+          queryClient.setQueryData(['user', 'me'], freshUser);
+          
+          // 4. Invalidate the wallet so the deducted balance is refreshed
+          queryClient.invalidateQueries({ queryKey: ['wallet'] });
+          
           setIsSuccess(true);
         },
         onError: (error: any) => {
