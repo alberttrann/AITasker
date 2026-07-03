@@ -152,16 +152,30 @@ export function HandoffRegister() {
               </div>
               
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Accept Invitation</h2>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  You are logged in as <strong className="text-slate-900">{user?.fullName}</strong> ({user?.email}). Do you want to use this account to join the project as Tech Team?
-                </p>
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">Accept Invitation</h2>
+                {user?.email?.toLowerCase() !== email?.toLowerCase() ? (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg text-sm text-left shadow-sm">
+                    <p className="font-semibold mb-2 text-amber-900">
+                      Account Mismatch
+                    </p>
+                    <p>
+                      This invitation was sent to <strong>{email}</strong>, but you are currently logged in as <strong>{user?.email}</strong>.
+                    </p>
+                    <p className="mt-2">
+                      Please sign out and use the correct account to accept this invitation.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    You are logged in as <strong className="text-slate-900">{user?.fullName}</strong> ({user?.email}). Do you want to use this account to join the project as Tech Team?
+                  </p>
+                )}
               </div>
 
               <div className="space-y-3 pt-2">
                 <Button
                   onClick={handleClaimHandoff}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || user?.email?.toLowerCase() !== email?.toLowerCase()}
                   className="w-full py-3 font-bold"
                   variant="primary"
                 >
