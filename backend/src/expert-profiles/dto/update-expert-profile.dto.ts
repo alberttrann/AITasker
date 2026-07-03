@@ -18,8 +18,11 @@ class ArchetypeHistoryItemDto {
 
 // all fields optional. Caller sends only what they want to change
 // writable fields: engagement_model, archetype_history_json, stack_tags_json
-// bio is written via PUT /users/me
 export class UpdateExpertProfileDto {
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
   @IsOptional()
   @IsEnum(['MILESTONE', 'HOURLY', 'HYBRID'], {
     message: 'engagementModel must be MILESTONE, HOURLY, or HYBRID',
