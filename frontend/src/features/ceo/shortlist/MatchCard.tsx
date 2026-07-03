@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
@@ -35,6 +35,18 @@ export default function MatchCard({ expert, projectId }: MatchCardProps) {
   const [isInviting, setIsInviting] = useState(false);
   const [invited, setInvited] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown !== null && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (countdown === 0) {
+      setCountdown(null);
+      handleInvite();
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const name = isLoading ? 'Loading Expert...' : profile?.fullName || 'Expert';
   const strength = expert.strength_label || 'POSSIBLE_MATCH';
@@ -98,7 +110,7 @@ export default function MatchCard({ expert, projectId }: MatchCardProps) {
 
       <Modal 
         isOpen={isModalOpen} 
-        onClose={() => { setIsModalOpen(false); setInviteError(null); }} 
+        onClose={() => { setIsModalOpen(false); setInviteError(null); setCountdown(null); }} 
         title="Expert Profile"
       >
         <div className="space-y-4">
@@ -204,15 +216,25 @@ export default function MatchCard({ expert, projectId }: MatchCardProps) {
               </Button>
             ) : (
               <Button
-                variant="primary"
+                variant={countdown !== null ? 'destructive' : 'primary'}
                 className="w-full"
                 disabled={isInviting}
-                onClick={handleInvite}
-                aria-label={`Invite ${name} to bid`}
+                onClick={() => {
+                  if (countdown !== null) {
+                    setCountdown(null);
+                  } else {
+                    setCountdown(5);
+                  }
+                }}
+                aria-label={countdown !== null ? 'Cancel Invite' : `Invite ${name} to bid`}
               >
                 {isInviting ? (
                   <span className="flex items-center gap-2">
                     <Spinner size="sm" /> Inviting…
+                  </span>
+                ) : countdown !== null ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" /> Cancel ({countdown}s)
                   </span>
                 ) : (
                   <>
