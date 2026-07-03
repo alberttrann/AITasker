@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { MatchingService } from './matching.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -31,7 +31,7 @@ export class MatchingController {
     description: 'Set true to force re-score matching against all current experts.',
   })
   async getShortlist(
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Query('refresh') refresh: string,
     @Request() req: any,
   ) {
