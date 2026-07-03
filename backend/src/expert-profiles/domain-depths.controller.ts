@@ -1,4 +1,4 @@
-import { Controller, Put, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Put, Post, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ExpertProfileService } from './expert-profiles.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -29,7 +29,7 @@ export class DomainDepthsController {
   @Put(':id')
   @ApiBearerAuth('JWT')
   async updateDomainDepth(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: { id: string },
     @Body() dto: UpsertDomainDepthDto,
   ) {

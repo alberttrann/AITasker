@@ -63,7 +63,8 @@ export default function Stage4ScenarioB({
 
     try {
       const res = await inviteTechTeam(sessionId, inviteEmail.trim());
-      setInviteLink(res.invite_link);
+      // Construct the link dynamically on the client side to prevent localhost issues on deployed environments
+      setInviteLink(`${window.location.origin}/register/handoff/${res.invite_token}`);
       setInviteSent(true);
       setPollStartedAt(Date.now());
     } catch (err: any) {

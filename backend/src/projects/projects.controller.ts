@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards, Request, Put, Body } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Request, Put, Body, ParseUUIDPipe } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -15,7 +15,7 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiBearerAuth('JWT')
-  async getProjectDetails(@Param('id') projectId: string, @Request() req: any) {
+  async getProjectDetails(@Param('id', ParseUUIDPipe) projectId: string, @Request() req: any) {
     const userId = req.user.id;
     const activeRole = req.user.activeRole;
     const clientSubtype = req.user.clientSubtype;
@@ -43,7 +43,7 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT', 'EXPERT')
   @ApiBearerAuth('JWT')
-  async getProjectArtifactA(@Param('id') projectId: string, @Request() req: any) {
+  async getProjectArtifactA(@Param('id', ParseUUIDPipe) projectId: string, @Request() req: any) {
     const userId = req.user.id;
     const activeRole = req.user.activeRole;
     const clientSubtype = req.user.clientSubtype;
@@ -57,7 +57,7 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiBearerAuth('JWT')
-  async getProjectArtifactB(@Param('id') projectId: string, @Request() req: any) {
+  async getProjectArtifactB(@Param('id', ParseUUIDPipe) projectId: string, @Request() req: any) {
     const userId = req.user.id;
     const activeRole = req.user.activeRole;
     const clientSubtype = req.user.clientSubtype;
@@ -69,7 +69,7 @@ export class ProjectsController {
   @Roles('CLIENT')
   @ApiBearerAuth('JWT')
   async updateProjectName(
-    @Param('id') projectId: string, 
+    @Param('id', ParseUUIDPipe) projectId: string, 
     @Body('projectName') projectName: string,
     @Request() req: any
   ) {
