@@ -1,63 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@lib/api-client";
 import { useAuthStore } from "@store/auth.store";
-import { CapabilityBidDto } from "@/types/api.types";
+import {
+  CapabilityBidDto,
+  CreateBidPayLoad,
+  UpdateBidVariables,
+  TechReviewVariables,
+  CeoDecisionVariables,
+  CounterOfferVariables,
+} from "@/types/api.types";
 import {
   ConditionalPricingItem,
   FootprintAlignment,
 } from "@/types/jsonb.types";
-
-// Creating interface for payload to use in POST, PUT, DELETE mutations
-interface CreateBidPayLoad {
-  projectId: string;
-  footprint_alignment_json: FootprintAlignment;
-  approach_summary: string;
-  conditional_pricing_json: ConditionalPricingItem[];
-}
-
-// Update Bid Section
-interface UpdateBidDto {
-  footprint_alignment_json: FootprintAlignment;
-  approach_summary: string;
-  conditional_pricing_json: ConditionalPricingItem[];
-}
-
-interface UpdateBidVariables {
-  bidId: string; // param
-  body: UpdateBidDto;
-}
-
-// Tech Review Section
-interface TechReviewDto {
-  action: "APPROVED" | "REVISION_REQUESTED";
-  tech_feedback?: string;
-}
-
-interface TechReviewVariables {
-  bidId: string;
-  body: TechReviewDto;
-}
-
-// Ceo Decision Section
-interface CeoDecisionDto {
-  decision: "APPROVED" | "DECLINED";
-}
-
-interface CeoDecisionVariables {
-  bidId: string;
-  body: CeoDecisionDto;
-}
-
-// Counter Offer Section
-interface CounterOfferDto {
-  negotiated_price_vnd: number;
-}
-
-interface CounterOfferVariables {
-  bidId: string;
-  body: CounterOfferDto;
-}
-
 function normalizeSeamCodes(alignment: FootprintAlignment) {
   return {
     ...alignment,

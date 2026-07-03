@@ -1,6 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { type GenerateHandoffLinkResponse } from "@t/api.types";
+import {
+  type GenerateHandoffLinkResponse,
+  GatePassed,
+  GateFailed,
+  GateResult,
+  StageCompleteData,
+} from "@t/api.types";
 import { useAuthStore } from '@/store/auth.store';
 
 export function useElicitation(sessionId?: string) {
@@ -37,37 +43,7 @@ export function useElicitation(sessionId?: string) {
 
 // ─── Shared Types ─────────────────────────────────────────────────────
 
-export interface GatePassed {
-  gate_passed: true;
-  completeness_score: number;
-  project_id: string;
-}
 
-export interface GateFailed {
-  gate_passed: false;
-  completeness_score: number;
-  flagged_void: string | null;
-  return_to_stage: number;
-  advisory_note: string;
-}
-
-export type GateResult = GatePassed | GateFailed;
-
-export interface StageCompleteData {
-  voidListJson?: import("@t/jsonb.types").VoidItem[];
-  archetype?: string;
-  probeResponses?: Record<string, string>;
-  gateResult?: GateResult;
-  symptomText?: string;
-  acknowledgedVoidCodes?: string[];
-  techContext?: {
-    scaleAndInfrastructure: string;
-    integrationMethod: string;
-    legacyVolume: string;
-    schemas: string[];
-    contracts: string[];
-  };
-}
 
 // ─── API Methods ──────────────────────────────────────────────────────
 
