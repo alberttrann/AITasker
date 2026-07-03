@@ -102,14 +102,16 @@ export default function Stage4ScenarioB({
     /*
     refetchInterval: (query) => {
       if (!inviteSent || timedOut) return false;
-      return query.state?.data?.currentStage >= 5 ? false : POLL_INTERVAL_MS;
+      const currentStage = query.state?.data?.currentStage || query.state?.data?.current_stage || 1;
+      return currentStage >= 5 ? false : POLL_INTERVAL_MS;
     },
     */
     enabled: inviteSent && !timedOut,
   });
 
   useEffect(() => {
-    if (sessionData && sessionData.currentStage >= 5) {
+    const currentStage = sessionData?.currentStage || sessionData?.current_stage || 1;
+    if (sessionData && currentStage >= 5) {
       onTechTeamSubmitted();
     }
   }, [sessionData, onTechTeamSubmitted]);
