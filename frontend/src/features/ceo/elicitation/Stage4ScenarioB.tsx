@@ -101,7 +101,8 @@ export default function Stage4ScenarioB({
     queryFn: () => getSession(sessionId),
     refetchInterval: (query) => {
       if (!inviteSent || timedOut) return false;
-      return query.state?.data?.currentStage >= 5 ? false : POLL_INTERVAL_MS;
+      const currentStage = query.state?.data?.currentStage || query.state?.data?.current_stage || 1;
+      return currentStage >= 5 ? false : POLL_INTERVAL_MS;
     },
     enabled: inviteSent && !timedOut,
   });
