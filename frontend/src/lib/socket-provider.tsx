@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
@@ -33,6 +34,7 @@ const SocketContext = createContext<Socket | null>(null);
  */
 export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
+  const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
@@ -43,6 +45,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     if (!accessToken) {
       socketRef.current?.disconnect();
       socketRef.current = null;
+      setActiveSocket(null);
       return;
     }
 
@@ -199,6 +202,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socketRef.current = socket;
+    setActiveSocket(socket);
 
     return () => {
       socket.disconnect();
@@ -206,7 +210,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [accessToken]);
 
   return (
-    <SocketContext.Provider value={socketRef.current}>
+    <SocketContext.Provider value={activeSocket}>
       {children}
     </SocketContext.Provider>
   );
