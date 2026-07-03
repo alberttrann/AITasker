@@ -134,7 +134,6 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
         type: 'system',
         title: 'Project Invitation',
         body: 'A CEO has invited you to submit a bid for their project.',
-        // Link to the Bid Form based on the frontend App.tsx routing
         link: `/expert/bids/${dto.projectId}`,
       });
 
@@ -156,10 +155,18 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   private extractToken(client: Socket): string | null {
+    // 1. Check standard Socket.io auth payload 
+    if (client.handshake.auth && client.handshake.auth.token) {
+      return client.handshake.auth.token;
+    }
+
+    // 2. Fallback to headers
     const authHeader = client.handshake.headers?.authorization;
     if (authHeader && authHeader.split(' ')[0] === 'Bearer') {
       return authHeader.split(' ')[1];
     }
+
+    // 3. Fallback to query
     return (client.handshake.query?.token as string) || null;
   }
 }
