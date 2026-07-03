@@ -12,17 +12,35 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });
+
+  // Enable graceful shutdown hooks to ensure OnModuleDestroy is invoked
+  // and Prisma disconnects cleanly from PostgreSQL during hot-reloads.
+  app.enableShutdownHooks();
+
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    const redisIoAdapter = new RedisIoAdapter(app);
+    try {
+      await redisIoAdapter.connectToRedis(redisUrl);
+      app.useWebSocketAdapter(redisIoAdapter);
+    } catch (err) {
+      logger.error('Failed to connect to Redis Adapter. Falling back to default in-memory adapter.', err);
+    }
+  }
 
   app.useGlobalPipes(
     new ZodValidationPipe(),
     new ValidationPipe({ whitelist: true, transform: true }),
   );
+  app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -38,7 +56,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('AITasker API')
-    .setDescription('AITasker backend — 91 endpoints across 3 engagement paths')
+    .setDescription('AITasker backend')
     .setVersion('1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
     .build();
