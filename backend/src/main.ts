@@ -19,6 +19,10 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  // Enable graceful shutdown hooks to ensure OnModuleDestroy is invoked
+  // and Prisma disconnects cleanly from PostgreSQL during hot-reloads.
+  app.enableShutdownHooks();
+
   app.useGlobalPipes(
     new ZodValidationPipe(),
     new ValidationPipe({ whitelist: true, transform: true }),
@@ -38,7 +42,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('AITasker API')
-    .setDescription('AITasker backend — 91 endpoints across 3 engagement paths')
+    .setDescription('AITasker backend')
     .setVersion('1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
     .build();
