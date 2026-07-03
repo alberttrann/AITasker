@@ -7,6 +7,7 @@ import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
+import { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -102,7 +103,8 @@ const RoleIcon =
   User;
 
   // 3. Subscription tier
-  const isPro = user?.subscriptionTier === 'pro';
+  const { data: subStatus } = useSubscriptionStatus();
+  const isPro = subStatus?.tier === 'pro';
   
   // Real balances via useWallet hook
   const { data: wallet } = useWallet();

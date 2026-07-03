@@ -5,6 +5,7 @@ import { ConfirmModal } from "@/components/ui/Modal";
 import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useSubscriptionStatus } from "@/hooks/use-subscription";
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
@@ -15,7 +16,9 @@ export default function ProjectsPage() {
   const deleteSession = useDeleteElicitationSession();
   const updateProjectName = useUpdateProjectName();
   const { user } = useAuth();
-  const isSubscribed = user?.subscriptionTier === 'pro';
+  
+  const { data: subStatus } = useSubscriptionStatus();
+  const isSubscribed = subStatus?.tier === 'pro';
   
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
