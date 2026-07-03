@@ -5,8 +5,8 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-COPY tsconfig.json tsconfig.node.json vite.config.ts \
-     tailwind.config.ts postcss.config.js ./
+# Removed non-existent tailwind.config.ts and postcss.config.js
+COPY tsconfig.json tsconfig.node.json vite.config.ts ./
 
 COPY index.html ./
 
