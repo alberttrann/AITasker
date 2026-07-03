@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@hooks/use-auth';
 import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ConfirmModal } from '@components/ui/Modal';
+import { ConfirmModal } from '@components/ui/modal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
