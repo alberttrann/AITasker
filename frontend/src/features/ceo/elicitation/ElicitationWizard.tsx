@@ -4,7 +4,7 @@ import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/modal";
 import type { VoidItem } from "@t/jsonb.types";
 import {
   createSession,

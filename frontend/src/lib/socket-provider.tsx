@@ -36,7 +36,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
   const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
-  const currentUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
@@ -144,6 +143,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['bids'] });
     });
 
+    queryClient.invalidateQueries({ queryKey: ['engagements'] });
+    queryClient.invalidateQueries({ queryKey: ['bids'] });
+
     socket.on('milestone:updated', (data: {
       engagement_id:   string;
       milestone_number: number;
@@ -160,6 +162,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['milestones'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
     });
+    
+    queryClient.invalidateQueries({ queryKey: ['milestones'] });
+    queryClient.invalidateQueries({ queryKey: ['engagements'] });
 
     socket.on('payment:confirmed', (data: {
       engagement_id:   string;
