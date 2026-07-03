@@ -204,13 +204,15 @@ export default function ProfilePage() {
                 <span className="text-sm text-slate-900 font-medium">
                   {showEmail ? (user?.email || 'Not specified') : maskData(user?.email)}
                 </span>
-                <button 
-                  onClick={() => setShowEmail(!showEmail)}
-                  className="text-slate-400 hover:text-slate-900 transition-colors p-1"
-                  title={showEmail ? "Hide email" : "Show email"}
-                >
-                  {showEmail ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                {user?.email && (
+                  <button 
+                    onClick={() => setShowEmail(!showEmail)}
+                    className="text-slate-400 hover:text-slate-900 transition-colors p-1"
+                    title={showEmail ? "Hide email" : "Show email"}
+                  >
+                    {showEmail ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -221,14 +223,15 @@ export default function ProfilePage() {
                 <span className="text-sm text-slate-900 font-medium">
                   {showPhone ? (user?.phone || 'Not specified') : maskData(user?.phone)}
                 </span>
-                <button 
-                  onClick={() => setShowPhone(!showPhone)}
-                  disabled={!user?.phone}
-                  className="text-slate-400 hover:text-slate-900 disabled:opacity-50 disabled:hover:text-slate-400 transition-colors p-1"
-                  title={showPhone ? "Hide phone" : "Show phone"}
-                >
-                  {showPhone ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                {user?.phone && (
+                  <button 
+                    onClick={() => setShowPhone(!showPhone)}
+                    className="text-slate-400 hover:text-slate-900 transition-colors p-1"
+                    title={showPhone ? "Hide phone" : "Show phone"}
+                  >
+                    {showPhone ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
               </div>
             </div>
 

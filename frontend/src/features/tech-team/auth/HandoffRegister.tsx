@@ -74,7 +74,7 @@ export function HandoffRegister() {
     }
 
     setIsLoading(false);
-  }, [token, navigate]);
+  }, [token, navigate, isAuthenticated, user?.email, logout]);
 
   const handleClaimHandoff = async () => {
     setIsSubmitting(true);
