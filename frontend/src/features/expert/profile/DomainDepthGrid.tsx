@@ -53,7 +53,10 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
 
   const handleSave = async () => {
     setError(null);
-    const selectedDomains = domainStates.filter(d => d.depthLevel !== null);
+    const selectedDomains = domainStates.filter(d => d.depthLevel !== null).map(d => {
+      const existing = (initialDomains || []).find((id: any) => (id.domainCode || id.code) === d.domainCode);
+      return { ...existing, domainCode: d.domainCode, depthLevel: d.depthLevel! };
+    });
     
     if (selectedDomains.length === 0) {
       setError('Please select at least one domain depth.');

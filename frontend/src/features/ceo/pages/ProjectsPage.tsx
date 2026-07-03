@@ -70,7 +70,7 @@ export default function ProjectsPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/ceo')}
             className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
             aria-label="Go back"
           >
