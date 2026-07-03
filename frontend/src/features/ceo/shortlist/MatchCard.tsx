@@ -264,10 +264,10 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
     try {
       // Join the project pre-bid chat room
       socket.emit('joinRoom', { projectId });
-      // Send invitation message
-      socket.emit('sendMessage', {
-        expert_id: expert.expert_id,
-        project_id: projectId,
+      // Send invitation via the dedicated inviteExpert event
+      socket.emit('inviteExpert', {
+        expertId: expert.expert_id,
+        projectId: projectId,
         content: `Hi ${name},\n\nI'd like to invite you to submit a bid for ${projectName || 'this project'}. Your expertise looks like a great fit for what we're building, and I'd love to see your proposal.`,
       });
       setInvited(true);
