@@ -236,7 +236,17 @@ const RoleIcon =
                         </div>
                       ) : (
                         notifications.map((notif) => (
-                          <div key={notif.id} onClick={() => markRead(notif.id)} className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}>
+                          <div 
+                            key={notif.id} 
+                            onClick={() => {
+                              markRead(notif.id);
+                              if (notif.link) {
+                                navigate(notif.link);
+                                setActiveDropdown(null);
+                              }
+                            }} 
+                            className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
+                          >
                             <div className="flex justify-between items-start mb-1">
                               <span className={`text-sm font-semibold ${!notif.read ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
                               {!notif.read && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}

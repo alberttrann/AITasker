@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
+import { useProject } from '@/hooks/use-projects';
+import { useExpertProfile } from '@/hooks/use-expert-profile';
+import { useBid } from '@/hooks/use-bids';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -58,29 +61,54 @@ function useCreateBid() {
 // ── Component ────────────────────────────────────────────────────
 
 export default function BidForm() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId: routeId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  const { data: artifactA, isLoading: specLoading, error: specError } = useArtifactA(projectId);
+  // Try to fetch as a bid (if the routeId is actually a bidId)
+  const { data: bid, isLoading: isLoadingBid } = useBid(routeId || '');
+  
+  // If we found a bid, use its projectId. Otherwise assume routeId IS the projectId.
+  const actualProjectId = bid?.projectId || bid?.project_id || routeId;
+
+  const { project, isLoadingProject, error: specError } = useProject(actualProjectId);
+  const { profile: expertProfile, isLoadingProfile } = useExpertProfile();
   const createBid = useCreateBid();
 
-  // Form state
+  // Form state (initialize from bid if it exists, otherwise empty)
   const [approach, setApproach] = useState('');
-  const [footprint, setFootprint] = useState<FootprintAlignmentData>({ domains: [], seams: [] });
   const [pricing, setPricing] = useState<PricingItem[]>([]);
+  
+  // Sync state when bid loads
+  useEffect(() => {
+    if (bid) {
+      if (bid.approachSummary) setApproach(bid.approachSummary);
+      if (bid.conditionalPricingJson) setPricing(bid.conditionalPricingJson);
+    }
+  }, [bid]);
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, any>>({});
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const isDirty = approach.length > 0 || footprint.domains.length > 0 || footprint.seams.length > 0 || pricing.length > 0;
+  const isDirty = approach.length > 0 || pricing.length > 0;
+
+  // Auto-calculate footprint alignment
+  const footprint: FootprintAlignmentData = {
+    domains: expertProfile?.domainDepths?.map((d: any) => ({
+      code: d.domainCode,
+      depth: d.depthLevel
+    })) || [],
+    seams: expertProfile?.seamClaims?.map((s: any) => ({
+      code: s.seamCode || s.code,
+      tier: s.verificationTier || 'CLAIMED'
+    })) || []
+  };
 
   // ── Validation ─────────────────────────────────────────────────
 
   const validate = (): boolean => {
     const errs: Record<string, any> = {};
-    if (footprint.domains.length === 0) errs.footprint = { domains: 'Select at least one domain.' };
-    if (footprint.seams.length === 0) errs.footprint = { ...errs.footprint, seams: 'Select at least one seam.' };
     if (!approach.trim()) errs.approach = 'Approach summary is required.';
     if (pricing.length === 0) errs.pricing = { items: 'At least one pricing milestone is required.' };
     else {
@@ -101,11 +129,11 @@ export default function BidForm() {
     e.preventDefault();
     setServerError(null);
     if (!validate()) return;
-    if (!projectId) return;
+    if (!actualProjectId) return;
 
     createBid.mutate(
       {
-        projectId,
+        projectId: actualProjectId,
         footprint_alignment_json: footprint,
         approach_summary: approach,
         conditional_pricing_json: pricing,
@@ -133,12 +161,12 @@ export default function BidForm() {
 
   // ── Loading ────────────────────────────────────────────────────
 
-  if (specLoading) {
+  if (isLoadingProject || isLoadingProfile || isLoadingBid) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center space-y-4">
           <Spinner size="xl" className="mx-auto" />
-          <p className="text-body text-[#64748B]">Loading project specification…</p>
+          <p className="text-body text-[#64748B]">Loading bid context…</p>
         </div>
       </div>
     );
@@ -167,7 +195,7 @@ export default function BidForm() {
           Submit Bid
         </h1>
         <p className="mt-1 text-body text-[#64748B]">
-          {artifactA?.projectName || `Project ${projectId}`}
+          {project?.projectName || `Project ${actualProjectId}`}
         </p>
       </div>
 
@@ -192,10 +220,8 @@ export default function BidForm() {
         <Card>
           <CardContent className="pt-6">
             <FootprintAlignment
-              data={footprint}
-              onChange={setFootprint}
-              errors={fieldErrors.footprint}
-              disabled={createBid.isPending}
+              expertProfile={expertProfile}
+              project={project}
             />
           </CardContent>
         </Card>

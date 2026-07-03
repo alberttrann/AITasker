@@ -97,13 +97,12 @@ export default function ConditionalPricing({
                   Price (VND)
                 </label>
                 <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={item.price_vnd || ''}
-                  onChange={(e) =>
-                    updateItem(idx, { price_vnd: parseInt(e.target.value) || 0 })
-                  }
+                  type="text"
+                  value={item.price_vnd ? item.price_vnd.toLocaleString('vi-VN') : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    updateItem(idx, { price_vnd: parseInt(raw, 10) || 0 });
+                  }}
                   disabled={disabled}
                   aria-invalid={!!itemErr.price}
                   className={cn(
