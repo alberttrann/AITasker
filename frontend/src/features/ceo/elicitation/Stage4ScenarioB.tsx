@@ -108,7 +108,8 @@ export default function Stage4ScenarioB({
   });
 
   useEffect(() => {
-    if (sessionData && sessionData.currentStage >= 5) {
+    const currentStage = sessionData?.currentStage || sessionData?.current_stage || 1;
+    if (sessionData && currentStage >= 5) {
       onTechTeamSubmitted();
     }
   }, [sessionData, onTechTeamSubmitted]);
