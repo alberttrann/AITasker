@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import supertest = require('supertest');
+import supertest from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/database/prisma.service';
 import { DbSeeder } from './helpers/db.seeder';
