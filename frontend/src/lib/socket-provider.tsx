@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
@@ -33,6 +34,7 @@ const SocketContext = createContext<Socket | null>(null);
  */
 export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
+  const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
@@ -43,6 +45,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     if (!accessToken) {
       socketRef.current?.disconnect();
       socketRef.current = null;
+      setActiveSocket(null);
       return;
     }
 
@@ -65,10 +68,20 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     // Event handlers
+    socket.on('error', (err: any) => {
+      console.error('[Socket] Server returned an error:', err);
+    });
+    
+    socket.on('exception', (err: any) => {
+      console.error('[Socket] Server threw an exception:', err);
+    });
 
     socket.on('newMessage', (data: any) => {
       const engagementId = data.engagementId || data.projectId;
       if (!engagementId) return;
+
+      // Ignore if the current user sent the message
+      if (data.senderId === currentUser?.id || data.sender?.id === currentUser?.id) return;
 
       incrementUnread(engagementId);
       // Only show notification if user is not currently in that conversation
@@ -125,6 +138,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         link:  `/engagements/${data.engagement_id}`,
         meta:  { engagement_id: data.engagement_id },
       });
+      // Refresh bids and engagements when a bid is updated
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['bids'] });
     });
 
     queryClient.invalidateQueries({ queryKey: ['engagements'] });
@@ -142,6 +158,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         link:  `/engagements/${data.engagement_id}/milestones`,
         meta:  { engagement_id: data.engagement_id },
       });
+      // Refresh milestones and engagements when a milestone is updated
+      queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
     });
     
     queryClient.invalidateQueries({ queryKey: ['milestones'] });
@@ -199,6 +218,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socketRef.current = socket;
+    setActiveSocket(socket);
 
     return () => {
       socket.disconnect();
@@ -206,7 +226,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [accessToken]);
 
   return (
-    <SocketContext.Provider value={socketRef.current}>
+    <SocketContext.Provider value={activeSocket}>
       {children}
     </SocketContext.Provider>
   );

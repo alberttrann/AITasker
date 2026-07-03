@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { submitStage5, retrySynthesis, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Loader2 } from 'lucide-react';
 
 interface Stage5Props {

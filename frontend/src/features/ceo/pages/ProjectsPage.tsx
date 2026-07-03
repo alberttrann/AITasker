@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUpdateProjectName, useActiveElicitationSession } from "@/hooks/use-projects";
-import { ConfirmModal } from "@/components/ui/modal";
+import { ConfirmModal } from "@/components/ui/Modal";
 import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useSubscriptionStatus } from "@/hooks/use-subscription";
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
@@ -15,7 +16,9 @@ export default function ProjectsPage() {
   const deleteSession = useDeleteElicitationSession();
   const updateProjectName = useUpdateProjectName();
   const { user } = useAuth();
-  const isSubscribed = user?.subscriptionTier === 'pro';
+  
+  const { data: subStatus } = useSubscriptionStatus();
+  const isSubscribed = subStatus?.tier === 'pro';
   
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
@@ -70,7 +73,7 @@ export default function ProjectsPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/ceo')}
             className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
             aria-label="Go back"
           >

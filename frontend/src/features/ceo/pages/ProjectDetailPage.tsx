@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/ceo/projects')}
             className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
             aria-label="Go back"
           >
@@ -190,9 +190,28 @@ export default function ProjectDetailPage() {
                         </span>
                       </div>
                       <p className="text-slate-600 text-sm mb-2">{m.deliverable_statement}</p>
-                      <span className="text-xs font-medium text-slate-500 uppercase">
-                        Sign-off: {m.sign_off_authority?.replace(/_/g, ' ')}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          SIGN OFF:
+                        </span>
+                        <div className="flex gap-1.5">
+                          {(m.sign_off_authority === 'CEO' || m.sign_off_authority === 'JOINT') && (
+                            <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide">
+                              CEO
+                            </span>
+                          )}
+                          {(m.sign_off_authority === 'TECH_TEAM' || m.sign_off_authority === 'JOINT') && (
+                            <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold tracking-wide">
+                              TECH TEAM
+                            </span>
+                          )}
+                          {(m.sign_off_authority && !['CEO', 'TECH_TEAM', 'JOINT'].includes(m.sign_off_authority)) && (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold tracking-wide">
+                              {m.sign_off_authority.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -2,9 +2,9 @@ import { useReducer, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { ConfirmModal } from "@/components/ui/modal";
+import { ConfirmModal } from "@/components/ui/Modal";
 import type { VoidItem } from "@t/jsonb.types";
 import {
   createSession,

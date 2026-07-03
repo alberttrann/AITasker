@@ -1,6 +1,6 @@
 import { useReducer, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Label } from '@/components/ui/Input';
 import { submitStage3, handleElicitationError, PROBES, ARCHETYPE_LABELS, revertSession, useElicitation } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, MessageSquare } from 'lucide-react';

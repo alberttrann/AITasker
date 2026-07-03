@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
-import { Modal } from '@/components/ui/modal';
-import { CheckCircle } from 'lucide-react';
+import { useSocket } from '@/hooks/use-socket';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
+import { CheckCircle, Send } from 'lucide-react';
 
 interface MatchCardProps {
   expert: MatchResult;
+  projectId: string;
+  projectName?: string;
 }
 
 const STRENGTH_STYLES: Record<string, string> = {
@@ -16,7 +21,7 @@ const STRENGTH_STYLES: Record<string, string> = {
   WEAK_MATCH: 'bg-red-50 text-red-600',
 };
 
-export default function MatchCard({ expert }: MatchCardProps) {
+export default function MatchCard({ expert, projectId, projectName }: MatchCardProps) {
   // Fetch public profile since matching backend strips it
   const { data: profile, isLoading } = useQuery({
     queryKey: ['expertProfile', expert.expert_id],
@@ -26,7 +31,23 @@ export default function MatchCard({ expert }: MatchCardProps) {
     },
   });
 
+  const socket = useSocket();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [invited, setInvited] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown !== null && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (countdown === 0) {
+      setCountdown(null);
+      handleInvite();
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const name = isLoading ? 'Loading Expert...' : profile?.fullName || 'Expert';
   const strength = expert.strength_label || 'POSSIBLE_MATCH';
@@ -90,7 +111,7 @@ export default function MatchCard({ expert }: MatchCardProps) {
 
       <Modal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => { setIsModalOpen(false); setInviteError(null); setCountdown(null); }} 
         title="Expert Profile"
       >
         <div className="space-y-4">
@@ -110,6 +131,14 @@ export default function MatchCard({ expert }: MatchCardProps) {
               </span>
             </div>
           </div>
+
+          {/* Bio Section */}
+          {profile?.bio && (
+            <div>
+              <h4 className="text-[13px] font-semibold text-primary mb-1.5">Professional Bio</h4>
+              <p className="text-[13px] text-secondary whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+            </div>
+          )}
 
           {/* Domains Section */}
           {profile?.domainDepths && profile.domainDepths.length > 0 && (
@@ -182,8 +211,78 @@ export default function MatchCard({ expert }: MatchCardProps) {
             </div>
           )}
 
+          {/* ── Invite Button (Socket.io — NOT REST POST /bids) ── */}
+          <div className="mt-6 border-t border-slate-100 pt-4">
+            {inviteError && (
+              <p className="mb-3 text-[12px] text-[#EF4444]" role="alert">
+                {inviteError}
+              </p>
+            )}
+            {invited ? (
+              <Button variant="ghost" className="w-full cursor-default" disabled>
+                <CheckCircle size={14} className="mr-1.5" />
+                Invited ✓
+              </Button>
+            ) : (
+              <Button
+                variant={countdown !== null ? 'destructive' : 'primary'}
+                className="w-full"
+                disabled={isInviting}
+                onClick={() => {
+                  if (countdown !== null) {
+                    setCountdown(null);
+                  } else {
+                    setCountdown(5);
+                  }
+                }}
+                aria-label={countdown !== null ? 'Cancel Invite' : `Invite ${name} to bid`}
+              >
+                {isInviting ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" /> Inviting…
+                  </span>
+                ) : countdown !== null ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" /> Cancel ({countdown}s)
+                  </span>
+                ) : (
+                  <>
+                    <Send size={14} className="mr-1.5" />
+                    Invite to Bid
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </Modal>
     </>
   );
+
+  // ── Socket.io invite handler ───────────────────────────────────
+
+  async function handleInvite() {
+    if (!socket) {
+      setInviteError('Connection lost. Please refresh the page.');
+      return;
+    }
+    setIsInviting(true);
+    setInviteError(null);
+
+    try {
+      // Join the project pre-bid chat room
+      socket.emit('joinRoom', { projectId });
+      // Send invitation via the dedicated inviteExpert event
+      socket.emit('inviteExpert', {
+        expertId: expert.expert_id,
+        projectId: projectId,
+        content: `Hi ${name},\n\nI'd like to invite you to submit a bid for ${projectName || 'this project'}. Your expertise looks like a great fit for what we're building, and I'd love to see your proposal.`,
+      });
+      setInvited(true);
+    } catch {
+      setInviteError('Failed to send invitation. Please try again.');
+    } finally {
+      setIsInviting(false);
+    }
+  }
 }

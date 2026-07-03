@@ -7,6 +7,7 @@ import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock } from 
 import { DashboardBanner } from "@/components/ui/DashboardBanner";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useSubscriptionStatus } from "@/hooks/use-subscription";
 //import { getActiveSession } from "@/hooks/use-elicitation"; // <-- Import cai nay de cap nhat ne
 
 export function CeoOverview() {
@@ -34,11 +35,12 @@ export function CeoOverview() {
           .then((session) => {
             setHasActiveSession(!!session);
           })
-          .catch(() => setHasActiveSession(false));
-      }
-    }, [hasSubscription]);
-*/
-  const hasSubscription = user?.subscriptionTier === "pro";
+//        .catch(() => setHasActiveSession(false));
+//      }
+//    }, [hasSubscription]);
+//*/
+  const { data: subStatus } = useSubscriptionStatus();
+  const hasSubscription = subStatus?.tier === "pro";
 
   const getStageName = (stage: number) => {
     switch (stage) {

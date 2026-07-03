@@ -7,7 +7,7 @@ import {
   useActiveElicitationSession,
   useDeleteElicitationSession
 } from "@/hooks/use-projects";
-import { ConfirmModal } from "@/components/ui/modal";
+import { ConfirmModal } from "@/components/ui/Modal";
 import { ArrowLeft, Clock, Trash2, ArrowRight } from "lucide-react";
 
 export default function SessionsListPage() {

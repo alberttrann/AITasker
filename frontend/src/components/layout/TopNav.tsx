@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
-import { ConfirmModal, Modal } from '@/components/ui/modal';
+import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
+import { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -102,7 +103,8 @@ const RoleIcon =
   User;
 
   // 3. Subscription tier
-  const isPro = user?.subscriptionTier === 'pro';
+  const { data: subStatus } = useSubscriptionStatus();
+  const isPro = subStatus?.tier === 'pro';
   
   // Real balances via useWallet hook
   const { data: wallet } = useWallet();
@@ -236,7 +238,17 @@ const RoleIcon =
                         </div>
                       ) : (
                         notifications.map((notif) => (
-                          <div key={notif.id} onClick={() => markRead(notif.id)} className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}>
+                          <div 
+                            key={notif.id} 
+                            onClick={() => {
+                              markRead(notif.id);
+                              if (notif.link) {
+                                navigate(notif.link);
+                                setActiveDropdown(null);
+                              }
+                            }} 
+                            className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
+                          >
                             <div className="flex justify-between items-start mb-1">
                               <span className={`text-sm font-semibold ${!notif.read ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
                               {!notif.read && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}

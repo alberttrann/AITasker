@@ -5,13 +5,15 @@ import { DashboardBanner } from "@/components/ui/DashboardBanner";
 import { Sparkles, Edit3 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
+import { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export function ExpertOverview() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { profile, isLoadingProfile } = useExpertProfile();
+  const { data: subStatus } = useSubscriptionStatus();
   
-  const hasSubscription = user?.subscriptionTier === 'pro';
+  const hasSubscription = subStatus?.tier === 'pro';
   const hasClaimedProfile = profile && (profile.domainDepths?.length > 0 || profile.seamClaims?.length > 0 || profile.profile?.stackTagsJson?.length > 0);
 
   return (

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { PartyPopper, Folder, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useProject } from "@/hooks/use-projects";
 

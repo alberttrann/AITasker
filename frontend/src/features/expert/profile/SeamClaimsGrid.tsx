@@ -61,7 +61,10 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
 
   const handleSave = async () => {
     setError(null);
-    const selectedSeams = validSeams;
+    const selectedSeams = validSeams.map(vs => {
+      const existing = (initialSeams || []).find((is: any) => (is.seamCode || is.code) === vs.code);
+      return { ...existing, code: vs.code, seamCode: vs.code };
+    });
     
     if (selectedSeams.length < 2 || selectedSeams.length > 5) {
       setError('Please select between 2 and 5 seams.');

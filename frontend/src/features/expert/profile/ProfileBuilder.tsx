@@ -18,6 +18,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   const [selectedSeams, setSelectedSeams] = useState<SeamClaim[]>(() => profile?.seamClaims || []);
   const [stackTags, setStackTags] = useState<string[]>(() => profile?.profile?.stackTagsJson || []);
   const [engagementModel, setEngagementModel] = useState<string>(() => profile?.profile?.engagementModel || 'MILESTONE');
+  const [bio, setBio] = useState<string>(() => profile?.profile?.bio || '');
 
   useEffect(() => {
     if (profile) {
@@ -25,6 +26,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
       if (profile.seamClaims?.length) setSelectedSeams(profile.seamClaims);
       if (profile.profile?.stackTagsJson?.length) setStackTags(profile.profile.stackTagsJson);
       if (profile.profile?.engagementModel) setEngagementModel(profile.profile.engagementModel);
+      if (profile.profile?.bio) setBio(profile.profile.bio);
     }
   }, [profile]);
 
@@ -77,7 +79,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   const tabs = [
     { key: 'domains', label: '1. Domains', done: selectedDomains.length > 0 },
     { key: 'seams',   label: '2. Seams',   done: selectedSeams.length > 0 },
-    { key: 'tags',    label: '3. Stack & Model', done: stackTags.length > 0 },
+    { key: 'tags',    label: '3. Stack, Model & Bio', done: stackTags.length > 0 },
     { key: 'review',  label: '4. Review',  done: false },
   ];
 
@@ -152,9 +154,11 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
             <StackTagsPicker 
               initialTags={stackTags}
               initialModel={engagementModel}
-              onSave={(tags, model) => {
+              initialBio={bio}
+              onSave={(tags, model, newBio) => {
                 setStackTags(tags);
                 setEngagementModel(model);
+                setBio(newBio);
                 setActiveTab('review');
               }} 
             />
@@ -220,8 +224,17 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
               {/* Stack & Model Review */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-extrabold text-lg text-gray-900">Tech Stack & Engagement</h4>
+                  <h4 className="font-extrabold text-lg text-gray-900">Bio, Tech Stack & Engagement</h4>
                   <button onClick={() => setActiveTab('tags')} className="text-blue-600 text-sm font-semibold hover:underline">Edit</button>
+                </div>
+                
+                <div className="mb-4">
+                  <span className="text-sm font-semibold text-gray-500 block mb-2 uppercase tracking-wider">Professional Bio</span>
+                  {bio ? (
+                    <p className="text-gray-900 text-sm whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-100">{bio}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No bio provided.</p>
+                  )}
                 </div>
                 <div className="mb-4">
                   <span className="text-sm font-semibold text-gray-500 block mb-2 uppercase tracking-wider">Tech Stack</span>

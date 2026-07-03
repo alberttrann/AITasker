@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { UpdateMilestoneDoDItemDto } from './dto/update-dod-item.dto';
 import { PrismaService } from '../database/prisma.service';
-import { CreateDodItemDto } from "./dto/create-dod-item.dto";
+import { CreateDodItemDto } from './dto/create-dod-item.dto';
 
 @Injectable()
 export class DodService {
@@ -40,16 +40,18 @@ export class DodService {
     }
 
     if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note) {
-      throw new BadRequestException(`Completion note is required for required DoD items when status is not COMPLETED`);
+      throw new BadRequestException(
+        `Completion note is required for required DoD items when status is not COMPLETED`,
+      );
     }
 
     return this.prisma.milestoneDodItem.update({
       where: { id: itemId },
       data: {
         status: dto.status,
-        completionNote:    dto.status === 'COMPLETED'      ? dto.completion_note     : null,
+        completionNote: dto.status === 'COMPLETED' ? dto.completion_note : null,
         notApplicableNote: dto.status === 'NOT_APPLICABLE' ? dto.not_applicable_note : null,
-        completedAt:       dto.status === 'COMPLETED'      ? new Date()              : null,
+        completedAt: dto.status === 'COMPLETED' ? new Date() : null,
       },
     });
   }

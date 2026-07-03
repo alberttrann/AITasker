@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '@hooks/use-auth';
 import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ConfirmModal } from '@components/ui/modal';
+import { ConfirmModal } from '@components/ui/Modal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
+import { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export default function ProfilePage() {
   const { user, logout, addRole, switchRole } = useAuth();
@@ -68,7 +69,10 @@ export default function ProfilePage() {
   const displayRole = rawRole ? rawRole.replace('_', ' ').toUpperCase() : '';
 
   const isVerifiedBusiness = isClient && clientProfile?.isTaxVerified === true;
-  const isFree = user?.subscriptionTier === 'free';
+
+  const { data: subStatus } = useSubscriptionStatus();
+  const isFree = subStatus?.tier === 'free';
+  const isPro = subStatus?.tier === 'pro';
 
   const hasClient = rolesArray.some(r => r.startsWith('CLIENT'));
   const hasExpert = rolesArray.includes('EXPERT');
@@ -126,7 +130,7 @@ export default function ProfilePage() {
                 
                 {/* Badges */}
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {user?.subscriptionTier === 'pro' ? (
+                  {isPro ? (
                     <div className="relative flex items-center">
                       <button 
                         onClick={() => setShowProExpiry(!showProExpiry)}
@@ -136,9 +140,9 @@ export default function ProfilePage() {
                         <Sparkles size={12} strokeWidth={2.5} />
                         Pro Tier
                       </button>
-                      {showProExpiry && user?.subscriptionExpires && (
+                      {showProExpiry && (subStatus?.expiresAt || user?.subscriptionExpires) && (
                         <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
-                          Expires on: {new Date(user.subscriptionExpires).toLocaleDateString()}
+                          Expires on: {new Date(subStatus?.expiresAt || user?.subscriptionExpires || '').toLocaleDateString()}
                         </div>
                       )}
                     </div>
@@ -204,13 +208,15 @@ export default function ProfilePage() {
                 <span className="text-sm text-slate-900 font-medium">
                   {showEmail ? (user?.email || 'Not specified') : maskData(user?.email)}
                 </span>
-                <button 
-                  onClick={() => setShowEmail(!showEmail)}
-                  className="text-slate-400 hover:text-slate-900 transition-colors p-1"
-                  title={showEmail ? "Hide email" : "Show email"}
-                >
-                  {showEmail ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                {user?.email && (
+                  <button 
+                    onClick={() => setShowEmail(!showEmail)}
+                    className="text-slate-400 hover:text-slate-900 transition-colors p-1"
+                    title={showEmail ? "Hide email" : "Show email"}
+                  >
+                    {showEmail ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -221,14 +227,15 @@ export default function ProfilePage() {
                 <span className="text-sm text-slate-900 font-medium">
                   {showPhone ? (user?.phone || 'Not specified') : maskData(user?.phone)}
                 </span>
-                <button 
-                  onClick={() => setShowPhone(!showPhone)}
-                  disabled={!user?.phone}
-                  className="text-slate-400 hover:text-slate-900 disabled:opacity-50 disabled:hover:text-slate-400 transition-colors p-1"
-                  title={showPhone ? "Hide phone" : "Show phone"}
-                >
-                  {showPhone ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                {user?.phone && (
+                  <button 
+                    onClick={() => setShowPhone(!showPhone)}
+                    className="text-slate-400 hover:text-slate-900 transition-colors p-1"
+                    title={showPhone ? "Hide phone" : "Show phone"}
+                  >
+                    {showPhone ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
               </div>
             </div>
 

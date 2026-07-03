@@ -1,5 +1,13 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
+
+export interface SubscriptionStatus {
+  tier: 'free' | 'pro' | string;
+  isActive: boolean;
+  packageId?: string;
+  expiresAt?: string;
+  [key: string]: any;
+}
 
 export function useSubscription() {
   const queryClient = useQueryClient();
@@ -11,10 +19,22 @@ export function useSubscription() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
     },
   });
 
   return {
     activateSubscription,
   };
+}
+
+export function useSubscriptionStatus() {
+  return useQuery({
+    queryKey: ['subscriptionStatus'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<SubscriptionStatus>('/subscriptions/status');
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 }

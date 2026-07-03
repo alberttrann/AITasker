@@ -13,7 +13,7 @@ import type {
 import type {
   ArtifactA, ArtifactB, FootprintAlignment, ConditionalPricingItem,
   RequiredSeam, RequiredDomain, MilestoneFrameworkItem,
-  SubmissionFile, SeamSignal, MatchResult,
+  SubmissionFile, SeamSignal, MatchResult, VoidItem
 } from './jsonb.types';
 
 export interface AuthTokens {
@@ -344,4 +344,138 @@ export interface ApiError {
   message:    string | object;
   path:       string;
   timestamp:  string;
+}
+
+// ── Bids API DTOs (from use-bids.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new capability bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCreateBid)
+ */
+export interface CreateBidPayLoad {
+  projectId: string;
+  footprint_alignment_json: FootprintAlignment;
+  approach_summary: string;
+  conditional_pricing_json: ConditionalPricingItem[];
+}
+
+/**
+ * Data transfer object for updating an existing bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useUpdateBid)
+ */
+export interface UpdateBidDto {
+  footprint_alignment_json: FootprintAlignment;
+  approach_summary: string;
+  conditional_pricing_json: ConditionalPricingItem[];
+}
+
+/**
+ * Variables required when calling the update bid mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useUpdateBid)
+ */
+export interface UpdateBidVariables {
+  bidId: string; // param
+  body: UpdateBidDto;
+}
+
+/**
+ * Data transfer object for the technical review of a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useTechReview)
+ */
+export interface TechReviewDto {
+  action: "APPROVED" | "REVISION_REQUESTED";
+  tech_feedback?: string;
+}
+
+/**
+ * Variables required when calling the tech review mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useTechReview)
+ */
+export interface TechReviewVariables {
+  bidId: string;
+  body: TechReviewDto;
+}
+
+/**
+ * Data transfer object for the CEO's decision on a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCeoDecision)
+ */
+export interface CeoDecisionDto {
+  decision: "APPROVED" | "DECLINED";
+}
+
+/**
+ * Variables required when calling the CEO decision mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useCeoDecision)
+ */
+export interface CeoDecisionVariables {
+  bidId: string;
+  body: CeoDecisionDto;
+}
+
+/**
+ * Data transfer object for making a counter-offer on a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCounterOffer)
+ */
+export interface CounterOfferDto {
+  negotiated_price_vnd: number;
+}
+
+/**
+ * Variables required when calling the counter-offer mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useCounterOffer)
+ */
+export interface CounterOfferVariables {
+  bidId: string;
+  body: CounterOfferDto;
+}
+
+// ── Elicitation API DTOs (from use-elicitation.ts) ──────────────────────────
+
+/**
+ * Represents a successful elicitation gate passage.
+ * Used in: frontend/src/hooks/use-elicitation.ts (GateResult)
+ */
+export interface GatePassed {
+  gate_passed: true;
+  completeness_score: number;
+  project_id: string;
+}
+
+/**
+ * Represents a failed elicitation gate attempt.
+ * Used in: frontend/src/hooks/use-elicitation.ts (GateResult)
+ */
+export interface GateFailed {
+  gate_passed: false;
+  completeness_score: number;
+  flagged_void: string | null;
+  return_to_stage: number;
+  advisory_note: string;
+}
+
+/**
+ * Union type representing the result of an elicitation gate.
+ * Used in: frontend/src/hooks/use-elicitation.ts
+ */
+export type GateResult = GatePassed | GateFailed;
+
+/**
+ * Data representation of a completed elicitation stage.
+ * Used in: frontend/src/hooks/use-elicitation.ts
+ */
+export interface StageCompleteData {
+  voidListJson?: VoidItem[];
+  archetype?: string;
+  probeResponses?: Record<string, string>;
+  gateResult?: GateResult;
+  symptomText?: string;
+  acknowledgedVoidCodes?: string[];
+  techContext?: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
 }
