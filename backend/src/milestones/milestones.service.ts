@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService }      from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 
@@ -6,6 +6,18 @@ import { CreateMilestoneDto } from './dto/create-milestone.dto';
 export class MilestonesService {
   // Inject PrismaService để thao tác với các bảng dữ liệu
   constructor(private readonly prisma: PrismaService) {}
+
+  async getMilestone(id: string) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id },
+      include: { acceptanceCriteria: true },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found.');
+    }
+    return milestone;
+  }
 
   async createMilestone(dto: CreateMilestoneDto) {
     if (!dto.criteria || dto.criteria.length === 0) {

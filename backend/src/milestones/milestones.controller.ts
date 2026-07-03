@@ -1,8 +1,6 @@
-import { Controller, Post, Body, UseGuards, Put, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Put, Param } from '@nestjs/common';
 import { MilestonesService }  from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
-
-// FIX [BLOCK-1]: guards/decorators live in common/, not auth/
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard }   from '../common/guards/roles.guard';
 import { Roles }        from '../common/decorators/roles.decorator';
@@ -22,6 +20,15 @@ export class MilestonesController {
   @ApiResponse({ status: 400, description: 'Invalid input data.' })
   async createMilestone(@Body() dto: CreateMilestoneDto) {
     return this.milestonesService.createMilestone(dto);
+  }
+
+  @Get(':id')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiOperation({ summary: 'Get a milestone by id, including criteria' })
+  @ApiResponse({ status: 200, description: 'Milestone detail.' })
+  @ApiResponse({ status: 404, description: 'Milestone not found.' })
+  async getMilestone(@Param('id') id: string) {
+    return this.milestonesService.getMilestone(id);
   }
 
   @Put(':id/fund')    

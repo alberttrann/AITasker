@@ -29,9 +29,10 @@ export class DodController {
     @Roles('EXPERT')
     async updateDodStatus (
         @Param('itemId') itemId: string,
+        @Param('id') milestoneId: string,
         @Body() dto: UpdateMilestoneDoDItemDto,
     ) {
-        return this.dodService.updateDodStatus(itemId, dto);
+        return this.dodService.updateDodStatus(itemId, milestoneId, dto);
     }
 }
 
