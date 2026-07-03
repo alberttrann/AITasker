@@ -41,7 +41,7 @@ export function useExpertProfile() {
   });
 
   const saveStackAndModel = useMutation({
-    mutationFn: async (payload: { engagementModel: string; stackTagsJson: string[]; archetypeHistoryJson: any[] }) => {
+    mutationFn: async (payload: { engagementModel: string; stackTagsJson: string[]; archetypeHistoryJson: any[]; bio: string }) => {
       await apiClient.put('/expert-profile/me', payload);
     },
     onSuccess: () => {

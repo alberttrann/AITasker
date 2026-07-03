@@ -4,6 +4,7 @@ import { useAuth } from '@hooks/use-auth';
 import { Pencil, X, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { useAuthStore } from '@/store/auth.store';
+import apiClient from '@/lib/api-client';
 
 export default function ProfileSettingPage() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function ProfileSettingPage() {
     companyName: user?.activeRoleProfile?.companyName || '',
     industry: user?.activeRoleProfile?.industry || '',
     ceoName: user?.activeRoleProfile?.ceoName || '',
+    bio: user?.activeRoleProfile?.bio || '',
   });
 
   const [formValues, setFormValues] = useState({ ...originalValues });
@@ -61,6 +63,7 @@ export default function ProfileSettingPage() {
         companyName: user.activeRoleProfile?.companyName || '',
         industry: user.activeRoleProfile?.industry || '',
         ceoName: user.activeRoleProfile?.ceoName || '',
+        bio: user.activeRoleProfile?.bio || '',
       };
       setOriginalValues(newVals);
       setFormValues(newVals);
@@ -88,6 +91,10 @@ export default function ProfileSettingPage() {
         await updateProfile.mutateAsync({ companyName: newValue, taxCode: '' });
         setOriginalValues((prev) => ({ ...prev, companyName: newValue }));
         setFormValues((prev) => ({ ...prev, companyName: newValue }));
+      } else if (field === 'bio') {
+        await apiClient.put('/expert-profile/me', { bio: newValue });
+        setOriginalValues((prev) => ({ ...prev, bio: newValue }));
+        setFormValues((prev) => ({ ...prev, bio: newValue }));
       } else {
         await updateProfile.mutateAsync({ [field]: newValue });
         setOriginalValues((prev) => ({ ...prev, [field]: newValue as any }));
@@ -126,25 +133,42 @@ export default function ProfileSettingPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {isEditing ? (
               <div className="relative flex-1 w-full min-w-[200px] sm:max-w-md">
-                <input
-                  type={type}
-                  autoFocus
-                  value={tempValue}
-                  onChange={(e) => {
-                    let val = e.target.value;
-                    if (fieldKey === 'phone') {
-                      val = val.replace(/\D/g, ''); // Strip non-digits
-                      if (val.length > 10) val = val.slice(0, 10); // Cap at 10 digits
-                    }
-                    setTempValue(val);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleInlineSave(fieldKey);
-                    if (e.key === 'Escape') handleInlineCancel();
-                  }}
-                  disabled={isSavingThis}
-                  className="w-full h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10 disabled:opacity-50"
-                />
+                {type === 'textarea' ? (
+                  <textarea
+                    autoFocus
+                    value={tempValue}
+                    onChange={(e) => setTempValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleInlineSave(fieldKey);
+                      }
+                      if (e.key === 'Escape') handleInlineCancel();
+                    }}
+                    disabled={isSavingThis}
+                    className="w-full min-h-[80px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10 disabled:opacity-50 resize-y"
+                  />
+                ) : (
+                  <input
+                    type={type}
+                    autoFocus
+                    value={tempValue}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      if (fieldKey === 'phone') {
+                        val = val.replace(/\D/g, ''); // Strip non-digits
+                        if (val.length > 10) val = val.slice(0, 10); // Cap at 10 digits
+                      }
+                      setTempValue(val);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleInlineSave(fieldKey);
+                      if (e.key === 'Escape') handleInlineCancel();
+                    }}
+                    disabled={isSavingThis}
+                    className="w-full h-[42px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none transition-shadow hover:border-slate-900 focus:border-2 focus:border-slate-900 focus:ring-[3px] focus:ring-slate-900/10 disabled:opacity-50"
+                  />
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -253,6 +277,18 @@ export default function ProfileSettingPage() {
                 {renderEditableRow("Company Name", "companyName")}
                 {renderEditableRow("Industry", "industry")}
                 {renderEditableRow("CEO Name", "ceoName")}
+              </div>
+            </>
+          )}
+
+          {user?.activeRole === 'EXPERT' && (
+            <>
+              <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
+                <h2 className="text-sm font-semibold text-slate-900">Expert Information</h2>
+                <p className="text-xs text-slate-500 mt-1">Update your professional bio and details.</p>
+              </div>
+              <div className="flex flex-col">
+                {renderEditableRow("Professional Bio", "bio", "textarea")}
               </div>
             </>
           )}

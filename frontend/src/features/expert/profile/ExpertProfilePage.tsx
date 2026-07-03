@@ -44,6 +44,7 @@ export default function ExpertProfilePage() {
   const seams = profile?.seamClaims || [];
   const stackTags = profile?.profile?.stackTagsJson || [];
   const engagementModel = profile?.profile?.engagementModel || 'MILESTONE';
+  const bio = profile?.profile?.bio || '';
 
   const getDomainLabel = (code: string) => {
     const map: Record<string, string> = {
@@ -76,11 +77,13 @@ export default function ExpertProfilePage() {
   const missingDomains = domains.length === 0;
   const missingSeams = seams.length === 0;
   const missingStack = stackTags.length === 0;
+  const missingBio = !bio;
   
   const missingParts = [];
   if (missingDomains) missingParts.push('Domain Expertise');
   if (missingSeams) missingParts.push('Seam Claims');
   if (missingStack) missingParts.push('Tech Stack');
+  if (missingBio) missingParts.push('Professional Bio');
 
   return (
     <div className="w-full max-w-5xl mx-auto py-12 px-4 sm:px-6">
@@ -188,9 +191,16 @@ export default function ExpertProfilePage() {
           )}
         </div>
 
-        {/* Stack & Model Review */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col md:flex-row gap-8">
-          <div className="flex-1">
+        {/* Bio, Stack & Model Review */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col gap-6">
+          {bio && (
+            <div className="border-b border-gray-100 pb-6">
+              <span className="text-sm font-semibold text-gray-500 block mb-3 uppercase tracking-wider">Professional Bio</span>
+              <p className="text-gray-900 text-sm whitespace-pre-wrap leading-relaxed">{bio}</p>
+            </div>
+          )}
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="flex-1">
             <span className="text-sm font-semibold text-gray-500 block mb-3 uppercase tracking-wider">Tech Stack</span>
             {stackTags.length === 0 ? (
               <p className="text-sm text-gray-500 italic">No stack tags specified.</p>
@@ -208,6 +218,7 @@ export default function ExpertProfilePage() {
               {engagementModel.replace('_', ' ')}
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

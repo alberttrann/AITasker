@@ -132,6 +132,14 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             </div>
           </div>
 
+          {/* Bio Section */}
+          {profile?.bio && (
+            <div>
+              <h4 className="text-[13px] font-semibold text-primary mb-1.5">Professional Bio</h4>
+              <p className="text-[13px] text-secondary whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+            </div>
+          )}
+
           {/* Domains Section */}
           {profile?.domainDepths && profile.domainDepths.length > 0 && (
             <div>
