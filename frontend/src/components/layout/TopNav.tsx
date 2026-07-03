@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
-import { ConfirmModal, Modal } from '@/components/ui/modal';
+import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';

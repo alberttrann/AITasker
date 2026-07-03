@@ -9,7 +9,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
 import { Check, Sparkles, Zap, Shield, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 
 export default function SubscriptionActivate() {
   const navigate = useNavigate();

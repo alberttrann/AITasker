@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
 import { useSocket } from '@/hooks/use-socket';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { CheckCircle, Send } from 'lucide-react';
 

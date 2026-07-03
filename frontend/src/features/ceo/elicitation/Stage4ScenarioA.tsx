@@ -1,6 +1,6 @@
 import { useReducer, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Label } from '@/components/ui/Input';
 import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Server, X } from 'lucide-react';

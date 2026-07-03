@@ -2,10 +2,10 @@ import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { ConfirmModal } from '@/components/ui/modal';
+import { ConfirmModal } from '@/components/ui/Modal';
 import {
   AlertTriangle,
   CheckCircle2,

@@ -4,7 +4,7 @@ import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { AlertTriangle, FileText, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
 

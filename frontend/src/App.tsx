@@ -4,7 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { GuestRoute, ProtectedRoute, RoleRoute } from "@lib/route-guards";
 
 // Public pages
-import LandingPage from "@/components/pages/landingPage";
+import LandingPage from "@/components/pages/LandingPage";
 import ErrorPage from "@components/pages/ErrorPage";
 
 // Tech Team has a public registration route (no auth, link-based)

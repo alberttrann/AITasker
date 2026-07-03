@@ -5,7 +5,7 @@ import Tier2Success from './Tier2Success';
 import Tier2Rejected from './Tier2Rejected';
 import VerificationLockout from './VerificationLockout';
 import { AlertTriangle, ChevronRight, FileText, Plus, Search, Send, X, AlertCircle, Loader2, CheckSquare } from 'lucide-react';
-import { ConfirmModal } from '@/components/ui/modal';
+import { ConfirmModal } from '@/components/ui/Modal';
 import { Link } from 'react-router-dom';
 
 export default function PortfolioSubmitForm() {

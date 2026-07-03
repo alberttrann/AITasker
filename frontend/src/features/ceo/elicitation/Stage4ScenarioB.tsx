@@ -3,7 +3,7 @@ import { Loader2, Link as LinkIcon, AlertTriangle, KeyRound } from 'lucide-react
 import Stage4HandoffLink from "./Stage4HandoffLink";
 import { inviteTechTeam, getSession, revertSession, handleElicitationError, useElicitation } from "@/hooks/use-elicitation";
 import type { Stage4ScenarioBProps } from "@t/ui.types";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
 

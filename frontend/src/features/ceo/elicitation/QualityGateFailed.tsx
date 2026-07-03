@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { AlertTriangle, AlertCircle, RefreshCcw, Users, Clock } from 'lucide-react';
-import { ConfirmModal } from "@/components/ui/modal";
+import { ConfirmModal } from "@/components/ui/Modal";
 
 interface QualityGateFailedProps {
   advisoryNote: string;

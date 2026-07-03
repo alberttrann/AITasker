@@ -6,10 +6,10 @@ import { useAuthStore } from '@/store/auth.store';
 import { useProject } from '@/hooks/use-projects';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import { useBid } from '@/hooks/use-bids';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { ConfirmModal } from '@/components/ui/modal';
+import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
 import FootprintAlignment, {
