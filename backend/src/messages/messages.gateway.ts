@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { InviteExpertDto } from './dto/invite-expert.dto';
 import { JwtService } from '@nestjs/jwt';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -106,6 +107,51 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
       this.server.to(room!).emit('newMessage', savedMessage);
     } catch (err: any) {
       client.emit('error', { message: err.message || 'Failed to send message.' });
+    }
+  }
+
+  @SubscribeMessage('inviteExpert')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleInviteExpert(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() dto: InviteExpertDto,
+  ) {
+    const user = client.data.user;
+    if (!user) {
+      client.emit('error', { message: 'Unauthorized.' });
+      return;
+    }
+
+    try {
+      // 1. Verify the sender actually owns the project (prevent spoofing)
+      await this.messagesService.assertPartyToProject(dto.projectId, {
+        id: user.sub,
+        activeRole: user.activeRole,
+      });
+
+      // 2. Push a direct personal notification to the Expert's personal socket room
+      this.server.to(dto.expertId).emit('notification:generic', {
+        type: 'system',
+        title: 'Project Invitation',
+        body: 'A CEO has invited you to submit a bid for their project.',
+        // Link to the Bid Form based on the frontend App.tsx routing
+        link: `/expert/bids/${dto.projectId}`,
+      });
+
+      // 3. Create the initial system/chat message in the DB
+      const content = dto.content || `I'd like to invite you to submit a bid for this project.`;
+      const savedMessage = await this.messagesService.createMessage(
+        { id: user.sub, activeRole: user.activeRole },
+        {
+          project_id: dto.projectId,
+          content: content,
+        },
+      );
+
+      // Broadcast to the project room so the CEO sees it immediately in their chat history
+      this.server.to(dto.projectId).emit('newMessage', savedMessage);
+    } catch (err: any) {
+      client.emit('error', { message: err.message || 'Failed to send invitation.' });
     }
   }
 
