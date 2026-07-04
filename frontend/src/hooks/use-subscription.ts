@@ -32,8 +32,16 @@ export function useSubscriptionStatus() {
   return useQuery({
     queryKey: ['subscriptionStatus'],
     queryFn: async () => {
-      const { data } = await apiClient.get<SubscriptionStatus>('/subscriptions/status');
-      return data;
+      const { data } = await apiClient.get<any>('/subscriptions/status');
+      const tier = data?.subscriptionTier?.toLowerCase() || 'free';
+      const expiresAt = data?.subscriptionExpires;
+      const isActive = tier === 'pro' && !!expiresAt && new Date(expiresAt) > new Date();
+
+      return {
+        tier,
+        isActive,
+        expiresAt,
+      } as SubscriptionStatus;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

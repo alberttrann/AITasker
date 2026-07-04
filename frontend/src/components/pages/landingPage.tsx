@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import AuthModal from "@/components/auth/AuthModal";
@@ -36,6 +36,18 @@ export default function LandingPage() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  
+  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+  const sectionRef = useRef<HTMLElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!sectionRef.current) return;
+    const rect = sectionRef.current.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
 
   const handleCtaClick = () => {
     if (isAuthenticated && user) {
@@ -57,19 +69,45 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background flex flex-col font-body">
       <main className="flex-grow flex flex-col">
         {/* Hero Section */}
-        <section className="relative bg-primary text-surface overflow-hidden min-h-screen py-12 lg:py-16 flex flex-col justify-center flex-grow">
-          {/* Dot Grid Background */}
+        <section 
+          ref={sectionRef}
+          onMouseMove={handleMouseMove}
+          className="relative bg-primary text-surface overflow-hidden min-h-screen py-12 lg:py-16 flex flex-col justify-center flex-grow"
+        >
+          {/* Base Small Dot Grid */}
           <div 
             className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
             style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+          ></div>
+          
+          {/* Medium Grid (Masked by cursor proximity - transitions to Sky Blue small crosses) */}
+          <div 
+            className="absolute inset-0 z-0 opacity-60 pointer-events-none transition-opacity duration-200" 
+            style={{ 
+              backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M11 9h2v2h2v2h-2v2h-2v-2H9v-2h2V9z' fill='%2338bdf8' opacity='0.9'/%3E%3C/svg%3E\")",
+              backgroundSize: '24px 24px',
+              maskImage: `radial-gradient(circle 250px at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 100%)`,
+              WebkitMaskImage: `radial-gradient(circle 250px at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 100%)`
+            }}
+          ></div>
+
+          {/* Large Grid (Masked tightly by cursor proximity - transitions to vibrant Blue large crosses) */}
+          <div 
+            className="absolute inset-0 z-0 opacity-80 pointer-events-none transition-opacity duration-200" 
+            style={{ 
+              backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M11 7h2v4h4v2h-4v4h-2v-4H7v-2h4V7z' fill='%2360a5fa'/%3E%3C/svg%3E\")",
+              backgroundSize: '24px 24px',
+              maskImage: `radial-gradient(circle 120px at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 100%)`,
+              WebkitMaskImage: `radial-gradient(circle 120px at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 100%)`
+            }}
           ></div>
 
           {/* Background decorative elements */}
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-accent rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
           <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
 
-          <div className="relative max-w-7xl mx-auto px-6 lg:px-8 text-center md:text-left flex flex-col md:flex-row items-center gap-12">
-            <div className="flex-1 space-y-8">
+          <div className="relative max-w-7xl mx-auto px-6 lg:px-8 text-center md:text-left flex flex-col md:flex-row items-center gap-12 pointer-events-none">
+            <div className="flex-1 space-y-8 pointer-events-auto">
               <h1 className="text-6xl md:text-6xl lg:text-7xl font-headline font-bold leading-tight tracking-tight text-white">
                 Find the right freelance <br />
                 <span className="text-accent">AI expert</span>, right away.
@@ -97,7 +135,7 @@ export default function LandingPage() {
             </div>
             
             {/* Right side colorful abstract graphic */}
-            <div className="hidden lg:block flex-1 relative min-h-[500px] mt-16">
+            <div className="hidden lg:block flex-1 relative min-h-[500px] mt-16 pointer-events-auto">
               {/* Glowing background blobs */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-accent/30 rounded-full blur-[80px] animate-pulse"></div>
               <div className="absolute top-[20%] right-[10%] w-56 h-56 bg-purple-500/30 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: '1s' }}></div>

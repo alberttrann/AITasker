@@ -9,11 +9,24 @@ import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
 import { CheckCircle2, XCircle, Loader2, Target, Settings, Search, Eye, EyeOff, X } from 'lucide-react';
 
+const passwordRules = [
+  { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { id: 'lower', label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+  { id: 'upper', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { id: 'num', label: 'One number', test: (p: string) => /[0-9]/.test(p) },
+  { id: 'special', label: 'One special character', test: (p: string) => /[^a-zA-Z0-9]/.test(p) },
+];
+
 // ── Validation Schemas ───────────────────────────────────────────────────────
 const loginSchema = Yup.object({
   email: Yup.string()
-    .email('Please enter a valid email address.')
-    .required('Email is required.'),
+    .trim()
+    .max(254, "Email is too long")
+    .matches(
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+      "Enter a valid email address"
+    )
+    .required("Email is required"),
   password: Yup.string()
     .min(5, 'Password must be at least 5 characters.')
     .required('Password is required.'),
@@ -24,11 +37,18 @@ const registerSchema = Yup.object({
     .min(2, 'Full name must be at least 2 characters.')
     .required('Full name is required.'),
   email: Yup.string()
-    .email('Please enter a valid email address.')
-    .required('Email is required.'),
+    .trim()
+    .max(254, "Email is too long")
+    .matches(
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+      "Enter a valid email address"
+    )
+    .required("Email is required"),
   password: Yup.string()
-    .min(6, 'Password must be at least 6 characters.')
-    .required('Password is required.'),
+    .required('Password is required.')
+    .test('strong-password', 'Please satisfy all password rules.', value => {
+      return passwordRules.every(r => r.test(value || ''));
+    }),
   phone: Yup.string()
     .matches(/^[0-9+\-\s()]*$/, 'Please enter a valid phone number.')
     .nullable(),
@@ -185,14 +205,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                 <div>
                   <Label htmlFor="email">Email address</Label>
                   <Field name="email">
-                    {({ field, meta }: any) => (
+                    {({ field, meta, form }: any) => (
                       <Input
                         {...field}
                         id="email"
                         type="email"
                         placeholder="you@example.com"
                         disabled={login.isPending}
-                        onFocus={() => login.isError && login.reset()}
+                        onFocus={() => {
+                          if (login.isError) login.reset();
+                          form.setFieldTouched(field.name, false);
+                        }}
                         error={meta.touched && !!meta.error}
                       />
                     )}
@@ -203,7 +226,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                 <div>
                   <Label htmlFor="password">Password</Label>
                   <Field name="password">
-                    {({ field, meta }: any) => (
+                    {({ field, meta, form }: any) => (
                       <div className="relative">
                         <Input
                           {...field}
@@ -211,7 +234,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
                           disabled={login.isPending}
-                          onFocus={() => login.isError && login.reset()}
+                          onFocus={() => {
+                            if (login.isError) login.reset();
+                            form.setFieldTouched(field.name, false);
+                          }}
                           error={meta.touched && !!meta.error}
                           className="pr-10"
                         />
@@ -284,14 +310,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     <div>
                       <Label htmlFor="fullName">Full name</Label>
                     <Field name="fullName">
-                      {({ field, meta }: any) => (
+                      {({ field, meta, form }: any) => (
                         <Input
                           {...field}
                           id="fullname"
                           type="text"
                           placeholder="Jane Doe"
                           disabled={register.isPending}
-                          onFocus={() => register.isError && register.reset()}
+                          onFocus={() => {
+                            if (register.isError) register.reset();
+                            form.setFieldTouched(field.name, false);
+                          }}
                           error={meta.touched && !!meta.error}
                         />
                       )}
@@ -302,14 +331,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <div>
                     <Label htmlFor="email">Email address</Label>
                     <Field name="email">
-                      {({ field, meta }: any) => (
+                      {({ field, meta, form }: any) => (
                         <Input
                           {...field}
                           id="email"
                           type="email"
                           placeholder="you@example.com"
                           disabled={register.isPending}
-                          onFocus={() => register.isError && register.reset()}
+                          onFocus={() => {
+                            if (register.isError) register.reset();
+                            form.setFieldTouched(field.name, false);
+                          }}
                           error={meta.touched && !!meta.error}
                         />
                       )}
@@ -320,34 +352,61 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <div>
                     <Label htmlFor="password">Password</Label>
                     <Field name="password">
-                      {({ field, meta }: any) => (
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            disabled={register.isPending}
-                            onFocus={() => register.isError && register.reset()}
-                            error={meta.touched && !!meta.error}
-                            className="pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-5 w-5" />
+                      {({ field, meta, form }: any) => (
+                        <>
+                          <div className="relative">
+                            <Input
+                              {...field}
+                              id="password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="••••••••"
+                              disabled={register.isPending}
+                              onFocus={() => {
+                                if (register.isError) register.reset();
+                                form.setFieldTouched(field.name, false);
+                              }}
+                              error={meta.touched && !!meta.error}
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-5 w-5" />
+                              ) : (
+                                <Eye className="h-5 w-5" />
+                              )}
+                            </button>
+                          </div>
+                          {meta.touched && !!meta.error && (
+                            !field.value ? (
+                              <div className="mt-1 text-xs font-semibold text-error text-red-600">{meta.error}</div>
                             ) : (
-                              <Eye className="h-5 w-5" />
-                            )}
-                          </button>
-                        </div>
+                              <div className="mt-2 grid grid-cols-1 gap-1.5 px-1">
+                                {passwordRules.map(rule => {
+                                  const passed = rule.test(field.value || '');
+                                  return (
+                                    <div key={rule.id} className="flex items-center gap-2 text-xs">
+                                      {passed ? (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                      ) : (
+                                        <XCircle className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                                      )}
+                                      <span className={`font-medium ${passed ? "text-emerald-700" : "text-slate-500"}`}>
+                                        {rule.label}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )
+                          )}
+                        </>
                       )}
                     </Field>
-                    <ErrorMessage name="password" component="p" className="mt-1 text-xs font-semibold text-error" />
                   </div>
 
                   <div>
@@ -355,14 +414,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       Phone number <span className="text-on-surface-variant font-normal">(optional)</span>
                     </Label>
                     <Field name="phone">
-                      {({ field, meta }: any) => (
+                      {({ field, meta, form }: any) => (
                         <Input
                           {...field}
                           id="phone"
                           type="tel"
                           placeholder="+1 (555) 000-0000"
                           disabled={register.isPending}
-                          onFocus={() => register.isError && register.reset()}
+                          onFocus={() => {
+                            if (register.isError) register.reset();
+                            form.setFieldTouched(field.name, false);
+                          }}
                           error={meta.touched && !!meta.error}
                         />
                       )}
