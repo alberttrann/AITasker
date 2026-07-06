@@ -176,6 +176,7 @@ const RoleIcon =
             // ── Authenticated State ──
             <>
               {/* Wallet Menu */}
+              {rawRole !== 'TECH_TEAM' && (
               <div className="relative">
                 <button
                   aria-label="Wallet"
@@ -210,6 +211,7 @@ const RoleIcon =
                   </div>
                 )}
               </div>
+              )}
 
               {/* Notification Bell */}
               <div className="relative">
@@ -225,9 +227,9 @@ const RoleIcon =
                 </button>
 
                 {activeDropdown === 'notifications' && (
-                  <div className="absolute right-0 top-full mt-3 w-80 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                  <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                      <span className="font-semibold text-primary">Notifications</span>
+                      <span className="font-semibold text-primary">Notifications {unreadNotifications > 0 ? `(${unreadNotifications})` : ''}</span>
                       {unreadNotifications > 0 && (
                         <button onClick={() => markAllRead()} className="text-xs text-primary hover:text-primary-dark transition-colors font-medium">Mark all read</button>
                       )}
@@ -279,9 +281,9 @@ const RoleIcon =
                 </button>
 
                 {activeDropdown === 'messages' && (
-                  <div className="absolute right-0 top-full mt-3 w-80 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                  <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                      <span className="font-semibold text-primary">Inbox</span>
+                      <span className="font-semibold text-primary">Inbox {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
                     </div>
                     <div className="max-h-80 overflow-y-auto bg-white">
                       <div className="p-8 flex flex-col items-center justify-center text-slate-400">
@@ -306,6 +308,7 @@ const RoleIcon =
                       {initial}
                     </div>
                     {/* Overlapping Tier Badge */}
+                    {rawRole !== 'TECH_TEAM' && (
                     <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[9px] font-headline font-extrabold tracking-wider rounded-full border-2 border-surface shadow-sm whitespace-nowrap pointer-events-none ${
                       isPro
                         ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
@@ -313,6 +316,7 @@ const RoleIcon =
                     }`}>
                       {isPro ? 'PRO' : 'FREE'}
                     </div>
+                    )}
                   </div>
                   <div className="hidden lg:flex flex-col justify-center items-start text-left">
                     <span className="text-base font-bold text-primary-dark group-hover:text-primary leading-none">
@@ -370,11 +374,11 @@ const RoleIcon =
                     )}
 
                     {/* Divider for Promoted Actions */}
-                    {(!(hasClient && hasExpert) || !isPro) && (
+                    {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && (
                       <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     )}
 
-                    {!(hasClient && hasExpert) && (
+                    {!(hasClient && hasExpert) && rawRole !== 'TECH_TEAM' && (
                       <button
                         onClick={() => {
                           setActiveDropdown(null);
@@ -430,9 +434,11 @@ const RoleIcon =
             </>
           ) : (
             <>
+              {rawRole !== 'TECH_TEAM' && (
               <Link to={`${dashboardRoute}/wallet`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <Wallet size={20} className="text-slate-500" /> Wallet <span className="ml-auto font-bold">{formatVND(availableBalance)}</span>
               </Link>
+              )}
               <Link to={`${dashboardRoute}/notifications`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-slate-500" /> Notifications
@@ -536,16 +542,18 @@ const RoleIcon =
                 )}
               </Link>
             )}
-            <Link 
-              to={`${dashboardRoute}/subscription`} 
-              className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/subscription') ? 'text-primary' : 'text-secondary hover:text-primary'} flex items-center gap-1.5`}
-            >
-              Subscription
-              {!isPro && <Sparkles size={14} className="text-blue-500 mb-0.5" />}
-              {location.pathname.includes('/subscription') && (
-                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-              )}
-            </Link>
+            {rawRole !== 'TECH_TEAM' && (
+              <Link 
+                to={`${dashboardRoute}/subscription`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/subscription') ? 'text-primary' : 'text-secondary hover:text-primary'} flex items-center gap-1.5`}
+              >
+                Subscription
+                {!isPro && <Sparkles size={14} className="text-blue-500 mb-0.5" />}
+                {location.pathname.includes('/subscription') && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                )}
+              </Link>
+            )}
           </div>
         </div>
       )}

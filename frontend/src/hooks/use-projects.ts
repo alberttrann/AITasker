@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import type { ProjectDto, ElicitationSessionDto, PaginatedResponse } from '@/types/api.types';
 import type { ArtifactA, ArtifactB } from '@/types/jsonb.types';
-export function useProjects() {
+export function useProjects(slim: boolean = false) {
   const projectsQuery = useQuery({
-    queryKey: ['projects'],
+    queryKey: ['projects', { slim }],
     queryFn: async () => {
-      const res = await apiClient.get<PaginatedResponse<ProjectDto>>('/projects');
+      const url = slim ? '/projects?slim=true' : '/projects';
+      const res = await apiClient.get<PaginatedResponse<ProjectDto>>(url);
       return res.data;
     },
   });

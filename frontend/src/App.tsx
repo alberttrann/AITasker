@@ -115,6 +115,9 @@ const router = createBrowserRouter(
           {/* /tech-team/* — scoped to one linked project forever */}
           <Route path="/tech-team" element={<TechTeamDashboard />}>
             <Route index element={<TechTeamOverview />} />
+            <Route path="projects/:id" element={<ProjectDetailPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="submitted" element={<Stage4Submitted />} />
           </Route>
           <Route path="bids" element={<BidReviewList />} />
