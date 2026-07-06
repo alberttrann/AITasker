@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import AuthModal from "@/components/auth/AuthModal";
 import { ArrowRight } from "lucide-react";
+import { LiveClock } from '@/components/ui/LiveClock';
 
 export default function LandingPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -45,7 +46,7 @@ export default function LandingPage() {
     
     // Config for blobling sharp mask
     const RADIUS = 150; 
-    const TRAIL_LIFE_DECAY = 0.1;
+    const TRAIL_LIFE_DECAY = 0.2;
     
     interface Point {
       x: number;
@@ -215,7 +216,7 @@ export default function LandingPage() {
     const isButtonsOnly = renderMode === 'buttonsOnly';
     
     return (
-      <section className={`absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-6 lg:px-12 py-24 text-center ${isButtonsOnly ? 'bg-transparent pointer-events-none' : (isBusiness ? 'bg-primary' : 'bg-slate-100')}`}>
+      <section className={`absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-6 lg:px-12 py-24 text-center ${isButtonsOnly ? 'bg-transparent pointer-events-none' : (isBusiness ? 'bg-primary' : 'bg-[#EFEBE3]')}`}>
         
         {/* Background Elements */}
         {!isButtonsOnly && (
@@ -235,7 +236,7 @@ export default function LandingPage() {
             </div>
             
             <div 
-              className={`absolute inset-[-100px] -z-10 pointer-events-none backdrop-blur-md rounded-full ${isBusiness ? 'bg-primary/10' : 'bg-white/40'}`} 
+              className={`absolute inset-[-100px] -z-10 pointer-events-none backdrop-blur-md rounded-full ${isBusiness ? 'bg-primary/10' : 'bg-white/20'}`} 
               style={{ 
                 maskImage: 'radial-gradient(circle at center, black 40%, transparent 70%)', 
                 WebkitMaskImage: 'radial-gradient(circle at center, black 40%, transparent 70%)' 
@@ -246,9 +247,9 @@ export default function LandingPage() {
 
         <div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center w-full">
           
-          <div className={`w-16 h-[3px] mb-10 rounded-full transition-colors ${isButtonsOnly ? 'opacity-0' : (isBusiness ? 'bg-tertiary shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]')}`}></div>
+          <LiveClock className={`mb-8 justify-center transition-colors ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-slate-400' : 'text-stone-500')}`} />
           
-          <h1 className={`text-display text-[56px] md:text-[72px] leading-[1.1] mb-8 ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-white' : 'text-slate-900')}`}>
+          <h1 className={`text-display text-[56px] md:text-[72px] leading-[1.1] mb-8 ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-white' : 'text-stone-900')}`}>
             {isBusiness ? (
               <>Find the right freelance <br />
                 <span 
@@ -264,7 +265,7 @@ export default function LandingPage() {
             ) : (
               <>Find the right innovative <br />
                 <span 
-                  className={`inline-block cursor-pointer transition-all duration-200 relative z-20 ${isHoveringHeading ? 'scale-[1.03] -translate-y-1 text-blue-500 drop-shadow-[0_0_10px_rgba(37,99,235,0.4)]' : 'text-blue-600'}`}
+                  className={`inline-block cursor-pointer transition-all duration-200 relative z-20 ${isHoveringHeading ? 'scale-[1.03] -translate-y-1 text-blue-600 drop-shadow-[0_0_10px_rgba(37,99,235,0.3)]' : 'text-blue-700'}`}
                   onClick={isMasked || isButtonsOnly ? undefined : handleToggleClick}
                   onMouseEnter={isMasked || isButtonsOnly ? undefined : () => setIsHoveringHeading(true)}
                   onMouseLeave={isMasked || isButtonsOnly ? undefined : () => setIsHoveringHeading(false)}
@@ -276,10 +277,10 @@ export default function LandingPage() {
             )}
           </h1>
           
-          <p className={`text-body-lg mt-2 max-w-2xl text-[18px] md:text-[22px] leading-relaxed ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-slate-300' : 'text-slate-600')}`}>
+          <p className={`text-body-lg mt-2 max-w-2xl text-[18px] md:text-[22px] leading-relaxed ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-slate-300' : 'text-stone-600')}`}>
             {isBusiness 
-              ? 'Connect with highly-vetted AI engineers capable of building end-to-end LLM applications, predictive models, and sophisticated RAG pipelines.'
-              : 'Connect with top-tier companies looking to leverage your expertise in building end-to-end LLM applications, predictive models, and RAG pipelines.'}
+              ? 'Skip the keyword search. We intelligently match you with verified AI professionals who have the precise skills needed to build and scale your AI systems.'
+              : 'Skip the resume filters. We connect your proven expertise with top-tier companies looking to build serious, production-ready AI applications.'}
           </p>
           
           <div 
@@ -296,7 +297,7 @@ export default function LandingPage() {
             {!isAuthenticated && (
               <button 
                 onClick={() => { setAuthMode('signin'); setIsAuthModalOpen(true); }}
-                className={`${isBusiness ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'} font-headline font-semibold px-8 py-4 text-[18px] transition-colors`}
+                className={`${isBusiness ? 'text-slate-300 hover:text-white' : 'text-stone-500 hover:text-stone-900'} font-headline font-semibold px-8 py-4 text-[18px] transition-colors`}
               >
                 Already have an account?
               </button>
@@ -305,7 +306,7 @@ export default function LandingPage() {
         </div>
         
         {!isButtonsOnly && (
-          <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-sm font-medium z-10 whitespace-nowrap ${isBusiness ? 'text-slate-500' : 'text-slate-400'}`}>
+          <div className={`absolute bottom-8 left-6 lg:left-12 text-sm font-medium z-10 whitespace-nowrap ${isBusiness ? 'text-slate-500' : 'text-stone-400'}`}>
             &copy; 2026 AITasker. All rights reserved.
           </div>
         )}
