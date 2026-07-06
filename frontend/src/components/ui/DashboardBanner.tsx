@@ -60,68 +60,52 @@ export function DashboardBanner({
     );
   }
 
-  // Legacy Emerald / Blue Subscription Banner style
-  const orbsClass = isEmerald
-    ? "bg-emerald-500/20"
-    : "bg-blue-500/20";
-  const orb2Class = isEmerald
-    ? "bg-teal-400/10"
-    : "bg-indigo-400/10";
-  const orb3Class = isEmerald
-    ? "bg-emerald-600/20"
-    : "bg-blue-600/20";
-
-  const iconBgClass = isEmerald
-    ? "bg-emerald-500/20 border-emerald-500/30"
-    : "bg-blue-500/20 border-blue-500/30";
-
+  // Enhanced Premium Theme
+  const orbsClass = isEmerald ? "bg-emerald-500/20" : "bg-blue-500/20";
+  const orb2Class = isEmerald ? "bg-teal-400/10" : "bg-indigo-400/10";
+  const orb3Class = isEmerald ? "bg-emerald-600/20" : "bg-blue-600/20";
+  
+  const iconBgClass = isEmerald ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-blue-500/20 text-blue-400 border-blue-500/30";
   const buttonClass = isEmerald
-    ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20 hover:bg-emerald-400 hover:shadow-emerald-500/30 focus:ring-emerald-500/30"
-    : "bg-blue-500 text-white shadow-blue-500/20 hover:bg-blue-400 hover:shadow-blue-500/30 focus:ring-blue-500/30";
-
-  const containerClass = `relative overflow-hidden rounded-2xl bg-slate-900 p-8 shadow-xl border border-slate-800 flex flex-col justify-center ${className}`;
+    ? "bg-emerald-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 focus:ring-emerald-500/30"
+    : "bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:bg-blue-400 focus:ring-blue-500/30";
 
   return (
-    <div className={containerClass}>
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Glowing orbs */}
+    <div className={`relative overflow-hidden rounded-[16px] bg-primary-dark p-6 sm:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] ${className}`}>
+      {/* Background Orbs & Grid */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className={`absolute -right-20 -top-32 h-96 w-96 rounded-full blur-[80px] ${orbsClass}`} />
         <div className={`absolute top-1/2 left-1/4 h-64 w-64 -translate-y-1/2 rounded-full blur-[60px] ${orb2Class}`} />
         <div className={`absolute -bottom-24 -left-20 h-80 w-80 rounded-full blur-[80px] ${orb3Class}`} />
-
-        {/* Dot grid pattern */}
-        <svg className="absolute inset-0 h-full w-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id={`banner-grid-${theme}`} width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.5" fill="currentColor" className="text-white" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#banner-grid-${theme})`} />
-        </svg>
+        <div 
+          className="absolute inset-0 z-0 opacity-20" 
+          style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px)', backgroundSize: '16px 16px' }}
+        ></div>
       </div>
 
-      <div className="relative z-10 w-full flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex-1 min-w-0 text-white sm:pr-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${iconBgClass}`}>
-              {icon}
-            </div>
-            <h3 className="font-headline text-2xl font-bold tracking-tight text-white">
-              {title}
-            </h3>
-          </div>
-          <div className="text-[15px] font-medium leading-relaxed text-slate-300">
+      <div className="relative z-10 flex-1 min-w-0 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[12px] border backdrop-blur-md shadow-lg ${iconBgClass}`}>
+          {icon}
+        </div>
+        <div>
+          {topLabel && (
+            <span className="eyebrow mb-1.5 block text-slate-300 opacity-80">{topLabel}</span>
+          )}
+          <h3 className="font-headline text-[20px] font-bold text-white mb-1.5 tracking-tight">
+            {title}
+          </h3>
+          <div className="text-[14px] text-slate-300 leading-relaxed font-medium">
             {description}
           </div>
         </div>
-        <div>
-          <button
-            onClick={onButtonClick}
-            className={`shrink-0 whitespace-nowrap rounded-xl px-7 py-3 font-bold shadow-lg transition-all focus:outline-none focus:ring-4 active:scale-95 ${buttonClass}`}
-          >
-            {buttonText}
-          </button>
-        </div>
+      </div>
+      <div className="relative z-10 shrink-0 mt-4 sm:mt-0">
+        <button
+          onClick={onButtonClick}
+          className={`whitespace-nowrap rounded-[8px] px-6 py-2.5 text-sm font-bold transition-all focus:outline-none focus:ring-2 active:scale-95 ${buttonClass}`}
+        >
+          {buttonText}
+        </button>
       </div>
     </div>
   );

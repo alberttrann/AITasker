@@ -62,7 +62,7 @@ export default function ProjectsPage() {
   };
 
   const handleStartNewProject = () => {
-    navigate("/ceo/elicitation");
+    navigate("/ceo/projects/elicitation");
   };
 
   return (
@@ -83,7 +83,7 @@ export default function ProjectsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/ceo/session-history')}
+            onClick={() => navigate('/ceo/projects/session-history')}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-lg transition-colors shrink-0"
           >
             <History className="w-4 h-4" />
@@ -137,7 +137,7 @@ export default function ProjectsPage() {
                   </button>
                   <button
                     onClick={() => {
-                      navigate("/ceo/elicitation");
+                      navigate("/ceo/projects/elicitation");
                     }}
                     className="flex items-center justify-center gap-2 px-7 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10"
                   >
@@ -284,7 +284,7 @@ export default function ProjectsPage() {
               </div>
               <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
                 <Link
-                  to={`/ceo/shortlist/${project.id}`}
+                  to={`/ceo/projects/shortlist/${project.id}`}
                   className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 hover:text-blue-900 transition-colors border border-blue-200"
                 >
                   View Matched Experts <ArrowRight className="w-4 h-4" />

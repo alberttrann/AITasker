@@ -94,73 +94,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
 
-      <div className="relative w-full max-w-[448px] md:max-w-[800px] lg:max-w-[900px] bg-surface rounded-xl border border-outline-variant shadow-xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden max-h-[90vh] flex flex-col md:flex-row">
+      <div className="relative w-full max-w-[448px] bg-surface rounded-xl border border-slate-200 shadow-xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden max-h-[90vh] flex flex-col precision-line-top">
 
-        {/* Left Side: Image Container / Graphic */}
-        <div className="hidden md:flex md:w-5/12 bg-primary relative overflow-hidden flex-col items-center justify-center p-8 border-r border-slate-800">
-          {/* Dot Grid Background */}
-          <div 
-            className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
-            style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
-          ></div>
-          
-          {/* Background decorative elements */}
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-accent rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
-          
-          <div className="relative w-full max-w-[280px] aspect-[4/5] mt-8 flex items-center justify-center">
-            {/* Main Match Card */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full bg-surface/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl z-20 hover:scale-105 transition-transform duration-500">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-accent to-emerald-400 p-[2px] shadow-accent-glow">
-                  <div className="w-full h-full bg-primary-dark rounded-xl flex items-center justify-center">
-                    <Target className="w-6 h-6 text-accent" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-white font-headline text-base font-bold">AITasker</h4>
-                  <p className="text-accent text-xs font-mono mt-0.5">Automated Quality</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-xs text-slate-400 mb-1 font-medium">
-                    <span>Vetted Experts</span>
-                    <span className="text-white">100%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-accent w-full rounded-full"></div></div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs text-slate-400 mb-1 font-medium">
-                    <span>Escrow Protection</span>
-                    <span className="text-white">Active</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-blue-400 w-full rounded-full"></div></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Floating Tech Pill 1 */}
-            <div className="absolute top-[10%] left-[-10%] bg-surface/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2.5 flex items-center gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transform -rotate-6 hover:rotate-0 hover:scale-105 transition-transform z-10">
-               <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center">
-                 <Settings className="w-3 h-3 text-purple-400" />
-               </div>
-               <span className="text-white text-xs font-headline font-bold">Smart Match</span>
-            </div>
-
-            {/* Floating Tech Pill 2 */}
-            <div className="absolute bottom-[10%] right-[-10%] bg-surface/10 backdrop-blur-md border border-white/10 rounded-full px-4 py-2.5 flex items-center gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transform rotate-3 hover:rotate-0 hover:scale-105 transition-transform z-30">
-               <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
-                 <Search className="w-3 h-3 text-blue-400" />
-               </div>
-               <span className="text-white text-xs font-headline font-bold">Expert AI</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Form Area */}
-        <div className="w-full md:w-7/12 p-6 sm:p-10 overflow-y-auto relative">
+        {/* Form Area */}
+        <div className="w-full p-6 sm:p-10 overflow-y-auto relative">
 
           {/* Close Button */}
           <button
@@ -381,29 +318,22 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                               )}
                             </button>
                           </div>
-                          {meta.touched && !!meta.error && (
-                            !field.value ? (
-                              <div className="mt-1 text-xs font-semibold text-error text-red-600">{meta.error}</div>
-                            ) : (
+                          {((meta.touched && !!meta.error && !field.value) ? (
+                            <div className="mt-1 text-xs font-semibold text-error text-red-600">{meta.error}</div>
+                          ) : (
+                            field.value && !!meta.error ? (
                               <div className="mt-2 grid grid-cols-1 gap-1.5 px-1">
-                                {passwordRules.map(rule => {
-                                  const passed = rule.test(field.value || '');
-                                  return (
-                                    <div key={rule.id} className="flex items-center gap-2 text-xs">
-                                      {passed ? (
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                      ) : (
-                                        <XCircle className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                                      )}
-                                      <span className={`font-medium ${passed ? "text-emerald-700" : "text-slate-500"}`}>
-                                        {rule.label}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
+                                {passwordRules.filter(rule => !rule.test(field.value || '')).map(rule => (
+                                  <div key={rule.id} className="flex items-center gap-2 text-xs text-slate-500">
+                                    <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="font-medium">
+                                      {rule.label}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
-                            )
-                          )}
+                            ) : null
+                          ))}
                         </>
                       )}
                     </Field>
@@ -453,7 +383,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   >
                     {register.isPending ? 'Creating account...' : (
                       <span className="flex items-center justify-center">
-                        Sign up as <span className="text-accent font-extrabold ml-1.5 uppercase tracking-wide">{values.role === 'EXPERT' ? 'Expert' : 'Client'}</span>
+                        Sign up as <span className={`font-extrabold ml-1.5 uppercase tracking-wide ${values.role === 'EXPERT' ? 'text-emerald-300' : 'text-blue-300'}`}>{values.role === 'EXPERT' ? 'Expert' : 'Client'}</span>
                       </span>
                     )}
                   </Button>

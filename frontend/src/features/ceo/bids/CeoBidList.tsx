@@ -106,7 +106,7 @@ export default function CeoBidList() {
           <Button
             variant="secondary"
             className="mt-4"
-            onClick={() => navigate(`/ceo/projects/${projectId}/shortlist`)}
+            onClick={() => navigate(`/ceo/projects/shortlist/${projectId}`)}
           >
             View Shortlist
           </Button>

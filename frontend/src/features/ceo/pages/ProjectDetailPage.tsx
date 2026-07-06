@@ -156,7 +156,7 @@ export default function ProjectDetailPage() {
           </div>
           <div className="shrink-0 flex items-start">
             <Link
-              to={`/ceo/shortlist/${project.id}`}
+              to={`/ceo/projects/shortlist/${project.id}`}
               className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
             >
               View Matched Experts <ArrowRight className="w-4 h-4" />

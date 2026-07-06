@@ -38,7 +38,7 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
     if (session && !initialized) {
       if (session.archetype) setSelected(session.archetype);
       if (session.voidListJson) {
-        const ack = session.voidListJson.filter((v: any) => v.injected).map((v: any) => v.void_code);
+        const ack = session.voidListJson.map((v: any) => v.void_code);
         setAcknowledged(new Set(ack));
       }
       setInitialized(true);

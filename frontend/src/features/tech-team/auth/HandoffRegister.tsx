@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Input';
-import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
@@ -59,6 +59,7 @@ export function HandoffRegister() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -249,7 +250,7 @@ export function HandoffRegister() {
                   }
                 }}
               >
-                {({ isSubmitting }) => (
+                {({ isSubmitting, resetForm }) => (
                   <Form className="space-y-4" noValidate>
                     <div className="space-y-2 text-left">
                       <Label htmlFor="email">Email</Label>
@@ -293,38 +294,47 @@ export function HandoffRegister() {
                       <Field name="password">
                         {({ field, meta, form }: any) => (
                           <>
+                          <div className="relative">
                             <input
                               {...field}
                               id="password"
-                              type="password"
+                              type={showPassword ? "text" : "password"}
                               placeholder={isLoginMode ? 'Enter your password' : 'Create a password'}
                               onFocus={() => {
                                 setError(null);
                                 form.setFieldTouched(field.name, false);
                               }}
-                              className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
+                              className={`w-full rounded-lg border bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
                             />
-                            {!isLoginMode && meta.touched && !!meta.error && (
-                              !field.value ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-5 w-5" />
+                              ) : (
+                                <Eye className="h-5 w-5" />
+                              )}
+                            </button>
+                          </div>
+                            {!isLoginMode && (
+                              (meta.touched && !!meta.error && !field.value) ? (
                                 <div className="mt-1 text-xs font-semibold text-error text-red-600">{meta.error}</div>
                               ) : (
-                                <div className="mt-2 grid grid-cols-1 gap-1.5 px-1">
-                                  {passwordRules.map(rule => {
-                                    const passed = rule.test(field.value || '');
-                                    return (
-                                      <div key={rule.id} className="flex items-center gap-2 text-xs">
-                                        {passed ? (
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                        ) : (
-                                          <XCircle className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                                        )}
-                                        <span className={`font-medium ${passed ? "text-emerald-700" : "text-slate-500"}`}>
+                                field.value && !!meta.error ? (
+                                  <div className="mt-2 grid grid-cols-1 gap-1.5 px-1">
+                                    {passwordRules.filter(rule => !rule.test(field.value || '')).map(rule => (
+                                      <div key={rule.id} className="flex items-center gap-2 text-xs text-slate-500">
+                                        <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                        <span className="font-medium">
                                           {rule.label}
                                         </span>
                                       </div>
-                                    );
-                                  })}
-                                </div>
+                                    ))}
+                                  </div>
+                                ) : null
                               )
                             )}
                             {isLoginMode && (
@@ -378,6 +388,7 @@ export function HandoffRegister() {
                         onClick={() => {
                           setIsLoginMode(!isLoginMode);
                           setError(null);
+                          resetForm();
                         }}
                         className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                       >

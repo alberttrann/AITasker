@@ -1,4 +1,6 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet } from "react-router-dom";
+import { AuthProvider } from '@lib/auth-context';
+import { SocketProvider } from '@lib/socket-provider';
 
 // Guards
 import { GuestRoute, ProtectedRoute, RoleRoute } from "@lib/route-guards";
@@ -42,9 +44,19 @@ import BidForm from "@features/expert/bidding/BidForm";
 import BidReviewList from "@features/tech-team/bids/BidReviewList";
 import BidReviewDetail from "@features/tech-team/bids/BidReviewDetail";
 
-export default function App() {
+function RootLayout() {
   return (
-    <Routes>
+    <AuthProvider>
+      <SocketProvider>
+        <Outlet />
+      </SocketProvider>
+    </AuthProvider>
+  );
+}
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<RootLayout />}>
       {/* ── Public ─────────────────────────────────────────────────────── */}
       <Route path="/" element={<LandingPage />} />
       {/* Handoff link lands here — public so TECH_TEAM can register */}
@@ -63,14 +75,10 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />
-            <Route path="session-history" element={<SessionsListPage />} />
+            <Route path="projects/session-history" element={<SessionsListPage />} />
             <Route path="subscription" element={<SubscriptionActivate />} />
-            <Route path="elicitation" element={<ElicitationWizard />} />
-            <Route path="shortlist/:projectId" element={<ShortlistView />} />
-            <Route
-              path="projects/:projectId/shortlist"
-              element={<ShortlistView />}
-            />
+            <Route path="projects/elicitation" element={<ElicitationWizard />} />
+            <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
@@ -120,7 +128,11 @@ export default function App() {
       </Route>
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}
-      <Route path="/*" element={<ErrorPage />} />
-    </Routes>
-  );
+      <Route path="*" element={<ErrorPage />} />
+    </Route>
+  )
+);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }
