@@ -89,3 +89,15 @@ print_summary() {
   fi
   exit 0
 }
+
+update_token_if_success() {
+  local expected="$1" actual="$2" body="$3"
+  if [ "$actual" = "$expected" ]; then
+    local new_token
+    new_token=$(echo "$body" | jq -r '.access_token // empty' 2>/dev/null)
+    if [ -n "$new_token" ] && [ "$new_token" != "null" ]; then
+      TOKEN="$new_token"
+      AUTH=(-H "Authorization: Bearer ${TOKEN}")
+    fi
+  fi
+}

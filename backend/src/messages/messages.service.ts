@@ -178,16 +178,16 @@ export class MessagesService {
     }
 
     async unreadCount(engagementId: string, userId: string) {
-        return this.prisma.message.count({
-            where: {
-                engagementId: engagementId,
-                senderId: { not: userId },
-                messageReads: {
-                    none: {
-                        userId,
-                    },
-                },
-            },
-        });
-    }
+    return this.prisma.message.count({
+      where: {
+        engagementId: engagementId,
+        senderId: { not: userId },
+        reads: { // MATCH schema.prisma 
+          none: {
+            userId,
+          },
+        },
+      },
+    });
+  }
 }

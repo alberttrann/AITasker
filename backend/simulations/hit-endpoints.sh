@@ -123,6 +123,7 @@ EOF
 
 info "Applying migrations to test database..."
 npx prisma migrate deploy
+npx prisma db execute --file=prisma/migrations/010_seed.sql --url="$TEST_DB_URL"
 MIGRATE_EXIT=$?
 
 if [ $MIGRATE_EXIT -ne 0 ]; then

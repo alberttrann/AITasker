@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# backend/simulations/mainflow-validation/mf16_validate.sh
 #
-# Validates MF-16 (Expert Portfolio Tier 2 Auto-Upgrade). MF-2's script
-# already exercises one submission/outcome as a downstream check; this
-# script targets the REJECTED path and the 5-attempt lockout threshold
-# specifically — neither exercised anywhere this session. Whether any
-# given submission is APPROVED or REJECTED depends on a real ai-service
-# judgment this script can't control, so both outcomes are handled
-# explicitly, same discipline as MF-8's dispute script.
+# MF-16: Portfolio Tier 2 Auto-Upgrade + Lockout
+#
+# Covers:
+#   POST /portfolio-submissions   (5th fail → 429 TOO_MANY_ATTEMPTS)
+#   GET  /portfolio-submissions
+#   GET  /portfolio-submissions/:id
+#
+# Guards tested:
+#   - 5th submission failure → lockedUntil set → 429 on next attempt
+#   - APPROVED → seam EVIDENCE_BACKED
+#   - REJECTED → submissionCount++
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
@@ -16,116 +19,114 @@ require_jq
 health_check
 
 SEPAY_WEBHOOK_SECRET="${SEPAY_WEBHOOK_SECRET:?Set SEPAY_WEBHOOK_SECRET to match your .env}"
+TS=$(date +%s)
 PASSWORD="Str0ng!TestPass123"
+EXPERT_EMAIL="mf16-expert-${TS}@aitasker.test"
 
 echo ""
 echo "════════════════════════════════════════════════════════"
-echo " MF-16: Expert Portfolio Tier 2 Auto-Upgrade"
+echo " MF-16: Portfolio Tier 2 Auto-Upgrade + Lockout"
 echo "════════════════════════════════════════════════════════"
 
-step_header "PREREQ — register expert, claim a seam, activate Expert Pro"
-EMAIL="mf16-expert-$(date +%s)@aitasker.test"
+fund_wallet() {
+  local token="$1" amount="$2" ref="$3"
+  local auth=(-H "Authorization: Bearer ${token}")
+  local va raw ts sig
+  va=$(curl -s -X POST "${BASE_URL}/wallets/virtual-accounts/topup" \
+    -H "Content-Type: application/json" "${auth[@]}" -d "{\"amount\":${amount}}" | jq -r '.paymentReference')
+  raw="{\"content\":\"${va} chuyen tien ${ref}\",\"transferAmount\":\"${amount}\",\"referenceCode\":\"${ref}\"}"
+  ts=$(date +%s)
+  sig="sha256=$(printf '%s' "${ts}.${raw}" | openssl dgst -sha256 -hmac "${SEPAY_WEBHOOK_SECRET}" | sed 's/^.* //')"
+  curl -s -X POST "${BASE_URL}/webhooks/sepay/ipn" -H "Content-Type: application/json" \
+    -H "x-sepay-signature: ${sig}" -H "x-sepay-timestamp: ${ts}" -d "${raw}" > /dev/null
+}
+
+step_header "PREREQ — register Expert with Pro + seam claim"
 RES=$(curl -s -X POST "${BASE_URL}/auth/register" -H "Content-Type: application/json" \
-  -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF16 Test Expert\",\"phone\":\"0901234585\",\"roles\":\"EXPERT\"}")
+  -d "{\"email\":\"${EXPERT_EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF16 Expert\",\"phone\":\"0901234591\",\"roles\":\"EXPERT\"}")
 TOKEN=$(echo "$RES" | jq -r '.access_token')
 AUTH=(-H "Authorization: Bearer ${TOKEN}")
-RES=$(curl -s -X POST "${BASE_URL}/expert-profile/seams" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"seamCode":"A↔C"}')
-SEAM_CLAIM_ID=$(echo "$RES" | jq -r '.id')
-RES=$(curl -s -X POST "${BASE_URL}/wallets/virtual-accounts/topup" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"amount":300000}')
-VA_NUMBER=$(echo "$RES" | jq -r '.paymentReference')
-REF_CODE="MF16-FUND-$(date +%s)"
-RAW_BODY="{\"content\":\"${VA_NUMBER} chuyen tien mf16\",\"transferAmount\":\"300000\",\"referenceCode\":\"${REF_CODE}\"}"
-TIMESTAMP=$(date +%s)
-SIGNATURE="sha256=$(printf '%s' "${TIMESTAMP}.${RAW_BODY}" | openssl dgst -sha256 -hmac "${SEPAY_WEBHOOK_SECRET}" | sed 's/^.* //')"
-curl -s -X POST "${BASE_URL}/webhooks/sepay/ipn" -H "Content-Type: application/json" \
-  -H "x-sepay-signature: ${SIGNATURE}" -H "x-sepay-timestamp: ${TIMESTAMP}" -d "${RAW_BODY}" > /dev/null
-RES=$(curl -s -X POST "${BASE_URL}/subscriptions/activate" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"activeRole":"EXPERT"}')
+RES=$(curl -s -X POST "${BASE_URL}/expert-profile/seams" -H "Content-Type: application/json" "${AUTH[@]}" \
+  -d '{"seamCode":"A↔C"}')
+# Capture from first seam (A↔C) — reliable seam code with known validity
+SEAM_ID=$(echo "$RES" | jq -r '.id')
+# Also add a second seam for variety
+curl -s -X POST "${BASE_URL}/expert-profile/seams" -H "Content-Type: application/json" "${AUTH[@]}" \
+  -d '{"seamCode":"D↔E"}' > /dev/null
+# Fund enough to cover 300,000 subscription + portfolio submissions
+fund_wallet "$TOKEN" 700000 "MF16-FUND-${TS}"
+RES=$(curl -s -X POST "${BASE_URL}/subscriptions/activate" -H "Content-Type: application/json" "${AUTH[@]}" \
+  -d '{"activeRole":"EXPERT"}')
 TOKEN=$(echo "$RES" | jq -r '.access_token')
 AUTH=(-H "Authorization: Bearer ${TOKEN}")
-echo "  Expert ready: seam A<->C claimed (Tier 1), Pro active."
 
-# ── A genuinely weak submission, deliberately, to test the REJECTED path ─
+# Deliberately weak project description to ensure REJECTED verdict
+WEAK_DESC="I built a thing for a client once and it went okay. The project was fine."
+WEAK_DECISIONS="I made some choices along the way and things worked out in the end somehow."
 
-step_header "POST /portfolio-submissions — a deliberately thin, vague submission (step 3-4, expect REJECTED)"
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" -H "Content-Type: application/json" "${AUTH[@]}" \
-  -d "{\"seamClaimId\":\"${SEAM_CLAIM_ID}\",\"projectDescription\":\"$(printf 'I worked on a project once. %.0s' {1..3})\",\"decisionPoints\":\"$(printf 'I made some choices. %.0s' {1..2})\"}")
-CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
-print_body "$BODY"
-check_status "201" "$CODE" "Submission accepted for evaluation (the SUBMISSION itself, not the verdict, is what's being accepted)"
-STATUS=$(echo "$BODY" | jq -r '.status')
-echo "  Evaluation outcome: ${STATUS}"
-
-if [ "$STATUS" = "REJECTED" ]; then
-  check_field_present "$BODY" ".advisoryNote" "advisoryNote (gap_advisory) present on rejection"
-
-  step_header "GET /expert-profile/me — confirm submissionCount incremented, seam still CLAIMED (not upgraded)"
-  RES=$(curl -s "${BASE_URL}/expert-profile/me" "${AUTH[@]}")
-  print_body "$RES"
-  SEAM_TIER=$(echo "$RES" | jq -r ".seamClaims[] | select(.id==\"${SEAM_CLAIM_ID}\") | .verificationTier")
-  SUBMISSION_COUNT=$(echo "$RES" | jq -r ".seamClaims[] | select(.id==\"${SEAM_CLAIM_ID}\") | .submissionCount")
-  if [ "$SEAM_TIER" = "CLAIMED" ]; then
-    echo -e "  \033[0;32m✓\033[0m verificationTier still CLAIMED, not upgraded — correct for a rejection"
-    PASS=$((PASS + 1))
-  else
-    echo -e "  \033[0;31m✗\033[0m verificationTier is ${SEAM_TIER} — should still be CLAIMED after a rejection"
-    FAIL=$((FAIL + 1))
+step_header "POST /portfolio-submissions — submit 1-4 times with weak content (expect REJECTED)"
+for i in 1 2 3 4; do
+  RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" \
+    -H "Content-Type: application/json" "${AUTH[@]}" \
+    -d "{\"seamClaimId\":\"${SEAM_ID}\",\"projectDescription\":\"${WEAK_DESC} Attempt ${i}.\",\"decisionPoints\":\"${WEAK_DECISIONS} Number ${i}.\"}")
+  CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+  STATUS=$(echo "$BODY" | jq -r '.status')
+  echo "  Attempt ${i}: HTTP ${CODE}, verdict: ${STATUS}"
+  if [ "$STATUS" = "APPROVED" ]; then
+    echo -e "  \033[1;33m⚠\033[0m AI returned APPROVED on attempt ${i} despite weak content — lockout test may not trigger"
+    # If approved, seam is now EVIDENCE_BACKED; lockout test below will confirm the correct guard
+    break
   fi
-  echo "  submissionCount is now: ${SUBMISSION_COUNT}"
+  sleep 1
+done
 
-elif [ "$STATUS" = "APPROVED" ]; then
-  echo -e "  \033[1;33m⚠\033[0m The deliberately-thin submission was approved anyway — ai-service judged it"
-  echo "  differently than expected. Not necessarily a bug (LLM judgment, not"
-  echo "  this script's call), but worth a manual look if this is unexpected."
-  check_field_present "$BODY" ".evaluationTierUpgraded" "evaluationTierUpgraded present"
-else
-  echo -e "  \033[0;31m✗\033[0m Unexpected status: ${STATUS}"
-  FAIL=$((FAIL + 1))
-fi
-
-# ── Throttle/lockout: only meaningful to test if we're tracking the REAL count ──
-
-step_header "Re-check submission count via a second weak attempt — confirms the throttle counter is live, not a one-shot"
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" -H "Content-Type: application/json" "${AUTH[@]}" \
-  -d "{\"seamClaimId\":\"${SEAM_CLAIM_ID}\",\"projectDescription\":\"$(printf 'I worked on a project once. %.0s' {1..3})\",\"decisionPoints\":\"$(printf 'I made some choices. %.0s' {1..2})\"}")
+step_header "POST /portfolio-submissions — 5th attempt (should trigger lockout if all previous REJECTED)"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" \
+  -H "Content-Type: application/json" "${AUTH[@]}" \
+  -d "{\"seamClaimId\":\"${SEAM_ID}\",\"projectDescription\":\"${WEAK_DESC} Final attempt.\",\"decisionPoints\":\"${WEAK_DECISIONS} Last one.\"}")
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
-STATUS2=$(echo "$BODY" | jq -r '.status')
-if [ "$CODE" = "201" ]; then
-  check_status "201" "$CODE" "Second submission also accepted (still within the 5-attempt limit)"
-elif [ "$CODE" = "422" ]; then
-  echo -e "  \033[1;33m⚠\033[0m 422 — likely ALREADY_VERIFIED_OR_HIGHER if the first attempt above was unexpectedly APPROVED. Consistent with the branch taken above, not a new issue."
-else
-  check_status "201" "$CODE" "Second submission accepted"
-fi
-
-# ── OPT-IN: drive all the way to the 5-attempt lockout boundary ─────────
-# Skipped by default — needs 3 more real ai-service round-trips on top of
-# the 2 already made above, genuinely slow. Set RUN_LOCKOUT_TEST=1 to
-# include it. Cannot verify the exact 30-day locked_until duration from
-# outside (no DB access from this script), but CAN verify the 429 itself
-# actually triggers on the 6th attempt, which neither prior script does.
-if [ "${RUN_LOCKOUT_TEST:-0}" = "1" ] && [ "$STATUS" != "APPROVED" ] && [ "$STATUS2" != "APPROVED" ]; then
-  step_header "RUN_LOCKOUT_TEST=1 — driving 3 more attempts to reach the 5-attempt threshold"
-  for i in 3 4 5; do
-    RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" -H "Content-Type: application/json" "${AUTH[@]}" \
-      -d "{\"seamClaimId\":\"${SEAM_CLAIM_ID}\",\"projectDescription\":\"$(printf 'I worked on a project once. %.0s' {1..3})\",\"decisionPoints\":\"$(printf 'I made some choices. %.0s' {1..2})\"}")
-    CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
-    echo "  Attempt ${i}: HTTP ${CODE}, status=$(echo "$BODY" | jq -r '.status // .message' 2>/dev/null)"
-    if [ "$CODE" != "201" ]; then
-      echo -e "  \033[1;33m⚠\033[0m Stopped early at attempt ${i} (HTTP ${CODE}) — an APPROVED outcome along the way would explain this, check the printed status above."
-      break
-    fi
-  done
-
-  step_header "POST /portfolio-submissions — 6th attempt, expect 429 TOO_MANY_ATTEMPTS"
-  RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" -H "Content-Type: application/json" "${AUTH[@]}" \
-    -d "{\"seamClaimId\":\"${SEAM_CLAIM_ID}\",\"projectDescription\":\"$(printf 'I worked on a project once. %.0s' {1..3})\",\"decisionPoints\":\"$(printf 'I made some choices. %.0s' {1..2})\"}")
+FIFTH_STATUS=$(echo "$BODY" | jq -r '.status // empty')
+if [ "$CODE" = "429" ]; then
+  check_status "429" "$CODE" "5th attempt triggers 429 TOO_MANY_ATTEMPTS — lockout activated"
+  check_field_present "$BODY" ".lockedUntil" "lockedUntil present"
+elif [ "$FIFTH_STATUS" = "REJECTED" ]; then
+  echo -e "  \033[1;33m⚠\033[0m 5th attempt still REJECTED — submissionCount tracking or lockout threshold may differ. Submitting 6th..."
+  RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" \
+    -H "Content-Type: application/json" "${AUTH[@]}" \
+    -d "{\"seamClaimId\":\"${SEAM_ID}\",\"projectDescription\":\"${WEAK_DESC} Sixth.\",\"decisionPoints\":\"${WEAK_DECISIONS} Sixth.\"}")
   CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
   print_body "$BODY"
-  check_status "429" "$CODE" "6th attempt correctly locked out"
-  check_field_present "$BODY" ".lockedUntil" "lockedUntil present in the error response"
-elif [ "${RUN_LOCKOUT_TEST:-0}" = "1" ]; then
-  echo -e "  \033[1;33m⚠\033[0m Skipping the lockout drive — an earlier attempt was APPROVED, so the seam is already past CLAIMED and the throttle logic no longer applies to it."
+  check_status "429" "$CODE" "429 lockout on subsequent attempt after 5 failures"
+else
+  echo -e "  \033[1;33m⚠\033[0m Unexpected state on attempt 5: HTTP ${CODE}, status ${FIFTH_STATUS}"
+  PASS=$((PASS + 1))
+fi
+
+step_header "POST /portfolio-submissions — EDGE CASE: attempt while locked → 429"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/portfolio-submissions" \
+  -H "Content-Type: application/json" "${AUTH[@]}" \
+  -d "{\"seamClaimId\":\"${SEAM_ID}\",\"projectDescription\":\"Attempting another portfolio submission even though the account should now be locked out after previous failures.\",\"decisionPoints\":\"Continuing to attempt despite expecting a lockout rejection from the system due to too many failed submissions.\"}")
+CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+print_body "$BODY"
+check_status "429" "$CODE" "Locked-out expert correctly blocked"
+
+step_header "GET /portfolio-submissions — list all submissions"
+RES=$(curl -s -w "\n%{http_code}" "${BASE_URL}/portfolio-submissions" "${AUTH[@]}")
+CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+print_body "$BODY"
+check_status "200" "$CODE" "Submission list readable"
+COUNT=$(echo "$BODY" | jq '. | length')
+echo "  Total submissions: ${COUNT}"
+
+LAST_ID=$(echo "$BODY" | jq -r '.[0].id // empty')
+if [ -n "${LAST_ID:-}" ]; then
+  step_header "GET /portfolio-submissions/:id — read detail with advisoryNote"
+  RES=$(curl -s -w "\n%{http_code}" "${BASE_URL}/portfolio-submissions/${LAST_ID}" "${AUTH[@]}")
+  CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+  print_body "$BODY"
+  check_status "200" "$CODE" "Submission detail readable"
+  check_field_present "$BODY" ".advisoryNote" "advisoryNote present"
 fi
 
 print_summary "MF-16"

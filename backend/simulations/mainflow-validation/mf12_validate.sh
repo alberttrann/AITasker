@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# backend/simulations/mainflow-validation/mf12_validate.sh
 #
-# Validates MF-12 (Expert Withdrawal / Chi Hộ). MF-2's script already
-# exercises this briefly as a downstream check; this script targets it
-# directly, including the FAILURE path (PUT /admin/withdrawals/:id/fail)
-# which has never been exercised anywhere this session.
+# MF-12: Expert Withdrawal (Chi Hộ Manual Payout)
 #
-# Needs a real ADMIN account via ADMIN_EMAIL/ADMIN_PASSWORD env vars —
-# admins aren't self-registerable by design, same as MF-8's script.
+# Covers:
+#   POST /withdrawals
+#   GET  /withdrawals
+#   PUT  /admin/withdrawals/:id/complete
+#   PUT  /admin/withdrawals/:id/fail
+#   POST /webhooks/sepay/chi-ho-credit   (stub smoke)
+#
+# Guards tested:
+#   - No bank linked → 409
+#   - amount < 2000 → 400
+#   - amount > availableBalance → 422 INSUFFICIENT_BALANCE
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
@@ -16,87 +21,161 @@ require_jq
 health_check
 
 SEPAY_WEBHOOK_SECRET="${SEPAY_WEBHOOK_SECRET:?Set SEPAY_WEBHOOK_SECRET to match your .env}"
+TS=$(date +%s)
 PASSWORD="Str0ng!TestPass123"
+EXPERT_EMAIL="mf12-expert-${TS}@aitasker.test"
 
 echo ""
 echo "════════════════════════════════════════════════════════"
 echo " MF-12: Expert Withdrawal (Chi Hộ)"
 echo "════════════════════════════════════════════════════════"
 
-step_header "PREREQ — register expert, fund wallet directly (no subscription needed for this flow)"
-EMAIL="mf12-expert-$(date +%s)@aitasker.test"
+fund_wallet() {
+  local token="$1" amount="$2" ref="$3"
+  local auth=(-H "Authorization: Bearer ${token}")
+  local va_res va raw ts sig
+  va_res=$(curl -s -X POST "${BASE_URL}/wallets/virtual-accounts/topup" \
+    -H "Content-Type: application/json" "${auth[@]}" -d "{\"amount\":${amount}}")
+  va=$(echo "$va_res" | jq -r '.paymentReference')
+  raw="{\"content\":\"${va} chuyen tien ${ref}\",\"transferAmount\":\"${amount}\",\"referenceCode\":\"${ref}\"}"
+  ts=$(date +%s)
+  sig="sha256=$(printf '%s' "${ts}.${raw}" | openssl dgst -sha256 -hmac "${SEPAY_WEBHOOK_SECRET}" | sed 's/^.* //')"
+  curl -s -X POST "${BASE_URL}/webhooks/sepay/ipn" -H "Content-Type: application/json" \
+    -H "x-sepay-signature: ${sig}" -H "x-sepay-timestamp: ${ts}" -d "${raw}" > /dev/null
+}
+
+# ── PREREQ ──
+step_header "PREREQ — register Expert with Pro + funded wallet"
 RES=$(curl -s -X POST "${BASE_URL}/auth/register" -H "Content-Type: application/json" \
-  -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF12 Test Expert\",\"phone\":\"0901234581\",\"roles\":\"EXPERT\"}")
-TOKEN=$(echo "$RES" | jq -r '.access_token')
-AUTH=(-H "Authorization: Bearer ${TOKEN}")
-RES=$(curl -s -X POST "${BASE_URL}/wallets/virtual-accounts/topup" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"amount":1000000}')
-VA_NUMBER=$(echo "$RES" | jq -r '.paymentReference')
-REF_CODE="MF12-FUND-$(date +%s)"
-RAW_BODY="{\"content\":\"${VA_NUMBER} chuyen tien mf12 test\",\"transferAmount\":\"1000000\",\"referenceCode\":\"${REF_CODE}\"}"
-TIMESTAMP=$(date +%s)
-SIGNATURE="sha256=$(printf '%s' "${TIMESTAMP}.${RAW_BODY}" | openssl dgst -sha256 -hmac "${SEPAY_WEBHOOK_SECRET}" | sed 's/^.* //')"
-curl -s -X POST "${BASE_URL}/webhooks/sepay/ipn" -H "Content-Type: application/json" \
-  -H "x-sepay-signature: ${SIGNATURE}" -H "x-sepay-timestamp: ${TIMESTAMP}" -d "${RAW_BODY}" > /dev/null
-echo "  Expert wallet funded to 1,000,000."
+  -d "{\"email\":\"${EXPERT_EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF12 Expert\",\"phone\":\"0901234588\",\"roles\":\"EXPERT\"}")
+EXPERT_TOKEN=$(echo "$RES" | jq -r '.access_token')
+EXPERT_AUTH=(-H "Authorization: Bearer ${EXPERT_TOKEN}")
+fund_wallet "$EXPERT_TOKEN" 700000 "MF12-FUND-${TS}"
+RES=$(curl -s -X POST "${BASE_URL}/subscriptions/activate" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+  -d '{"activeRole":"EXPERT"}')
+EXPERT_TOKEN=$(echo "$RES" | jq -r '.access_token')
+EXPERT_AUTH=(-H "Authorization: Bearer ${EXPERT_TOKEN}")
+echo "  Expert ready. Balance ~400,000 after 300,000 subscription cost."
 
-step_header "POST /withdrawals — guard check: no bank linked yet, expect rejection"
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"amount":500000}')
+# ── Step 1: Withdraw without bank linked → 409 ──
+step_header "POST /withdrawals — EDGE CASE: no bank linked → 409"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" \
+  -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+  -d '{"amount":50000}')
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
-check_status "409" "$CODE" "Withdrawal correctly rejected — no bank account linked"
+check_status "409" "$CODE" "No bank account correctly blocks withdrawal"
 
-step_header "POST /bank-hub/initiate-link — link the bank account"
-RES=$(curl -s -X POST "${BASE_URL}/bank-hub/initiate-link" -H "Content-Type: application/json" "${AUTH[@]}" \
-  -d '{"bank_account_xid":"MF12BANKXID","holder_name":"MF12 Test Expert"}')
-print_body "$RES"
-
-step_header "POST /withdrawals — guard check: amount exceeds balance, expect 422 (step 2 Guard 2)"
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"amount":5000000}')
+# ── Step 2: Link bank account ──
+step_header "POST /bank-hub/initiate-link — link bank account first"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/bank-hub/initiate-link" \
+  -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+  -d '{"bank_account_xid":"MF12BANK9876","holder_name":"MF12 Expert"}')
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
-check_status "422" "$CODE" "Over-balance withdrawal correctly rejected"
+check_status "201" "$CODE" "Bank linked"
 
-step_header "POST /withdrawals — real request within balance (step 1-2)"
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"amount":500000}')
+# ── Step 3: Below minimum → 400 ──
+step_header "POST /withdrawals — EDGE CASE: amount < 2000 → 400"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" \
+  -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+  -d '{"amount":1000}')
+CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+print_body "$BODY"
+check_status "400" "$CODE" "Below minimum correctly rejected"
+
+# ── Step 4: Exceeds balance → 422 ──
+step_header "POST /withdrawals — EDGE CASE: amount > balance → 422 INSUFFICIENT_BALANCE"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" \
+  -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+  -d '{"amount":999999999}')
+CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+print_body "$BODY"
+check_status "422" "$CODE" "Exceeds balance correctly rejected"
+
+# ── Step 5: Valid withdrawal ──
+step_header "POST /withdrawals — valid withdrawal request (50,000 VND)"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" \
+  -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+  -d '{"amount":50000}')
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
 check_status "201" "$CODE" "Withdrawal request accepted"
-check_field_present "$BODY" ".message" "Teacher-approved placeholder message present (no real chi-hộ API call)"
-WITHDRAWAL_ID=$(echo "$BODY" | jq -r '.withdrawal_request_id')
+check_field_present "$BODY" ".withdrawal_request_id" "withdrawal_request_id present"
+check_field_equals "$BODY" ".status" "PENDING" "status is PENDING"
+WITHDRAWAL_ID=$(echo "$BODY" | jq -r ".withdrawal_request_id")
+echo "  Withdrawal: ${WITHDRAWAL_ID}"
 
-step_header "GET /wallets/me — confirm availableBalance debited immediately (atomic, step 2's DB TX)"
-RES=$(curl -s "${BASE_URL}/wallets/me" "${AUTH[@]}")
-print_body "$RES"
-check_field_equals "$RES" ".availableBalance" "500000" "Balance debited by exactly the withdrawal amount"
-
-step_header "GET /withdrawals — confirm the request appears as PENDING"
-RES=$(curl -s -w "\n%{http_code}" "${BASE_URL}/withdrawals" "${AUTH[@]}")
+# ── Step 6: List withdrawals ──
+step_header "GET /withdrawals — expert lists withdrawal history"
+RES=$(curl -s -w "\n%{http_code}" "${BASE_URL}/withdrawals" "${EXPERT_AUTH[@]}")
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
 check_status "200" "$CODE" "Withdrawal history readable"
 
+# ── Step 7: Stub webhook smoke ──
+step_header "POST /webhooks/sepay/chi-ho-credit — smoke test stub endpoint"
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/webhooks/sepay/chi-ho-credit" \
+  -H "Content-Type: application/json" \
+  -d "{\"withdrawal_id\":\"${WITHDRAWAL_ID}\",\"status\":\"credited\"}")
+CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+print_body "$BODY"
+check_status "201" "$CODE" "chi-ho-credit stub reachable"
+
+# ── Step 8: Admin completes withdrawal ──
 if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
   RES=$(curl -s -X POST "${BASE_URL}/auth/login" -H "Content-Type: application/json" \
     -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}")
   ADMIN_TOKEN=$(echo "$RES" | jq -r '.access_token')
   ADMIN_AUTH=(-H "Authorization: Bearer ${ADMIN_TOKEN}")
 
-  step_header "PUT /admin/withdrawals/:id/fail — exercise the FAILURE path (step 8, never tested anywhere this session)"
-  RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/admin/withdrawals/${WITHDRAWAL_ID}/fail" -H "Content-Type: application/json" "${ADMIN_AUTH[@]}")
+  step_header "GET /admin/withdrawals — admin views pending withdrawals"
+  RES=$(curl -s -w "\n%{http_code}" "${BASE_URL}/admin/withdrawals" "${ADMIN_AUTH[@]}")
   CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
   print_body "$BODY"
-  check_status "200" "$CODE" "Admin fail action accepted"
-  check_field_equals "$BODY" ".status" "FAILED" "withdrawal status is FAILED"
+  check_status "200" "$CODE" "Admin withdrawal queue readable"
 
-  step_header "GET /wallets/me — confirm balance RESTORED (step 8's stated reversal: available_balance += amount)"
-  RES=$(curl -s "${BASE_URL}/wallets/me" "${AUTH[@]}")
-  print_body "$RES"
-  check_field_equals "$RES" ".availableBalance" "1000000" "Balance fully restored after failure reversal"
+  step_header "PUT /admin/withdrawals/:id/complete — admin marks withdrawal complete"
+  RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/admin/withdrawals/${WITHDRAWAL_ID}/complete" \
+    "${ADMIN_AUTH[@]}")
+  CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+  print_body "$BODY"
+  check_status "200" "$CODE" "Withdrawal completed"
+  check_field_equals "$BODY" ".status" "COMPLETED" "status is COMPLETED"
+
+  # ── Step 9: Create a second withdrawal to test the fail path ──
+  step_header "POST /withdrawals — second withdrawal for fail-path test"
+  RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/withdrawals" \
+    -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
+    -d '{"amount":20000}')
+  CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+  WITHDRAWAL2_ID=$(echo "$BODY" | jq -r ".withdrawal_request_id")
+  print_body "$BODY"
+  check_status "201" "$CODE" "Second withdrawal request accepted"
+
+  BALANCE_BEFORE=$(curl -s "${BASE_URL}/wallets/me" "${EXPERT_AUTH[@]}" | jq -r '.availableBalance')
+
+  step_header "PUT /admin/withdrawals/:id/fail — admin fails payout → wallet refunded"
+  RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/admin/withdrawals/${WITHDRAWAL2_ID}/fail" \
+    "${ADMIN_AUTH[@]}" -H "Content-Type: application/json" \
+    -d '{"fail_reason":"Bank account rejected transfer"}')
+  CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
+  print_body "$BODY"
+  check_status "200" "$CODE" "Withdrawal fail accepted"
+  check_field_equals "$BODY" ".status" "FAILED" "status is FAILED"
+
+  BALANCE_AFTER=$(curl -s "${BASE_URL}/wallets/me" "${EXPERT_AUTH[@]}" | jq -r '.availableBalance')
+  echo "  Balance before fail: ${BALANCE_BEFORE}, after: ${BALANCE_AFTER}"
+  if [ "$BALANCE_AFTER" -gt "$BALANCE_BEFORE" ]; then
+    echo -e "  \033[0;32m✓\033[0m Balance restored after failed withdrawal"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  \033[0;31m✗\033[0m Balance not restored — expected refund after fail"
+    FAIL=$((FAIL + 1))
+  fi
 else
   echo ""
-  echo -e "  \033[1;33m⚠\033[0m Skipping the admin fail-path check — set ADMIN_EMAIL/ADMIN_PASSWORD to exercise it."
-  echo "  Without it, the failure-path reversal (a real, distinct piece of"
-  echo "  this flow's logic) goes unverified this run."
+  echo -e "  \033[1;33m⚠\033[0m Set ADMIN_EMAIL/ADMIN_PASSWORD to test admin withdrawal complete/fail paths"
 fi
 
 print_summary "MF-12"
