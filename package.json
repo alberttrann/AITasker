@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "openwiki": "openwiki",
+    "openwiki:init": "openwiki --init",
+    "openwiki:update": "openwiki --update --print"
+  },
   "dependencies": {
     "@nestjs/config": "^4.0.4",
     "@nestjs/event-emitter": "^3.1.0",
@@ -12,6 +17,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
-    "dotenv-cli": "^11.0.0"
+    "dotenv-cli": "^11.0.0",
+    "openwiki": "^0.0.1"
   }
 }
