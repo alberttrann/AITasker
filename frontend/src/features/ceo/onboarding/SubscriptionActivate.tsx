@@ -18,19 +18,21 @@ export default function SubscriptionActivate() {
   const { user } = store;
   const { data: wallet } = useWallet();
   const { activateSubscription } = useSubscription();
+  const { activateSubscription: activateMutation } = useSubscription();
   const { data: subStatus } = useSubscriptionStatus();
   const { updateProfile } = useUser(); // to fetch user on success or we can just use queryClient
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
+  const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
+  const isWalletReady = !!wallet && availableBalance >= 500000;
   const price = SubscriptionPrice.CEO;
   const canAfford = availableBalance >= price;
 
   const handleActivate = () => {
     setErrorMsg(null);
-    activateSubscription.mutate(
+    activateMutation.mutate(
       { activeRole: user?.activeRole || 'CLIENT' },
       {
         onSuccess: async (data) => {
@@ -95,7 +97,7 @@ export default function SubscriptionActivate() {
             <div className="flex flex-col md:items-end gap-4 md:ml-0">
               <div className="text-left md:text-right">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Time until expiration</span>
-                <span className="text-lg font-bold text-emerald-600">{getRemainingTime()}</span>
+                <span className={`text-lg font-bold ${getRemainingTime() === 'Expired' ? 'text-red-500' : 'text-emerald-600'}`}>{getRemainingTime()}</span>
               </div>
               <div className="text-left md:text-right">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Price</span>
@@ -214,13 +216,12 @@ export default function SubscriptionActivate() {
 
                 {canAfford ? (
                   <Button
-                    className="w-full py-4 text-lg font-bold shadow-emerald-glow hover:brightness-105 transition-all group"
+                    className="w-full h-12 rounded-xl text-[15px] font-bold"
                     variant="primary"
                     onClick={handleActivate}
-                    disabled={activateSubscription.isPending}
-                    isLoading={activateSubscription.isPending}
+                    disabled={!isWalletReady || activateMutation.isPending}
                   >
-                    Activate Client Pro
+                    {activateMutation.isPending ? 'Activating...' : 'Activate Client Pro'}
                     <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 ) : (

@@ -363,7 +363,7 @@ const RoleIcon =
                       </Link>
                     )}
 
-                    {rawRole === 'CEO' && (
+                    {(rawRole === 'CEO' || rawRole === 'TECH_TEAM') && (
                       <Link
                         to={`${dashboardRoute}/projects`} 
                         onClick={() => setActiveDropdown(null)} 
@@ -454,7 +454,7 @@ const RoleIcon =
                   <Award size={20} className="text-slate-500" /> Expert Profile
                 </Link>
               )}
-              {rawRole === 'CEO' && (
+              {(rawRole === 'CEO' || rawRole === 'TECH_TEAM') && (
                 <Link to={`${dashboardRoute}/projects`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Briefcase size={20} className="text-slate-500" /> Projects
                 </Link>
@@ -520,7 +520,7 @@ const RoleIcon =
                 <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
               )}
             </Link>
-            {rawRole === 'CEO' && (
+            {(rawRole === 'CEO' || rawRole === 'TECH_TEAM') && (
               <Link 
                 to={`${dashboardRoute}/projects`} 
                 className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/projects') ? 'text-primary' : 'text-secondary hover:text-primary'}`}

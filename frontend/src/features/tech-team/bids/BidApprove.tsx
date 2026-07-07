@@ -47,31 +47,31 @@ export default function BidApprove() {
   };
 
   return (
-    <div className="mx-auto max-w-[560px] space-y-6">
+    <div className="w-full max-w-5xl mx-auto space-y-6">
       <button
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
+        className="inline-flex items-center gap-1.5 text-[13px] text-secondary hover:text-primary transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Bid
       </button>
 
-      <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+      <h1 className="font-headline text-[24px] font-semibold text-primary">
         Approve Bid
       </h1>
 
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
+        <div className="rounded-DEFAULT border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-error mt-0.5" />
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
 
       {/* Success */}
       {approveBid.isSuccess && (
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
+        <div className="rounded-DEFAULT border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-success mt-0.5" />
           <p className="text-[14px] text-[#16A34A]">
             Bid approved! Redirecting…
           </p>
@@ -86,7 +86,7 @@ export default function BidApprove() {
               notified and can proceed to accept or decline the bid.
             </p>
 
-            <div className="rounded-[8px] bg-[#F0FDF4] border border-[#BBF7D0] p-4">
+            <div className="rounded-DEFAULT bg-[#F0FDF4] border border-[#BBF7D0] p-4">
               <h4 className="text-[13px] font-semibold text-[#16A34A] mb-1">
                 What happens next?
               </h4>

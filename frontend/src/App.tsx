@@ -21,6 +21,7 @@ import ExpertDashboard, {
 } from "@features/expert/ExpertDashboard";
 import TechTeamDashboard from "@features/tech-team/TechTeamDashboard";
 import TechTeamOverview from "@features/tech-team/TechTeamOverview";
+import TechTeamProjectsPage from "@features/tech-team/pages/TechTeamProjectsPage";
 import Stage4Submitted from "@features/tech-team/stage4/Stage4Submitted";
 import AdminDashboard from "@features/admin/AdminDashboard";
 import ProfilePage from "./components/pages/UserProfilePage";
@@ -43,6 +44,8 @@ import ExpertNdaClickThrough from "@features/expert/connection/NdaClickThrough";
 import BidForm from "@features/expert/bidding/BidForm";
 import BidReviewList from "@features/tech-team/bids/BidReviewList";
 import BidReviewDetail from "@features/tech-team/bids/BidReviewDetail";
+import BidApprove from "@features/tech-team/bids/BidApprove";
+import BidRevisionRequest from "@features/tech-team/bids/BidRevisionRequest";
 
 function RootLayout() {
   return (
@@ -115,13 +118,16 @@ const router = createBrowserRouter(
           {/* /tech-team/* — scoped to one linked project forever */}
           <Route path="/tech-team" element={<TechTeamDashboard />}>
             <Route index element={<TechTeamOverview />} />
+            <Route path="projects" element={<TechTeamProjectsPage />} />
             <Route path="projects/:id" element={<ProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="submitted" element={<Stage4Submitted />} />
+            <Route path="bids" element={<BidReviewList />} />
+            <Route path="bids/:bidId" element={<BidReviewDetail />} />
+            <Route path="bids/:bidId/approve" element={<BidApprove />} />
+            <Route path="bids/:bidId/revision" element={<BidRevisionRequest />} />
           </Route>
-          <Route path="bids" element={<BidReviewList />} />
-          <Route path="bids/:bidId" element={<BidReviewDetail />} />
         </Route>
 
         <Route element={<RoleRoute requiredRole="ADMIN" />}>

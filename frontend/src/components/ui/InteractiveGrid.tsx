@@ -16,7 +16,7 @@ export function InteractiveGrid({ disabled = false }: InteractiveGridProps) {
 
     // Configuration
     const CELL_SIZE = 10;
-    const RADIUS = 100/; // Hover blast radius in pixels
+    const RADIUS = 100; // Hover blast radius in pixels
     const TRAIL_DECAY = 0.008; // Lower means a longer trail (approx 3 seconds at 60fps)
     
     // Wave Configuration

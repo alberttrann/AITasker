@@ -1,6 +1,7 @@
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { FootprintAlignment as FootprintAlignmentData } from '@/types/jsonb.types';
+import { type FootprintAlignment as FootprintAlignmentData } from '@/types/jsonb.types';
+export type { FootprintAlignmentData };
 
 // ⚠️ Wire format uses '<->' — FE enums use '↔'
 export const toWireSeam = (feCode: string) => feCode.replace(/↔/g, '<->');
@@ -35,6 +36,11 @@ const ALL_SEAMS: { code: string; label: string }[] = [
   { code: 'B↔E', label: 'B ↔ E — MLOps ↔ Data' },
   { code: 'C↔E', label: 'C ↔ E — Evaluation ↔ Data' },
 ];
+
+interface FootprintAlignmentProps {
+  expertProfile: any;
+  project: any;
+}
 
 export default function FootprintAlignment({
   expertProfile,

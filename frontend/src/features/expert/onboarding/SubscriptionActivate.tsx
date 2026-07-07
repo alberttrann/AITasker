@@ -94,7 +94,7 @@ export default function SubscriptionActivate() {
             <div className="flex flex-col md:items-end gap-4 md:ml-0">
               <div className="text-left md:text-right">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Time until expiration</span>
-                <span className="text-lg font-bold text-emerald-600">{getRemainingTime()}</span>
+                <span className={`text-lg font-bold ${getRemainingTime() === 'Expired' ? 'text-red-500' : 'text-emerald-600'}`}>{getRemainingTime()}</span>
               </div>
               <div className="text-left md:text-right">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Price</span>

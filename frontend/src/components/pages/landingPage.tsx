@@ -230,13 +230,13 @@ export default function LandingPage() {
             ></div>
 
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-tertiary/20' : 'bg-blue-500/10'}`}></div>
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-tertiary/20' : 'bg-blue-500/10'}`}></div>
               <div className={`absolute top-[10%] left-[20%] w-96 h-96 rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-emerald-500/10' : 'bg-purple-500/10'}`}></div>
               <div className={`absolute bottom-[10%] right-[20%] w-96 h-96 rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-blue-500/10' : 'bg-amber-500/10'}`}></div>
             </div>
             
             <div 
-              className={`absolute inset-[-100px] -z-10 pointer-events-none backdrop-blur-md rounded-full ${isBusiness ? 'bg-primary/10' : 'bg-white/20'}`} 
+              className={`absolute -inset-25 -z-10 pointer-events-none backdrop-blur-md rounded-full ${isBusiness ? 'bg-primary/10' : 'bg-white/20'}`} 
               style={{ 
                 maskImage: 'radial-gradient(circle at center, black 40%, transparent 70%)', 
                 WebkitMaskImage: 'radial-gradient(circle at center, black 40%, transparent 70%)' 
@@ -290,7 +290,7 @@ export default function LandingPage() {
           >
             <button
               onClick={handleCtaClick}
-              className={`${isBusiness ? 'bg-tertiary hover:bg-emerald-400 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)]'} font-headline font-bold text-[18px] px-[40px] h-[60px] rounded-[10px] transition-all duration-150 flex items-center gap-3 active:scale-95`}
+              className={`${isBusiness ? 'bg-tertiary hover:bg-emerald-400 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)]'} font-headline font-bold text-[18px] px-10 h-15 rounded-[10px] transition-all duration-150 flex items-center gap-3 active:scale-95`}
             >
               {isAuthenticated ? 'Back to Dashboard' : "Let's start"} <ArrowRight className="w-6 h-6" />
             </button>
@@ -306,7 +306,7 @@ export default function LandingPage() {
         </div>
         
         {!isButtonsOnly && (
-          <div className={`absolute bottom-8 left-6 lg:left-12 text-sm font-medium z-10 whitespace-nowrap ${isBusiness ? 'text-slate-500' : 'text-stone-400'}`}>
+          <div className={`hidden sm:block absolute bottom-8 left-6 lg:left-12 text-sm font-medium z-10 whitespace-nowrap ${isBusiness ? 'text-slate-500' : 'text-stone-400'}`}>
             &copy; 2026 AITasker. All rights reserved.
           </div>
         )}
@@ -318,7 +318,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-body relative">
-      <main className="flex-grow flex flex-col relative min-h-screen overflow-hidden">
+      <main className="grow flex flex-col relative min-h-screen overflow-hidden">
         {/* Active Layer (Base) */}
         <div className="absolute inset-0 z-0">
           <Content mode={activeMode} renderMode="backgroundAndText" />
