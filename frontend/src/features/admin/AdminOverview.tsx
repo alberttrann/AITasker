@@ -136,7 +136,7 @@ export default function AdminOverview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Widget metrics={projectMetrics} variant="purple" />
+        <Widget metrics={projectMetrics} variant="slate" />
         <Widget metrics={subscriptionMetrics} variant="blue" />
         <Widget metrics={disputeMetrics} variant="orange" />
         <Widget metrics={ledgerMetrics} variant="emerald" />

@@ -63,7 +63,7 @@ export default function Widget({ metrics, className = '', variant = 'slate' }: W
   const variantStyles = {
     slate: 'bg-gradient-to-br from-slate-800 to-slate-950 border-slate-700/50',
     blue: 'bg-gradient-to-br from-blue-900 to-indigo-950 border-blue-800/50',
-    purple: 'bg-gradient-to-br from-fuchsia-900 to-purple-950 border-fuchsia-800/50',
+    purple: 'bg-gradient-to-br from-purple-700 to-fuchsia-950 border-purple-600/50',
     emerald: 'bg-gradient-to-br from-emerald-900 to-teal-950 border-emerald-800/50',
     orange: 'bg-gradient-to-br from-orange-900 to-red-950 border-orange-800/50',
   };
