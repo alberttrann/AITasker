@@ -580,3 +580,41 @@ export interface UpdateMilestoneDoDItemVariable {
   itemId: string;
   body: UpdateMilestoneDoDItemDto;
 }
+
+// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
+
+/**
+ * Payload used for expert submitting deliverables for a milestone.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionDto {
+  description: string;
+  files_json?: string[];
+}
+
+/**
+ * Variables required when calling the submit milestone mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionVariable {
+  milestoneId: string;
+  body: CreateSubmissionDto;
+}
+
+/**
+ * Payload used for staging a detailed technical paygated document.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocDto {
+  document_url: string;
+}
+
+/**
+ * Variables required when calling the upload document mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocVariable {
+  milestoneId: string;
+  body: StagePaygatedDocDto;
+}
+
