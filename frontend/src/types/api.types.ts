@@ -538,4 +538,45 @@ export interface RevisionNoteDto {
 export interface RevisionNoteVariable {
   criterionId: string;
   body: RevisionNoteDto;
-}
+}
+
+// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new DoD checklist item.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemDto {
+  item_description: string;
+  is_required?: boolean;
+  maps_to_criterion_id?: string;
+}
+
+/**
+ * Variables required when calling the create DoD item mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemVariable {
+  milestoneId: string;
+  body: CreateDodItemDto;
+}
+
+/**
+ * Payload used for updating a Milestone DoD item status.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemDto {
+  status: DodStatus;
+  completion_note?: string;
+  not_applicable_note?: string;
+}
+
+/**
+ * Variables required when calling the update DoD status mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemVariable {
+  milestoneId: string;
+  itemId: string;
+  body: UpdateMilestoneDoDItemDto;
+}
