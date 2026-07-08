@@ -280,7 +280,13 @@ export class AuthService {
           techTeamProfile: {
             create: {
               linkedClientId: payload.ceoId,
-              linkedProjectId: null,
+              linkedProjectId: (
+                await tx.project.findFirst({
+                  where:   { clientId: payload.ceoId, state: 'PUBLISHED' },
+                  orderBy: { createdAt: 'desc' },
+                  select:  { id: true },
+                })
+              )?.id ?? null,
             },
           },
         },
@@ -364,17 +370,24 @@ export class AuthService {
         },
       });
 
-      // Tạo profile hoặc cập nhật liên kết mới sang CEO dự án này
+      // Resolve the CEO's current published project (if it exists already)
+      const ceoProject = await tx.project.findFirst({
+        where:   { clientId: payload.ceoId, state: 'PUBLISHED' },
+        orderBy: { createdAt: 'desc' },
+        select:  { id: true },
+      });
+      const resolvedProjectId = ceoProject?.id ?? null;
+
       await tx.techTeamProfile.upsert({
         where: { userId },
         create: {
           userId,
-          linkedClientId: payload.ceoId,
-          linkedProjectId: null,
+          linkedClientId:  payload.ceoId,
+          linkedProjectId: resolvedProjectId,
         },
         update: {
-          linkedClientId: payload.ceoId,
-          linkedProjectId: null,
+          linkedClientId:  payload.ceoId,
+          linkedProjectId: resolvedProjectId,
         },
       });
 
@@ -475,5 +488,23 @@ export class AuthService {
     });
 
     return { message: 'Password has been reset successfully. You can now log in.' };
+  }
+  async verifyResetToken(token: string): Promise<{ valid: true }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken:          token,
+        passwordResetTokenExpiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired. Please request a new one.',
+      );
+    }
+
+    // Return a simple object — 200 means valid, 400 means invalid/expired.
+    return { valid: true };
   }
 }

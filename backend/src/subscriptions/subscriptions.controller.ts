@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { SubscriptionService } from './subscriptions.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { AuthUser } from 'src/auth/strategies/jwt.strategy';
@@ -28,5 +28,13 @@ export class SubscriptionController {
   @Get('status')
   getSubscriptionStatus(@CurrentUser() user: AuthUser) {
     return this.subscriptionService.getSubscriptionStatus(user.id);
+  }
+
+  @Get('history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get current user\'s subscription purchase history' })
+  async getSubscriptionHistory(@CurrentUser() user: AuthUser) {
+    return this.subscriptionService.getSubscriptionHistory(user.id);
   }
 }

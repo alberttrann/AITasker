@@ -22,6 +22,7 @@ import { MessagesModule } from './messages/messages.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { AdminModule } from './admin/admin.module';
+import { AppConfigModule } from './config/config.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AdminModule } from './admin/admin.module';
     MessagesModule,
     ReviewsModule,
     AdminModule,
+    AppConfigModule,
   ],
   controllers: [AppController],
 })

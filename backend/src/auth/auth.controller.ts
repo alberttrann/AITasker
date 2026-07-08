@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, UseGuards, Param } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
 import { RegisterHandoffDto } from './dto/register-handoff.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -77,5 +77,12 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  // Validate a reset token without consuming it.
+  // FE calls this on page load to decide whether to show the form or an error.
+  @Get('verify-reset-token/:token')
+  verifyResetToken(@Param('token') token: string) {
+    return this.authService.verifyResetToken(token);
   }
 }

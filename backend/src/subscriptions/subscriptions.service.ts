@@ -1,6 +1,5 @@
 import { ActiveRole } from '@common/enums/active-role.enum';
 import { SubscriptionTier } from '@common/enums/subscription-tier';
-import { SubscriptionPrice } from '@common/enums/subscription-price.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
 import {
   ConflictException,
@@ -48,12 +47,21 @@ export class SubscriptionService {
     const expiresKey =
       userCurrentActiveRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
 
-    const price =
-      userCurrentActiveRole === ActiveRole.CLIENT
-        ? SubscriptionPrice.CLIENT_PRO_PRICE
-        : SubscriptionPrice.EXPERT_PRO_PRICE;
-
     const roleTypeLabel = userCurrentActiveRole === ActiveRole.CLIENT ? 'client' : 'expert';
+
+    // Fetch price + duration from DB instead of hardcoded enum
+    const pkg = await this.prisma.subscriptionPackage.findFirst({
+      where: { role: userCurrentActiveRole, isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!pkg) {
+      throw new NotFoundException(
+        `No active subscription package found for role ${userCurrentActiveRole}. Contact admin.`,
+      );
+    }
+    const price = Number(pkg.priceVnd);
+    const durationMonths = pkg.durationMonths;
+    const packageId = pkg.id;
 
     const currentTime = new Date();
     const isCurrentlyActive =
@@ -90,11 +98,25 @@ export class SubscriptionService {
         },
       });
 
+      const expiresAt = addMonths(new Date(), durationMonths);
+
+      // F-2: Write purchase log for subscription history
+      await tx.subscriptionPurchaseLog.create({
+        data: {
+          userId: user.id,
+          packageId,
+          role: userCurrentActiveRole,
+          amountPaidVnd: BigInt(price),
+          expiresAt,
+          paymentMethod: 'WALLET',
+        },
+      });
+
       return tx.user.update({
         where: { id: user.id },
         data: {
           [tierKey]: SubscriptionTier.PRO,
-          [expiresKey]: addMonths(new Date(), 6),
+          [expiresKey]: expiresAt,
         },
       });
     });
@@ -141,5 +163,27 @@ export class SubscriptionService {
       subscriptionExpires: user[expiresKey],
       isExpired,   
     };
+  }
+  async getSubscriptionHistory(userId: string) {
+    const logs = await this.prisma.subscriptionPurchaseLog.findMany({
+      where: { userId },
+      orderBy: { purchasedAt: 'desc' },
+      include: {
+        package: {
+          select: { name: true, role: true, durationMonths: true },
+        },
+      },
+    });
+
+    return logs.map((log) => ({
+      id:            log.id,
+      packageName:   log.package.name,
+      role:          log.role,
+      amountPaidVnd: log.amountPaidVnd.toString(),
+      purchasedAt:   log.purchasedAt,
+      expiresAt:     log.expiresAt,
+      paymentMethod: log.paymentMethod,
+      isExpired:     log.expiresAt < new Date(),
+    }));
   }
 }

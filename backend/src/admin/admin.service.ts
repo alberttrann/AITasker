@@ -244,4 +244,44 @@ export class AdminService {
       orderBy: { requestedAt: 'desc' },
     });
   }
+
+  // ── F-1: Subscription Package Management ───────────────────────────────
+  async listSubscriptionPackages() {
+    return this.prisma.subscriptionPackage.findMany({
+      orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async createSubscriptionPackage(dto: {
+    role: string;
+    name: string;
+    priceVnd: number;
+    durationMonths: number;
+  }) {
+    return this.prisma.subscriptionPackage.create({
+      data: {
+        role:           dto.role,
+        name:           dto.name,
+        priceVnd:       BigInt(dto.priceVnd),
+        durationMonths: dto.durationMonths,
+      },
+    });
+  }
+
+  async updateSubscriptionPackage(
+    packageId: string,
+    dto: { priceVnd?: number; durationMonths?: number; name?: string; isActive?: boolean },
+  ) {
+    const pkg = await this.prisma.subscriptionPackage.findUnique({ where: { id: packageId } });
+    if (!pkg) throw new NotFoundException('Subscription package not found.');
+    return this.prisma.subscriptionPackage.update({
+      where: { id: packageId },
+      data: {
+        ...(dto.priceVnd       !== undefined && { priceVnd: BigInt(dto.priceVnd) }),
+        ...(dto.durationMonths !== undefined && { durationMonths: dto.durationMonths }),
+        ...(dto.name           !== undefined && { name: dto.name }),
+        ...(dto.isActive       !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
 }

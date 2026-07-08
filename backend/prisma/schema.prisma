@@ -53,7 +53,8 @@ model User {
   milestonesSubmitted  MilestoneSubmission[]
   disputesFiled    Dispute[] @relation("DisputeFiler")
   disputesResolved       Dispute[]                 @relation("DisputeResolver")
-  subscriptionPurchaseLogs SubscriptionPurchaseLog[]
+  subscriptionPurchaseLogs  SubscriptionPurchaseLog[]
+  milestoneChatSessions     MilestoneChatSession[]
 
   @@index([activeRole])
   @@map("users")
@@ -219,7 +220,8 @@ model Project {
   techTeamProfiles   TechTeamProfile[]
   engagements        Engagement[]
   messages           Message[]
-  shortlistCache     ProjectShortlistCache?
+  shortlistCache        ProjectShortlistCache?
+  milestoneChatSessions MilestoneChatSession[]
 
   @@index([clientId])
   @@index([state])
@@ -661,4 +663,24 @@ model SubscriptionPurchaseLog {
 
   @@index([userId])
   @@map("subscription_purchase_logs")
+}
+
+// E-3: Persistent multi-turn milestone chat sessions
+model MilestoneChatSession {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId    String   @map("project_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  // Auto-generated title e.g. "Chat · 08/07/2026" — editable later
+  title        String?
+  // Stored as [{role:"user"|"assistant", content:"..."}]
+  messagesJson Json     @default("[]") @map("messages_json")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("milestone_chat_sessions")
 }
