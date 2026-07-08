@@ -58,8 +58,8 @@ export default function ProfilePage() {
   const rawRole = isClient && user?.clientSubtype ? user.clientSubtype : user?.activeRole;
   const displayRole = rawRole ? rawRole.replace('_', ' ').toUpperCase() : '';
 
-  const rolesArray = rawRole === 'TECH_TEAM' 
-    ? ['TECH_TEAM'] 
+  const rolesArray = (rawRole === 'TECH_TEAM' || rawRole === 'ADMIN')
+    ? [rawRole] 
     : (user?.roles || (user?.activeRole ? [user.activeRole] : ['USER']));
   
   const joinDate = user?.createdAt 
@@ -132,7 +132,7 @@ export default function ProfilePage() {
                 
                 {/* Badges */}
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {rawRole !== 'TECH_TEAM' && (
+                  {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                     isPro ? (
                       <div className="relative flex items-center">
                         <button 
@@ -244,7 +244,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Join Date Row */}
-            <div className={`flex items-center justify-between py-4 ${rawRole !== 'TECH_TEAM' ? 'border-b border-slate-100' : ''}`}>
+            <div className={`flex items-center justify-between py-4 ${rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' ? 'border-b border-slate-100' : ''}`}>
               <span className="text-sm font-medium text-slate-500">Member Since</span>
               <div className="flex items-center gap-2 text-sm text-slate-900 font-medium">
                 <Calendar size={16} className="text-slate-400" />
@@ -255,7 +255,7 @@ export default function ProfilePage() {
             {/* ── Role-Specific Details ── */}
 
             {/* CLIENT: Company Name */}
-            {isClient && rawRole !== 'TECH_TEAM' && (
+            {isClient && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <div className="flex items-center justify-between py-4 border-b border-slate-100">
                 <span className="text-sm font-medium text-slate-500">Company Name</span>
                 <span className="text-sm text-slate-900 font-medium">
@@ -265,7 +265,7 @@ export default function ProfilePage() {
             )}
 
             {/* CLIENT: Industry */}
-            {isClient && rawRole !== 'TECH_TEAM' && (
+            {isClient && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <div className="flex items-center justify-between py-4 border-b border-slate-100">
                 <span className="text-sm font-medium text-slate-500">Industry</span>
                 <span className="text-sm text-slate-900 font-medium">
@@ -275,7 +275,7 @@ export default function ProfilePage() {
             )}
 
             {/* CLIENT: CEO Name */}
-            {isClient && rawRole !== 'TECH_TEAM' && (
+            {isClient && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <div className="flex items-center justify-between py-4 border-b border-slate-100">
                 <span className="text-sm font-medium text-slate-500">CEO Name</span>
                 <span className="text-sm text-slate-900 font-medium">
@@ -328,7 +328,7 @@ export default function ProfilePage() {
           </div>
 
           {/* ── 3. Wallet & Stats ── */}
-          {rawRole !== 'TECH_TEAM' && (
+          {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
             <div className="border-t border-slate-200 bg-slate-50 p-6">
               <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
                 <Wallet size={18} className="text-slate-500" />
@@ -352,7 +352,7 @@ export default function ProfilePage() {
           <div className="border-t border-slate-200 p-2">
             
             {/* Add Second Role Button */}
-            {(canAddExpert || canAddClient) && rawRole !== 'TECH_TEAM' && (
+            {(canAddExpert || canAddClient) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <button 
                 onClick={handleAddRole}
                 disabled={addRole.isPending}
@@ -365,7 +365,7 @@ export default function ProfilePage() {
               </button>
             )}
 
-            {rawRole !== 'TECH_TEAM' && (
+            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <button 
                 onClick={() => {
                   if (isClient) navigate('/ceo/subscription');

@@ -164,6 +164,10 @@ export interface EngagementDto {
   connected_at:           string | null;
   client_nda_accepted_at: string | null;
   expert_nda_accepted_at: string | null;
+  // Adding supportive fields for EngagementDto
+  client_id: string;
+  capabilityBid?: CapabilityBidDto | null;
+  milestones?: MilestoneDto[]
 }
 
 export interface CapabilityBidDto {
@@ -479,3 +483,142 @@ export interface StageCompleteData {
     contracts: string[];
   };
 }
+
+// ── Milestones API DTOs (from use-milestones.ts) ──────────────────────────
+
+/**
+ * Payload used for creating a new milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts (useCreateMilestone)
+ */
+export interface CreateMilestonePayload {
+  engagement_id: string;
+  milestone_number: number;
+  deliverable_statement: string;
+  sign_off_authority: SignOffAuthority;
+  payment_amount_vnd: number;
+  criteria: CreateCriterionDto[];
+}
+
+/**
+ * Data transfer object representing a criterion when creating a milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts
+ */
+export interface CreateCriterionDto {
+  criterion_text: string;
+  is_required?: boolean;
+}
+
+// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
+
+/**
+ * Payload used for verifying a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionDto {
+  verification_comment?: string;
+}
+
+/**
+ * Variables required when calling the verify criterion mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionVariable {
+  criterionId: string;
+  body: VerifyCriterionDto;
+}
+
+/**
+ * Payload used for requesting revision on a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteDto {
+  revision_note: string;
+}
+
+/**
+ * Variables required when calling the request revision mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteVariable {
+  criterionId: string;
+  body: RevisionNoteDto;
+}
+
+// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new DoD checklist item.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemDto {
+  item_description: string;
+  is_required?: boolean;
+  maps_to_criterion_id?: string;
+}
+
+/**
+ * Variables required when calling the create DoD item mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemVariable {
+  milestoneId: string;
+  body: CreateDodItemDto;
+}
+
+/**
+ * Payload used for updating a Milestone DoD item status.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemDto {
+  status: DodStatus;
+  completion_note?: string;
+  not_applicable_note?: string;
+}
+
+/**
+ * Variables required when calling the update DoD status mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemVariable {
+  milestoneId: string;
+  itemId: string;
+  body: UpdateMilestoneDoDItemDto;
+}
+
+// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
+
+/**
+ * Payload used for expert submitting deliverables for a milestone.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionDto {
+  description: string;
+  files_json?: string[];
+}
+
+/**
+ * Variables required when calling the submit milestone mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionVariable {
+  milestoneId: string;
+  body: CreateSubmissionDto;
+}
+
+/**
+ * Payload used for staging a detailed technical paygated document.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocDto {
+  document_url: string;
+}
+
+/**
+ * Variables required when calling the upload document mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocVariable {
+  milestoneId: string;
+  body: StagePaygatedDocDto;
+}
+

@@ -3,8 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { useUser } from '@/hooks/use-user';
-import { useSubscription, useSubscriptionStatus } from '@/hooks/use-subscription';
-import { SubscriptionPrice } from '@/types/enums';
+import { useSubscription, useSubscriptionStatus, useSubscriptionHistory, useSubscriptionPackages } from '@/hooks/use-subscription';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -19,13 +18,17 @@ export default function SubscriptionActivate() {
   const { data: wallet } = useWallet();
   const { activateSubscription } = useSubscription();
   const { data: subStatus } = useSubscriptionStatus();
+  const { data: historyLogs, isLoading: isLoadingHistory } = useSubscriptionHistory();
+  const { data: packages } = useSubscriptionPackages();
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const activePackage = packages?.find((p) => p.role === 'EXPERT' && p.isActive);
+  const price = activePackage ? Number(activePackage.priceVnd) : null;
+
   const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const price = SubscriptionPrice.EXPERT;
-  const canAfford = availableBalance >= price;
+  const canAfford = price !== null && availableBalance >= price;
 
   const handleActivate = () => {
     setErrorMsg(null);
@@ -98,7 +101,7 @@ export default function SubscriptionActivate() {
               </div>
               <div className="text-left md:text-right">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Price</span>
-                <span className="text-base font-bold text-slate-700">{formatVND(SubscriptionPrice.EXPERT)} / month</span>
+                <span className="text-base font-bold text-slate-700">{price !== null ? `${formatVND(price)} / month` : 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -107,15 +110,53 @@ export default function SubscriptionActivate() {
         {/* Subscription History */}
         <div>
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription History</h2>
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 shadow-sm flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
-              <History size={32} />
+          
+          {isLoadingHistory ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 shadow-sm flex items-center justify-center">
+              <span className="text-slate-500 font-medium">Loading history...</span>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">No history available yet</h3>
-            <p className="text-slate-500 max-w-sm">
-              Your past subscription renewals and invoices will appear here once this feature is fully established.
-            </p>
-          </div>
+          ) : historyLogs && historyLogs.length > 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-500">
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Package</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Purchased At</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Expires At</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {historyLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 text-slate-900 font-medium">{log.packageName}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(log.purchasedAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(log.expiresAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-slate-900 font-semibold">{formatVND(Number(log.amountPaidVnd))}</td>
+                      <td className="px-6 py-4">
+                        {log.isExpired ? (
+                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold uppercase rounded-md">Expired</span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold uppercase rounded-md">Active</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 shadow-sm flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
+                <History size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">No history available yet</h3>
+              <p className="text-slate-500 max-w-sm">
+                Your past subscription renewals and invoices will appear here.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -178,7 +219,7 @@ export default function SubscriptionActivate() {
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-slate-900 mb-2">6-Month Access</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-extrabold text-slate-900">{formatVND(price)}</span>
+                  <span className="text-4xl font-extrabold text-slate-900">{price !== null ? formatVND(price) : 'N/A'}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-2">One-time payment, no auto-renewal.</p>
               </div>
@@ -216,12 +257,18 @@ export default function SubscriptionActivate() {
                     className="w-full py-4 text-lg font-bold shadow-emerald-glow hover:brightness-105 transition-all group"
                     variant="primary"
                     onClick={handleActivate}
-                    disabled={activateSubscription.isPending}
+                    disabled={activateSubscription.isPending || price === null}
                     isLoading={activateSubscription.isPending}
                   >
                     Activate Expert Pro
                     <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
+                ) : price === null ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-center text-slate-500 font-medium bg-slate-50 py-2 rounded-lg">
+                      Price currently unavailable.
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="text-sm text-center text-red-500 font-medium bg-red-50 py-2 rounded-lg">

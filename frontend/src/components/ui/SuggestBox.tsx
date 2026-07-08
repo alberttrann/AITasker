@@ -1,6 +1,7 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
-interface DashboardBannerProps {
+interface SuggestBoxProps {
   title: string;
   description: React.ReactNode;
   icon: React.ReactNode;
@@ -9,9 +10,10 @@ interface DashboardBannerProps {
   theme?: 'emerald' | 'blue' | 'outline' | 'outline-purple';
   topLabel?: string;
   className?: string;
+  onDismiss?: () => void;
 }
 
-export function DashboardBanner({
+export function SuggestBox({
   title,
   description,
   icon,
@@ -19,14 +21,28 @@ export function DashboardBanner({
   onButtonClick,
   theme = 'emerald',
   topLabel,
-  className = ""
-}: DashboardBannerProps) {
+  className = "",
+  onDismiss
+}: SuggestBoxProps) {
   const isEmerald = theme === 'emerald';
   const isOutline = theme === 'outline' || theme === 'outline-purple';
 
   if (isOutline) {
     return (
-      <div className={`relative overflow-hidden rounded-xl bg-white p-5 border border-slate-200 shadow-sm flex flex-col justify-center transition-all hover:border-slate-300 hover:shadow-md ${className}`}>
+      <div className={`relative overflow-hidden rounded-xl bg-white p-5 border border-slate-200 shadow-sm flex flex-col justify-center transition-all hover:border-slate-300 hover:shadow-md group ${className}`}>
+        {onDismiss && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismiss();
+            }}
+            className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+            title="Dismiss suggestion"
+          >
+            <X size={16} />
+          </button>
+        )}
+        
         {topLabel && (
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 block">
             {topLabel}
@@ -71,7 +87,20 @@ export function DashboardBanner({
     : "bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:bg-blue-400 focus:ring-blue-500/30";
 
   return (
-    <div className={`relative overflow-hidden rounded-[16px] bg-primary-dark p-6 sm:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] ${className}`}>
+    <div className={`relative overflow-hidden rounded-[16px] bg-primary-dark p-6 sm:p-8 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] group ${className}`}>
+      {onDismiss && (
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss();
+          }}
+          className="absolute top-4 right-4 p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors z-20 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          title="Dismiss suggestion"
+        >
+          <X size={18} />
+        </button>
+      )}
+
       {/* Background Orbs & Grid */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className={`absolute -right-20 -top-32 h-96 w-96 rounded-full blur-[80px] ${orbsClass}`} />
