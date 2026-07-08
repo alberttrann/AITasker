@@ -164,6 +164,10 @@ export interface EngagementDto {
   connected_at:           string | null;
   client_nda_accepted_at: string | null;
   expert_nda_accepted_at: string | null;
+  // Adding supportive fields for EngagementDto
+  client_id: string;
+  capabilityBid?: CapabilityBidDto | null;
+  milestones?: MilestoneDto[]
 }
 
 export interface CapabilityBidDto {
