@@ -1,10 +1,18 @@
-import { Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { PrismaService }      from '../database/prisma.service';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
-import { VAEntityType }       from '@common/enums/va-entity-type.enum';
-import { MilestoneState }     from '@common/enums/milestone-state.enum';
-import { LedgerService }      from '@shared/ledger/ledger.service';
-import { FastapiClient }      from '../elicitation/fastapi.client';
+import { VAEntityType } from '@common/enums/va-entity-type.enum';
+import { MilestoneState } from '@common/enums/milestone-state.enum';
+import { LedgerService } from '@shared/ledger/ledger.service';
+import { FastapiClient } from '../elicitation/fastapi.client';
+import { generateVaNumber } from '@shared/ledger/va-generator';
 
 @Injectable()
 export class MilestonesService {
@@ -39,12 +47,12 @@ export class MilestonesService {
       try {
         milestone = await tx.milestone.create({
           data: {
-            engagementId:         dto.engagement_id,
-            milestoneNumber:      dto.milestone_number,
+            engagementId: dto.engagement_id,
+            milestoneNumber: dto.milestone_number,
             deliverableStatement: dto.deliverable_statement,
-            signOffAuthority:     dto.sign_off_authority,
-            paymentAmountVnd:     dto.payment_amount_vnd,
-            state:                'DEFINED',
+            signOffAuthority: dto.sign_off_authority,
+            paymentAmountVnd: dto.payment_amount_vnd,
+            state: 'DEFINED',
           },
         });
       } catch (err: any) {
@@ -60,9 +68,9 @@ export class MilestonesService {
       for (const c of dto.criteria) {
         const criterion = await tx.acceptanceCriterion.create({
           data: {
-            milestoneId:    milestone.id,
-            criterionText:  c.criterion_text,
-            isRequired:     c.is_required ?? true,
+            milestoneId: milestone.id,
+            criterionText: c.criterion_text,
+            isRequired: c.is_required ?? true,
             verifiedByRole: dto.sign_off_authority,
           },
         });
@@ -70,7 +78,7 @@ export class MilestonesService {
       }
 
       return tx.milestone.findUnique({
-        where:   { id: milestone.id },
+        where: { id: milestone.id },
         include: { acceptanceCriteria: true },
       });
     });
@@ -86,9 +94,9 @@ export class MilestonesService {
             await this.prisma.platformDecision.create({
               data: {
                 decisionType: 'CRITERION_QUALITY_GATE',
-                entityType:   'acceptance_criteria',
-                entityId:     criterion.id,
-                decision:     'FLAGGED',
+                entityType: 'acceptance_criteria',
+                entityId: criterion.id,
+                decision: 'FLAGGED',
                 advisoryNote: check.suggestions.join(' | ') || null,
               },
             });
@@ -112,7 +120,8 @@ export class MilestonesService {
       throw new BadRequestException('Milestone cannot be found');
     }
 
-    const vaNumber = `VA-${Math.floor(100000 + Math.random() * 900000)}`;
+    // Adjust VANumber to fit with shared VANumber setting
+    const vaNumber = generateVaNumber(VAEntityType.MILESTONE);
 
     await this.prisma.virtualAccount.create({
       data: {

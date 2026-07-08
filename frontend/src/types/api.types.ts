@@ -479,3 +479,27 @@ export interface StageCompleteData {
     contracts: string[];
   };
 }
+
+// ── Milestones API DTOs (from use-milestones.ts) ──────────────────────────
+
+/**
+ * Payload used for creating a new milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts (useCreateMilestone)
+ */
+export interface CreateMilestonePayload {
+  engagement_id: string;
+  milestone_number: number;
+  deliverable_statement: string;
+  sign_off_authority: SignOffAuthority;
+  payment_amount_vnd: number;
+  criteria: CreateCriterionDto[];
+}
+
+/**
+ * Data transfer object representing a criterion when creating a milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts
+ */
+export interface CreateCriterionDto {
+  criterion_text: string;
+  is_required?: boolean;
+}
