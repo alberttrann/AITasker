@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
-import { useSubscription, useSubscriptionPackages, useSubscriptionHistory } from '@/hooks/use-subscription';
+import { useSubscription, useSubscriptionPackages, useSubscriptionHistory, useSubscriptionStatus } from '@/hooks/use-subscription';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -21,8 +21,12 @@ export default function SubscriptionPlans() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
 
+  const { data: subStatus } = useSubscriptionStatus();
   const { data: history } = useSubscriptionHistory();
-  const activePackageNames = history?.filter((h) => !h.isExpired).map((h) => h.packageName) || [];
+  const activePackage = history?.find((h) => !h.isExpired);
+  const activePackageNames = subStatus?.isActive && activePackage 
+    ? [activePackage.packageName] 
+    : [];
 
   const handleActivate = (packageId: string) => {
     setErrorMsg(null);
@@ -52,19 +56,12 @@ export default function SubscriptionPlans() {
   );
 
   return (
-    <div className="min-h-[80vh] w-full flex flex-col justify-center py-8 sm:py-12 shrink-0 min-w-0">
+    <div className="min-h-[80vh] w-full flex flex-col justify-start pt-6 pb-12 shrink-0 min-w-0">
       <div className="fixed top-1/4 left-1/4 w-[400px] h-[400px] bg-emerald-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
 
-      <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-12 items-center justify-center relative z-10 px-6">
+      <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-8 items-center justify-center relative z-10 px-6">
         
-        <div className="w-full">
-          <Button variant="ghost" onClick={() => navigate('/ceo/subscriptions')} className="text-slate-500 hover:text-slate-900 mb-4 px-0">
-            <ArrowLeft size={20} className="mr-2" />
-            Back to Management
-          </Button>
-        </div>
-
         <div className="text-center max-w-2xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-headline font-extrabold text-slate-900 leading-[1.1] mb-6">
             Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Client Pro</span> Experience
@@ -140,17 +137,12 @@ export default function SubscriptionPlans() {
                           <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
                       ) : (
-                        <div className="space-y-3">
-                          <div className="text-sm text-center text-red-500 font-medium bg-red-50 py-2 rounded-lg">
-                            Insufficient balance.
-                          </div>
-                          <Link
-                            to="/ceo/wallet"
-                            className="block w-full text-center py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors"
-                          >
-                            Top Up Wallet
-                          </Link>
-                        </div>
+                        <Button
+                          className="w-full h-12 rounded-xl text-[15px] font-bold bg-slate-100 text-slate-400 cursor-not-allowed hover:bg-slate-100"
+                          disabled
+                        >
+                          Insufficient Balance
+                        </Button>
                       )}
                     </div>
                   </div>

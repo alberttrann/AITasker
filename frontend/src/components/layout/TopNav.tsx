@@ -355,7 +355,7 @@ const RoleIcon =
 
                     {rawRole === 'EXPERT' && (
                       <Link
-                        to={`/expert/expert-profile`} 
+                        to={`/expert/service/expert-profile`} 
                         onClick={() => setActiveDropdown(null)} 
                         className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                       >
@@ -471,7 +471,7 @@ const RoleIcon =
               </Link>
               
               {rawRole === 'EXPERT' && (
-                <Link to="/expert/expert-profile" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <Link to="/expert/service/expert-profile" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Award size={20} className="text-slate-500" /> Expert Profile
                 </Link>
               )}
@@ -485,8 +485,8 @@ const RoleIcon =
                   <Link to={`${dashboardRoute}/analytics`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                     <Sparkles size={20} className="text-slate-500" /> Analytics
                   </Link>
-                  <Link to={`${dashboardRoute}/packages`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Briefcase size={20} className="text-slate-500" /> Packages
+                  <Link to={`${dashboardRoute}/config`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                    <Briefcase size={20} className="text-slate-500" /> Configuration
                   </Link>
                   <Link to={`${dashboardRoute}/disputes`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                     <Shield size={20} className="text-slate-500" /> Disputes
@@ -570,7 +570,7 @@ const RoleIcon =
             )}
             {rawRole === 'EXPERT' && (
               <Link 
-                to={`/expert/expert-profile`} 
+                to={`/expert/service/expert-profile`} 
                 className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/expert-profile') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               >
                 Services
@@ -591,11 +591,11 @@ const RoleIcon =
                   )}
                 </Link>
                 <Link 
-                  to={`${dashboardRoute}/packages`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/packages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                  to={`${dashboardRoute}/config`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/config') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
                 >
-                  Packages
-                  {location.pathname.includes('/packages') && (
+                  Configuration
+                  {location.pathname.includes('/config') && (
                     <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                   )}
                 </Link>

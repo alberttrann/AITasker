@@ -33,6 +33,8 @@ import DisputeMonitor from "@features/admin/disputes/DisputeMonitor";
 import TransactionsLedger from "@features/admin/ledger/TransactionsLedger";
 import WithdrawalRequests from "@features/admin/ledger/WithdrawalRequests";
 import SubscriptionPackagesPage from "@features/admin/packages/SubscriptionPackagesPage";
+import ConfigurationPage from "@features/admin/config/ConfigurationPage";
+import DomainSeamConfigPage from "@features/admin/config/DomainSeamConfigPage";
 import ProfilePage from "./components/pages/UserProfilePage";
 import ProfileSettingPage from "./components/pages/ProfileSettingPage";
 import WalletPage from "./components/wallet/WalletPage";
@@ -107,7 +109,7 @@ const router = createBrowserRouter(
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="expert-profile" element={<ExpertProfilePage />} />
+            <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
@@ -154,7 +156,9 @@ const router = createBrowserRouter(
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="analytics" element={<AnalyticsDashboard />} />
-            <Route path="packages" element={<SubscriptionPackagesPage />} />
+            <Route path="config" element={<ConfigurationPage />} />
+            <Route path="config/packages" element={<SubscriptionPackagesPage />} />
+            <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />

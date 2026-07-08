@@ -30,19 +30,13 @@ export default function AdminOverview() {
     }
   });
 
-  const { data: packages, isLoading: isLoadingPackages } = useQuery({
-    queryKey: ['admin-subscription-packages'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/admin/subscriptions/packages');
-      return data;
-    }
-  });
 
-  const isLoading = isLoadingAnalytics || isLoadingDisputes || isLoadingWithdrawals || isLoadingPackages;
+
+  const isLoading = isLoadingAnalytics || isLoadingDisputes || isLoadingWithdrawals;
 
   if (isLoading) {
     return (
-      <div className="p-md sm:p-lg flex items-center justify-center min-h-[400px]">
+      <div className="w-full flex items-center justify-center min-h-[400px]">
         <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
       </div>
     );
@@ -87,16 +81,7 @@ export default function AdminOverview() {
     }
   ];
 
-  const subscriptionMetrics: WidgetMetric[] = [
-    { 
-      id: 'active-packages', 
-      label: 'Subscription Packages', 
-      value: packages ? packages.length : 0, 
-      subValue: 'Active and available',
-      icon: <CreditCard size={20} />, 
-      href: '/admin/packages'
-    }
-  ];
+
 
   const disputeMetrics: WidgetMetric[] = [
     { 
@@ -128,18 +113,17 @@ export default function AdminOverview() {
   ];
 
   return (
-    <div className="p-md sm:p-lg">
+    <div className="w-full space-y-8">
       <DashboardGreeting />
       
-      <div className="mt-8 mb-4">
-        <h2 className="text-xl font-bold font-headline text-slate-900">Workspace</h2>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Widget metrics={projectMetrics} variant="slate" />
-        <Widget metrics={subscriptionMetrics} variant="blue" />
-        <Widget metrics={disputeMetrics} variant="orange" />
-        <Widget metrics={ledgerMetrics} variant="emerald" />
+      <div className="mb-8">
+        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Widget metrics={projectMetrics} variant="slate" />
+          <Widget metrics={disputeMetrics} variant="orange" />
+          <Widget metrics={ledgerMetrics} variant="emerald" />
+        </div>
       </div>
       
       {/* Space for future sections like charts, lists, etc. */}

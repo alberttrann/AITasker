@@ -216,15 +216,7 @@ export default function BidForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Footprint Alignment */}
-        <Card>
-          <CardContent className="pt-6">
-            <FootprintAlignment
-              expertProfile={expertProfile}
-              project={project}
-            />
-          </CardContent>
-        </Card>
+
 
         {/* Approach Summary */}
         <Card>

@@ -4,9 +4,11 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import DomainDepthGrid from './DomainDepthGrid';
 import SeamClaimsGrid from './SeamClaimsGrid';
 import type { DomainDepth, SeamClaim } from '@/types/ui.types';
+import { useDomains, useSeams } from '@/hooks/use-config';
 import StackTagsPicker from './StackTagsPicker';
 import { CheckCircle, ShieldCheck, X } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
+import TooltipIcon from '@/components/ui/TooltipIcon';
 
 export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) {
   const navigate = useNavigate();
@@ -39,32 +41,27 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
     }
   };
 
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
+
   const getDomainLabel = (code: string) => {
-    const map: Record<string, string> = {
-      'A': 'LLM App Engineering',
-      'B': 'Applied Reasoning Systems',
-      'C': 'Prompt Engineering & Design',
-      'D': 'Model Fine-Tuning & Training',
-      'E': 'RAG & Search Architecture',
-      'F': 'MLOps & Production AI',
-    };
-    return map[code] || code;
+    const domain = dynamicDomains?.find(d => d.code === code);
+    return domain ? domain.name : code;
+  };
+
+  const getDomainDescription = (code: string) => {
+    const domain = dynamicDomains?.find(d => d.code === code);
+    return domain?.description;
   };
 
   const getSeamLabel = (code: string) => {
-    const map: Record<string, string> = {
-      'A↔B': 'Applied Agents',
-      'A↔C': 'Prompt Engineering Apps',
-      'A↔D': 'Fine-Tuned Apps',
-      'A↔F': 'Production LLMs',
-      'B↔E': 'Agents with Memory',
-      'C↔E': 'Retrieval Prompting',
-      'C↔F': 'PromptOps',
-      'D↔E': 'Fine-Tuned RAG',
-      'D↔F': 'MLOps for LLMs',
-      'E↔F': 'Scalable RAG',
-    };
-    return map[code] || code;
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam ? seam.name : code;
+  };
+
+  const getSeamDescription = (code: string) => {
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam?.description;
   };
 
   if (isLoadingProfile) {
@@ -186,7 +183,10 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
                   <div className="grid gap-3">
                     {selectedDomains.map(d => (
                       <div key={d.domainCode} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                        <span className="font-medium text-gray-700">{d.domainCode} · {getDomainLabel(d.domainCode)}</span>
+                        <span className="font-medium text-gray-700 flex items-center gap-2">
+                          {d.domainCode} &middot; {getDomainLabel(d.domainCode)}
+                          <TooltipIcon text={getDomainDescription(d.domainCode)} />
+                        </span>
                         <span className="px-3 py-1 bg-blue-50 text-blue-700 font-bold text-xs rounded-full">{d.depthLevel}</span>
                       </div>
                     ))}
@@ -209,6 +209,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-800 font-bold text-xs rounded border">{s.seamCode || s.code}</span>
                         <span className="font-medium text-gray-700 flex items-center gap-2">
                           {getSeamLabel(s.seamCode || s.code)}
+                          <TooltipIcon text={getSeamDescription(s.seamCode || s.code)} />
                           {(s.verificationTier === 'EVIDENCE_BACKED' || s.verificationTier === 'VERIFIED') && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
                               <CheckCircle className="h-3 w-3" /> AI Verified

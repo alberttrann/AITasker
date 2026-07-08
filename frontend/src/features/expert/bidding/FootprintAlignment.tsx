@@ -15,27 +15,7 @@ export function toWireFootprint(data: FootprintAlignmentData) {
   };
 }
 
-const ALL_DOMAINS: { code: string; label: string }[] = [
-  { code: 'A', label: 'LLM Application Engineering' },
-  { code: 'B', label: 'MLOps / LLMOps' },
-  { code: 'C', label: 'AI Evaluation & Quality' },
-  { code: 'D', label: 'Vector DB & Embeddings' },
-  { code: 'E', label: 'Data & Pipeline Engineering' },
-  { code: 'F', label: 'ML Modeling & Fine-Tuning' },
-];
-
-const ALL_SEAMS: { code: string; label: string }[] = [
-  { code: 'A↔C', label: 'A ↔ C — LLM ↔ Evaluation' },
-  { code: 'A↔F', label: 'A ↔ F — LLM ↔ Modeling' },
-  { code: 'A↔D', label: 'A ↔ D — LLM ↔ Vector DB' },
-  { code: 'D↔E', label: 'D ↔ E — Vector DB ↔ Data' },
-  { code: 'D↔F', label: 'D ↔ F — Vector DB ↔ Modeling' },
-  { code: 'C↔F', label: 'C ↔ F — Evaluation ↔ Modeling' },
-  { code: 'E↔F', label: 'E ↔ F — Data ↔ Modeling' },
-  { code: 'A↔B', label: 'A ↔ B — LLM ↔ MLOps' },
-  { code: 'B↔E', label: 'B ↔ E — MLOps ↔ Data' },
-  { code: 'C↔E', label: 'C ↔ E — Evaluation ↔ Data' },
-];
+import { useDomains, useSeams } from '@/hooks/use-config';
 
 interface FootprintAlignmentProps {
   expertProfile: any;
@@ -51,6 +31,9 @@ export default function FootprintAlignment({
   
   const projectDomains = project?.requiredDomainsJson || project?.required_domains_json || [];
   const projectSeams = project?.requiredSeamsJson || project?.required_seams_json || [];
+
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
 
   return (
     <div className="space-y-6">
@@ -80,11 +63,11 @@ export default function FootprintAlignment({
               projectDomains.map((req: any) => {
                 const code = req.domainCode || req.domain_code;
                 const match = expertDomains.find((d: any) => d.domainCode === code);
-                const info = ALL_DOMAINS.find(d => d.code === code);
+                const info = dynamicDomains?.find(d => d.code === code);
                 return (
                   <div key={code} className={cn("p-2 rounded-lg border text-[13px]", match ? "border-[#059669]/30 bg-[#059669]/5" : "border-[#E2E8F0] bg-white")}>
                     <div className="flex justify-between items-start">
-                      <span className="font-medium text-[#0F172A]">{code} - {info?.label || code}</span>
+                      <span className="font-medium text-[#0F172A]">{code} - {info?.name || code}</span>
                       {match ? <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0" /> : <XCircle className="w-4 h-4 text-[#94A3B8] shrink-0" />}
                     </div>
                     <div className="text-[11px] text-[#64748B] mt-1">Required: {req.requiredDepth || req.required_depth || 'ANY'}</div>
@@ -100,11 +83,11 @@ export default function FootprintAlignment({
               projectSeams.map((req: any) => {
                 const code = req.seamCode || req.seam_code;
                 const match = expertSeams.find((s: any) => (s.seamCode || s.code) === code);
-                const info = ALL_SEAMS.find(s => s.code === code);
+                const info = dynamicSeams?.find(s => s.code === code);
                 return (
                   <div key={code} className={cn("p-2 rounded-lg border text-[13px]", match ? "border-[#059669]/30 bg-[#059669]/5" : "border-[#E2E8F0] bg-white")}>
                     <div className="flex justify-between items-start">
-                      <span className="font-medium text-[#0F172A]">{info?.label || code}</span>
+                      <span className="font-medium text-[#0F172A]">{code} - {info?.name || code}</span>
                       {match ? <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0" /> : <XCircle className="w-4 h-4 text-[#94A3B8] shrink-0" />}
                     </div>
                   </div>
@@ -130,11 +113,11 @@ export default function FootprintAlignment({
               expertDomains.map((exp: any) => {
                 const code = exp.domainCode;
                 const match = projectDomains.find((d: any) => (d.domainCode || d.domain_code) === code);
-                const info = ALL_DOMAINS.find(d => d.code === code);
+                const info = dynamicDomains?.find(d => d.code === code);
                 return (
                   <div key={code} className={cn("p-2 rounded-lg border text-[13px]", match ? "border-[#059669] bg-[#059669]/10 shadow-sm ring-1 ring-[#059669]/20" : "border-[#E2E8F0] bg-white")}>
                     <div className="flex justify-between items-start">
-                      <span className="font-medium text-[#0F172A]">{code} - {info?.label || code}</span>
+                      <span className="font-medium text-[#0F172A]">{code} - {info?.name || code}</span>
                     </div>
                     <div className="text-[11px] text-[#64748B] mt-1">Depth: {exp.depthLevel}</div>
                   </div>
@@ -149,11 +132,11 @@ export default function FootprintAlignment({
               expertSeams.map((exp: any) => {
                 const code = exp.seamCode || exp.code;
                 const match = projectSeams.find((s: any) => (s.seamCode || s.seam_code) === code);
-                const info = ALL_SEAMS.find(s => s.code === code);
+                const info = dynamicSeams?.find(s => s.code === code);
                 return (
                   <div key={code} className={cn("p-2 rounded-lg border text-[13px]", match ? "border-[#059669] bg-[#059669]/10 shadow-sm ring-1 ring-[#059669]/20" : "border-[#E2E8F0] bg-white")}>
                     <div className="flex justify-between items-start">
-                      <span className="font-medium text-[#0F172A]">{info?.label || code}</span>
+                      <span className="font-medium text-[#0F172A]">{code} - {info?.name || code}</span>
                     </div>
                     <div className="text-[11px] text-[#64748B] mt-1">Tier: {exp.verificationTier || 'CLAIMED'}</div>
                   </div>

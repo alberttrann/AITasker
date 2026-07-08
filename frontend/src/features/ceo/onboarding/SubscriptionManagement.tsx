@@ -64,8 +64,13 @@ export default function SubscriptionActivate() {
     const diff = expires.getTime() - now.getTime();
     if (diff <= 0) return 'Expired';
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    return `${days} days, ${hours} hours`;
+    if (days >= 1) return `${days} day${days > 1 ? 's' : ''}`;
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours >= 1) return `${hours} hour${hours > 1 ? 's' : ''}`;
+    
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
   };
 
   const isPro = subStatus?.tier === 'pro';
@@ -149,10 +154,10 @@ export default function SubscriptionActivate() {
         ) : (
           <DataTable
             columns={[
-              { key: 'packageName', label: 'Package', sortable: true },
-              { key: 'purchasedAt', label: 'Purchased At', sortable: true, render: (log: any) => new Date(log.purchasedAt).toLocaleDateString() },
-              { key: 'expiresAt', label: 'Expires At', sortable: true, render: (log: any) => new Date(log.expiresAt).toLocaleDateString() },
-              { key: 'amountPaidVnd', label: 'Amount', sortable: true, render: (log: any) => formatVND(Number(log.amountPaidVnd)) }
+              { key: 'packageName', label: 'Plan', sortable: true },
+              { key: 'purchasedAt', label: 'Purchased At', sortable: true, render: (log: any) => new Date(log.purchasedAt).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+              { key: 'expiresAt', label: 'Expires At', sortable: true, render: (log: any) => new Date(log.expiresAt).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+              { key: 'amountPaidVnd', label: 'Price', sortable: true, render: (log: any) => formatVND(Number(log.amountPaidVnd)) }
             ]}
             data={sortedHistoryLogs || []}
             sortColumn={sortColumn}

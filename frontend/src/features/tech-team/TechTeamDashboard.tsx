@@ -7,9 +7,9 @@ export default function TechTeamDashboard() {
   const isFillingForm = !!sessionStorage.getItem('handoff_sessionId');
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-['DM_Sans']">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {!isFillingForm && <TopNav />}
-      <main className="flex-grow w-full max-w-[1440px] mx-auto px-6 py-8">
+      <main className="flex-grow w-full max-w-[1440px] mx-auto px-6 py-6 sm:py-8">
         <Outlet />
       </main>
     </div>
