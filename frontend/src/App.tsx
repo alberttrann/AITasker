@@ -13,6 +13,9 @@ import ErrorPage from "@components/pages/ErrorPage";
 import { HandoffRegister } from "@features/tech-team/auth/HandoffRegister";
 import { LinkExpiredError } from "@features/tech-team/auth/LinkExpiredError";
 
+// Auth
+import ResetPasswordPage from "@components/auth/ResetPasswordPage";
+
 // Dashboards — stub shells now, built out screen by screen
 import CeoDashboard from "@features/ceo/CeoDashboard";
 import { CeoOverview } from "@features/ceo/CeoDashboard";
@@ -67,6 +70,7 @@ const router = createBrowserRouter(
     <Route element={<RootLayout />}>
       {/* ── Public ─────────────────────────────────────────────────────── */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       {/* Handoff link lands here — public so TECH_TEAM can register */}
       <Route path="/register/handoff/:token" element={<HandoffRegister />} />
       <Route path="/register/handoff/expired" element={<LinkExpiredError />} />

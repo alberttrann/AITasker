@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useAdminAnalytics } from "@/hooks/use-admin";
 import { Spinner } from "@/components/ui/Spinner";
 import { 
@@ -8,9 +9,45 @@ import {
   CheckCircle2, 
   Briefcase 
 } from "lucide-react";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
 
 export default function AnalyticsDashboard() {
   const { data, isLoading, isError } = useAdminAnalytics();
+
+  // Data formatting for Recharts
+  const chartData = useMemo(() => {
+    if (!data?.active_projects_by_archetype_tier) return [];
+    const grouped: Record<string, any> = {};
+    data.active_projects_by_archetype_tier.forEach((item: any) => {
+      const arch = item.archetype || "Unknown";
+      const tier = item.tier || "Standard";
+      if (!grouped[arch]) {
+        grouped[arch] = { name: arch };
+      }
+      grouped[arch][tier] = item._count;
+    });
+    return Object.values(grouped);
+  }, [data]);
+
+  const activeTiers = useMemo(() => {
+    if (!data?.active_projects_by_archetype_tier) return [];
+    const set = new Set<string>();
+    data.active_projects_by_archetype_tier.forEach((item: any) => {
+      set.add(item.tier || "Standard");
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
+  const TIER_COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#ec4899', '#8b5cf6'];
 
   if (isLoading) {
     return (
@@ -125,39 +162,58 @@ export default function AnalyticsDashboard() {
         </div>
       </div>
 
-      {/* Active Projects Breakdown */}
+      {/* Active Projects Breakdown (Chart) */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 bg-slate-50">
-          <h2 className="text-lg font-semibold text-slate-900">Active Projects by Archetype & Tier</h2>
+        <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Active Projects by Archetype & Tier</h2>
+            <p className="text-sm text-slate-500 mt-1">Volume distribution of currently running projects.</p>
+          </div>
         </div>
-        <div className="p-0">
-          {(!data.active_projects_by_archetype_tier || data.active_projects_by_archetype_tier.length === 0) ? (
-            <div className="p-8 text-center text-slate-500">
+        <div className="p-6 h-[400px]">
+          {chartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-slate-500">
               No active projects found on the platform.
             </div>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-white border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 font-semibold text-slate-600">Archetype</th>
-                  <th className="px-6 py-4 font-semibold text-slate-600">Tier</th>
-                  <th className="px-6 py-4 font-semibold text-slate-600 text-right">Active Count</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.active_projects_by_archetype_tier.map((row: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900">{row.archetype || "Unknown"}</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
-                        {row.tier || "Standard"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold text-primary">{row._count}</td>
-                  </tr>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b', fontSize: 13 }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b', fontSize: 13 }}
+                  allowDecimals={false}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Legend 
+                  iconType="circle"
+                  wrapperStyle={{ paddingTop: '20px' }}
+                />
+                {activeTiers.map((tier, index) => (
+                  <Bar 
+                    key={tier} 
+                    dataKey={tier} 
+                    fill={TIER_COLORS[index % TIER_COLORS.length]} 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
                 ))}
-              </tbody>
-            </table>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
       </div>

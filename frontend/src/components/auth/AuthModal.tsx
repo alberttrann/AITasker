@@ -54,18 +54,22 @@ const registerSchema = Yup.object({
     .nullable(),
 });
 
+const forgotPasswordSchema = Yup.object({
+  email: Yup.string().trim().email("Enter a valid email address").required("Email is required"),
+});
+
 // ── Types ────────────────────────────────────────────────────────────────────
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'signin' | 'signup';
+  initialMode?: 'signin' | 'signup' | 'forgotPassword';
 }
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgotPassword'>(initialMode);
   
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, forgotPassword, isAuthenticated } = useAuth();
 
   const rememberedEmail = typeof window !== 'undefined' ? localStorage.getItem('aitasker-remembered-email') || '' : '';
 
@@ -112,10 +116,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
             <h2 className="font-headline text-3xl font-bold text-primary mb-2">
               {mode === 'signin' && 'Sign In'}
               {mode === 'signup' && 'Create Account'}
+              {mode === 'forgotPassword' && 'Reset Password'}
             </h2>
             <p className="text-sm text-on-surface-variant">
               {mode === 'signin' && 'Please enter your details below.'}
               {mode === 'signup' && 'Get started by filling out the form below.'}
+              {mode === 'forgotPassword' && 'Enter your email to receive a password reset link.'}
             </p>
           </div>
 
@@ -205,7 +211,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     </Field>
                     <Label className="ml-2 mb-0" htmlFor="remember-me">Remember me</Label>
                   </div>
-                  <a href="#" className="font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors">Forgot Password?</a>
+                  <button type="button" onClick={() => setMode('forgotPassword')} className="font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors">Forgot Password?</button>
                 </div>
 
                 {loginError && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">{loginError}</div>}
@@ -393,16 +399,67 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
           </div>
         )}
 
+        {/* ── Forgot Password Form ── */}
+        {mode === 'forgotPassword' && (
+          <Formik
+            initialValues={{ email: rememberedEmail }}
+            validationSchema={forgotPasswordSchema}
+            onSubmit={(values, { setSubmitting, setStatus }) => {
+              forgotPassword.mutate({ email: values.email }, {
+                onSettled: () => setSubmitting(false),
+                onSuccess: () => {
+                  setStatus({ success: 'Reset link sent to your email.' });
+                },
+                onError: (error: any) => {
+                  setStatus({ error: error.response?.data?.message || 'Something went wrong.' });
+                }
+              });
+            }}
+          >
+            {({ isSubmitting, status }) => (
+              <Form className="space-y-4" noValidate>
+                <div>
+                  <Label htmlFor="forgot-email">Email address</Label>
+                  <Field name="email">
+                    {({ field, meta }: any) => (
+                      <Input
+                        {...field}
+                        id="forgot-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        disabled={forgotPassword.isPending}
+                        error={meta.touched && !!meta.error}
+                      />
+                    )}
+                  </Field>
+                  <ErrorMessage name="email" component="p" className="mt-1 text-xs font-semibold text-error" />
+                </div>
+
+                {status?.success && <div className="bg-emerald-50 text-emerald-700 font-label-sm text-sm p-3 rounded-md text-center">{status.success}</div>}
+                {status?.error && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-3 rounded-md text-center text-red-600">{status.error}</div>}
+
+                <Button
+                  type="submit"
+                  disabled={forgotPassword.isPending || isSubmitting}
+                  className="w-full py-3 px-4 rounded-lg shadow-sm hover:shadow-md mt-2"
+                >
+                  {forgotPassword.isPending ? 'Sending link...' : 'Send Reset Link'}
+                </Button>
+              </Form>
+            )}
+          </Formik>
+        )}
+
         {/* ── Shared Social / Footer ── */}
             {/* Mode Toggler */}
             <p className="mt-6 text-center font-label-md text-label-md text-on-surface-variant">
-              {mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
+              {mode === 'signin' || mode === 'forgotPassword' ? "Don't have an account? " : "Already have an account? "}
               <button
                 type="button"
-                onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+                onClick={() => setMode(mode === 'signin' || mode === 'forgotPassword' ? 'signup' : 'signin')}
                 className="font-bold text-primary hover:underline"
               >
-                {mode === 'signin' ? 'Sign up' : 'Sign in'}
+                {mode === 'signin' || mode === 'forgotPassword' ? 'Sign up' : 'Sign in'}
               </button>
             </p>
         </div>

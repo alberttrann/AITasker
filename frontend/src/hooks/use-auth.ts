@@ -98,6 +98,20 @@ const login = useMutation({
     },
   });
 
+  const forgotPassword = useMutation({
+    mutationFn: async (payload: { email: string }) => {
+      const { data } = await apiClient.post<{ message: string }>('/auth/forgot-password', payload);
+      return data;
+    },
+  });
+
+  const resetPassword = useMutation({
+    mutationFn: async (payload: { token: string; newPassword: string }) => {
+      const { data } = await apiClient.post<{ message: string }>('/auth/reset-password', payload);
+      return data;
+    },
+  });
+
   return {
     // State (read from store directly — reactive)
     user:            store.user,
@@ -112,6 +126,8 @@ const login = useMutation({
     switchRole,
     addRole,
     registerHandoff,
+    forgotPassword,
+    resetPassword,
   };
 }
 
