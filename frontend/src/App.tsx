@@ -32,6 +32,7 @@ import AnalyticsDashboard from "@features/admin/analytics/AnalyticsDashboard";
 import DisputeMonitor from "@features/admin/disputes/DisputeMonitor";
 import TransactionsLedger from "@features/admin/ledger/TransactionsLedger";
 import WithdrawalRequests from "@features/admin/ledger/WithdrawalRequests";
+import SubscriptionPackagesPage from "@features/admin/packages/SubscriptionPackagesPage";
 import ProfilePage from "./components/pages/UserProfilePage";
 import ProfileSettingPage from "./components/pages/ProfileSettingPage";
 import WalletPage from "./components/wallet/WalletPage";
@@ -143,7 +144,10 @@ const router = createBrowserRouter(
           {/* /admin/* — all Admin screens will nest here */}
           <Route path="/admin" element={<AdminDashboard />}>
             <Route index element={<AdminOverview />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="analytics" element={<AnalyticsDashboard />} />
+            <Route path="packages" element={<SubscriptionPackagesPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />

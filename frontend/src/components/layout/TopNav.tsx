@@ -384,11 +384,11 @@ const RoleIcon =
                     )}
 
                     {/* Divider for Promoted Actions */}
-                    {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && (
+                    {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                       <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     )}
 
-                    {!(hasClient && hasExpert) && rawRole !== 'TECH_TEAM' && (
+                    {!(hasClient && hasExpert) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                       <button
                         onClick={() => {
                           setActiveDropdown(null);
@@ -474,6 +474,9 @@ const RoleIcon =
                   <Link to={`${dashboardRoute}/analytics`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                     <Sparkles size={20} className="text-slate-500" /> Analytics
                   </Link>
+                  <Link to={`${dashboardRoute}/packages`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                    <Briefcase size={20} className="text-slate-500" /> Packages
+                  </Link>
                   <Link to={`${dashboardRoute}/disputes`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                     <Shield size={20} className="text-slate-500" /> Disputes
                   </Link>
@@ -500,11 +503,11 @@ const RoleIcon =
               )}
 
               {/* Divider for Promoted Actions */}
-              {(!(hasClient && hasExpert) || !isPro) && (
+              {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                 <div className="h-[1px] bg-primary/10 my-2" />
               )}
 
-              {!(hasClient && hasExpert) && (
+              {!(hasClient && hasExpert) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                 <button
                   onClick={() => {
                     setActiveDropdown(null);
@@ -573,6 +576,15 @@ const RoleIcon =
                 >
                   Analytics
                   {location.pathname.includes('/analytics') && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+                <Link 
+                  to={`${dashboardRoute}/packages`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/packages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Packages
+                  {location.pathname.includes('/packages') && (
                     <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                   )}
                 </Link>
