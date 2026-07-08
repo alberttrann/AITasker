@@ -6,7 +6,7 @@ cd /d "%~dp0"
 
 :: Start Backend
 echo Starting Backend...
-start "AITasker - Backend" cmd /k "cd backend && (if not exist node_modules npm install) && npx prisma generate && npm run start:dev"
+start "AITasker - Backend" cmd /k "cd backend && (if exist tsconfig.build.tsbuildinfo del tsconfig.build.tsbuildinfo) && (if not exist node_modules npm install) && npx prisma generate && npm run start:dev"
 
 :: Start Frontend
 echo Starting Frontend...
