@@ -69,7 +69,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
 
   if (isLoadingProfile) {
     return (
-      <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
+      <div className="w-full max-w-[1440px] mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
         <Spinner size="lg" className="mb-4" />
         <p className="text-gray-500 font-medium">Loading profile builder...</p>
       </div>
@@ -84,7 +84,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="w-full max-w-[1440px] mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Expert Profile Builder</h1>

@@ -150,7 +150,7 @@ export default function Stage4Form() {
 
   if (!sessionId) {
     return (
-      <div className="max-w-6xl mx-auto py-16 px-4 text-center font-body">
+      <div className="max-w-[1440px] mx-auto py-16 px-4 text-center font-body">
         <div className="flex justify-center mb-4"><AlertTriangle className="w-16 h-16 text-error" /></div>
         <h3 className="text-xl font-semibold text-primary mb-2 font-headline">
           Session ID Missing
@@ -168,7 +168,7 @@ export default function Stage4Form() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-8 bg-surface rounded-lg shadow-md border border-secondary/15 my-8 font-body">
+    <div className="max-w-[1440px] mx-auto py-10 px-8 bg-surface rounded-lg shadow-md border border-secondary/15 my-8 font-body">
       <h2 className="text-2xl font-bold text-primary mb-2 font-headline leading-[1.25]">
         Complete Technical Context
       </h2>

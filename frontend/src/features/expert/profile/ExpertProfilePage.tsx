@@ -15,7 +15,7 @@ export default function ExpertProfilePage() {
 
   if (isLoadingProfile) {
     return (
-      <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
+      <div className="w-full max-w-[1440px] mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
         <Spinner size="lg" className="mb-4" />
         <p className="text-gray-500 font-medium">Loading profile...</p>
       </div>
@@ -28,7 +28,7 @@ export default function ExpertProfilePage() {
 
   if (isVerifying) {
     return (
-      <div className="w-full max-w-5xl mx-auto py-8 px-4 sm:px-6">
+      <div className="w-full max-w-[1440px] mx-auto py-8 px-4 sm:px-6">
         <div className="mb-6 flex justify-end">
           <Button variant="outline" onClick={() => setIsVerifying(false)} className="flex items-center gap-2">
             <X className="w-4 h-4" /> Back to Profile
@@ -86,7 +86,7 @@ export default function ExpertProfilePage() {
   if (missingBio) missingParts.push('Professional Bio');
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-12 px-4 sm:px-6">
+    <div className="w-full max-w-[1440px] mx-auto py-12 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-3">
           <button 

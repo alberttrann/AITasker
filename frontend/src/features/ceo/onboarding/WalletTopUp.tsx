@@ -103,7 +103,7 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
               <Button
                 variant="primary"
                 className="w-full font-semibold whitespace-normal h-auto leading-tight py-2.5 text-sm"
-                onClick={() => navigate('/ceo/subscription')}
+                onClick={() => navigate('/ceo/subscriptions/plans')}
               >
                 Continue to Subscription
               </Button>

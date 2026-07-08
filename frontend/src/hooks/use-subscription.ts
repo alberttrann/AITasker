@@ -13,7 +13,7 @@ export function useSubscription() {
   const queryClient = useQueryClient();
 
   const activateSubscription = useMutation({
-    mutationFn: async (payload: { paymentMethodId?: string; packageId?: string; tier?: string; activeRole?: string }) => {
+    mutationFn: async (payload: { paymentMethodId?: string; tier?: string; activeRole?: string; packageId?: string }) => {
       const { data } = await apiClient.post<{ access_token: string }>('/subscriptions/activate', payload);
       return data;
     },

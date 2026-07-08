@@ -37,7 +37,7 @@ export default function ProjectDetailPage() {
 
   if (isLoadingProject) {
     return (
-      <div className="flex items-center justify-center py-20 w-full max-w-5xl mx-auto">
+      <div className="flex items-center justify-center py-20 w-full max-w-[1440px] mx-auto">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -45,7 +45,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="w-full max-w-5xl mx-auto p-6">
+      <div className="w-full max-w-[1440px] mx-auto p-6">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
           <h2 className="text-xl font-bold text-slate-800 mb-2">Project Not Found</h2>
           <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been removed.</p>
@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
   const archetypeData = archetype ? ARCHETYPES.find(a => a.code === archetype) : null;
 
   return (
-    <div className="w-full max-w-5xl mx-auto relative px-4 sm:px-0">
+    <div className="w-full max-w-[1440px] mx-auto relative px-4 sm:px-0">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 

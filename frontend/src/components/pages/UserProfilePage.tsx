@@ -93,7 +93,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         {/* Page Header */}
         <div className="mb-6 flex items-center gap-3">
           <button 
@@ -368,9 +368,9 @@ export default function ProfilePage() {
             {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <button 
                 onClick={() => {
-                  if (isClient) navigate('/ceo/subscription');
-                  else if (isExpert) navigate('/expert/subscription');
-                  else navigate('/subscription');
+                  if (isClient) navigate('/ceo/subscriptions');
+                  else if (isExpert) navigate('/expert/subscriptions');
+                  else navigate('/subscriptions');
                 }}
                 disabled={!isFree}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors group ${

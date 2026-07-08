@@ -22,7 +22,7 @@ export default function WalletPage() {
   const { data: subStatus } = useSubscriptionStatus();
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         
         <div className="mb-6 flex items-center gap-3">
           <button 
@@ -123,7 +123,7 @@ export default function WalletPage() {
         </div>
 
         {/* Lower Section: Transaction History & Top-Up */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10 items-start">
           <div className="lg:col-span-2">
             <TransactionHistory />
           </div>

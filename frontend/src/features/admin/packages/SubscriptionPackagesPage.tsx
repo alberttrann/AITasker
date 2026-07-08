@@ -4,6 +4,9 @@ import apiClient from '@/lib/api-client';
 import { Plus, Edit2, Check, X, Shield, Package, Trash2, Power } from 'lucide-react';
 import DashboardGreeting from '@/components/layout/DashboardGreeting';
 import { formatVND } from '@/lib/utils';
+import { ConfirmModal, Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { DataList } from '@/components/layout/Table';
 
 interface SubPackage {
   id: string;
@@ -20,12 +23,13 @@ export default function SubscriptionPackagesPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPkg, setEditingPkg] = useState<SubPackage | null>(null);
+  const [sort, setSort] = useState<'price_asc' | 'price_desc' | 'duration_asc' | 'duration_desc'>('price_asc');
   const [formData, setFormData] = useState({
     name: '',
-    role: 'CEO',
+    role: 'CLIENT',
     priceVnd: 0,
     durationMonths: 1,
-    isActive: true
+    isActive: false
   });
 
   const { data: packages, isLoading } = useQuery<SubPackage[]>({
@@ -35,6 +39,17 @@ export default function SubscriptionPackagesPage() {
       return res.data;
     }
   });
+
+  const sortedPackages = React.useMemo(() => {
+    if (!packages) return [];
+    return [...packages].sort((a, b) => {
+      if (sort === 'price_asc') return a.priceVnd - b.priceVnd;
+      if (sort === 'price_desc') return b.priceVnd - a.priceVnd;
+      if (sort === 'duration_asc') return a.durationMonths - b.durationMonths;
+      if (sort === 'duration_desc') return b.durationMonths - a.durationMonths;
+      return 0;
+    });
+  }, [packages, sort]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -58,9 +73,26 @@ export default function SubscriptionPackagesPage() {
     }
   });
 
+  const [deletePkg, setDeletePkg] = useState<SubPackage | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/admin/subscriptions/packages/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-packages'] });
+      setDeletePkg(null);
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || 'Failed to delete package.';
+      setDeleteError(Array.isArray(msg) ? msg[0] : msg);
+    }
+  });
+
   const resetForm = () => {
     setEditingPkg(null);
-    setFormData({ name: '', role: 'CEO', priceVnd: 0, durationMonths: 1, isActive: true });
+    setFormData({ name: '', role: 'CLIENT', priceVnd: 0, durationMonths: 1, isActive: false });
   };
 
   const handleEdit = (pkg: SubPackage) => {
@@ -99,8 +131,18 @@ export default function SubscriptionPackagesPage() {
     });
   };
 
+  const handleDelete = (pkg: SubPackage) => {
+    setDeletePkg(pkg);
+  };
+
+  const confirmDelete = () => {
+    if (deletePkg) {
+      deleteMutation.mutate(deletePkg.id);
+    }
+  };
+
   return (
-    <div className="w-full max-w-5xl mx-auto p-md sm:p-lg">
+    <div className="w-full max-w-[1440px] mx-auto p-md sm:p-lg">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-headline font-bold text-slate-900 mb-1">Subscription Packages</h1>
@@ -120,60 +162,87 @@ export default function SubscriptionPackagesPage() {
           <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {packages?.map((pkg) => (
-            <div key={pkg.id} className={`bg-white rounded-2xl border ${pkg.isActive ? 'border-slate-200 shadow-sm' : 'border-slate-200/50 bg-slate-50 opacity-80'} p-6 transition-all hover:shadow-md flex flex-col`}>
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2">
-                  <div className={`p-2 rounded-lg ${pkg.isActive ? 'bg-primary/10 text-primary' : 'bg-slate-200 text-slate-500'}`}>
-                    <Package size={20} />
-                  </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${pkg.role === 'CEO' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                    {pkg.role}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => toggleActive(pkg)}
-                    title={pkg.isActive ? "Deactivate Package" : "Activate Package"}
-                    className={`p-1.5 rounded-md transition-colors ${pkg.isActive ? 'text-red-500 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
-                  >
-                    <Power size={18} />
-                  </button>
-                  <button 
-                    onClick={() => handleEdit(pkg)}
-                    className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                </div>
-              </div>
-              
-              <h3 className="text-lg font-bold text-slate-900 mb-1">{pkg.name}</h3>
-              <p className={`text-sm mb-4 ${pkg.isActive ? 'text-slate-500' : 'text-slate-400'}`}>
-                {pkg.isActive ? 'Active and available for purchase' : 'Currently inactive'}
-              </p>
-              
-              <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-end">
-                <div>
-                  <div className="text-2xl font-bold text-slate-900 font-headline">
-                    {formatVND(pkg.priceVnd)}
-                  </div>
-                  <div className="text-sm font-medium text-slate-500">
-                    for {pkg.durationMonths} month{pkg.durationMonths > 1 ? 's' : ''}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          {(!packages || packages.length === 0) && (
+        <DataList
+          sortOptions={[
+            { label: 'Price (Low to High)', value: 'price_asc' },
+            { label: 'Price (High to Low)', value: 'price_desc' },
+            { label: 'Duration (Shortest)', value: 'duration_asc' },
+            { label: 'Duration (Longest)', value: 'duration_desc' }
+          ]}
+          currentSort={sort}
+          onSortChange={(v) => setSort(v as any)}
+          isEmpty={!sortedPackages || sortedPackages.length === 0}
+          emptyState={
             <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-slate-200 border-dashed">
               <Package size={48} className="mx-auto text-slate-300 mb-4" />
               <h3 className="text-lg font-bold text-slate-900 mb-2">No packages yet</h3>
               <p className="text-slate-500 max-w-sm mx-auto">Create your first subscription package to allow users to subscribe to the platform.</p>
             </div>
-          )}
-        </div>
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sortedPackages.map((pkg) => (
+              <div key={pkg.id} className={`bg-white rounded-2xl border ${pkg.isActive ? 'border-slate-200 shadow-sm' : 'border-slate-200/50 bg-slate-50 opacity-80'} p-6 transition-all hover:shadow-md flex flex-col`}>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-lg ${pkg.isActive ? 'bg-primary/10 text-primary' : 'bg-slate-200 text-slate-500'}`}>
+                      <Package size={20} />
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pkg.role === 'CLIENT' || pkg.role === 'CEO' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {pkg.role === 'CLIENT' ? 'CLIENT' : pkg.role}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => toggleActive(pkg)}
+                      title={pkg.isActive ? "Set to Offline" : "Set to Online"}
+                      className={`relative inline-flex h-6 w-[42px] items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                        pkg.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-[18px] w-[18px] transform rounded-full shadow-sm bg-white transition-transform duration-300 z-10 ${
+                          pkg.isActive ? 'translate-x-[21px]' : 'translate-x-[3px]'
+                        }`}
+                      />
+                    </button>
+                    <button 
+                      onClick={() => handleEdit(pkg)}
+                      title="Edit Package"
+                      className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(pkg)}
+                      title="Delete Package"
+                      disabled={deleteMutation.isPending}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+                
+                <h3 className="text-lg font-bold text-slate-900 mb-1">{pkg.name}</h3>
+                <p className={`text-sm mb-4 ${pkg.isActive ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {pkg.isActive ? 'Active and available for purchase' : 'Currently inactive'}
+                </p>
+                
+                <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-end">
+                  <div>
+                    <div className="text-2xl font-bold text-slate-900 font-headline">
+                      {formatVND(pkg.priceVnd)}
+                    </div>
+                    <div className="text-sm font-medium text-slate-500">
+                      for {pkg.durationMonths} month{pkg.durationMonths > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DataList>
       )}
 
       {/* Modal */}
@@ -211,7 +280,7 @@ export default function SubscriptionPackagesPage() {
                       onChange={e => setFormData({...formData, role: e.target.value})}
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                     >
-                      <option value="CEO">CEO</option>
+                      <option value="CLIENT">Client</option>
                       <option value="EXPERT">Expert</option>
                     </select>
                   </div>
@@ -282,6 +351,31 @@ export default function SubscriptionPackagesPage() {
           </div>
         </div>
       )}
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletePkg && !deleteError}
+        onClose={() => setDeletePkg(null)}
+        onConfirm={confirmDelete}
+        title="Delete Package"
+        confirmText={deleteMutation.isPending ? "Deleting..." : "Delete"}
+        cancelText="Cancel"
+        isDestructive={true}
+      >
+        Are you sure you want to delete <strong className="text-slate-800">{deletePkg?.name}</strong>? This action cannot be undone.
+      </ConfirmModal>
+
+      {/* Delete Error Modal */}
+      <ConfirmModal
+        isOpen={!!deleteError}
+        onClose={() => { setDeleteError(null); setDeletePkg(null); }}
+        onConfirm={() => { setDeleteError(null); setDeletePkg(null); }}
+        title="Cannot Delete Package"
+        confirmText="Understood"
+        cancelText="Close"
+        isInfo={true}
+      >
+        {deleteError}
+      </ConfirmModal>
     </div>
   );
 }

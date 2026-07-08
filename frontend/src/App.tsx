@@ -39,8 +39,10 @@ import WalletPage from "./components/wallet/WalletPage";
 import ExpertWallet from "@features/expert/wallet/ExpertWallet";
 import BankHubLink from "@features/expert/wallet/BankHubLink";
 
-import SubscriptionActivate from "@features/ceo/onboarding/SubscriptionActivate";
-import ExpertSubscriptionActivate from "@features/expert/onboarding/SubscriptionActivate";
+import SubscriptionManagement from "@features/ceo/onboarding/SubscriptionManagement";
+import SubscriptionPlans from "@features/ceo/onboarding/SubscriptionPlans";
+import ExpertSubscriptionManagement from "@features/expert/onboarding/SubscriptionManagement";
+import ExpertSubscriptionPlans from "@features/expert/onboarding/SubscriptionPlans";
 import ElicitationWizard from "@features/ceo/elicitation/ElicitationWizard";
 import ShortlistView from "@features/ceo/shortlist/ShortlistView";
 import ProjectsPage from "@features/ceo/pages/ProjectsPage";
@@ -89,7 +91,8 @@ const router = createBrowserRouter(
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />
             <Route path="projects/session-history" element={<SessionsListPage />} />
-            <Route path="subscription" element={<SubscriptionActivate />} />
+            <Route path="subscriptions" element={<SubscriptionManagement />} />
+            <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
             <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
             <Route
@@ -113,8 +116,12 @@ const router = createBrowserRouter(
               element={<VerificationHistoryPage />}
             />
             <Route
-              path="subscription"
-              element={<ExpertSubscriptionActivate />}
+              path="subscriptions"
+              element={<ExpertSubscriptionManagement />}
+            />
+            <Route
+              path="subscriptions/plans"
+              element={<ExpertSubscriptionPlans />}
             />
             <Route path="bids/:projectId" element={<BidForm />} />
             <Route

@@ -43,7 +43,7 @@ export function ExpertOverview() {
             description="Supercharge your earnings with priority project matching, premium profile placement, and 0% withdrawal fees."
             icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
             buttonText="Upgrade now"
-            onButtonClick={() => navigate('/expert/subscription')}
+            onButtonClick={() => navigate('/expert/subscriptions/plans')}
             className="lg:col-span-4"
           />
         </div>

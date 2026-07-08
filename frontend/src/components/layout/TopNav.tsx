@@ -400,6 +400,17 @@ const RoleIcon =
                       </button>
                     )}
 
+                    {!isPro && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+                      <Link
+                        to={`${dashboardRoute}/profile`}
+                        onClick={() => setActiveDropdown(null)}
+                        className="px-5 py-3 text-sm text-left font-headline font-extrabold text-purple-700 bg-transparent hover:bg-purple-50 transition-colors mx-2 mb-2 rounded-lg flex items-center justify-between"
+                      >
+                        Upgrade to Pro
+                        <Sparkles size={16} className="text-purple-500" />
+                      </Link>
+                    )}
+
 
 
                     {/* Divider before Sign Out */}
@@ -619,12 +630,12 @@ const RoleIcon =
             )}
             {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <Link 
-                to={`${dashboardRoute}/subscription`} 
-                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/subscription') ? 'text-primary' : 'text-secondary hover:text-primary'} flex items-center gap-1.5`}
+                to={`${dashboardRoute}/subscriptions`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/subscriptions') ? 'text-primary' : 'text-secondary hover:text-primary'} flex items-center gap-1.5`}
               >
-                Subscription
-                {!isPro && <Sparkles size={14} className="text-blue-500 mb-0.5" />}
-                {location.pathname.includes('/subscription') && (
+                <Sparkles size={16} />
+                Plans
+                {location.pathname.includes('/subscriptions') && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>

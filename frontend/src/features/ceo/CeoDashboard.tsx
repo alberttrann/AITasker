@@ -91,7 +91,7 @@ export function CeoOverview() {
             description="Supercharge your workflow with AI-powered PRD generation, priority matchmaking with elite Tech Teams, and 0% platform fees on all milestones."
             icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
             buttonText="Upgrade now"
-            onButtonClick={() => navigate('/ceo/subscription')}
+            onButtonClick={() => navigate('/ceo/subscriptions/plans')}
             className="lg:col-span-4"
           />
         </div>
