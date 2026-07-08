@@ -41,6 +41,10 @@ import ExpertNdaClickThrough from "@features/expert/connection/NdaClickThrough";
 import BidForm from "@features/expert/bidding/BidForm";
 import BidReviewList from "@features/tech-team/bids/BidReviewList";
 import BidReviewDetail from "@features/tech-team/bids/BidReviewDetail";
+import MilestoneList from "./features/ceo/milestones/MilestoneList";
+import CreateMilestone from "./features/ceo/milestones/CreateMilestone";
+import MilestoneDetail from "./features/ceo/milestones/MilestoneDetail";
+import FundMilestone from "./features/ceo/milestones/FundMilestone";
 
 export default function App() {
   return (
@@ -74,6 +78,22 @@ export default function App() {
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones"
+              element={<MilestoneList />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/create"
+              element={<CreateMilestone />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId"
+              element={<MilestoneDetail />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/fund"
+              element={<FundMilestone />}
             />
           </Route>
         </Route>
