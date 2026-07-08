@@ -24,6 +24,11 @@ import TechTeamOverview from "@features/tech-team/TechTeamOverview";
 import TechTeamProjectsPage from "@features/tech-team/pages/TechTeamProjectsPage";
 import Stage4Submitted from "@features/tech-team/stage4/Stage4Submitted";
 import AdminDashboard from "@features/admin/AdminDashboard";
+import AdminOverview from "@features/admin/AdminOverview";
+import AnalyticsDashboard from "@features/admin/analytics/AnalyticsDashboard";
+import DisputeMonitor from "@features/admin/disputes/DisputeMonitor";
+import TransactionsLedger from "@features/admin/ledger/TransactionsLedger";
+import WithdrawalRequests from "@features/admin/ledger/WithdrawalRequests";
 import ProfilePage from "./components/pages/UserProfilePage";
 import ProfileSettingPage from "./components/pages/ProfileSettingPage";
 import WalletPage from "./components/wallet/WalletPage";
@@ -132,7 +137,13 @@ const router = createBrowserRouter(
 
         <Route element={<RoleRoute requiredRole="ADMIN" />}>
           {/* /admin/* — all Admin screens will nest here */}
-          <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="analytics" element={<AnalyticsDashboard />} />
+            <Route path="disputes" element={<DisputeMonitor />} />
+            <Route path="ledger" element={<TransactionsLedger />} />
+            <Route path="withdrawals" element={<WithdrawalRequests />} />
+          </Route>
         </Route>
       </Route>
 

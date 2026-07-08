@@ -145,8 +145,8 @@ export default function LandingPage() {
 
       if (maskRef.current) {
         if (points.length === 0 && ripples.length === 0) {
-           maskRef.current.style.maskImage = 'linear-gradient(transparent, transparent)';
-           maskRef.current.style.webkitMaskImage = 'linear-gradient(transparent, transparent)';
+           maskRef.current.style.maskImage = 'linear-gradient(to bottom, transparent, transparent)';
+           maskRef.current.style.webkitMaskImage = 'linear-gradient(to bottom, transparent, transparent)';
         } else {
            // Sharp blobs logic
            const pointGradients = points.map(p => {
@@ -195,9 +195,9 @@ export default function LandingPage() {
       const subtype = user.clientSubtype;
 
       if (role === 'CLIENT' && subtype === 'CEO') return navigate('/ceo');
+      if (role === 'CLIENT' && subtype === 'TECH_TEAM') return navigate('/tech-team');
       if (role === 'ADMIN') return navigate('/admin');
       if (role === 'EXPERT') return navigate('/expert');
-      if (role === 'TECH_TEAM') return navigate('/tech');
       navigate('/');
     } else {
       setAuthMode('signup');
@@ -328,6 +328,12 @@ export default function LandingPage() {
         <div 
           ref={maskRef}
           className="absolute inset-0 z-10 pointer-events-none"
+          style={{
+            maskComposite: 'add',
+            WebkitMaskComposite: 'source-over',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat'
+          }}
         >
           <Content mode={inactiveMode} isMasked={true} renderMode="backgroundAndText" />
         </div>
