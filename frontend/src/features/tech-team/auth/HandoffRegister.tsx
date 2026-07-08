@@ -4,10 +4,18 @@ import { useAuthStore } from '@/store/auth.store';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Input';
-import { Loader2, Copyright, UserCheck, LogOut } from 'lucide-react';
+import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
+
+const passwordRules = [
+  { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { id: 'lower', label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+  { id: 'upper', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { id: 'num', label: 'One number', test: (p: string) => /[0-9]/.test(p) },
+  { id: 'special', label: 'One special character', test: (p: string) => /[^a-zA-Z0-9]/.test(p) },
+];
 
 const loginSchema = Yup.object({
   password: Yup.string().required('Password is required.'),
@@ -18,8 +26,10 @@ const registerSchema = Yup.object({
     .min(2, 'Full name must be at least 2 characters.')
     .required('Full name is required.'),
   password: Yup.string()
-    .min(6, 'Password must be at least 6 characters.')
-    .required('Password is required.'),
+    .required('Password is required.')
+    .test('strong-password', 'Please satisfy all password rules.', value => {
+      return passwordRules.every(r => r.test(value || ''));
+    }),
   phone: Yup.string()
     .matches(/^[0-9+\-\s()]*$/, 'Please enter a valid phone number.')
     .nullable(),
@@ -49,6 +59,7 @@ export function HandoffRegister() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -239,7 +250,7 @@ export function HandoffRegister() {
                   }
                 }}
               >
-                {({ isSubmitting }) => (
+                {({ isSubmitting, resetForm }) => (
                   <Form className="space-y-4" noValidate>
                     <div className="space-y-2 text-left">
                       <Label htmlFor="email">Email</Label>
@@ -260,12 +271,16 @@ export function HandoffRegister() {
                       <div className="space-y-2 text-left">
                         <Label htmlFor="fullName">Full Name</Label>
                         <Field name="fullName">
-                          {({ field, meta }: any) => (
+                          {({ field, meta, form }: any) => (
                             <input
                               {...field}
                               id="fullName"
                               type="text"
                               placeholder="e.g. John Doe"
+                              onFocus={() => {
+                                setError(null);
+                                form.setFieldTouched(field.name, false);
+                              }}
                               className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
                             />
                           )}
@@ -277,29 +292,73 @@ export function HandoffRegister() {
                     <div className="space-y-2 text-left">
                       <Label htmlFor="password">Password</Label>
                       <Field name="password">
-                        {({ field, meta }: any) => (
-                          <input
-                            {...field}
-                            id="password"
-                            type="password"
-                            placeholder={isLoginMode ? 'Enter your password' : 'Create a password'}
-                            className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
-                          />
+                        {({ field, meta, form }: any) => (
+                          <>
+                          <div className="relative">
+                            <input
+                              {...field}
+                              id="password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder={isLoginMode ? 'Enter your password' : 'Create a password'}
+                              onFocus={() => {
+                                setError(null);
+                                form.setFieldTouched(field.name, false);
+                              }}
+                              className={`w-full rounded-lg border bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-5 w-5" />
+                              ) : (
+                                <Eye className="h-5 w-5" />
+                              )}
+                            </button>
+                          </div>
+                            {!isLoginMode && (
+                              (meta.touched && !!meta.error && !field.value) ? (
+                                <div className="mt-1 text-xs font-semibold text-error text-red-600">{meta.error}</div>
+                              ) : (
+                                field.value && !!meta.error ? (
+                                  <div className="mt-2 grid grid-cols-1 gap-1.5 px-1">
+                                    {passwordRules.filter(rule => !rule.test(field.value || '')).map(rule => (
+                                      <div key={rule.id} className="flex items-center gap-2 text-xs text-slate-500">
+                                        <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                        <span className="font-medium">
+                                          {rule.label}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null
+                              )
+                            )}
+                            {isLoginMode && (
+                              <ErrorMessage name="password" component="p" className="mt-1 text-xs font-semibold text-error text-red-600" />
+                            )}
+                          </>
                         )}
                       </Field>
-                      <ErrorMessage name="password" component="p" className="mt-1 text-xs font-semibold text-error text-red-600" />
                     </div>
 
                     {!isLoginMode && (
                       <div className="space-y-2 text-left">
                         <Label htmlFor="phone">Phone (Optional)</Label>
                         <Field name="phone">
-                          {({ field, meta }: any) => (
+                          {({ field, meta, form }: any) => (
                             <input
                               {...field}
                               id="phone"
                               type="tel"
                               placeholder="+84..."
+                              onFocus={() => {
+                                setError(null);
+                                form.setFieldTouched(field.name, false);
+                              }}
                               className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
                             />
                           )}
@@ -329,6 +388,7 @@ export function HandoffRegister() {
                         onClick={() => {
                           setIsLoginMode(!isLoginMode);
                           setError(null);
+                          resetForm();
                         }}
                         className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                       >

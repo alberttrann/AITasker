@@ -110,6 +110,23 @@ export class BidsService {
           link: `/ceo/projects/${project.id}`
         }
       });
+      const techTeamMembers = await tx.techTeamProfile.findMany({
+        where: { linkedProjectId: project.id },
+        select: { userId: true },
+      });
+
+      for (const member of techTeamMembers) {
+        this.eventEmitter.emit('socket.broadcast', {
+          userId: member.userId,
+          event: 'notification:generic',
+          payload: {
+            type: 'bid_update',
+            title: 'New Bid Awaiting Review',
+            body: 'An expert has submitted a capability bid. Your technical review is required.',
+            link: `/tech-team/projects/${project.id}`,
+          },
+        });
+      }
       return { engagement, bid };
     });
   }

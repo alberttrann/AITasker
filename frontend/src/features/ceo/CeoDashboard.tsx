@@ -4,7 +4,8 @@ import TopNav from "@/components/layout/TopNav";
 import DashboardGreeting from "@/components/layout/DashboardGreeting";
 import { useProjects, useElicitationSessions } from "@/hooks/use-projects";
 import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock } from "lucide-react";
-import { DashboardBanner } from "@/components/ui/DashboardBanner";
+import { SuggestBox } from "@/components/ui/SuggestBox";
+import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscriptionStatus } from "@/hooks/use-subscription";
@@ -39,7 +40,7 @@ export function CeoOverview() {
 //      }
 //    }, [hasSubscription]);
 //*/
-  const { data: subStatus } = useSubscriptionStatus();
+  const { data: subStatus, isLoading: isLoadingSub } = useSubscriptionStatus();
   const hasSubscription = subStatus?.tier === "pro";
 
   const getStageName = (stage: number) => {
@@ -53,18 +54,45 @@ export function CeoOverview() {
     }
   };
 
+
+
+  const elicitationMetrics: WidgetMetric[] = [
+    {
+      id: 'elicitation',
+      label: 'Elicitation Engine',
+      value: mostRecentSession ? `Stage ${(mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1}` : 'Ready',
+      subValue: mostRecentSession ? getStageName((mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1) : 'Generate a PRD',
+      icon: <Bot size={20} />,
+      href: '/ceo/projects'
+    }
+  ];
+
   return (
     <div className="w-full">
       <DashboardGreeting />
       {/* Subscription Banner */}
-      {!hasSubscription && (
-        <div className="mb-8">
-          <DashboardBanner
+      {isLoadingSub ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <div className="lg:col-span-4 h-[140px] bg-white border border-slate-200 rounded-[24px] p-6 flex flex-col justify-between animate-pulse">
+            <div className="flex justify-between items-start">
+              <div className="space-y-4">
+                <div className="h-7 w-64 bg-slate-200 rounded-md"></div>
+                <div className="h-4 w-3/4 max-w-lg bg-slate-100 rounded-md"></div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-slate-100"></div>
+            </div>
+            <div className="h-10 w-36 bg-slate-200 rounded-lg mt-4"></div>
+          </div>
+        </div>
+      ) : !hasSubscription && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <SuggestBox
             title="Upgrade to Client Pro"
             description="Supercharge your workflow with AI-powered PRD generation, priority matchmaking with elite Tech Teams, and 0% platform fees on all milestones."
             icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
             buttonText="Upgrade now"
             onButtonClick={() => navigate('/ceo/subscription')}
+            className="lg:col-span-4"
           />
         </div>
       )}
@@ -72,26 +100,25 @@ export function CeoOverview() {
       {/* Workspace / Quick Actions Section */}
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <DashboardBanner
-            topLabel="Create a project"
-            title="AI Elicitation Engine"
-            description={
-              mostRecentSession ? (
-                <span className="block">
-                  Stage {(mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1} of 5 — {getStageName((mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1)}
-                </span>
-              ) : (
-                "Generate a PRD & match with experts."
-              )
-            }
-            icon={<Bot className="h-6 w-6" />}
-            buttonText="Go to projects"
-            theme={mostRecentSession ? "outline-purple" : "outline"}
-            className="lg:col-span-2"
-            onButtonClick={() => navigate("/ceo/projects")}
-          />
-        </div>
+        {isLoadingSessions || isLoadingProjects ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-2 h-auto bg-white border border-slate-200 rounded-[20px] p-6 flex flex-col justify-between animate-pulse min-h-[160px]">
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-3">
+                  <div className="h-3 w-24 bg-slate-200 rounded"></div>
+                  <div className="h-6 w-56 bg-slate-200 rounded"></div>
+                  <div className="h-4 w-48 bg-slate-100 rounded"></div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-slate-100 shrink-0"></div>
+              </div>
+              <div className="h-10 w-32 bg-slate-200 rounded-lg"></div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Widget metrics={elicitationMetrics} variant="purple" />
+          </div>
+        )}
       </div>
 
 

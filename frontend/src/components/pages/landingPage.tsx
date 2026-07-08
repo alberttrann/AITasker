@@ -1,184 +1,350 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import AuthModal from "@/components/auth/AuthModal";
-import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, CheckCircle2, Shield, Zap, ArrowRight } from "lucide-react";
-
-const ARCHETYPES = [
-  { code: '1', label: 'AI Search & Q&A', icon: Search, color: 'text-blue-500', bg: 'bg-blue-50' },
-  { code: '2', label: 'Personalisation & Recs', icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-  { code: '3', label: 'Classification & Docs', icon: FileText, color: 'text-purple-500', bg: 'bg-purple-50' },
-  { code: '4', label: 'Conversational Agent', icon: MessageSquare, color: 'text-rose-500', bg: 'bg-rose-50' },
-  { code: '5', label: 'Predictive Analytics', icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
-  { code: '6', label: 'AI Process Automation', icon: Settings, color: 'text-cyan-500', bg: 'bg-cyan-50' },
-];
-
-const FEATURES = [
-  {
-    title: 'Rigorous Matching Engine',
-    desc: 'Our platform matches you with experts evaluated across 6 capability domains and 10 technical seams. We guarantee quality over quantity.',
-    icon: Shield,
-  },
-  {
-    title: 'Escrow Payments',
-    desc: 'Your funds are securely locked in milestone-based escrow. Release payments only when the technical deliverables are approved.',
-    icon: CheckCircle2,
-  },
-  {
-    title: 'Zero Manual Chokepoints',
-    desc: 'Fully automated workflows from technical elicitation to tech-team handoffs and final deployment. Move at the speed of AI.',
-    icon: Zap,
-  },
-];
+import { ArrowRight } from "lucide-react";
+import { LiveClock } from '@/components/ui/LiveClock';
 
 export default function LandingPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
+  const [activeMode, setActiveMode] = useState<'business' | 'expert'>('business');
+  const [isHoveringHeading, setIsHoveringHeading] = useState(false);
+  
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  
+  const maskRef = useRef<HTMLDivElement>(null);
+  const disabledRef = useRef(false);
+  const isTransitioningRef = useRef(false);
+  const isHoveringButtonRef = useRef(false);
+  const triggerToggleRef = useRef(() => {});
+  const lastActiveModeRef = useRef(activeMode);
+
+  useEffect(() => {
+    disabledRef.current = isAuthModalOpen;
+  }, [isAuthModalOpen]);
+
+  triggerToggleRef.current = () => {
+    setActiveMode(prev => prev === 'business' ? 'expert' : 'business');
+  };
+
+  useEffect(() => {
+    if (lastActiveModeRef.current !== activeMode) {
+      lastActiveModeRef.current = activeMode;
+      // DOM swap just happened, safe to clear the mask
+      window.dispatchEvent(new Event('clearMask'));
+    }
+  }, [activeMode]);
+
+  useEffect(() => {
+    let animationFrameId: number;
+    let mouseX = -1000;
+    let mouseY = -1000;
+    let recoverProgress = 1;
+    let hoverScale = 1;
+    
+    // Config for blobling sharp mask
+    const RADIUS = 150; 
+    const TRAIL_LIFE_DECAY = 0.2;
+    
+    interface Point {
+      x: number;
+      y: number;
+      life: number;
+    }
+    let points: Point[] = [];
+    
+    interface Ripple {
+      x: number;
+      y: number;
+      radius: number;
+      maxRadius: number;
+      speed: number;
+      isTransitionWave?: boolean;
+      _hasTriggeredToggle?: boolean;
+    }
+    const ripples: Ripple[] = [];
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (disabledRef.current || isTransitioningRef.current) return;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    };
+
+    const handleMouseLeave = () => {
+      mouseX = -1000;
+      mouseY = -1000;
+    };
+
+    const handleSpawnWave = (e: Event) => {
+      const customE = e as CustomEvent;
+      ripples.push({
+        x: customE.detail.x,
+        y: customE.detail.y,
+        radius: 0,
+        maxRadius: Math.max(window.innerWidth, window.innerHeight) * 1.5,
+        speed: 50,
+        isTransitionWave: true
+      });
+    };
+
+    const handleClearMask = () => {
+      points = [];
+      ripples.length = 0;
+      recoverProgress = 0;
+      isTransitioningRef.current = false;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('spawnWave', handleSpawnWave);
+    window.addEventListener('clearMask', handleClearMask);
+
+    const render = () => {
+      // Decay trail points
+      points.forEach(p => p.life -= TRAIL_LIFE_DECAY);
+      points = points.filter(p => p.life > 0);
+
+      // Add new point for trail if not transitioning
+      if (!isTransitioningRef.current && mouseX !== -1000 && mouseY !== -1000) {
+        points.push({ x: mouseX, y: mouseY, life: 1 });
+      }
+
+      // Update ripples
+      let waveFinished = false;
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        ripples[i].radius += ripples[i].speed;
+        
+        // We only want to trigger the toggle ONCE when the wave crosses the threshold
+        if (ripples[i].isTransitionWave && ripples[i].radius > ripples[i].maxRadius * 0.9 && !ripples[i]._hasTriggeredToggle) {
+          ripples[i]._hasTriggeredToggle = true;
+          waveFinished = true;
+        }
+        
+        if (ripples[i].radius > ripples[i].maxRadius) {
+          ripples.splice(i, 1);
+        }
+      }
+
+      if (waveFinished) {
+        triggerToggleRef.current();
+      }
+
+      if (recoverProgress < 1) {
+        recoverProgress = Math.min(1, recoverProgress + 0.03);
+      }
+      
+      if (isHoveringButtonRef.current) {
+        hoverScale = Math.max(0, hoverScale - 0.08); // shrink fast
+      } else {
+        hoverScale = Math.min(1, hoverScale + 0.08); // grow fast
+      }
+      
+      const cursorScale = 1 - Math.pow(1 - recoverProgress, 3); // Ease out cubic
+
+      if (maskRef.current) {
+        if (points.length === 0 && ripples.length === 0) {
+           maskRef.current.style.maskImage = 'linear-gradient(to bottom, transparent, transparent)';
+           maskRef.current.style.webkitMaskImage = 'linear-gradient(to bottom, transparent, transparent)';
+        } else {
+           // Sharp blobs logic
+           const pointGradients = points.map(p => {
+             const r = RADIUS * Math.pow(p.life, 0.5) * cursorScale * hoverScale;
+             return `radial-gradient(circle at ${p.x}px ${p.y}px, black ${Math.max(0, r - 1)}px, transparent ${r}px)`;
+           });
+           
+           const rippleGradients = ripples.map(r => 
+             `radial-gradient(circle at ${r.x}px ${r.y}px, black ${Math.max(0, r.radius - 1)}px, transparent ${r.radius}px)`
+           );
+           
+           const allGradients = [...pointGradients, ...rippleGradients].join(', ');
+           
+           maskRef.current.style.maskImage = allGradients;
+           maskRef.current.style.webkitMaskImage = allGradients;
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('spawnWave', handleSpawnWave);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  const handleToggleClick = useCallback((e: React.MouseEvent) => {
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
+    
+    window.dispatchEvent(new CustomEvent('spawnWave', { 
+      detail: { x: e.clientX, y: e.clientY } 
+    }));
+  }, []);
 
   const handleCtaClick = () => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated) {
+      if (!user) return navigate('/');
+      
       const role = user.activeRole;
       const subtype = user.clientSubtype;
-      
-      if (role === 'ADMIN') navigate('/admin');
-      else if (role === 'EXPERT') navigate('/expert');
-      else if (subtype === 'CEO') navigate('/ceo');
-      else if (subtype === 'TECH_TEAM') navigate('/tech-team');
-      else navigate('/');
+
+      if (role === 'CLIENT' && subtype === 'CEO') return navigate('/ceo');
+      if (role === 'CLIENT' && subtype === 'TECH_TEAM') return navigate('/tech-team');
+      if (role === 'ADMIN') return navigate('/admin');
+      if (role === 'EXPERT') return navigate('/expert');
+      navigate('/');
     } else {
       setAuthMode('signup');
       setIsAuthModalOpen(true);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col font-body">
-      <main className="flex-grow flex flex-col">
-        {/* Hero Section */}
-        <section className="relative bg-primary text-surface overflow-hidden min-h-screen py-12 lg:py-16 flex flex-col justify-center flex-grow">
-          {/* Dot Grid Background */}
-          <div 
-            className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
-            style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
-          ></div>
+  interface ContentProps {
+    mode: 'business' | 'expert';
+    isMasked?: boolean;
+    renderMode: 'backgroundAndText' | 'buttonsOnly';
+  }
 
-          {/* Background decorative elements */}
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-accent rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+  const Content = ({ mode, isMasked, renderMode }: ContentProps) => {
+    const isBusiness = mode === 'business';
+    const isButtonsOnly = renderMode === 'buttonsOnly';
+    
+    return (
+      <section className={`absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-6 lg:px-12 py-24 text-center ${isButtonsOnly ? 'bg-transparent pointer-events-none' : (isBusiness ? 'bg-primary' : 'bg-[#EFEBE3]')}`}>
+        
+        {/* Background Elements */}
+        {!isButtonsOnly && (
+          <>
+            <div 
+              className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
+              style={{ 
+                backgroundImage: `linear-gradient(to right, ${isBusiness ? '#ffffff' : '#000000'} 1px, transparent 1px), linear-gradient(to bottom, ${isBusiness ? '#ffffff' : '#000000'} 1px, transparent 1px)`, 
+                backgroundSize: '32px 32px' 
+              }}
+            ></div>
 
-          <div className="relative max-w-7xl mx-auto px-6 lg:px-8 text-center md:text-left flex flex-col md:flex-row items-center gap-12">
-            <div className="flex-1 space-y-8">
-              <h1 className="text-6xl md:text-6xl lg:text-7xl font-headline font-bold leading-tight tracking-tight text-white">
-                Find the right freelance <br />
-                <span className="text-accent">AI expert</span>, right away.
-              </h1>
-              <p className="text-lg md:text-xl text-slate-300 max-w-6xl mx-auto md:mx-0 leading-relaxed">
-                Connect with highly-vetted AI engineers capable of building end-to-end LLM applications, predictive models, and sophisticated RAG pipelines.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start pt-4">
-                <button
-                  onClick={handleCtaClick}
-                  className="bg-accent hover:bg-accent-light text-primary-dark font-headline font-bold text-lg px-8 py-4 rounded-lg shadow-accent-glow transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2"
-                >
-                  {isAuthenticated ? 'Back to Dashboard' : "Let's start"} <ArrowRight className="w-5 h-5" />
-                </button>
-                {!isAuthenticated && (
-                  <button 
-                    onClick={() => { setAuthMode('signin'); setIsAuthModalOpen(true); }}
-                    className="text-white hover:text-accent font-headline font-semibold px-6 py-4 transition-colors"
-                  >
-                    Already has an account?
-                  </button>
-                )}
-              </div>
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-tertiary/20' : 'bg-blue-500/10'}`}></div>
+              <div className={`absolute top-[10%] left-[20%] w-96 h-96 rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-emerald-500/10' : 'bg-purple-500/10'}`}></div>
+              <div className={`absolute bottom-[10%] right-[20%] w-96 h-96 rounded-full blur-[120px] opacity-60 ${isBusiness ? 'bg-blue-500/10' : 'bg-amber-500/10'}`}></div>
             </div>
             
-            {/* Right side colorful abstract graphic */}
-            <div className="hidden lg:block flex-1 relative min-h-[500px] mt-16">
-              {/* Glowing background blobs */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-accent/30 rounded-full blur-[80px] animate-pulse"></div>
-              <div className="absolute top-[20%] right-[10%] w-56 h-56 bg-purple-500/30 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: '1s' }}></div>
-              <div className="absolute bottom-[20%] left-[10%] w-64 h-64 bg-blue-500/30 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+            <div 
+              className={`absolute -inset-25 -z-10 pointer-events-none backdrop-blur-md rounded-full ${isBusiness ? 'bg-primary/10' : 'bg-white/20'}`} 
+              style={{ 
+                maskImage: 'radial-gradient(circle at center, black 40%, transparent 70%)', 
+                WebkitMaskImage: 'radial-gradient(circle at center, black 40%, transparent 70%)' 
+              }}
+            ></div>
+          </>
+        )}
 
-              <div className="relative w-full h-full">
-                {/* Main Match Card */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 bg-surface/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl transform hover:scale-105 transition-transform duration-500 z-20">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-accent to-emerald-400 p-[2px] shadow-accent-glow">
-                      <div className="w-full h-full bg-primary-dark rounded-2xl flex items-center justify-center">
-                        <Target className="w-7 h-7 text-accent" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-white font-headline text-lg font-bold">Expert Matched</h4>
-                      <p className="text-accent text-sm font-mono mt-0.5">98% Capability Fit</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-xs text-slate-400 mb-1 font-medium">
-                        <span>Domain Knowledge</span>
-                        <span className="text-white">A+</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-accent w-full rounded-full"></div></div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-xs text-slate-400 mb-1 font-medium">
-                        <span>Technical Seams</span>
-                        <span className="text-white">Matched</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-blue-400 w-11/12 rounded-full"></div></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating Tech Pill 1 */}
-                <div className="absolute top-[20%] left-[5%] bg-surface/10 backdrop-blur-md border border-white/10 rounded-full px-5 py-3.5 flex items-center gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transform -rotate-6 hover:rotate-0 hover:scale-105 transition-all duration-300 z-10 cursor-default">
-                   <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                     <Settings className="w-4 h-4 text-purple-400" />
-                   </div>
-                   <span className="text-white text-sm font-headline font-bold">Model Fine-Tuning</span>
-                </div>
-
-                {/* Floating Tech Pill 2 */}
-                <div className="absolute bottom-[25%] right-[0%] bg-surface/10 backdrop-blur-md border border-white/10 rounded-full px-5 py-3.5 flex items-center gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transform rotate-3 hover:rotate-0 hover:scale-105 transition-all duration-300 z-30 cursor-default">
-                   <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                     <Search className="w-4 h-4 text-blue-400" />
-                   </div>
-                   <span className="text-white text-sm font-headline font-bold">RAG Pipelines</span>
-                </div>
-                
-                {/* Floating Code/Data Snippet */}
-                <div className="absolute top-[65%] left-[0%] w-56 bg-primary-dark/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 shadow-[0_16px_32px_rgba(0,0,0,0.3)] transform -rotate-3 hover:rotate-0 hover:translate-y-[-5px] transition-all duration-500 z-10">
-                  <div className="flex gap-1.5 mb-4">
-                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-success"></div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="h-2 w-3/4 bg-slate-600 rounded-full"></div>
-                    <div className="h-2 w-1/2 bg-emerald-400/80 rounded-full"></div>
-                    <div className="h-2 w-5/6 bg-slate-600 rounded-full"></div>
-                    <div className="h-2 w-2/3 bg-blue-400/80 rounded-full"></div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
+        <div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center w-full">
+          
+          <LiveClock className={`mb-8 justify-center transition-colors ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-slate-400' : 'text-stone-500')}`} />
+          
+          <h1 className={`text-display text-[56px] md:text-[72px] leading-[1.1] mb-8 ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-white' : 'text-stone-900')}`}>
+            {isBusiness ? (
+              <>Find the right freelance <br />
+                <span 
+                  className={`inline-block cursor-pointer transition-all duration-200 relative z-20 ${isHoveringHeading ? 'scale-[1.03] -translate-y-1 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'text-tertiary'}`}
+                  onClick={isMasked || isButtonsOnly ? undefined : handleToggleClick}
+                  onMouseEnter={isMasked || isButtonsOnly ? undefined : () => setIsHoveringHeading(true)}
+                  onMouseLeave={isMasked || isButtonsOnly ? undefined : () => setIsHoveringHeading(false)}
+                  style={{ pointerEvents: isMasked || isButtonsOnly ? 'none' : 'auto' }}
+                >
+                  AI expert
+                </span>, right away.
+              </>
+            ) : (
+              <>Find the right innovative <br />
+                <span 
+                  className={`inline-block cursor-pointer transition-all duration-200 relative z-20 ${isHoveringHeading ? 'scale-[1.03] -translate-y-1 text-blue-600 drop-shadow-[0_0_10px_rgba(37,99,235,0.3)]' : 'text-blue-700'}`}
+                  onClick={isMasked || isButtonsOnly ? undefined : handleToggleClick}
+                  onMouseEnter={isMasked || isButtonsOnly ? undefined : () => setIsHoveringHeading(true)}
+                  onMouseLeave={isMasked || isButtonsOnly ? undefined : () => setIsHoveringHeading(false)}
+                  style={{ pointerEvents: isMasked || isButtonsOnly ? 'none' : 'auto' }}
+                >
+                  Business
+                </span>, right away.
+              </>
+            )}
+          </h1>
+          
+          <p className={`text-body-lg mt-2 max-w-2xl text-[18px] md:text-[22px] leading-relaxed ${isButtonsOnly ? 'opacity-0 pointer-events-none' : (isBusiness ? 'text-slate-300' : 'text-stone-600')}`}>
+            {isBusiness 
+              ? 'Skip the keyword search. We intelligently match you with verified AI professionals who have the precise skills needed to build and scale your AI systems.'
+              : 'Skip the resume filters. We connect your proven expertise with top-tier companies looking to build serious, production-ready AI applications.'}
+          </p>
+          
+          <div 
+            className={`flex flex-col sm:flex-row items-center justify-center gap-6 pt-12 relative z-20 ${!isButtonsOnly ? 'opacity-0 pointer-events-none' : 'pointer-events-auto'}`}
+            onMouseEnter={isButtonsOnly ? () => { isHoveringButtonRef.current = true; } : undefined}
+            onMouseLeave={isButtonsOnly ? () => { isHoveringButtonRef.current = false; } : undefined}
+          >
+            <button
+              onClick={handleCtaClick}
+              className={`${isBusiness ? 'bg-tertiary hover:bg-emerald-400 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)]'} font-headline font-bold text-[18px] px-10 h-15 rounded-[10px] transition-all duration-150 flex items-center gap-3 active:scale-95`}
+            >
+              {isAuthenticated ? 'Back to Dashboard' : "Let's start"} <ArrowRight className="w-6 h-6" />
+            </button>
+            {!isAuthenticated && (
+              <button 
+                onClick={() => { setAuthMode('signin'); setIsAuthModalOpen(true); }}
+                className={`${isBusiness ? 'text-slate-300 hover:text-white' : 'text-stone-500 hover:text-stone-900'} font-headline font-semibold px-8 py-4 text-[18px] transition-colors`}
+              >
+                Already have an account?
+              </button>
+            )}
           </div>
-
-          <div className="absolute bottom-6 left-0 w-full text-center text-slate-400/60 text-sm font-medium z-10">
+        </div>
+        
+        {!isButtonsOnly && (
+          <div className={`hidden sm:block absolute bottom-8 left-6 lg:left-12 text-sm font-medium z-10 whitespace-nowrap ${isBusiness ? 'text-slate-500' : 'text-stone-400'}`}>
             &copy; 2026 AITasker. All rights reserved.
           </div>
-        </section>
+        )}
+      </section>
+    );
+  };
 
+  const inactiveMode = activeMode === 'business' ? 'expert' : 'business';
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col font-body relative">
+      <main className="grow flex flex-col relative min-h-screen overflow-hidden">
+        {/* Active Layer (Base) */}
+        <div className="absolute inset-0 z-0">
+          <Content mode={activeMode} renderMode="backgroundAndText" />
+        </div>
+
+        {/* Masked Layer (Reveal on hover) */}
+        <div 
+          ref={maskRef}
+          className="absolute inset-0 z-10 pointer-events-none"
+          style={{
+            maskComposite: 'add',
+            WebkitMaskComposite: 'source-over',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat'
+          }}
+        >
+          <Content mode={inactiveMode} isMasked={true} renderMode="backgroundAndText" />
+        </div>
+
+        {/* Global Buttons Overlay */}
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          <Content mode={activeMode} renderMode="buttonsOnly" />
+        </div>
       </main>
 
-      {/* Auth Modal overlay for the landing page CTA buttons */}
+      {/* Auth Modal overlay */}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 

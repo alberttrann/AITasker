@@ -12,9 +12,9 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
+import { FootprintAlignmentData } from './FootprintAlignment';
 import FootprintAlignment, {
   toWireFootprint,
-  type FootprintAlignmentData,
 } from './FootprintAlignment';
 import ConditionalPricing, { type PricingItem } from './ConditionalPricing';
 
@@ -69,7 +69,7 @@ export default function BidForm() {
   const { data: bid, isLoading: isLoadingBid } = useBid(routeId || '');
   
   // If we found a bid, use its projectId. Otherwise assume routeId IS the projectId.
-  const actualProjectId = bid?.projectId || bid?.project_id || routeId;
+  const actualProjectId = (bid as any)?.project_id || routeId;
 
   const { project, isLoadingProject, error: specError } = useProject(actualProjectId);
   const { profile: expertProfile, isLoadingProfile } = useExpertProfile();
@@ -82,8 +82,8 @@ export default function BidForm() {
   // Sync state when bid loads
   useEffect(() => {
     if (bid) {
-      if (bid.approachSummary) setApproach(bid.approachSummary);
-      if (bid.conditionalPricingJson) setPricing(bid.conditionalPricingJson);
+      if ((bid as any).approach_summary) setApproach((bid as any).approach_summary);
+      if ((bid as any).conditional_pricing_json) setPricing((bid as any).conditional_pricing_json);
     }
   }, [bid]);
 

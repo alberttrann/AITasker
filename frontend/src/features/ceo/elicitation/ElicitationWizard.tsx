@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/Button";
@@ -128,6 +128,15 @@ export default function ElicitationWizard() {
     archetype: null,
     symptomTextDraft: null,
   });
+
+  const isConfirmingRef = useRef(false);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      state.sessionState === "IN_PROGRESS" && 
+      currentLocation.pathname !== nextLocation.pathname &&
+      !isConfirmingRef.current
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -454,9 +463,21 @@ export default function ElicitationWizard() {
       </Card>
 
       <ConfirmModal
-        isOpen={state.isCancelModalOpen}
-        onClose={() => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false })}
-        onConfirm={confirmCancelSession}
+        isOpen={state.isCancelModalOpen || blocker.state === "blocked"}
+        onClose={() => {
+          dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false });
+          if (blocker.state === "blocked" && !isConfirmingRef.current) {
+            blocker.reset();
+          }
+        }}
+        onConfirm={() => {
+          isConfirmingRef.current = true;
+          if (blocker.state === "blocked") {
+            blocker.proceed();
+          } else {
+            confirmCancelSession();
+          }
+        }}
         title="Exit Session"
         confirmText="Exit Session"
         cancelText="Cancel"

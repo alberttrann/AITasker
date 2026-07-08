@@ -1,4 +1,12 @@
-import { Route, Routes } from "react-router-dom";
+import {
+  Route,
+  createBrowserRouter,
+  createRoutesFromElements,
+  RouterProvider,
+  Outlet,
+} from "react-router-dom";
+import { AuthProvider } from "@lib/auth-context";
+import { SocketProvider } from "@lib/socket-provider";
 
 // Guards
 import { GuestRoute, ProtectedRoute, RoleRoute } from "@lib/route-guards";
@@ -11,6 +19,9 @@ import ErrorPage from "@components/pages/ErrorPage";
 import { HandoffRegister } from "@features/tech-team/auth/HandoffRegister";
 import { LinkExpiredError } from "@features/tech-team/auth/LinkExpiredError";
 
+// Auth
+import ResetPasswordPage from "@components/auth/ResetPasswordPage";
+
 // Dashboards — stub shells now, built out screen by screen
 import CeoDashboard from "@features/ceo/CeoDashboard";
 import { CeoOverview } from "@features/ceo/CeoDashboard";
@@ -19,8 +30,15 @@ import ExpertDashboard, {
 } from "@features/expert/ExpertDashboard";
 import TechTeamDashboard from "@features/tech-team/TechTeamDashboard";
 import TechTeamOverview from "@features/tech-team/TechTeamOverview";
+import TechTeamProjectsPage from "@features/tech-team/pages/TechTeamProjectsPage";
 import Stage4Submitted from "@features/tech-team/stage4/Stage4Submitted";
 import AdminDashboard from "@features/admin/AdminDashboard";
+import AdminOverview from "@features/admin/AdminOverview";
+import AnalyticsDashboard from "@features/admin/analytics/AnalyticsDashboard";
+import DisputeMonitor from "@features/admin/disputes/DisputeMonitor";
+import TransactionsLedger from "@features/admin/ledger/TransactionsLedger";
+import WithdrawalRequests from "@features/admin/ledger/WithdrawalRequests";
+import SubscriptionPackagesPage from "@features/admin/packages/SubscriptionPackagesPage";
 import ProfilePage from "./components/pages/UserProfilePage";
 import ProfileSettingPage from "./components/pages/ProfileSettingPage";
 import WalletPage from "./components/wallet/WalletPage";
@@ -41,16 +59,29 @@ import ExpertNdaClickThrough from "@features/expert/connection/NdaClickThrough";
 import BidForm from "@features/expert/bidding/BidForm";
 import BidReviewList from "@features/tech-team/bids/BidReviewList";
 import BidReviewDetail from "@features/tech-team/bids/BidReviewDetail";
+import BidApprove from "@features/tech-team/bids/BidApprove";
+import BidRevisionRequest from "@features/tech-team/bids/BidRevisionRequest";
 import MilestoneList from "./features/ceo/milestones/MilestoneList";
 import CreateMilestone from "./features/ceo/milestones/CreateMilestone";
 import MilestoneDetail from "./features/ceo/milestones/MilestoneDetail";
 import FundMilestone from "./features/ceo/milestones/FundMilestone";
 
-export default function App() {
+function RootLayout() {
   return (
-    <Routes>
+    <AuthProvider>
+      <SocketProvider>
+        <Outlet />
+      </SocketProvider>
+    </AuthProvider>
+  );
+}
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<RootLayout />}>
       {/* ── Public ─────────────────────────────────────────────────────── */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       {/* Handoff link lands here — public so TECH_TEAM can register */}
       <Route path="/register/handoff/:token" element={<HandoffRegister />} />
       <Route path="/register/handoff/expired" element={<LinkExpiredError />} />
@@ -67,12 +98,17 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />
-            <Route path="session-history" element={<SessionsListPage />} />
-            <Route path="subscription" element={<SubscriptionActivate />} />
-            <Route path="elicitation" element={<ElicitationWizard />} />
-            <Route path="shortlist/:projectId" element={<ShortlistView />} />
             <Route
-              path="projects/:projectId/shortlist"
+              path="projects/session-history"
+              element={<SessionsListPage />}
+            />
+            <Route path="subscription" element={<SubscriptionActivate />} />
+            <Route
+              path="projects/elicitation"
+              element={<ElicitationWizard />}
+            />
+            <Route
+              path="projects/shortlist/:projectId"
               element={<ShortlistView />}
             />
             <Route
@@ -127,20 +163,42 @@ export default function App() {
           {/* /tech-team/* — scoped to one linked project forever */}
           <Route path="/tech-team" element={<TechTeamDashboard />}>
             <Route index element={<TechTeamOverview />} />
+            <Route path="projects" element={<TechTeamProjectsPage />} />
+            <Route path="projects/:id" element={<ProjectDetailPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="submitted" element={<Stage4Submitted />} />
+            <Route path="bids" element={<BidReviewList />} />
+            <Route path="bids/:bidId" element={<BidReviewDetail />} />
+            <Route path="bids/:bidId/approve" element={<BidApprove />} />
+            <Route
+              path="bids/:bidId/revision"
+              element={<BidRevisionRequest />}
+            />
           </Route>
-          <Route path="bids" element={<BidReviewList />} />
-          <Route path="bids/:bidId" element={<BidReviewDetail />} />
         </Route>
 
         <Route element={<RoleRoute requiredRole="ADMIN" />}>
           {/* /admin/* — all Admin screens will nest here */}
-          <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
+            <Route path="analytics" element={<AnalyticsDashboard />} />
+            <Route path="packages" element={<SubscriptionPackagesPage />} />
+            <Route path="disputes" element={<DisputeMonitor />} />
+            <Route path="ledger" element={<TransactionsLedger />} />
+            <Route path="withdrawals" element={<WithdrawalRequests />} />
+          </Route>
         </Route>
       </Route>
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}
-      <Route path="/*" element={<ErrorPage />} />
-    </Routes>
-  );
+      <Route path="*" element={<ErrorPage />} />
+    </Route>,
+  ),
+);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }

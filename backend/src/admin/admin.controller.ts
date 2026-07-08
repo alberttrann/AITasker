@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query, UseGuards, Post } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -87,5 +87,29 @@ export class AdminController {
   @ApiOperation({ summary: 'Mark a withdrawal as failed — refunds the wallet' })
   async failWithdrawal(@Param('id') id: string) {
     return this.adminService.failWithdrawal(id);
+  }
+
+  // Subscription Package Management 
+  @Get('subscriptions/packages')
+  @ApiOperation({ summary: 'List all subscription packages' })
+  listSubscriptionPackages() {
+    return this.adminService.listSubscriptionPackages();
+  }
+
+  @Post('subscriptions/packages')
+  @ApiOperation({ summary: 'Create a new subscription package' })
+  createSubscriptionPackage(
+    @Body() dto: { role: string; name: string; priceVnd: number; durationMonths: number },
+  ) {
+    return this.adminService.createSubscriptionPackage(dto);
+  }
+
+  @Put('subscriptions/packages/:id')
+  @ApiOperation({ summary: 'Update subscription package price/duration (existing subs unaffected)' })
+  updateSubscriptionPackage(
+    @Param('id') id: string,
+    @Body() dto: { priceVnd?: number; durationMonths?: number; name?: string; isActive?: boolean },
+  ) {
+    return this.adminService.updateSubscriptionPackage(id, dto);
   }
 }

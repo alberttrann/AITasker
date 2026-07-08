@@ -1,6 +1,6 @@
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import {
-  Controller, Post, Put, Patch, Get,
+  Controller, Post, Put, Patch, Get, Delete,
   Param, Body, UseGuards, ForbiddenException,
 } from '@nestjs/common';
 import { ElicitationService }     from './elicitation.service';
@@ -14,10 +14,10 @@ import { Stage2Dto }              from './dto/stage2.dto';
 import { Stage3Dto }              from './dto/stage3.dto';
 import { Stage4Dto }              from './dto/stage4.dto';
 import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
+import { Stage4DraftDto }         from './dto/stage4-draft.dto';
 import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
-import { RevertSessionDto } from './dto/revert-session.dto';
-import { PatchSessionDraftDto } from './dto/patch-session-draft.dto';
-import { Delete } from '@nestjs/common';
+import { RevertSessionDto }       from './dto/revert-session.dto';
+import { PatchSessionDraftDto }   from './dto/patch-session-draft.dto';
 
 interface AuthUser {
   id:             string;
@@ -126,6 +126,18 @@ export class ElicitationController {
   ) {
     this.assertCeoOnly(user);
     return this.elicitationService.processStage4(id, body, user.id);
+  }
+
+  @Patch(':id/stage4-draft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Auto-save Stage 4 form without triggering LLM' })
+  saveStage4Draft(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: Stage4DraftDto,
+  ) {
+    return this.elicitationService.saveStage4Draft(id, user.id, dto.draftJson ?? {});
   }
 
   @Put('sessions/:id/stage4-handoff')

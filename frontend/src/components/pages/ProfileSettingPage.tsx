@@ -267,7 +267,7 @@ export default function ProfileSettingPage() {
             {renderEditableRow("Phone Number", "phone", "tel")}
           </div>
 
-          {user?.activeRole === 'CLIENT' && (
+          {user?.activeRole === 'CLIENT' && user?.clientSubtype !== 'TECH_TEAM' && (
             <>
               <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
                 <h2 className="text-sm font-semibold text-slate-900">Company Information</h2>
@@ -293,7 +293,7 @@ export default function ProfileSettingPage() {
             </>
           )}
 
-          {user?.activeRole === 'CLIENT' && (
+          {user?.activeRole === 'CLIENT' && user?.clientSubtype !== 'TECH_TEAM' && (
             <>
               <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
                 <h2 className="text-sm font-semibold text-slate-900">Tax Verification</h2>

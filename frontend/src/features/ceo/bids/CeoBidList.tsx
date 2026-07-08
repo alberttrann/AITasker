@@ -106,7 +106,7 @@ export default function CeoBidList() {
           <Button
             variant="secondary"
             className="mt-4"
-            onClick={() => navigate(`/ceo/projects/${projectId}/shortlist`)}
+            onClick={() => navigate(`/ceo/projects/shortlist/${projectId}`)}
           >
             View Shortlist
           </Button>
@@ -130,11 +130,11 @@ export default function CeoBidList() {
 
       <div className="space-y-3">
         {bids.map((bid) => {
-          const ceoStatus = bid.ceoStatus || 'PENDING';
+          const ceoStatus = (bid as any).ceo_status || 'PENDING';
           const ceoStyle = CEO_STATUS_STYLES[ceoStatus] || CEO_STATUS_STYLES.PENDING;
           const pricing: any[] = (bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json || [];
           const totalPrice = pricing.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0);
-          const canDecide = bid.techStatus === 'APPROVED' && ceoStatus === 'PENDING';
+          const canDecide = (bid as any).tech_status === 'APPROVED' && ceoStatus === 'PENDING';
 
           return (
             <Card key={bid.id} className="transition-shadow hover:shadow-md">

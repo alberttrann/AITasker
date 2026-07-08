@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
 import { ARCHETYPES } from "@/hooks/use-elicitation";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +12,9 @@ export default function ProjectDetailPage() {
   
   const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
   const isLoadingProject = isLoadingProjects;
+  
+  const user = useAuthStore(s => s.user);
+  const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
   
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -45,7 +49,7 @@ export default function ProjectDetailPage() {
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
           <h2 className="text-xl font-bold text-slate-800 mb-2">Project Not Found</h2>
           <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been removed.</p>
-          <button onClick={() => navigate("/ceo/projects")} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             Back to Projects
           </button>
         </div>
@@ -70,7 +74,7 @@ export default function ProjectDetailPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate('/ceo/projects')}
+            onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")}
             className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
             aria-label="Go back"
           >
@@ -155,12 +159,21 @@ export default function ProjectDetailPage() {
             </p>
           </div>
           <div className="shrink-0 flex items-start">
-            <Link
-              to={`/ceo/shortlist/${project.id}`}
-              className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
-            >
-              View Matched Experts <ArrowRight className="w-4 h-4" />
-            </Link>
+            {isTechTeam ? (
+              <Link
+                to={`/tech-team/bids`}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
+              >
+                View Bids <ArrowRight size={16} />
+              </Link>
+            ) : (
+              <Link
+                to={`/ceo/projects/shortlist/${project.id}`}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
+              >
+                View Shortlist <ArrowRight size={16} />
+              </Link>
+            )}
           </div>
         </div>
 

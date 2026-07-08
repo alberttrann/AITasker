@@ -3,12 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { useUser } from '@/hooks/use-user';
-import { SubscriptionPrice } from '@/types/enums';
-import { useSubscription } from '@/hooks/use-subscription';
+import { useSubscription, useSubscriptionStatus, useSubscriptionHistory, useSubscriptionPackages } from '@/hooks/use-subscription';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
-import { Check, Sparkles, Zap, Shield, ChevronRight } from 'lucide-react';
+import { Check, Sparkles, Zap, Shield, ChevronRight, History } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function SubscriptionActivate() {
@@ -18,18 +17,26 @@ export default function SubscriptionActivate() {
   const { user } = store;
   const { data: wallet } = useWallet();
   const { activateSubscription } = useSubscription();
+  const { activateSubscription: activateMutation } = useSubscription();
+  const { data: subStatus } = useSubscriptionStatus();
+  const { data: historyLogs, isLoading: isLoadingHistory } = useSubscriptionHistory();
+  const { data: packages } = useSubscriptionPackages();
+
   const { updateProfile } = useUser(); // to fetch user on success or we can just use queryClient
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const price = SubscriptionPrice.CEO;
-  const canAfford = availableBalance >= price;
+  const activePackage = packages?.find((p) => p.role === 'CLIENT' && p.isActive);
+  const price = activePackage ? Number(activePackage.priceVnd) : null;
+
+  const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
+  const isWalletReady = !!wallet && price !== null && availableBalance >= price;
+  const canAfford = price !== null && availableBalance >= price;
 
   const handleActivate = () => {
     setErrorMsg(null);
-    activateSubscription.mutate(
+    activateMutation.mutate(
       { activeRole: user?.activeRole || 'CLIENT' },
       {
         onSuccess: async (data) => {
@@ -58,49 +65,102 @@ export default function SubscriptionActivate() {
     );
   };
 
-  const getExpiryDate = () => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 6);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const getRemainingTime = () => {
+    if (!subStatus?.expiresAt) return '30 days, 0 hours';
+    const expires = new Date(subStatus.expiresAt);
+    const now = new Date();
+    const diff = expires.getTime() - now.getTime();
+    if (diff <= 0) return 'Expired';
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return `${days} days, ${hours} hours`;
   };
 
-  // If successfully activated
-  if (isSuccess) {
+  const isPro = subStatus?.tier === 'pro';
+
+  // If successfully activated or already subscribed
+  if (isSuccess || isPro) {
     return (
-      <div className="flex flex-col w-full min-h-[60vh] items-center justify-center py-12 px-4 animate-in fade-in zoom-in-95 duration-500 shrink-0 min-w-0">
-        <div className="w-full max-w-5xl mx-auto flex items-center justify-center relative z-10 min-w-0">
-          <div className="w-full max-w-lg sm:min-w-[480px] bg-white rounded-3xl shadow-2xl border border-emerald-100 p-8 sm:p-10 text-center relative overflow-hidden shrink-0">
-
-            {/* Decorative background elements */}
-            <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-emerald-50 to-transparent pointer-events-none" />
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-200 rounded-full blur-[50px] opacity-40 pointer-events-none" />
-
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm relative z-10 shrink-0">
-              <Sparkles size={36} className="animate-pulse shrink-0" />
-            </div>
-
-            <h2 className="text-3xl font-extrabold text-slate-900 mb-3 relative z-10 shrink-0">Pro Activated!</h2>
-            <p className="text-slate-500 mb-8 relative z-10 px-4">Welcome to the premium experience. Your account is now fully supercharged.</p>
-
-            <div className="bg-slate-50/80 rounded-2xl p-5 mb-8 text-left border border-slate-100 relative z-10 w-full">
-              <div className="flex flex-row justify-between items-center mb-4 pb-4 border-b border-slate-200 w-full gap-4">
-                <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider shrink-0">New Balance</span>
-                <span className="text-lg font-bold text-slate-900 truncate min-w-0 text-right">{formatVND(availableBalance)}</span>
+      <div className="w-full max-w-5xl mx-auto px-6 py-12 animate-in fade-in duration-500">
+        <h1 className="text-3xl font-headline font-extrabold text-slate-900 mb-8">
+          Subscription Management
+        </h1>
+        
+        {/* Current Subscription Section */}
+        <div className="mb-12">
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Current Plan</h2>
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl font-extrabold text-slate-900">Client Pro</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider">Active</span>
               </div>
-              <div className="flex flex-row justify-between items-center w-full gap-4">
-                <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider shrink-0">Expires</span>
-                <span className="font-bold text-emerald-600 truncate min-w-0 text-right">{getExpiryDate()}</span>
+              <p className="text-slate-500 font-medium">You are currently on the premium tier.</p>
+            </div>
+            
+            <div className="flex flex-col md:items-end gap-4 md:ml-0">
+              <div className="text-left md:text-right">
+                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Time until expiration</span>
+                <span className={`text-lg font-bold ${getRemainingTime() === 'Expired' ? 'text-red-500' : 'text-emerald-600'}`}>{getRemainingTime()}</span>
+              </div>
+              <div className="text-left md:text-right">
+                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-1">Price</span>
+                <span className="text-base font-bold text-slate-700">{price !== null ? `${formatVND(price)} / month` : 'N/A'}</span>
               </div>
             </div>
-
-            <Button
-              className="w-full py-6 text-lg font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all relative z-10 shrink-0"
-              variant="primary"
-              onClick={() => navigate('/ceo')}
-            >
-              Back to Dashboard
-            </Button>
           </div>
+        </div>
+
+        {/* Subscription History */}
+        <div>
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription History</h2>
+          
+          {isLoadingHistory ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 shadow-sm flex items-center justify-center">
+              <span className="text-slate-500 font-medium">Loading history...</span>
+            </div>
+          ) : historyLogs && historyLogs.length > 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-500">
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Package</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Purchased At</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Expires At</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 font-semibold uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {historyLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 text-slate-900 font-medium">{log.packageName}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(log.purchasedAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(log.expiresAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-slate-900 font-semibold">{formatVND(Number(log.amountPaidVnd))}</td>
+                      <td className="px-6 py-4">
+                        {log.isExpired ? (
+                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold uppercase rounded-md">Expired</span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold uppercase rounded-md">Active</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 shadow-sm flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
+                <History size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">No history available yet</h3>
+              <p className="text-slate-500 max-w-sm">
+                Your past subscription renewals and invoices will appear here.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -163,7 +223,7 @@ export default function SubscriptionActivate() {
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-slate-900 mb-2">6-Month Access</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-extrabold text-slate-900">{formatVND(price)}</span>
+                  <span className="text-4xl font-extrabold text-slate-900">{price !== null ? formatVND(price) : 'N/A'}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-2">One-time payment, no auto-renewal.</p>
               </div>
@@ -198,15 +258,20 @@ export default function SubscriptionActivate() {
 
                 {canAfford ? (
                   <Button
-                    className="w-full py-4 text-lg font-bold shadow-emerald-glow hover:brightness-105 transition-all group"
+                    className="w-full h-12 rounded-xl text-[15px] font-bold"
                     variant="primary"
                     onClick={handleActivate}
-                    disabled={activateSubscription.isPending}
-                    isLoading={activateSubscription.isPending}
+                    disabled={!isWalletReady || activateMutation.isPending || price === null}
                   >
-                    Activate Client Pro
+                    {activateMutation.isPending ? 'Activating...' : 'Activate Client Pro'}
                     <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
+                ) : price === null ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-center text-slate-500 font-medium bg-slate-50 py-2 rounded-lg">
+                      Price currently unavailable.
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="text-sm text-center text-red-500 font-medium bg-red-50 py-2 rounded-lg">

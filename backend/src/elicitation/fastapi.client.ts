@@ -19,8 +19,9 @@ export interface Stage1Response {
 }
 
 export interface Stage3VaguenessCheckRequest {
-  archetype:       string;
-  probe_responses: Record<string, string>;
+  archetype:        string;
+  probe_questions:  string[];    
+  probe_responses:  Record<string, string>;
   is_self_technical?: boolean;
 }
 
@@ -46,22 +47,25 @@ export interface Stage4RecommendResponse {
 }  
 
 export interface Stage5Request {
-  session_id:          string;
-  stage1_symptoms:     string[];
-  stage2_archetype:    string;
-  stage3_probes:       Record<string, unknown>;
-  stage4_tech_inputs:  Record<string, unknown>;
-  void_list_json:      Array<Record<string, unknown>>;
-  is_self_technical?:  boolean;
+  session_id:             string;
+  stage1_symptoms:        string[];
+  stage2_archetype:       string;
+  stage3_probes:          Record<string, unknown>;
+  stage4_tech_inputs:     Record<string, unknown>;
+  void_list_json:         Array<Record<string, unknown>>;
+  is_self_technical?:     boolean;
+  estimated_budget_vnd?:  number | null;   
 }
 
 export interface Stage5Response {
-  required_seams_json:      Array<Record<string, unknown>>;
-  required_domains_json:    Array<Record<string, unknown>>;
-  milestone_framework_json: Array<Record<string, unknown>>;
-  artifact_a_json:          Record<string, unknown>;
-  artifact_b_json:          Record<string, unknown>;
-  completeness_score:       number;
+  required_seams_json:           Array<Record<string, unknown>>;
+  required_domains_json:         Array<Record<string, unknown>>;
+  milestone_framework_json:      Array<Record<string, unknown>>;
+  artifact_a_json:               Record<string, unknown>;
+  artifact_b_json:               Record<string, unknown>;
+  completeness_score:            number;
+  estimated_total_cost_vnd?:     number | null;    
+  estimated_total_duration_days?: number | null;   
 }
 
 export interface PortfolioEvalRequest {
@@ -128,7 +132,7 @@ export interface ServiceGenerateResponse {
   suggested_price_vnd: number;
 }
 
-// NEW (Phase 3) — artifact-b guard check
+// artifact-b guard check
 export interface ArtifactBGuardParams {
   engagement_state:    string;
   bid_state:           string;
@@ -140,7 +144,18 @@ export interface ArtifactBGuardResponse {
   project_id:             string;
   artifact_b_accessible:  boolean;
 }
+export interface MilestoneChatRequest {
+  artifact_a:           Record<string, unknown>;
+  milestone_framework:  Array<Record<string, unknown>>;
+  budget_context?:      string;
+  conversation_history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  user_message:         string;
+}
 
+export interface MilestoneChatResponse {
+  reply:          string;
+  suggested_edit: Record<string, unknown> | null;
+}
 const TIMEOUT_DEFAULT  = 30_000;
 const TIMEOUT_STAGE5   = 90_000;
 const TIMEOUT_MATCHING =  5_000;
@@ -205,6 +220,9 @@ export class FastapiClient {
     return this.post<MatchResult[]>('/llm/matching', payload, {
       timeout: TIMEOUT_MATCHING,
     });
+  }
+  async milestoneChatAssist(payload: MilestoneChatRequest): Promise<MilestoneChatResponse> {
+    return this.post<MilestoneChatResponse>('/llm/elicitation/milestone-chat', payload);
   }
 
   async checkArtifactBAccess(

@@ -5,18 +5,20 @@ class Stage1Request(BaseModel):
     symptom_text: str
 
 class Stage5Request(BaseModel):
-    session_id:          str
-    stage1_symptoms:     list[str]
-    stage2_archetype:    str
-    stage3_probes:       dict
-    stage4_tech_inputs:  dict
-    void_list_json:      list[dict]
-    is_self_technical:   bool = False
+    session_id:            str
+    stage1_symptoms:       list[str]
+    stage2_archetype:      str
+    stage3_probes:         dict
+    stage4_tech_inputs:    dict
+    void_list_json:        list[dict]
+    is_self_technical:     bool = False
+    estimated_budget_vnd:  int | None = None   # CEO budget from Stage 1
 
 # Stage 3 vagueness check request.
 class Stage3VaguenessCheckRequest(BaseModel):
-    archetype:       str
-    probe_responses: dict[str, str]
+    archetype:        str
+    probe_questions:  list[str] = []   # DB-fetched question texts
+    probe_responses:  dict[str, str]
     is_self_technical: bool = False
 
 class PortfolioEvalRequest(BaseModel):
@@ -50,3 +52,10 @@ class Stage4RecommendRequest(BaseModel):
     stage1_symptoms: list[str]
     stage2_archetype: str
     stage3_probes: dict
+
+class MilestoneChatRequest(BaseModel):
+    artifact_a:           dict
+    milestone_framework:  list[dict]
+    budget_context:       str = "No budget specified"
+    conversation_history: list[dict] = []   # [{role: "user"|"assistant", content: "..."}]
+    user_message:         str

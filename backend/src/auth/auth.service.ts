@@ -1,9 +1,16 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
+import { addHours } from 'date-fns';
+import { EmailService } from '../common/email/email.service';
+import { EmailValidatorService } from './email-validator.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RegisterUserDto } from './dto/register.dto';
 import { RegisterHandoffDto } from './dto/register-handoff.dto';
 import { PrismaService } from 'prisma/prisma.service';
@@ -31,6 +38,8 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
+    private emailValidatorService: EmailValidatorService,
   ) {}
 
   private toAuthUserResponse(user: User) {
@@ -47,6 +56,9 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterUserDto) {
+    // Check the email is real (MX record exists, not a disposable domain)
+    await this.emailValidatorService.assertValidEmail(registerDto.email);
+
     const existingEmailCheck = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
@@ -110,6 +122,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials!');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account suspended');
     }
 
     const isMatch = await bcrypt.compare(loginDto.password, user.passwordHash);
@@ -240,6 +256,9 @@ export class AuthService {
       throw new UnauthorizedException('This invite link has already been used.');
     }
 
+    // Check the email is real before creating the TechTeam account
+    await this.emailValidatorService.assertValidEmail(dto.email);
+
     const existingEmailCheck = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -261,7 +280,13 @@ export class AuthService {
           techTeamProfile: {
             create: {
               linkedClientId: payload.ceoId,
-              linkedProjectId: null,
+              linkedProjectId: (
+                await tx.project.findFirst({
+                  where:   { clientId: payload.ceoId, state: 'PUBLISHED' },
+                  orderBy: { createdAt: 'desc' },
+                  select:  { id: true },
+                })
+              )?.id ?? null,
             },
           },
         },
@@ -345,17 +370,24 @@ export class AuthService {
         },
       });
 
-      // Tạo profile hoặc cập nhật liên kết mới sang CEO dự án này
+      // Resolve the CEO's current published project (if it exists already)
+      const ceoProject = await tx.project.findFirst({
+        where:   { clientId: payload.ceoId, state: 'PUBLISHED' },
+        orderBy: { createdAt: 'desc' },
+        select:  { id: true },
+      });
+      const resolvedProjectId = ceoProject?.id ?? null;
+
       await tx.techTeamProfile.upsert({
         where: { userId },
         create: {
           userId,
-          linkedClientId: payload.ceoId,
-          linkedProjectId: null,
+          linkedClientId:  payload.ceoId,
+          linkedProjectId: resolvedProjectId,
         },
         update: {
-          linkedClientId: payload.ceoId,
-          linkedProjectId: null,
+          linkedClientId:  payload.ceoId,
+          linkedProjectId: resolvedProjectId,
         },
       });
 
@@ -390,5 +422,89 @@ export class AuthService {
       verified: false,
       companyName: null,
     };
+  }
+
+  // Forgot Password / Reset Password
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    // Always return the same message whether or not the email exists.
+    // This is intentional — it prevents email enumeration attacks where
+    // an attacker probes which emails are registered.
+    const genericResponse = {
+      message: 'If an account with that email exists, a reset link has been sent.',
+    };
+
+    if (!user) return genericResponse;
+    if (!user.isActive) return genericResponse; // suspended accounts get no reset link
+
+    // Generate a cryptographically random token (64 hex chars = 32 bytes entropy)
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = addHours(new Date(), 1); // link expires in 1 hour
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: token,
+        passwordResetTokenExpiresAt: expiresAt,
+      },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password/${token}`;
+
+    // Fire-and-forget: the EmailService catches its own errors internally
+    await this.emailService.sendPasswordResetEmail(user.email, resetLink);
+
+    return genericResponse;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: dto.token,
+        passwordResetTokenExpiresAt: { gt: new Date() }, // not expired
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired. Please request a new one.',
+      );
+    }
+
+    const newHash = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newHash,
+        passwordResetToken: null,           // invalidate immediately after use
+        passwordResetTokenExpiresAt: null,
+      },
+    });
+
+    return { message: 'Password has been reset successfully. You can now log in.' };
+  }
+  async verifyResetToken(token: string): Promise<{ valid: true }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken:          token,
+        passwordResetTokenExpiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired. Please request a new one.',
+      );
+    }
+
+    // Return a simple object — 200 means valid, 400 means invalid/expired.
+    return { valid: true };
   }
 }

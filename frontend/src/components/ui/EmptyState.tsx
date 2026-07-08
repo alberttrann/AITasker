@@ -22,7 +22,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`rounded-[8px] border border-dashed border-[#E2E8F0] bg-[#F8FAFC] p-12 text-center ${className}`}
+      className={`rounded-[12px] border border-dashed border-slate-200 bg-surface-base p-10 text-center ${className}`}
     >
       <div className="mx-auto text-[#94A3B8]">
         {icon || <FileQuestion className="mx-auto h-10 w-10" />}

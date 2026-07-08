@@ -53,10 +53,10 @@ export default function SessionsListPage() {
       }
       
       if (session.state === 'RETURNED') {
-        navigate("/ceo/elicitation", { state: { resumeSessionId: session.id } });
+        navigate("/ceo/projects/elicitation", { state: { resumeSessionId: session.id } });
       } else {
         await restoreSession.mutateAsync(session.id);
-        navigate("/ceo/elicitation");
+        navigate("/ceo/projects/elicitation");
       }
     } catch (error) {
       console.error("Failed to restore session", error);
