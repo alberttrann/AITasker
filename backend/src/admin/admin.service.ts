@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnprocessableEntityException  } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DisputesService } from '../disputes/disputes.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -283,5 +283,27 @@ export class AdminService {
         ...(dto.isActive       !== undefined && { isActive: dto.isActive }),
       },
     });
+  }
+
+  async deleteSubscriptionPackage(packageId: string) {
+    const pkg = await this.prisma.subscriptionPackage.findUnique({
+      where: { id: packageId },
+      include: { _count: { select: { purchaseLogs: true } } },
+    });
+
+    if (!pkg) {
+      throw new NotFoundException('Subscription package not found.');
+    }
+
+    if (pkg._count.purchaseLogs > 0) {
+      throw new UnprocessableEntityException(
+        `Cannot delete "${pkg.name}" — it has ${pkg._count.purchaseLogs} purchase record(s) ` +
+        `linked to it. Deactivate it instead (PUT /admin/subscriptions/packages/${packageId} ` +
+        `with { "isActive": false }) to hide it from new activations without losing history.`,
+      );
+    }
+
+    await this.prisma.subscriptionPackage.delete({ where: { id: packageId } });
+    return { deleted: true, id: packageId, name: pkg.name };
   }
 }

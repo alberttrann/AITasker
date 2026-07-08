@@ -36,4 +36,21 @@ export class ConfigReadService {
       select: { id: true, archetypeCode: true, questionText: true, displayOrder: true },
     });
   }
+
+  getSubscriptionPackages(role?: string) {
+    return this.prisma.subscriptionPackage.findMany({
+      where: {
+        isActive: true,
+        ...(role ? { role: role.toUpperCase() } : {}),
+      },
+      orderBy: { role: 'asc' },
+      select: {
+        id:             true,
+        role:           true,
+        name:           true,
+        priceVnd:       true,
+        durationMonths: true,
+      },
+    });
+  }
 }
