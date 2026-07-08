@@ -19,9 +19,9 @@ export class SubscriptionController {
   @Post('activate')
   activateSubscription(
     @CurrentUser() user: AuthUser,
-    @Body() activateSubscriptionDto: ActivateSubscriptionDto,
+    @Body() dto: ActivateSubscriptionDto,
   ) {
-    return this.subscriptionService.activateSubscription(user.id, activateSubscriptionDto);
+    return this.subscriptionService.activateSubscription(user.id, dto);
   }
 
   @ApiBearerAuth('JWT')
