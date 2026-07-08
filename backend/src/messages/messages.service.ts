@@ -182,7 +182,7 @@ export class MessagesService {
             where: {
                 engagementId: engagementId,
                 senderId: { not: userId },
-                messageReads: {
+                reads: {
                     none: {
                         userId,
                     },

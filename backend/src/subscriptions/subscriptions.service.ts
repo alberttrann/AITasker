@@ -131,9 +131,15 @@ export class SubscriptionService {
         ? ('subClientExpiresAt' as const)
         : ('subExpertExpiresAt' as const);
 
+    const isExpired =
+      user[expiresKey] !== null &&
+      user[expiresKey] !== undefined &&
+      new Date(user[expiresKey]) < new Date();
+
     return {
-      subscriptionTier: user[tierKey],
+      subscriptionTier: isExpired ? 'free' : user[tierKey],
       subscriptionExpires: user[expiresKey],
+      isExpired,   
     };
   }
 }

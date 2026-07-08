@@ -1,6 +1,8 @@
 import { Body, Controller, Post, Put, UseGuards } from '@nestjs/common';
 import { RegisterUserDto } from './dto/register.dto';
 import { RegisterHandoffDto } from './dto/register-handoff.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthService } from './auth.service';
 import { LoginUserDto } from './dto/login.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -35,9 +37,8 @@ export class AuthController {
     return this.authService.switchRole(user.id, switchRoleDto);
   }
 
-  // no JwtAuthGuard at all, by design: the refresh token's
-  // entire purpose is renewing access AFTER the access token has expired,
-  // so it can't be gated behind a guard that requires a still-valid token.
+  // No JwtAuthGuard by design: refresh token renews access after the
+  // access token has expired, so it can't be gated behind a valid-token guard.
   @Post('refresh')
   refreshToken(@Body('refresh_token') tokenString: string) {
     return this.authService.refreshToken(tokenString);
@@ -64,5 +65,17 @@ export class AuthController {
     @Body('invite_token') inviteToken: string,
   ) {
     return this.authService.claimHandoff(user.id, inviteToken);
+  }
+
+  // Forgot Password / Reset Password
+
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

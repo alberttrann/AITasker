@@ -362,10 +362,19 @@ export class ElicitationService {
 
   async processStage5(sessionId: string, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);
-    this.assertStage(session, 5);
+    this.assertOwnership(session, userId);           
+    this.assertStage(session, 5);                    
 
-    return this.runSynthesis(session);
+    // Only pick a TechTeam that is NOT yet linked to any project
+    const techProfile = await this.prisma.techTeamProfile.findFirst({
+      where: {
+        linkedClientId: userId,
+        linkedProjectId: null,                       
+      },
+      select: { userId: true },
+    });
+
+    return this.runSynthesis(session, techProfile?.userId);
   }
 
   async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {
