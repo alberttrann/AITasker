@@ -13,6 +13,7 @@ import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { LedgerService } from '@shared/ledger/ledger.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { generateVaNumber } from '@shared/ledger/va-generator';
+ import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 
 @Injectable()
 export class MilestonesService {
