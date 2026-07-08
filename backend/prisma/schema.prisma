@@ -29,7 +29,8 @@ model User {
   selfTechnicalProjects  Json      @default("[]") @map("self_technical_projects")
   isActive               Boolean   @default(true) @map("is_active")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
+  passwordResetToken          String?   @map("password_reset_token")
+  passwordResetTokenExpiresAt DateTime? @map("password_reset_token_expires_at") @db.Timestamptz(6)
   // Relations
   clientProfile        ClientProfile?
   expertProfile        ExpertProfile?
@@ -51,7 +52,8 @@ model User {
   reviewsReceived      Review[]              @relation("ReviewsReceived")
   milestonesSubmitted  MilestoneSubmission[]
   disputesFiled    Dispute[] @relation("DisputeFiler")
-  disputesResolved  Dispute[] @relation("DisputeResolver")
+  disputesResolved       Dispute[]                 @relation("DisputeResolver")
+  subscriptionPurchaseLogs SubscriptionPurchaseLog[]
 
   @@index([activeRole])
   @@map("users")
@@ -181,6 +183,9 @@ model ElicitationSession {
   handoffConsumedAt         DateTime? @map("handoff_consumed_at") @db.Timestamptz(6)
   recommendedArchetypesJson Json?     @map("recommended_archetypes_json")
   symptomTextDraft          String?   @map("symptom_text_draft")
+  stage1OriginalInput       String?   @map("stage1_original_input")
+  stage4DraftJson           Json?     @map("stage4_draft_json")
+  estimatedBudgetVnd        BigInt?   @map("estimated_budget_vnd")
 
   user    User     @relation(fields: [userId], references: [id])
   project Project?
@@ -205,7 +210,9 @@ model Project {
   milestoneFrameworkJson Json     @default("[]") @map("milestone_framework_json")
   artifactAJson          Json?    @map("artifact_a_json")
   artifactBJson          Json?    @map("artifact_b_json")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  estimatedTotalCostVnd      BigInt?  @map("estimated_total_cost_vnd")
+  estimatedTotalDurationDays Int?     @map("estimated_total_duration_days")
 
   client             User                @relation("ClientProjects", fields: [clientId], references: [id])
   elicitationSession ElicitationSession? @relation(fields: [elicitationSessionId], references: [id])
@@ -366,6 +373,12 @@ model Milestone {
   submittedAt          DateTime? @map("submitted_at") @db.Timestamptz(6)
   approvedAt           DateTime? @map("approved_at") @db.Timestamptz(6)
   releasedAt           DateTime? @map("released_at") @db.Timestamptz(6)
+  title                String?
+  estimatedDurationDays Int?     @map("estimated_duration_days")
+  techStackJson        Json      @default("[]") @map("tech_stack_json")
+  estimatedCostVnd     BigInt?   @map("estimated_cost_vnd")
+  isAiGenerated        Boolean   @default(false) @map("is_ai_generated")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   engagement         Engagement            @relation(fields: [engagementId], references: [id])
   acceptanceCriteria AcceptanceCriterion[]
@@ -558,4 +571,94 @@ model PlatformDecision {
   @@index([createdAt(sort: Desc)])
   @@index([entityType, entityId])
   @@map("platform_decisions")
+}
+
+// CMS / Config Tables
+
+model DomainDefinition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0)    @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("domain_definitions")
+}
+
+model SeamDefinition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0)    @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("seam_definitions")
+}
+
+model ArchetypeDefinition {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String          @unique
+  name           String
+  description    String?
+  isActive       Boolean         @default(true) @map("is_active")
+  sortOrder      Int             @default(0)    @map("sort_order")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  probeQuestions ProbeQuestion[]
+
+  @@map("archetype_definitions")
+}
+
+model ProbeQuestion {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  archetypeCode String              @map("archetype_code")
+  questionText  String              @map("question_text")
+  displayOrder  Int                 @default(0) @map("display_order")
+  isActive      Boolean             @default(true) @map("is_active")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archetype     ArchetypeDefinition @relation(fields: [archetypeCode], references: [code])
+
+  @@index([archetypeCode])
+  @@map("probe_questions")
+}
+
+// Admin-configurable subscription packages
+model SubscriptionPackage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role           String                           // 'CLIENT' | 'EXPERT'
+  name           String                           // e.g. "Client Pro"
+  priceVnd       BigInt   @map("price_vnd")
+  durationMonths Int      @map("duration_months")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  purchaseLogs SubscriptionPurchaseLog[]
+
+  @@map("subscription_packages")
+}
+
+// History of subscription purchases per user
+model SubscriptionPurchaseLog {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  packageId     String              @map("package_id") @db.Uuid
+  role          String
+  amountPaidVnd BigInt              @map("amount_paid_vnd")
+  purchasedAt   DateTime            @default(now()) @map("purchased_at") @db.Timestamptz(6)
+  expiresAt     DateTime            @map("expires_at") @db.Timestamptz(6)
+  paymentMethod String              @default("WALLET") @map("payment_method")
+
+  user    User                @relation(fields: [userId], references: [id])
+  package SubscriptionPackage @relation(fields: [packageId], references: [id])
+
+  @@index([userId])
+  @@map("subscription_purchase_logs")
 }
