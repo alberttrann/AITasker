@@ -503,3 +503,39 @@ export interface CreateCriterionDto {
   criterion_text: string;
   is_required?: boolean;
 }
+
+// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
+
+/**
+ * Payload used for verifying a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionDto {
+  verification_comment?: string;
+}
+
+/**
+ * Variables required when calling the verify criterion mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionVariable {
+  criterionId: string;
+  body: VerifyCriterionDto;
+}
+
+/**
+ * Payload used for requesting revision on a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteDto {
+  revision_note: string;
+}
+
+/**
+ * Variables required when calling the request revision mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteVariable {
+  criterionId: string;
+  body: RevisionNoteDto;
+}
