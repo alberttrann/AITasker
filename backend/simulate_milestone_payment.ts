@@ -13,26 +13,26 @@ function signSepayPayload(rawBodyString: string, secret: string, timestamp: stri
 }
 
 async function main() {
-  const milestoneId = "dfe0395c-8d8d-4dc5-8e12-989bb42c258a";
   const webhookSecret = "whsec_w3djV5C6NeaB5Ypwc7LWeBYlIPK2m0SW"; // from local .env
   
-  // 1. Fetch the virtual account created locally for this milestone
+  // 1. Fetch the latest active virtual account created locally for a MILESTONE
   const va = await prisma.virtualAccount.findFirst({
     where: {
-      entityId: milestoneId,
       entityType: "MILESTONE",
       status: "ACTIVE"
+    },
+    orderBy: {
+      expiresAt: 'desc'
     }
   });
 
   if (!va || !va.vaNumber) {
-    console.error("❌ No ACTIVE virtual account found for this milestone on your LOCAL database.");
+    console.error("❌ No ACTIVE virtual account found for any milestone on your LOCAL database.");
     console.error("👉 Make sure you clicked 'Generate Payment Info' on your browser page first!");
-    console.error("👉 If you want to reset the milestone price to 2000, run: npx tsx query_data.ts");
     return;
   }
 
-  console.log(`Found active VA: ${va.vaNumber} with amount: ${va.fixedAmount} VND`);
+  console.log(`Found active VA: ${va.vaNumber} with amount: ${va.fixedAmount} VND (linked to Milestone ID: ${va.entityId})`);
 
   // 2. Construct SePay webhook payload
   const payload = {
@@ -54,7 +54,6 @@ async function main() {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = signSepayPayload(rawBody, webhookSecret, timestamp);
 
-  // Using 127.0.0.1 instead of localhost to avoid Windows IPv6 (::1) ECONNRESET issues
   console.log("Sending simulated SePay IPN webhook callback to local backend (http://127.0.0.1:3001)...");
   
   try {
