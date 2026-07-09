@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
-import { ARCHETYPES } from "@/hooks/use-elicitation";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { useDomains, useSeams } from "@/hooks/use-config";
+import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,7 +37,7 @@ export default function ProjectDetailPage() {
 
   if (isLoadingProject) {
     return (
-      <div className="flex items-center justify-center py-20 w-full max-w-[1440px] mx-auto">
+      <div className="flex items-center justify-center py-20 w-full max-w-6xl mx-auto">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -46,7 +45,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="w-full max-w-[1440px] mx-auto p-6">
+      <div className="w-full max-w-6xl mx-auto p-6">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
           <h2 className="text-xl font-bold text-slate-800 mb-2">Project Not Found</h2>
           <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been removed.</p>
@@ -67,11 +66,12 @@ export default function ProjectDetailPage() {
   const artifactA = project.artifactAJson || (project as any).artifact_a_json || null;
   const milestones = project.milestoneFrameworkJson || (project as any).milestone_framework_json || [];
   
-  const archetype = project.archetype;
-  const archetypeData = archetype ? ARCHETYPES.find(a => a.code === archetype) : null;
-
   const { data: dynamicDomains } = useDomains();
   const { data: dynamicSeams } = useSeams();
+  const { data: archetypesList } = useArchetypes();
+
+  const archetype = project.archetype;
+  const archetypeData = archetype && archetypesList ? archetypesList.find(a => a.code === archetype) : null;
 
   const getDomainName = (code: string) => {
     const d = dynamicDomains?.find(domain => domain.code === code);
@@ -84,7 +84,7 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto relative px-4 sm:px-0">
+    <div className="w-full max-w-6xl mx-auto relative px-4 sm:px-0">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
@@ -159,7 +159,7 @@ export default function ProjectDetailPage() {
               )}
               {archetypeData && (
                 <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold uppercase tracking-wider rounded-md border border-amber-100">
-                  {archetypeData.icon} {archetypeData.label}
+                  {archetypeData.name}
                 </span>
               )}
               {project.selfTechnical && (

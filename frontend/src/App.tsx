@@ -35,6 +35,7 @@ const WithdrawalRequests = lazy(() => import("@features/admin/ledger/WithdrawalR
 const SubscriptionPackagesPage = lazy(() => import("@features/admin/packages/SubscriptionPackagesPage"));
 const ConfigurationPage = lazy(() => import("@features/admin/config/ConfigurationPage"));
 const DomainSeamConfigPage = lazy(() => import("@features/admin/config/DomainSeamConfigPage"));
+const ArchetypeConfigPage = lazy(() => import("@features/admin/config/ArchetypeConfigPage"));
 const ProfilePage = lazy(() => import("./components/pages/UserProfilePage"));
 const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingPage"));
 const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
@@ -161,6 +162,7 @@ const router = createBrowserRouter(
             <Route path="config" element={<ConfigurationPage />} />
             <Route path="config/packages" element={<SubscriptionPackagesPage />} />
             <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
+            <Route path="config/archetypes" element={<ArchetypeConfigPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />

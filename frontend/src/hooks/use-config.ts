@@ -28,6 +28,13 @@ export interface ArchetypeDefinition {
   sortOrder: number;
 }
 
+export interface ProbeQuestionDefinition {
+  id: string;
+  archetypeCode: string;
+  questionText: string;
+  displayOrder: number;
+}
+
 export function useDomains() {
   return useQuery({
     queryKey: ['domains'],
@@ -57,6 +64,19 @@ export function useArchetypes() {
       const { data } = await apiClient.get<ArchetypeDefinition[]>('/config/archetypes');
       return data;
     },
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+}
+
+export function useProbeQuestions(archetypeCode: string | undefined) {
+  return useQuery({
+    queryKey: ['probe-questions', archetypeCode],
+    queryFn: async () => {
+      if (!archetypeCode) return [];
+      const { data } = await apiClient.get<ProbeQuestionDefinition[]>(`/config/archetypes/${archetypeCode}/probe-questions`);
+      return data;
+    },
+    enabled: !!archetypeCode,
     staleTime: 1000 * 60 * 60, // 1 hour
   });
 }
