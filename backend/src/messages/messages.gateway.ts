@@ -8,12 +8,13 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { InviteExpertDto } from './dto/invite-expert.dto';
-import { JwtService } from '@nestjs/jwt';
+import { MessagesService }    from './messages.service';
+import { InvitationsService } from '../invitations/invitations.service';
+import { CreateMessageDto }   from './dto/create-message.dto';
+import { InviteExpertDto }    from './dto/invite-expert.dto';
+import { JwtService }         from '@nestjs/jwt';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent }            from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: {
@@ -25,8 +26,9 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   server: Server;
 
   constructor(
-    private readonly messagesService: MessagesService,
-    private readonly jwtService: JwtService,
+    private readonly messagesService:    MessagesService,
+    private readonly invitationsService: InvitationsService,
+    private readonly jwtService:         JwtService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -129,25 +131,31 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
         activeRole: user.activeRole,
       });
 
-      // 2. Push a direct personal notification to the Expert's personal socket room
-      this.server.to(dto.expertId).emit('notification:generic', {
-        type: 'system',
-        title: 'Project Invitation',
-        body: 'A CEO has invited you to submit a bid for their project.',
-        link: `/expert/bids/${dto.projectId}`,
+      // 2. Persist the invitation so the expert can see it on their Invitations page.
+      //    Uses upsert — re-inviting a declined expert resets status to PENDING.
+      await this.invitationsService.upsertInvitation({
+        projectId: dto.projectId,
+        expertId:  dto.expertId,
+        ceoId:     user.sub,
+        message:   dto.content ?? null,
       });
 
-      // 3. Create the initial system/chat message in the DB
-      const content = dto.content || `I'd like to invite you to submit a bid for this project.`;
+      // 3. Push real-time notification to the expert's personal socket room
+      this.server.to(dto.expertId).emit('notification:generic', {
+        type:  'system',
+        title: 'Project Invitation',
+        body:  'A CEO has invited you to submit a bid for their project.',
+        link:  `/expert/invitations`,   // now points to the new Invitations page
+      });
+
+      // 4. Create the initial chat message in the DB for the project chat thread
+      const content = dto.content ?? `I'd like to invite you to submit a bid for this project.`;
       const savedMessage = await this.messagesService.createMessage(
         { id: user.sub, activeRole: user.activeRole },
-        {
-          project_id: dto.projectId,
-          content: content,
-        },
+        { project_id: dto.projectId, content },
       );
 
-      // Broadcast to the project room so the CEO sees it immediately in their chat history
+      // Broadcast to the project room so the CEO sees it in their chat history
       this.server.to(dto.projectId).emit('newMessage', savedMessage);
     } catch (err: any) {
       client.emit('error', { message: err.message || 'Failed to send invitation.' });

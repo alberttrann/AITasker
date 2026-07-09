@@ -10,6 +10,18 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype: string | null };
 
+// Shared project select shape for all engagement list queries.
+const PROJECT_SUMMARY_SELECT = {
+  select: {
+    id:          true,
+    projectName: true,
+    state:       true,
+    archetype:   true,
+    tier:        true,
+    createdAt:   true,
+  },
+} as const;
+
 @Injectable()
 export class EngagementsService {
   constructor(
@@ -40,20 +52,28 @@ export class EngagementsService {
         where.connectedAt = { gte: new Date(filters.connectedAt) };
       }
 
-      return this.prisma.engagement.findMany({ where });
+      return this.prisma.engagement.findMany({
+        where,
+        include: { project: PROJECT_SUMMARY_SELECT },
+        orderBy: { id: 'desc' },
+      });
     }
 
     // 2. EXPERT — engagements where they are the expert.
     if (user.activeRole === 'EXPERT') {
       return this.prisma.engagement.findMany({
-        where: { expertId: user.id },
+        where:   { expertId: user.id },
+        include: { project: PROJECT_SUMMARY_SELECT },
+        orderBy: { id: 'desc' }, // Sort by newest IDs first
       });
     }
 
     // 3. CEO — engagements where they are the client.
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
       return this.prisma.engagement.findMany({
-        where: { clientId: user.id },
+        where:   { clientId: user.id },
+        include: { project: PROJECT_SUMMARY_SELECT },
+        orderBy: { id: 'desc' },
       });
     }
 
@@ -69,7 +89,9 @@ export class EngagementsService {
       }
 
       return this.prisma.engagement.findMany({
-        where: { projectId: techProfile.linkedProjectId },
+        where:   { projectId: techProfile.linkedProjectId },
+        include: { project: PROJECT_SUMMARY_SELECT },
+        orderBy: { id: 'desc' },
       });
     }
 

@@ -128,8 +128,9 @@ export class ElicitationController {
     return this.elicitationService.processStage4(id, body, user.id);
   }
 
-  @Patch(':id/stage4-draft')
-  @UseGuards(JwtAuthGuard)
+  @Patch('sessions/:id/stage4-draft')
+  @Roles('CLIENT')
+  @UseGuards(SubscriptionGuard)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Auto-save Stage 4 form without triggering LLM' })
   saveStage4Draft(
