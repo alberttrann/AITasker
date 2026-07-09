@@ -47,7 +47,7 @@ export default function BidApprove() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6">
       <button
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
         className="inline-flex items-center gap-1.5 text-[13px] text-secondary hover:text-primary transition-colors"

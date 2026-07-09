@@ -3,6 +3,7 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { SeamClaim } from '@/types/ui.types';
 import { Spinner } from '@/components/ui/Spinner';
 import { CheckCircle, Lock, AlertTriangle } from 'lucide-react';
+import TooltipIcon from '@/components/ui/TooltipIcon';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;
@@ -10,29 +11,25 @@ interface SeamClaimsGridProps {
   selectedDomainCodes?: string[];
 }
 
-const SEAMS = [
-  { code: 'A↔B', label: 'Applied Agents', hint: 'Using LLMs to build autonomous agents and tool-using systems' },
-  { code: 'A↔C', label: 'Prompt Engineering Apps', hint: 'Building robust apps centered around complex prompt chains' },
-  { code: 'A↔D', label: 'Fine-Tuned Apps', hint: 'Integrating custom trained models into production apps' },
-  { code: 'A↔F', label: 'Production LLMs', hint: 'Deploying and monitoring LLMs in high-traffic applications' },
-  { code: 'B↔E', label: 'Agents with Memory', hint: 'Connecting agents to vector databases and long-term memory' },
-  { code: 'C↔E', label: 'Retrieval Prompting', hint: 'Optimizing prompts for grounded generation from retrieved context' },
-  { code: 'C↔F', label: 'PromptOps', hint: 'Managing, versioning, and monitoring prompts in production' },
-  { code: 'D↔E', label: 'Fine-Tuned RAG', hint: 'Optimizing embeddings and models for retrieval systems' },
-  { code: 'D↔F', label: 'MLOps for LLMs', hint: 'Managing the lifecycle of fine-tuned models in production' },
-  { code: 'E↔F', label: 'Scalable RAG', hint: 'Scaling vector search and retrieval infrastructure' },
-];
+import { useSeams } from '@/hooks/use-config';
 
 export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDomainCodes = [] }: SeamClaimsGridProps) {
-  const [seamStates, setSeamStates] = useState<SeamClaim[]>(() => {
-    return SEAMS.map(s => {
-      const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === s.code);
-      return {
-        code: s.code,
-        checked: existing ? true : false
-      };
-    });
-  });
+  const { data: dynamicSeams, isLoading } = useSeams();
+  const [seamStates, setSeamStates] = useState<SeamClaim[]>([]);
+
+  React.useEffect(() => {
+    if (dynamicSeams && seamStates.length === 0) {
+      setSeamStates(
+        dynamicSeams.map(s => {
+          const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === s.code);
+          return {
+            code: s.code,
+            checked: existing ? true : false
+          };
+        })
+      );
+    }
+  }, [dynamicSeams, initialSeams]);
   const { saveSeams } = useExpertProfile();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,31 +99,35 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {SEAMS.map(seam => {
-          const currentState = seamStates.find(s => s.code === seam.code);
-          const isChecked = currentState?.checked;
-          const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === seam.code);
-          const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
-          const hasSubmissions = (existing?.submissionCount || 0) > 0;
-          const cannotRemove = isVerified || hasSubmissions;
-          
-          const requiredDomains = seam.code.split('↔');
-          const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
-          
-          const isInvalid = !hasRequiredDomains && !cannotRemove;
-          const isDisabled = isInvalid || cannotRemove;
+      {isLoading ? (
+        <div className="flex justify-center p-8">
+          <Spinner size="lg" className="text-blue-500" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(dynamicSeams || []).map(seam => {
+            const currentState = seamStates.find(s => s.code === seam.code);
+            const isChecked = currentState?.checked || false;
+            const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === seam.code);
+            const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
+            const hasSubmissions = (existing?.submissionCount || 0) > 0;
+            const cannotRemove = isVerified || hasSubmissions;
+            
+            const requiredDomains = seam.code.split('↔');
+            const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
+            
+            const isInvalid = !hasRequiredDomains && !cannotRemove;
+            const isDisabled = isInvalid || cannotRemove;
 
-          return (
-            <label 
-              key={seam.code} 
-              className={`flex items-start gap-3 p-4 border rounded-lg transition-colors ${
-                isInvalid ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200' :
-                cannotRemove ? 'cursor-not-allowed border-blue-500 bg-blue-50/30' :
-                isChecked ? 'cursor-pointer border-blue-500 bg-blue-50/30' : 'cursor-pointer border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className="mt-1">
+            return (
+              <label 
+                key={seam.code} 
+                className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${
+                  isInvalid ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200' :
+                  cannotRemove ? 'cursor-not-allowed border-blue-500 bg-blue-50/30' :
+                  isChecked ? 'cursor-pointer border-blue-500 bg-blue-50/30' : 'cursor-pointer border-gray-200 bg-white hover:bg-gray-50'
+                }`}
+              >
                 <input
                   type="checkbox"
                   checked={isChecked}
@@ -134,42 +135,42 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
                   onChange={() => {
                     if (!isDisabled) toggleSeam(seam.code);
                   }}
-                  className={`w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${isDisabled ? 'cursor-not-allowed' : ''} ${isInvalid ? 'opacity-50' : ''}`}
+                  className={`w-5 h-5 shrink-0 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${isDisabled ? 'cursor-not-allowed' : ''} ${isInvalid ? 'opacity-50' : ''}`}
                 />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm flex items-center gap-2">
-                  <span className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs border">
-                    {seam.code}
-                  </span>
-                  {seam.label}
-                  {isVerified && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
-                      <CheckCircle className="h-3 w-3" /> AI Verified
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <span className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs border">
+                      {seam.code}
                     </span>
+                    {seam.name}
+                    <TooltipIcon text={seam.description} />
+                    {isVerified && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
+                        <CheckCircle className="h-3 w-3" /> AI Verified
+                      </span>
+                    )}
+                    {existing?.lockedUntil && new Date(existing.lockedUntil) > new Date() && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 uppercase tracking-wide">
+                        <Lock className="h-3 w-3" /> Locked
+                      </span>
+                    )}
+                  </h3>
+                  {isInvalid && (
+                    <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Requires domains {requiredDomains.join(' and ')}
+                    </p>
                   )}
-                  {existing?.lockedUntil && new Date(existing.lockedUntil) > new Date() && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 uppercase tracking-wide">
-                      <Lock className="h-3 w-3" /> Locked
-                    </span>
+                  {cannotRemove && (
+                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                      {isVerified ? 'Verified seams cannot be removed.' : 'Seams with portfolio evidence cannot be removed.'}
+                    </p>
                   )}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">{seam.hint}</p>
-                {isInvalid && (
-                  <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Requires domains {requiredDomains.join(' and ')}
-                  </p>
-                )}
-                {cannotRemove && (
-                  <p className="text-xs text-blue-600 mt-1 font-medium">
-                    {isVerified ? 'Verified seams cannot be removed.' : 'Seams with portfolio evidence cannot be removed.'}
-                  </p>
-                )}
-              </div>
-            </label>
-          );
-        })}
-      </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-4 border-t">
         <div className={`text-sm font-medium ${selectedCount >= 2 && selectedCount <= 5 ? 'text-green-600' : 'text-orange-600'}`}>

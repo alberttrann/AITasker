@@ -76,7 +76,7 @@ export default function BidReviewDetail() {
   const canReview = techStatus === 'PENDING' || techStatus === 'REVISION_REQUESTED';
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6">
       {/* Back + Header */}
       <div>
         <button

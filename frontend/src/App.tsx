@@ -39,14 +39,18 @@ import DisputeMonitor from "@features/admin/disputes/DisputeMonitor";
 import TransactionsLedger from "@features/admin/ledger/TransactionsLedger";
 import WithdrawalRequests from "@features/admin/ledger/WithdrawalRequests";
 import SubscriptionPackagesPage from "@features/admin/packages/SubscriptionPackagesPage";
+import ConfigurationPage from "@features/admin/config/ConfigurationPage";
+import DomainSeamConfigPage from "@features/admin/config/DomainSeamConfigPage";
 import ProfilePage from "./components/pages/UserProfilePage";
 import ProfileSettingPage from "./components/pages/ProfileSettingPage";
 import WalletPage from "./components/wallet/WalletPage";
 import ExpertWallet from "@features/expert/wallet/ExpertWallet";
 import BankHubLink from "@features/expert/wallet/BankHubLink";
 
-import SubscriptionActivate from "@features/ceo/onboarding/SubscriptionActivate";
-import ExpertSubscriptionActivate from "@features/expert/onboarding/SubscriptionActivate";
+import SubscriptionManagement from "@features/ceo/onboarding/SubscriptionManagement";
+import SubscriptionPlans from "@features/ceo/onboarding/SubscriptionPlans";
+import ExpertSubscriptionManagement from "@features/expert/onboarding/SubscriptionManagement";
+import ExpertSubscriptionPlans from "@features/expert/onboarding/SubscriptionPlans";
 import ElicitationWizard from "@features/ceo/elicitation/ElicitationWizard";
 import ShortlistView from "@features/ceo/shortlist/ShortlistView";
 import ProjectsPage from "@features/ceo/pages/ProjectsPage";
@@ -98,19 +102,11 @@ const router = createBrowserRouter(
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />
-            <Route
-              path="projects/session-history"
-              element={<SessionsListPage />}
-            />
-            <Route path="subscription" element={<SubscriptionActivate />} />
-            <Route
-              path="projects/elicitation"
-              element={<ElicitationWizard />}
-            />
-            <Route
-              path="projects/shortlist/:projectId"
-              element={<ShortlistView />}
-            />
+            <Route path="projects/session-history" element={<SessionsListPage />} />
+            <Route path="subscriptions" element={<SubscriptionManagement />} />
+            <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
+            <Route path="projects/elicitation" element={<ElicitationWizard />} />
+            <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
@@ -139,7 +135,7 @@ const router = createBrowserRouter(
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="expert-profile" element={<ExpertProfilePage />} />
+            <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
@@ -148,8 +144,12 @@ const router = createBrowserRouter(
               element={<VerificationHistoryPage />}
             />
             <Route
-              path="subscription"
-              element={<ExpertSubscriptionActivate />}
+              path="subscriptions"
+              element={<ExpertSubscriptionManagement />}
+            />
+            <Route
+              path="subscriptions/plans"
+              element={<ExpertSubscriptionPlans />}
             />
             <Route path="bids/:projectId" element={<BidForm />} />
             <Route
@@ -185,7 +185,9 @@ const router = createBrowserRouter(
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="analytics" element={<AnalyticsDashboard />} />
-            <Route path="packages" element={<SubscriptionPackagesPage />} />
+            <Route path="config" element={<ConfigurationPage />} />
+            <Route path="config/packages" element={<SubscriptionPackagesPage />} />
+            <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />

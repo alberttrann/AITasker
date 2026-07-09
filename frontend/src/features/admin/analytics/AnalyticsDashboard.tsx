@@ -75,7 +75,7 @@ export default function AnalyticsDashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
+    <div className="space-y-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <BarChart3 className="h-8 w-8 text-primary" />

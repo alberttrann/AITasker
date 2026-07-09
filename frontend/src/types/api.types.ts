@@ -187,88 +187,88 @@ export interface ServiceDto {
 
 export interface EngagementDto {
   id: string;
-  project_id: string | null;
-  expert_id: string;
-  service_id: string | null;
+  projectId: string | null;
+  expertId: string;
+  serviceId: string | null;
   type: EngagementType;
   state: EngagementState;
-  connected_at: string | null;
-  client_nda_accepted_at: string | null;
-  expert_nda_accepted_at: string | null;
+  connectedAt: string | null;
+  clientNdaAcceptedAt: string | null;
+  expertNdaAcceptedAt: string | null;
   // Adding supportive fields for EngagementDto
-  client_id: string;
+  clientId: string;
   capabilityBid?: CapabilityBidDto | null;
   milestones?: MilestoneDto[];
 }
 
 export interface CapabilityBidDto {
   id: string;
-  engagement_id: string;
-  footprint_alignment_json: FootprintAlignment | null;
-  approach_summary: string | null;
-  conditional_pricing_json: ConditionalPricingItem[] | null;
+  engagementId: string;
+  footprintAlignmentJson: FootprintAlignment | null;
+  approachSummary: string | null;
+  conditionalPricingJson: ConditionalPricingItem[] | null;
   state: BidState;
-  tech_status: TechStatus;
-  ceo_status: CeoStatus;
-  tech_feedback: string | null;
-  negotiated_price_vnd: number | null;
-  version_number: number;
+  techStatus: TechStatus;
+  ceoStatus: CeoStatus;
+  techFeedback: string | null;
+  negotiatedPriceVnd: number | null;
+  versionNumber: number;
 }
 
 export interface MilestoneDto {
   id: string;
-  engagement_id: string;
-  milestone_number: number;
-  deliverable_statement: string | null;
-  sign_off_authority: SignOffAuthority;
-  payment_amount_vnd: number;
+  engagementId: string;
+  milestoneNumber: number;
+  deliverableStatement: string | null;
+  signOffAuthority: SignOffAuthority;
+  paymentAmountVnd: number;
   state: MilestoneState;
-  va_number: string | null;
-  va_expires_at: string | null;
-  funded_at: string | null;
-  submitted_at: string | null;
-  approved_at: string | null;
-  released_at: string | null;
+  vaNumber: string | null;
+  vaExpiresAt: string | null;
+  fundedAt: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  releasedAt: string | null;
 }
 
 export interface AcceptanceCriterionDto {
   id: string;
-  milestone_id: string;
-  criterion_text: string;
-  is_required: boolean;
-  verified_by_role: SignOffAuthority;
-  verified_at: string | null;
-  revision_note: string | null;
+  milestoneId: string;
+  criterionText: string;
+  isRequired: boolean;
+  verifiedByRole: SignOffAuthority;
+  verifiedAt: string | null;
+  revisionNote: string | null;
 }
 
 export interface MilestoneDodItemDto {
   id: string;
-  milestone_id: string;
-  item_description: string;
-  is_required: boolean;
+  milestoneId: string;
+  itemDescription: string;
+  isRequired: boolean;
   status: DodStatus;
-  completed_at: string | null;
-  completion_note: string | null;
-  not_applicable_note: string | null;
-  maps_to_criterion_id: string | null;
+  completedAt: string | null;
+  completionNote: string | null;
+  notApplicableNote: string | null;
+  mapsToCriterionId: string | null;
 }
 
 export interface MilestoneSubmissionDto {
   id: string;
-  milestone_id: string;
-  expert_id: string;
+  milestoneId: string;
+  expertId: string;
   description: string | null;
-  files_json: SubmissionFile[];
-  submitted_at: string;
+  filesJson: SubmissionFile[];
+  submittedAt: string;
 }
 
 export interface PaygatedDocumentDto {
   id: string;
-  milestone_id: string;
-  document_url: string;
-  release_state: ReleaseState;
-  staged_at: string;
-  released_at: string | null;
+  milestoneId: string;
+  documentUrl: string;
+  releaseState: ReleaseState;
+  stagedAt: string;
+  releasedAt: string | null;
 }
 
 // ── Escrow & Disputes ─────────────────────────────────────────────────────────

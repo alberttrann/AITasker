@@ -4,6 +4,8 @@ import { useShortlist } from '@/hooks/use-matching';
 import { useProjects } from '@/hooks/use-projects';
 import { Spinner } from '@/components/ui/Spinner';
 import { RefreshCw, ArrowLeft } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { DataList } from '@/components/layout/Table';
 import MatchCard from './MatchCard';
 
 export default function ShortlistView() {
@@ -34,6 +36,24 @@ export default function ShortlistView() {
   const errorMessage = error ? ((error as any).response?.data?.message || 'Failed to load matched experts. Please try again.') : null;
 
   const formattedDate = lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : null;
+
+  const [sort, setSort] = useState<'score_desc' | 'score_asc'>('score_desc');
+
+  const sortedExperts = useMemo(() => {
+    const STRENGTH_ORDER: Record<string, number> = {
+      STRONG_MATCH:   4,
+      GOOD_MATCH:     3,
+      POSSIBLE_MATCH: 2,
+      WEAK_MATCH:     1,
+    };
+    return [...experts].sort((a: any, b: any) => {
+      const scoreA = STRENGTH_ORDER[a.strength_label] ?? 0;
+      const scoreB = STRENGTH_ORDER[b.strength_label] ?? 0;
+      if (sort === 'score_desc') return scoreB - scoreA;
+      if (sort === 'score_asc') return scoreA - scoreB;
+      return 0;
+    });
+  }, [experts, sort]);
 
   // ── Loading ─────────────────────────────────────────────────────
 
@@ -113,11 +133,20 @@ export default function ShortlistView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {experts.map((expert, i) => (
-          <MatchCard key={expert.expert_id || i} expert={expert} projectId={projectId!} projectName={projectName} />
-        ))}
-      </div>
+      <DataList
+        sortOptions={[
+          { label: 'Highest Score', value: 'score_desc' },
+          { label: 'Lowest Score', value: 'score_asc' },
+        ]}
+        currentSort={sort}
+        onSortChange={(v) => setSort(v as any)}
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {sortedExperts.map((expert: any, i: number) => (
+            <MatchCard key={expert.expert_id || i} expert={expert} projectId={projectId!} projectName={projectName} />
+          ))}
+        </div>
+      </DataList>
     </div>
   );
 }

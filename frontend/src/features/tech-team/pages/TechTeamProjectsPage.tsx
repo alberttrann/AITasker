@@ -7,7 +7,7 @@ export default function TechTeamProjectsPage() {
   const activeProject = projects?.[0];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-300">
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Linked Project</h4>
         

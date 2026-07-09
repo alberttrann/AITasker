@@ -4,6 +4,7 @@ import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
 import { ARCHETYPES } from "@/hooks/use-elicitation";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
+import { useDomains, useSeams } from "@/hooks/use-config";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +38,7 @@ export default function ProjectDetailPage() {
 
   if (isLoadingProject) {
     return (
-      <div className="flex items-center justify-center py-20 w-full max-w-5xl mx-auto">
+      <div className="flex items-center justify-center py-20 w-full max-w-[1440px] mx-auto">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -45,7 +46,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="w-full max-w-5xl mx-auto p-6">
+      <div className="w-full max-w-[1440px] mx-auto p-6">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
           <h2 className="text-xl font-bold text-slate-800 mb-2">Project Not Found</h2>
           <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been removed.</p>
@@ -69,8 +70,21 @@ export default function ProjectDetailPage() {
   const archetype = project.archetype;
   const archetypeData = archetype ? ARCHETYPES.find(a => a.code === archetype) : null;
 
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
+
+  const getDomainName = (code: string) => {
+    const d = dynamicDomains?.find(domain => domain.code === code);
+    return d ? d.name : code.replace(/_/g, ' ');
+  };
+
+  const getSeamName = (code: string) => {
+    const s = dynamicSeams?.find(seam => seam.code === code);
+    return s ? s.name : code.replace(/_/g, ' ');
+  };
+
   return (
-    <div className="w-full max-w-5xl mx-auto relative px-4 sm:px-0">
+    <div className="w-full max-w-[1440px] mx-auto relative px-4 sm:px-0">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
@@ -242,7 +256,7 @@ export default function ProjectDetailPage() {
                   <div className="flex flex-wrap gap-2">
                     {domains.map((d: any) => (
                       <span key={d.domainCode || d.domain_code} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-md border border-slate-200">
-                        {(d.domainCode || d.domain_code).replace(/_/g, ' ')}
+                        {d.domainCode || d.domain_code} · {getDomainName(d.domainCode || d.domain_code)}
                         <span className="text-xs text-slate-400 ml-1">({d.required_depth || d.requiredDepth})</span>
                       </span>
                     ))}
@@ -258,7 +272,7 @@ export default function ProjectDetailPage() {
                   <div className="flex flex-wrap gap-2">
                     {seams.map((s: any) => (
                       <span key={s.seamCode || s.seam_code} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-md border border-slate-200">
-                        {(s.seamCode || s.seam_code).replace(/_/g, ' ')}
+                        {s.seamCode || s.seam_code} · {getSeamName(s.seamCode || s.seam_code)}
                         <span className="text-xs text-slate-400 ml-1">({s.criticality})</span>
                       </span>
                     ))}

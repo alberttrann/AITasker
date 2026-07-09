@@ -234,7 +234,7 @@ export default function ProfileSettingPage() {
   };
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">

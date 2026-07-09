@@ -22,91 +22,92 @@ export class SubscriptionService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async activateSubscription(userId: string, activateSubscriptionDto: ActivateSubscriptionDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  async activateSubscription(userId: string, dto: ActivateSubscriptionDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found!');
 
-    if (!user) {
-      throw new UnauthorizedException('User not found!');
-    }
-
-    const userCurrentActiveRole = activateSubscriptionDto.activeRole;
+    const userCurrentActiveRole = dto.activeRole;
 
     if (user.activeRole !== userCurrentActiveRole) {
       throw new ConflictException(
-        'You must switch to the target role before activating subscription!',
+        'You must switch to the target role before activating a subscription.',
       );
     }
 
-    const tierKey =
-      userCurrentActiveRole === ActiveRole.CLIENT
-        ? 'subscriptionClientTier'
-        : 'subscriptionExpertTier';
-
-    const expiresKey =
-      userCurrentActiveRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
-
-    const roleTypeLabel = userCurrentActiveRole === ActiveRole.CLIENT ? 'client' : 'expert';
-
-    // Fetch price + duration from DB instead of hardcoded enum
-    const pkg = await this.prisma.subscriptionPackage.findFirst({
-      where: { role: userCurrentActiveRole, isActive: true },
-      orderBy: { createdAt: 'desc' },
+    // Resolve the package the user explicitly chose 
+    const pkg = await this.prisma.subscriptionPackage.findUnique({
+      where: { id: dto.packageId },
     });
+
     if (!pkg) {
       throw new NotFoundException(
-        `No active subscription package found for role ${userCurrentActiveRole}. Contact admin.`,
+        `Subscription package ${dto.packageId} not found.`,
       );
     }
-    const price = Number(pkg.priceVnd);
-    const durationMonths = pkg.durationMonths;
-    const packageId = pkg.id;
+    if (!pkg.isActive) {
+      throw new UnprocessableEntityException(
+        `Package "${pkg.name}" is no longer available. Please choose a different plan.`,
+      );
+    }
+    // Guard against a CEO accidentally sending an Expert packageId and vice-versa
+    if (pkg.role !== userCurrentActiveRole) {
+      throw new UnprocessableEntityException(
+        `Package "${pkg.name}" is for ${pkg.role} accounts but you are activating as ${userCurrentActiveRole}.`,
+      );
+    }
 
-    const currentTime = new Date();
+    const tierKey    = userCurrentActiveRole === ActiveRole.CLIENT
+      ? 'subscriptionClientTier'
+      : 'subscriptionExpertTier';
+    const expiresKey = userCurrentActiveRole === ActiveRole.CLIENT
+      ? 'subClientExpiresAt'
+      : 'subExpertExpiresAt';
+    const roleTypeLabel = userCurrentActiveRole === ActiveRole.CLIENT ? 'client' : 'expert';
+
+    // Idempotency: block if subscription is still active
+    const now = new Date();
     const isCurrentlyActive =
       user[tierKey] === SubscriptionTier.PRO &&
       user[expiresKey] !== null &&
-      user[expiresKey] > currentTime;
+      user[expiresKey] > now;
 
     if (isCurrentlyActive) {
-      throw new ConflictException('Your subscription is still available');
+      throw new ConflictException('Your subscription is still active.');
     }
 
+    // Billing transaction 
     const updatedUser = await this.prisma.$transaction(async (tx) => {
-      const userWallet = await tx.wallet.findUnique({
-        where: { userId: user.id },
-      });
-      
-      if (userWallet.availableBalance < price) {
+      const userWallet = await tx.wallet.findUnique({ where: { userId: user.id } });
+      if (!userWallet) throw new UnprocessableEntityException('Wallet not found.');
+
+      // Both sides are BigInt — safe comparison
+      if (userWallet.availableBalance < pkg.priceVnd) {
         throw new UnprocessableEntityException('INSUFFICIENT_BALANCE');
       }
 
       await tx.wallet.update({
         where: { userId: user.id },
-        data: {
-          availableBalance: { decrement: BigInt(price) },
-        },
+        data:  { availableBalance: { decrement: pkg.priceVnd } },
       });
 
       await tx.walletTransaction.create({
         data: {
-          walletId: userWallet.id,
-          amount: BigInt(price),
+          walletId:        userWallet.id,
+          amount:          pkg.priceVnd,
           transactionType: TransactionType.SUBSCRIPTION,
-          referenceId: `SUB-${userId}:${roleTypeLabel}:${Date.now()}`,
+          referenceId:     `SUB-${userId}:${roleTypeLabel}:${pkg.id}:${Date.now()}`,
         },
       });
 
-      const expiresAt = addMonths(new Date(), durationMonths);
+      const expiresAt = addMonths(now, pkg.durationMonths);
 
-      // F-2: Write purchase log for subscription history
+      // Purchase log (for subscription history)
       await tx.subscriptionPurchaseLog.create({
         data: {
-          userId: user.id,
-          packageId,
-          role: userCurrentActiveRole,
-          amountPaidVnd: BigInt(price),
+          userId:        user.id,
+          packageId:     pkg.id,
+          role:          userCurrentActiveRole,
+          amountPaidVnd: pkg.priceVnd,
           expiresAt,
           paymentMethod: 'WALLET',
         },
@@ -115,23 +116,31 @@ export class SubscriptionService {
       return tx.user.update({
         where: { id: user.id },
         data: {
-          [tierKey]: SubscriptionTier.PRO,
+          [tierKey]:    SubscriptionTier.PRO,
           [expiresKey]: expiresAt,
         },
       });
     });
+
     this.eventEmitter.emit('socket.broadcast', {
       userId: user.id,
-      event: 'notification:generic',
+      event:  'notification:generic',
       payload: {
-        type: 'system',
+        type:  'system',
         title: 'Pro Activated',
-        body: `Welcome to ${roleTypeLabel === 'client' ? 'Client Pro' : 'Expert Pro'}!`,
-      }
+        body:  `Welcome to ${pkg.name}! Valid for ${pkg.durationMonths} month(s).`,
+      },
     });
-    const access_token = await this.authService.jwtGeneratePayload(updatedUser);
 
-    return { access_token };
+    const access_token = await this.authService.jwtGeneratePayload(updatedUser);
+    return {
+      access_token,
+      activatedPackage: {
+        name:           pkg.name,
+        priceVnd:       pkg.priceVnd.toString(),
+        durationMonths: pkg.durationMonths,
+      },
+    };
   }
 
   async getSubscriptionStatus(userId: string) {

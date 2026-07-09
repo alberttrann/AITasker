@@ -1,9 +1,9 @@
-import { Controller, Get, Put, Body, Param, Query, UseGuards, Post } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query, UseGuards, Post, Delete } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 
@@ -111,5 +111,19 @@ export class AdminController {
     @Body() dto: { priceVnd?: number; durationMonths?: number; name?: string; isActive?: boolean },
   ) {
     return this.adminService.updateSubscriptionPackage(id, dto);
+  }
+
+  @Delete('subscriptions/packages/:id')
+  @ApiOperation({
+    summary: 'Hard-delete a subscription package',
+    description:
+      'Only succeeds if the package has zero purchase history. ' +
+      'If it has been purchased before, use PUT with isActive: false to deactivate it instead.',
+  })
+  @ApiResponse({ status: 200,  description: 'Package deleted.' })
+  @ApiResponse({ status: 422,  description: 'Package has purchase history — deactivate instead.' })
+  @ApiResponse({ status: 404,  description: 'Package not found.' })
+  deleteSubscriptionPackage(@Param('id') id: string) {
+    return this.adminService.deleteSubscriptionPackage(id);
   }
 }

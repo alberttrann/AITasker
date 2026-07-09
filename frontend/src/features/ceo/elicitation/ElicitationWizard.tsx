@@ -207,7 +207,7 @@ export default function ElicitationWizard() {
         if (cancelled) return;
         const { message, isSubscriptionError } = handleElicitationError(err);
         if (isSubscriptionError) {
-          navigate("/ceo/subscription", { replace: true });
+          navigate("/ceo/subscriptions/plans", { replace: true });
           return;
         }
         dispatch({ type: "SET_ERROR", payload: message });
@@ -333,7 +333,7 @@ export default function ElicitationWizard() {
 
   if (state.sessionState === "COMPLETED" && state.gateResult?.gate_passed) {
     return (
-      <div className="mx-auto max-w-6xl py-8">
+      <div className="mx-auto max-w-[1440px] py-8">
         <QualityGatePassed
           projectId={state.gateResult.project_id}
           onStartNew={handleStartOver}
@@ -344,7 +344,7 @@ export default function ElicitationWizard() {
 
   if (state.sessionState === "RETURNED" && state.gateResult && !state.gateResult.gate_passed) {
     return (
-      <div className="mx-auto max-w-6xl py-8">
+      <div className="mx-auto max-w-[1440px] py-8">
         <QualityGateFailed
           advisoryNote={state.gateResult.advisory_note}
           flaggedVoid={state.gateResult.flagged_void ?? ""}
@@ -357,7 +357,7 @@ export default function ElicitationWizard() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl relative pt-4">
+    <div className="mx-auto max-w-[1440px] relative pt-4">
       <div className="absolute top-0 right-0 z-10">
         <Button variant="ghost" size="sm" onClick={handleCancelSession} className="text-slate-500 hover:text-slate-700 hover:bg-slate-50">
           Exit Session

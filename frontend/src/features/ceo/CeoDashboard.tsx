@@ -3,7 +3,7 @@ import { Outlet, useNavigate, Link } from "react-router-dom";
 import TopNav from "@/components/layout/TopNav";
 import DashboardGreeting from "@/components/layout/DashboardGreeting";
 import { useProjects, useElicitationSessions } from "@/hooks/use-projects";
-import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock } from "lucide-react";
+import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock, Building } from "lucide-react";
 import { SuggestBox } from "@/components/ui/SuggestBox";
 import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 
@@ -14,6 +14,7 @@ import { useSubscriptionStatus } from "@/hooks/use-subscription";
 export function CeoOverview() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [dismissCompanySuggest, setDismissCompanySuggest] = useState(false);
 
   const { projects, isLoadingProjects } = useProjects();
   const { sessions, isLoadingSessions } = useElicitationSessions();
@@ -91,9 +92,29 @@ export function CeoOverview() {
             description="Supercharge your workflow with AI-powered PRD generation, priority matchmaking with elite Tech Teams, and 0% platform fees on all milestones."
             icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
             buttonText="Upgrade now"
-            onButtonClick={() => navigate('/ceo/subscription')}
+            onButtonClick={() => navigate('/ceo/subscriptions/plans')}
             className="lg:col-span-4"
           />
+        </div>
+      )}
+
+      {/* FOR YOU Section */}
+      {user && !user.companyName && !dismissCompanySuggest && (
+        <div className="mb-8">
+          <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">For You</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <SuggestBox
+              topLabel="Recommended for you"
+              title="Update Company Information"
+              description="Add your company details to help us match you with the right tech experts."
+              icon={<Building className="h-6 w-6" />}
+              buttonText="Edit Profile"
+              theme="outline"
+              className=""
+              onButtonClick={() => navigate('/ceo/profile')}
+              onDismiss={() => setDismissCompanySuggest(true)}
+            />
+          </div>
         </div>
       )}
 
@@ -101,8 +122,8 @@ export function CeoOverview() {
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
         {isLoadingSessions || isLoadingProjects ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-2 h-auto bg-white border border-slate-200 rounded-[20px] p-6 flex flex-col justify-between animate-pulse min-h-[160px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="h-auto bg-white border border-slate-200 rounded-[20px] p-6 flex flex-col justify-between animate-pulse min-h-[160px]">
               <div className="flex justify-between items-start mb-6">
                 <div className="space-y-3">
                   <div className="h-3 w-24 bg-slate-200 rounded"></div>
@@ -115,7 +136,7 @@ export function CeoOverview() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             <Widget metrics={elicitationMetrics} variant="slate" />
           </div>
         )}
@@ -129,13 +150,11 @@ export function CeoOverview() {
 
 export default function CeoDashboard() {
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <TopNav />
-      <div className="bg-background min-h-screen">
-        <div className="w-full max-w-[1440px] mx-auto px-6 py-6 sm:py-8">
-          <Outlet />
-        </div>
-      </div>
-    </>
+      <main className="flex-grow w-full max-w-[1440px] mx-auto px-6 py-6 sm:py-8">
+        <Outlet />
+      </main>
+    </div>
   );
 }

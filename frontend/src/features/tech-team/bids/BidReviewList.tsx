@@ -114,7 +114,7 @@ export default function BidReviewList() {
   // ── List ───────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 w-full max-w-5xl mx-auto">
+    <div className="space-y-6 w-full max-w-[1440px] mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-headline text-[24px] font-semibold text-primary">

@@ -63,7 +63,7 @@ export default function VerificationHistoryPage() {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-8 px-4 py-8">
+    <div className="w-full max-w-[1440px] mx-auto space-y-8 px-4 py-8">
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-bold text-slate-900">Verification History</h1>
         <p className="text-sm text-slate-500 mt-1">
