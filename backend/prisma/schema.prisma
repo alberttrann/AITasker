@@ -55,6 +55,8 @@ model User {
   disputesResolved       Dispute[]                 @relation("DisputeResolver")
   subscriptionPurchaseLogs  SubscriptionPurchaseLog[]
   milestoneChatSessions     MilestoneChatSession[]
+  invitationsReceived       Invitation[]               @relation("InvitationExpert")
+  invitationsSent           Invitation[]               @relation("InvitationCeo")
 
   @@index([activeRole])
   @@map("users")
@@ -222,6 +224,7 @@ model Project {
   messages           Message[]
   shortlistCache        ProjectShortlistCache?
   milestoneChatSessions MilestoneChatSession[]
+  invitations           Invitation[]
 
   @@index([clientId])
   @@index([state])
@@ -683,4 +686,29 @@ model MilestoneChatSession {
   @@index([projectId])
   @@index([userId])
   @@map("milestone_chat_sessions")
+}
+
+model Invitation {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String           @map("project_id") @db.Uuid
+  expertId    String           @map("expert_id") @db.Uuid
+  ceoId       String           @map("ceo_id") @db.Uuid
+  // Optional personal message the CEO typed when inviting
+  message     String?
+  status      String           @default("PENDING")
+  invitedAt   DateTime         @default(now()) @map("invited_at") @db.Timestamptz(6)
+  // Set when expert accepts (bids) or declines
+  respondedAt DateTime?        @map("responded_at") @db.Timestamptz(6)
+  // 7-day window; background job or query-time check marks as EXPIRED
+  expiresAt   DateTime?        @map("expires_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  expert  User    @relation("InvitationExpert", fields: [expertId], references: [id])
+  ceo     User    @relation("InvitationCeo",    fields: [ceoId],    references: [id])
+
+  // One invitation per (project, expert) pair - re-inviting resets it via upsert
+  @@unique([projectId, expertId], name: "projectId_expertId")
+  @@index([expertId])
+  @@index([projectId])
+  @@map("invitations")
 }

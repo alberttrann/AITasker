@@ -100,33 +100,42 @@ export class BidsService {
           versionNumber: 1,
         } as any,
       });
+      // Mark the expert's invitation as ACCEPTED now that they've submitted a bid.
+      // Uses updateMany so it silently no-ops if the expert bid without an invitation.
+      await tx.invitation.updateMany({
+        where: { projectId: project.id, expertId: expertUserId, status: 'PENDING' },
+        data:  { status: 'ACCEPTED', respondedAt: new Date() },
+      });
+
       this.eventEmitter.emit('socket.broadcast', {
         userId: project.clientId,
         event: 'notification:generic',
         payload: {
-          type: 'bid_update',
+          type:  'bid_update',
           title: 'New Expert Bid!',
-          body: 'An expert has submitted a capability bid for your project.',
-          link: `/ceo/projects/${project.id}`
-        }
-      });
-      const techTeamMembers = await tx.techTeamProfile.findMany({
-        where: { linkedProjectId: project.id },
-        select: { userId: true },
+          body:  'An expert has submitted a capability bid for your project.',
+          link:  `/ceo/projects/${project.id}`,
+        },
       });
 
+      // Notify all linked Tech Team members 
+      const techTeamMembers = await tx.techTeamProfile.findMany({
+        where:  { linkedProjectId: project.id },
+        select: { userId: true },
+      });
       for (const member of techTeamMembers) {
         this.eventEmitter.emit('socket.broadcast', {
           userId: member.userId,
-          event: 'notification:generic',
+          event:  'notification:generic',
           payload: {
-            type: 'bid_update',
+            type:  'bid_update',
             title: 'New Bid Awaiting Review',
-            body: 'An expert has submitted a capability bid. Your technical review is required.',
-            link: `/tech-team/projects/${project.id}`,
+            body:  'An expert has submitted a capability bid. Your technical review is required.',
+            link:  `/tech-team/projects/${project.id}`,
           },
         });
       }
+
       return { engagement, bid };
     });
   }
