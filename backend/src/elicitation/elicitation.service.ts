@@ -600,10 +600,12 @@ export class ElicitationService {
           milestoneFrameworkJson:    synthesis.milestone_framework_json as any,
           artifactAJson:             synthesis.artifact_a_json          as any,
           artifactBJson:             synthesis.artifact_b_json          as any,
-          estimatedTotalCostVnd:     synthesis.estimated_total_cost_vnd     
-                                       ? BigInt(synthesis.estimated_total_cost_vnd)
+          estimatedTotalCostVnd:     synthesis.estimated_total_cost_vnd && !isNaN(Number(synthesis.estimated_total_cost_vnd))
+                                       ? BigInt(Math.round(Number(synthesis.estimated_total_cost_vnd)))
                                        : null,
-          estimatedTotalDurationDays: synthesis.estimated_total_duration_days ?? null, 
+          estimatedTotalDurationDays: synthesis.estimated_total_duration_days && !isNaN(Number(synthesis.estimated_total_duration_days))
+                                       ? Math.round(Number(synthesis.estimated_total_duration_days))
+                                       : null,
         },
       });
     } catch (err: any) {
