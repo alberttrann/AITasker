@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, UnprocessableEntityException  } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnprocessableEntityException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DisputesService } from '../disputes/disputes.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -286,7 +286,7 @@ export class AdminService {
   }
 
   // ── User Management ───────────────────────────────────────────────
-  async getUsers() {
+  async getUsers(limit?: number, offset?: number) {
     return this.prisma.user.findMany({
       select: {
         id: true,
@@ -301,6 +301,8 @@ export class AdminService {
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
+      take: limit ?? 100,
+      skip: offset ?? 0,
     });
   }
 
@@ -329,22 +331,30 @@ export class AdminService {
   }
 
   async updatePlatformSettings(dto: { platform_fee_pct?: number; platform_wallet_id?: string }) {
+    // Guard: platform_fee_pct must be in [0, 1] — values > 1 would produce negative expertAmount
+    // in ledger.service.ts, causing BigInt(negative) to corrupt the wallet.
+    if (dto.platform_fee_pct !== undefined && (dto.platform_fee_pct < 0 || dto.platform_fee_pct > 1)) {
+      throw new BadRequestException('platform_fee_pct must be between 0 and 1 (inclusive)');
+    }
+
     const existing = await this.prisma.platformSettings.findFirst();
     if (!existing) {
-      return this.prisma.platformSettings.create({
+      const created = await this.prisma.platformSettings.create({
         data: {
           platformFeePct: dto.platform_fee_pct ?? 0.05,
           platformWalletId: dto.platform_wallet_id ?? null,
         },
       });
+      return { platform_fee_pct: created.platformFeePct, platform_wallet_id: created.platformWalletId };
     }
-    return this.prisma.platformSettings.update({
+    const updated = await this.prisma.platformSettings.update({
       where: { id: existing.id },
       data: {
         ...(dto.platform_fee_pct !== undefined && { platformFeePct: dto.platform_fee_pct }),
         ...(dto.platform_wallet_id !== undefined && { platformWalletId: dto.platform_wallet_id }),
       },
     });
+    return { platform_fee_pct: updated.platformFeePct, platform_wallet_id: updated.platformWalletId };
   }
 
   async deleteSubscriptionPackage(packageId: string) {

@@ -30,6 +30,10 @@ const AdminDashboard = lazy(() => import("@features/admin/AdminDashboard"));
 const AdminOverview = lazy(() => import("@features/admin/AdminOverview"));
 const AnalyticsDashboard = lazy(() => import("@features/admin/analytics/AnalyticsDashboard"));
 const DisputeMonitor = lazy(() => import("@features/admin/disputes/DisputeMonitor"));
+const DisputeDetail = lazy(() => import("@features/admin/disputes/DisputeDetail"));
+const ResolutionConfirm = lazy(() => import("@features/admin/disputes/ResolutionConfirm"));
+const UserList = lazy(() => import("@features/admin/accounts/UserList"));
+const PlatformSettings = lazy(() => import("@features/admin/PlatformSettings"));
 const TransactionsLedger = lazy(() => import("@features/admin/ledger/TransactionsLedger"));
 const WithdrawalRequests = lazy(() => import("@features/admin/ledger/WithdrawalRequests"));
 const SubscriptionPackagesPage = lazy(() => import("@features/admin/packages/SubscriptionPackagesPage"));
@@ -162,6 +166,10 @@ const router = createBrowserRouter(
             <Route path="config/packages" element={<SubscriptionPackagesPage />} />
             <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
+            <Route path="disputes/:id" element={<DisputeDetail />} />
+            <Route path="disputes/:id/resolve" element={<ResolutionConfirm />} />
+            <Route path="users" element={<UserList />} />
+            <Route path="settings" element={<PlatformSettings />} />
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />
           </Route>

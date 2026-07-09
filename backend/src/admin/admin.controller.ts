@@ -1,9 +1,9 @@
-import { Controller, Get, Put, Body, Param, Query, UseGuards, Post, Delete } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query, UseGuards, Post, Delete, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 
@@ -30,9 +30,12 @@ export class AdminController {
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'List all users with roles, tiers, and active status' })
-  async getUsers() {
-    return this.adminService.getUsers();
+  @ApiOperation({ summary: 'List all users with roles, tiers, and active status (paginated, default 100)' })
+  async getUsers(
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    return this.adminService.getUsers(limit, offset);
   }
 
   @Put('users/:id/reactivate')
@@ -90,6 +93,15 @@ export class AdminController {
 
   @Put('platform-settings')
   @ApiOperation({ summary: 'Update platform fee percentage (takes effect on next milestone approval)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        platform_fee_pct: { type: 'number', minimum: 0, maximum: 1, example: 0.05 },
+        platform_wallet_id: { type: 'string', example: 'wallet-uuid-platform' },
+      },
+    },
+  })
   async updatePlatformSettings(
     @Body() dto: { platform_fee_pct?: number; platform_wallet_id?: string },
   ) {

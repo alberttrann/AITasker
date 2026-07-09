@@ -53,7 +53,8 @@ export class IpnHandlerService {
     */
 
     // payment:confirmed for milestone escrow lock (MILESTONE VA type)
-    if (userVirtualAccount.entityType === VAEntityType.MILESTONE && result && 'success' in result) {
+    // Guard: skip emit on idempotent retry ("Already processed") to avoid duplicate events
+    if (userVirtualAccount.entityType === VAEntityType.MILESTONE && result && 'success' in result && (result as any).message !== 'Already processed') {
       const milestone = await this.prisma.milestone.findUnique({
         where: { id: userVirtualAccount.entityId },
         include: { engagement: { select: { clientId: true } } },
