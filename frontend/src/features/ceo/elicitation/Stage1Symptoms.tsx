@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/input";
+import { Button } from "@/components/ui/Button";
+import { Label } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
 import { Bot, Loader2, CheckCircle2 } from "lucide-react";
 import type { VoidItem } from "@t/jsonb.types";
@@ -11,6 +11,7 @@ import {
   VOID_DESCRIPTIONS,
   useElicitation,
   saveDraft,
+  revertSession,
 } from "@/hooks/use-elicitation";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -36,9 +37,18 @@ export default function Stage1Symptoms({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
+  const [voidList, setVoidList] = useState<VoidItem[]>([]);
+  const [acknowledgedVoids, setAcknowledgedVoids] = useState<Set<string>>(new Set());
+  const [showResults, setShowResults] = useState(false);
+  const fakeProgress = useFakeProgress(isSubmitting, 1000, 90);
+
   const [isTyping, setIsTyping] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -46,6 +56,28 @@ export default function Stage1Symptoms({
       return () => clearTimeout(timer);
     }
   }, [cooldown]);
+
+  useEffect(() => {
+    if (showResults && scrollContainerRef.current) {
+      const checkOverflow = () => {
+        if (scrollContainerRef.current) {
+          const { scrollHeight, clientHeight, scrollTop } = scrollContainerRef.current;
+          // Check if we can scroll down more
+          setIsOverflowing(scrollHeight > clientHeight && scrollTop + clientHeight < scrollHeight - 5);
+        }
+      };
+      
+      checkOverflow();
+      
+      const el = scrollContainerRef.current;
+      el.addEventListener('scroll', checkOverflow);
+      window.addEventListener('resize', checkOverflow);
+      return () => {
+        el.removeEventListener('scroll', checkOverflow);
+        window.removeEventListener('resize', checkOverflow);
+      };
+    }
+  }, [showResults, voidList]);
 
   useEffect(() => {
     if (!initialized) {
@@ -92,13 +124,6 @@ export default function Stage1Symptoms({
       })
       .catch(() => {});
   };
-  const [voidList, setVoidList] = useState<VoidItem[]>([]);
-  const [acknowledgedVoids, setAcknowledgedVoids] = useState<Set<string>>(
-    new Set(),
-  );
-  const [showResults, setShowResults] = useState(false);
-  const fakeProgress = useFakeProgress(isSubmitting, 1000, 90);
-
   const minLength = 10; // matches backend Stage1Dto @MinLength(10)
 
   const handleSubmit = async () => {
@@ -190,65 +215,107 @@ export default function Stage1Symptoms({
           </p>
         </div>
 
-        <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-          <p className="text-body-sm font-medium text-primary">
-            We detected these potential gaps in your description:
-          </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
+          {/* Left Column: Symptoms */}
+          <div className="space-y-4">
+            <h3 className="text-h3 font-headline text-primary">Your Project Description</h3>
+            <div className="rounded-lg border border-slate-200 bg-surface p-4 text-body text-secondary whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+              {symptomText}
+            </div>
+            <Button
+              variant="outline"
+              disabled={isReverting}
+              onClick={async () => {
+                setIsReverting(true);
+                try {
+                  await revertSession(sessionId, 1);
+                  await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+                  setShowResults(false);
+                } catch (err: any) {
+                  onError(handleElicitationError(err).message || 'Failed to revert session.');
+                } finally {
+                  setIsReverting(false);
+                }
+              }}
+            >
+              {isReverting ? 'Going back…' : 'Edit Description'}
+            </Button>
+          </div>
+
+          {/* Right Column: Detected Gaps */}
+          <div className="space-y-4">
+            <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+              <p className="text-body-sm font-medium text-primary">
+                We detected these potential gaps in your description:
+              </p>
+            </div>
+
+            <div className="relative">
+              <div ref={scrollContainerRef} className="space-y-3 max-h-[400px] overflow-y-auto pr-2 pb-6">
+                {voidList.map((v) => {
+                const sev =
+                  v.severity === "HIGH"
+                    ? "error"
+                    : v.severity === "MEDIUM"
+                      ? "warning"
+                      : "info";
+                return (
+                  <div
+                    key={v.void_code}
+                    className="rounded-lg border border-slate-200 bg-surface p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 shrink-0 flex justify-center">
+                        <Chip
+                          variant={sev as "error" | "warning"}
+                          className="text-xs px-3 py-1"
+                        >
+                          {v.severity}
+                        </Chip>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-body font-semibold text-primary">
+                          {v.void_code.replace(/_/g, " ")}
+                        </p>
+                        <p className="mt-1 text-body-sm text-secondary">
+                          {VOID_DESCRIPTIONS[v.void_code] ??
+                            "This area needs more detail before your project can be matched."}
+                        </p>
+                        <label className="mt-3 flex items-center gap-2 cursor-pointer group w-fit">
+                          <input
+                            type="checkbox"
+                            checked={acknowledgedVoids.has(v.void_code)}
+                            onChange={() => toggleAcknowledge(v.void_code)}
+                            className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all cursor-pointer"
+                          />
+                          <span
+                            className={`text-body-sm font-medium transition-colors select-none ${
+                              acknowledgedVoids.has(v.void_code)
+                                ? "text-success"
+                                : "text-tertiary group-hover:text-primary"
+                            }`}
+                          >
+                            I understand
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+              {isOverflowing && (
+                <div className="absolute bottom-0 left-0 right-2 h-16 bg-gradient-to-t from-surface to-transparent pointer-events-none flex items-end justify-center pb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-secondary bg-surface/90 px-3 py-1 rounded-full shadow-sm border border-slate-100">
+                    Scroll to see more
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {voidList.map((v) => {
-          const sev =
-            v.severity === "HIGH"
-              ? "error"
-              : v.severity === "MEDIUM"
-                ? "warning"
-                : "info";
-          return (
-            <div
-              key={v.void_code}
-              className="rounded-lg border border-slate-200 bg-surface p-4"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-24 shrink-0 flex justify-center">
-                  <Chip
-                    variant={sev as "error" | "warning"}
-                    className="text-sm px-4 py-1.5"
-                  >
-                    {v.severity}
-                  </Chip>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-body font-semibold text-primary">
-                    {v.void_code.replace(/_/g, " ")}
-                  </p>
-                  <p className="mt-1 text-body-sm text-secondary">
-                    {VOID_DESCRIPTIONS[v.void_code] ??
-                      "This area needs more detail before your project can be matched."}
-                  </p>
-                  <label className="mt-3 flex items-center gap-2 cursor-pointer group w-fit">
-                    <input
-                      type="checkbox"
-                      checked={acknowledgedVoids.has(v.void_code)}
-                      onChange={() => toggleAcknowledge(v.void_code)}
-                      className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all cursor-pointer"
-                    />
-                    <span
-                      className={`text-body-sm font-medium transition-colors select-none ${
-                        acknowledgedVoids.has(v.void_code)
-                          ? "text-success"
-                          : "text-tertiary group-hover:text-primary"
-                      }`}
-                    >
-                      I understand
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        <div className="flex items-center justify-between pt-4">
+        <div className="flex items-center justify-between pt-6 mt-4 border-t border-slate-100">
           <span className="text-caption text-secondary" />
           <Button
             variant="primary"

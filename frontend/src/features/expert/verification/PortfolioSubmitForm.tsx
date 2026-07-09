@@ -186,7 +186,7 @@ export default function PortfolioSubmitForm() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+    <div className="w-full max-w-[1440px] mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
       <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Portfolio Submission</h2>
       <p className="text-gray-500 mb-8">Provide evidence for AI evaluation to reach Tier 2 verification.</p>
 
@@ -208,7 +208,7 @@ export default function PortfolioSubmitForm() {
             </div>
           </div>
           <Link 
-            to="/expert/subscription"
+            to="/expert/subscriptions/plans"
             className="whitespace-nowrap px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-lg transition-colors flex-shrink-0"
           >
             Activate Pro

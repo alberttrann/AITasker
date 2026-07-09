@@ -49,6 +49,7 @@ export class ExpertProfileService {
     const data: Prisma.ExpertProfileUpdateInput = {};
 
     if (dto.engagementModel) data.engagementModel = dto.engagementModel;
+    if (dto.bio !== undefined) data.bio = dto.bio;
     if (dto.archetypeHistoryJson) {
       data.archetypeHistoryJson = dto.archetypeHistoryJson.map((item) => ({
         archetypeCode: item.archetypeCode,

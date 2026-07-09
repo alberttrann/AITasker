@@ -23,7 +23,9 @@
     "paths": {
       "@common/*":   ["src/common/*"],
       "@shared/*":   ["src/shared/*"],
-      "@database/*": ["src/database/*"]
+      "@database/*": ["src/database/*"],
+      "prisma/prisma.service": ["src/database/prisma.service"]
     }
-  }
+  },
+  "include": ["src/**/*", "test/**/*"]
 }

@@ -8,11 +8,13 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { JwtService } from '@nestjs/jwt';
+import { MessagesService }    from './messages.service';
+import { InvitationsService } from '../invitations/invitations.service';
+import { CreateMessageDto }   from './dto/create-message.dto';
+import { InviteExpertDto }    from './dto/invite-expert.dto';
+import { JwtService }         from '@nestjs/jwt';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent }            from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: {
@@ -24,8 +26,9 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   server: Server;
 
   constructor(
-    private readonly messagesService: MessagesService,
-    private readonly jwtService: JwtService,
+    private readonly messagesService:    MessagesService,
+    private readonly invitationsService: InvitationsService,
+    private readonly jwtService:         JwtService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -109,11 +112,69 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
+  @SubscribeMessage('inviteExpert')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleInviteExpert(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() dto: InviteExpertDto,
+  ) {
+    const user = client.data.user;
+    if (!user) {
+      client.emit('error', { message: 'Unauthorized.' });
+      return;
+    }
+
+    try {
+      // 1. Verify the sender actually owns the project (prevent spoofing)
+      await this.messagesService.assertPartyToProject(dto.projectId, {
+        id: user.sub,
+        activeRole: user.activeRole,
+      });
+
+      // 2. Persist the invitation so the expert can see it on their Invitations page.
+      //    Uses upsert — re-inviting a declined expert resets status to PENDING.
+      await this.invitationsService.upsertInvitation({
+        projectId: dto.projectId,
+        expertId:  dto.expertId,
+        ceoId:     user.sub,
+        message:   dto.content ?? null,
+      });
+
+      // 3. Push real-time notification to the expert's personal socket room
+      this.server.to(dto.expertId).emit('notification:generic', {
+        type:  'system',
+        title: 'Project Invitation',
+        body:  'A CEO has invited you to submit a bid for their project.',
+        link:  `/expert/invitations`,   // now points to the new Invitations page
+      });
+
+      // 4. Create the initial chat message in the DB for the project chat thread
+      const content = dto.content ?? `I'd like to invite you to submit a bid for this project.`;
+      const savedMessage = await this.messagesService.createMessage(
+        { id: user.sub, activeRole: user.activeRole },
+        { project_id: dto.projectId, content },
+      );
+
+      // Broadcast to the project room so the CEO sees it in their chat history
+      this.server.to(dto.projectId).emit('newMessage', savedMessage);
+    } catch (err: any) {
+      client.emit('error', { message: err.message || 'Failed to send invitation.' });
+    }
+  }
+
   private extractToken(client: Socket): string | null {
+    // 1. Check standard Socket.io auth payload 
+    if (client.handshake.auth && client.handshake.auth.token) {
+      return client.handshake.auth.token;
+    }
+
+    // 2. Fallback to headers
     const authHeader = client.handshake.headers?.authorization;
     if (authHeader && authHeader.split(' ')[0] === 'Bearer') {
       return authHeader.split(' ')[1];
     }
+
+    // 3. Fallback to query
     return (client.handshake.query?.token as string) || null;
   }
 }

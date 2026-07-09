@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnprocessableEntityException  } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DisputesService } from '../disputes/disputes.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -243,5 +243,129 @@ export class AdminService {
       where: status ? { status } : undefined,
       orderBy: { requestedAt: 'desc' },
     });
+  }
+
+  // ── F-1: Subscription Package Management ───────────────────────────────
+  async listSubscriptionPackages() {
+    return this.prisma.subscriptionPackage.findMany({
+      orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async createSubscriptionPackage(dto: {
+    role: string;
+    name: string;
+    priceVnd: number;
+    durationMonths: number;
+  }) {
+    return this.prisma.subscriptionPackage.create({
+      data: {
+        role:           dto.role,
+        name:           dto.name,
+        priceVnd:       BigInt(dto.priceVnd),
+        durationMonths: dto.durationMonths,
+      },
+    });
+  }
+
+  async updateSubscriptionPackage(
+    packageId: string,
+    dto: { priceVnd?: number; durationMonths?: number; name?: string; isActive?: boolean },
+  ) {
+    const pkg = await this.prisma.subscriptionPackage.findUnique({ where: { id: packageId } });
+    if (!pkg) throw new NotFoundException('Subscription package not found.');
+    return this.prisma.subscriptionPackage.update({
+      where: { id: packageId },
+      data: {
+        ...(dto.priceVnd       !== undefined && { priceVnd: BigInt(dto.priceVnd) }),
+        ...(dto.durationMonths !== undefined && { durationMonths: dto.durationMonths }),
+        ...(dto.name           !== undefined && { name: dto.name }),
+        ...(dto.isActive       !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  // ── User Management ───────────────────────────────────────────────
+  async getUsers() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        roles: true,
+        activeRole: true,
+        clientSubtype: true,
+        subscriptionClientTier: true,
+        subscriptionExpertTier: true,
+        isActive: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async reactivateUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true },
+    });
+  }
+
+  // ── Platform Settings ──────────────────────────────────────────────
+  async getPlatformSettings() {
+    const settings = await this.prisma.platformSettings.findFirst();
+    if (!settings) {
+      // Return safe defaults if no row exists yet
+      return { platform_fee_pct: 0.05, platform_wallet_id: null };
+    }
+    return {
+      platform_fee_pct: settings.platformFeePct,
+      platform_wallet_id: settings.platformWalletId,
+    };
+  }
+
+  async updatePlatformSettings(dto: { platform_fee_pct?: number; platform_wallet_id?: string }) {
+    const existing = await this.prisma.platformSettings.findFirst();
+    if (!existing) {
+      return this.prisma.platformSettings.create({
+        data: {
+          platformFeePct: dto.platform_fee_pct ?? 0.05,
+          platformWalletId: dto.platform_wallet_id ?? null,
+        },
+      });
+    }
+    return this.prisma.platformSettings.update({
+      where: { id: existing.id },
+      data: {
+        ...(dto.platform_fee_pct !== undefined && { platformFeePct: dto.platform_fee_pct }),
+        ...(dto.platform_wallet_id !== undefined && { platformWalletId: dto.platform_wallet_id }),
+      },
+    });
+  }
+
+  async deleteSubscriptionPackage(packageId: string) {
+    const pkg = await this.prisma.subscriptionPackage.findUnique({
+      where: { id: packageId },
+      include: { _count: { select: { purchaseLogs: true } } },
+    });
+
+    if (!pkg) {
+      throw new NotFoundException('Subscription package not found.');
+    }
+
+    if (pkg._count.purchaseLogs > 0) {
+      throw new UnprocessableEntityException(
+        `Cannot delete "${pkg.name}" — it has ${pkg._count.purchaseLogs} purchase record(s) ` +
+        `linked to it. Deactivate it instead (PUT /admin/subscriptions/packages/${packageId} ` +
+        `with { "isActive": false }) to hide it from new activations without losing history.`,
+      );
+    }
+
+    await this.prisma.subscriptionPackage.delete({ where: { id: packageId } });
+    return { deleted: true, id: packageId, name: pkg.name };
   }
 }

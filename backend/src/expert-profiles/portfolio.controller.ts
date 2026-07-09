@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { PortfolioService } from './portfolio.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -60,7 +60,7 @@ export class PortfolioController {
 
   @Get(':id')
   @Roles('EXPERT', 'ADMIN')
-  async getById(@Param('id') id: string, @CurrentUser() user: { id: string; activeRole: string }) {
+  async getById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: { id: string; activeRole: string }) {
     const isAdmin = user.activeRole === 'ADMIN';
     return this.portfolioService.getById(user.id, id, isAdmin);
   }

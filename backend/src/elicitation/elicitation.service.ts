@@ -27,45 +27,6 @@ const VOID_TO_STAGE: Record<string, number> = {
 
 const HANDOFF_TOKEN_EXPIRY = '72h';
 
-const ARCHETYPE_PROBE_QUESTIONS: Record<string, [string, string, string, string]> = {
-  '1': [
-    'Roughly how many people will search or ask questions per day?',
-    'When someone gets a wrong or unhelpful answer, what do you expect to happen next?',
-    'Does this need to pull from documents/systems you already have, and which ones?',
-    'How quickly does an answer need to appear after someone asks?',
-  ],
-  '2': [
-    'Roughly how many users will see recommendations, and how often?',
-    'What should happen if someone ignores or dislikes a recommendation?',
-    'Where do you already track what users like/buy/view — any existing system?',
-    'How fresh do recommendations need to be (instant, hourly, daily)?',
-  ],
-  '3': [
-    'Roughly how many items need classifying per day?',
-    'What should happen when the system isn\u2019t confident about a classification?',
-    'Where does the data to classify come from today — any existing system?',
-    'How quickly does a classification decision need to be made?',
-  ],
-  '4': [
-    'Roughly how much content needs generating per day/week?',
-    'What happens if generated content is wrong or inappropriate — who reviews it?',
-    'Does generated content need to match an existing brand voice/system/template?',
-    'How long can someone wait for content to be generated?',
-  ],
-  '5': [
-    'How far ahead are you trying to predict, and how often do you need a new prediction?',
-    'What happens today when a prediction turns out wrong?',
-    'What historical data do you already have to learn from?',
-    'How quickly after new data arrives do you need an updated prediction?',
-  ],
-  '6': [
-    'Roughly how many items (images/audio/video) need processing per day?',
-    'What should happen when the system can\u2019t confidently interpret an input?',
-    'Where does this input data come from today — any existing system?',
-    'How quickly does processing need to complete after input arrives?',
-  ],
-};
-
 export interface ProjectPublishedEvent {
   projectId:  string;
   candidates: MatchResult[];
@@ -159,6 +120,14 @@ export class ElicitationService {
     this.assertOwnership(session, userId);
     this.assertStage(session, 1);
 
+    // LLM skip: if content is identical to what's already stored, skip AI call
+    if (
+      session.stage1SymptomsJson &&
+      session.stage1OriginalInput === symptomText.trim()
+    ) {
+      return session; // return cached result without re-calling AI
+    }
+
     const aiResponse = await this.fastapiClient.stage1Extract({
       symptom_text: symptomText,
     });
@@ -167,13 +136,19 @@ export class ElicitationService {
         'Your description does not contain any recognizable technical or business symptoms. Please provide more detail about your project.'
       );
     }
+
+    // Try to extract budget signal from scale_signals if AI surfaced one
+    const budgetSignal = (aiResponse.scale_signals as any)?.budget_vnd ?? null;
+
     return this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
         currentStage:               2,
+        stage1OriginalInput:        symptomText.trim(),          
         stage1SymptomsJson:         aiResponse.symptoms as any,
         voidListJson:               aiResponse.voids as any,
         recommendedArchetypesJson:  (aiResponse.recommended_archetypes ?? []) as any,
+        estimatedBudgetVnd:         budgetSignal ? BigInt(budgetSignal) : undefined, 
         state:                      'IN_PROGRESS',
         updatedAt:                  new Date(),
       },
@@ -233,25 +208,34 @@ export class ElicitationService {
       throw new BadRequestException('Session has no archetype locked — complete Stage 2 first.');
     }
 
-    const requiredQuestions = ARCHETYPE_PROBE_QUESTIONS[session.archetype];
-    if (!requiredQuestions) {
-      throw new BadRequestException(`No probe questions defined for archetype ${session.archetype}.`);
+    // Fetch probe questions dynamically from DB
+    const questions = await this.prisma.probeQuestion.findMany({
+      where: { archetypeCode: session.archetype, isActive: true },
+      orderBy: { displayOrder: 'asc' },
+      select: { questionText: true },
+    });
+    if (questions.length === 0) {
+      throw new BadRequestException(
+        `No probe questions configured for archetype ${session.archetype}. Please ask admin to configure them.`,
+      );
     }
+    const requiredQuestions = questions.map((q) => q.questionText);
 
     const missing = requiredQuestions.filter(
       (q) => !probeResponses[q] || probeResponses[q].trim().length === 0,
     );
     if (missing.length > 0) {
       throw new BadRequestException(
-        `All 4 probe questions must be answered. Missing: ${missing.join(' | ')}`,
+        `All ${requiredQuestions.length} probe questions must be answered. Missing: ${missing.join(' | ')}`,
       );
     }
 
     let vaguenessResult;
     try {
       vaguenessResult = await this.fastapiClient.stage3VaguenessCheck({
-        archetype:       session.archetype,
-        probe_responses: probeResponses,
+        archetype:        session.archetype,
+        probe_questions:  requiredQuestions,   // send actual questions to AI
+        probe_responses:  probeResponses,
       });
     } catch (err) {
       vaguenessResult = { vague_answers: [] };
@@ -292,9 +276,10 @@ export class ElicitationService {
     }
 
     const techInputs = {
-      current_stack:       dto.current_stack,
-      data_available:      dto.data_available,
-      latency_requirement: dto.latency_requirement ?? null,
+      current_stack:            dto.current_stack,
+      data_available:           dto.data_available,
+      latency_requirement:      dto.latency_requirement ?? null,
+      additional_requirement_1: dto.additional_requirement_1 ?? null,  
     };
 
     const updated = await this.prisma.elicitationSession.update({
@@ -332,9 +317,10 @@ export class ElicitationService {
     }
 
     const techInputs = {
-      current_stack:       dto.current_stack,
-      data_available:      dto.data_available,
-      latency_requirement: dto.latency_requirement ?? null,
+      current_stack:            dto.current_stack,
+      data_available:           dto.data_available,
+      latency_requirement:      dto.latency_requirement ?? null,
+      additional_requirement_1: dto.additional_requirement_1 ?? null,  
     };
 
     const updated = await this.prisma.elicitationSession.update({
@@ -347,15 +333,34 @@ export class ElicitationService {
       },
     });
 
+    this.eventEmitter.emit('socket.broadcast', {
+      userId: session.userId, // The CEO
+      event: 'notification:generic',
+      payload: {
+        type: 'system',
+        title: 'Technical Context Submitted',
+        body: 'Your Tech Lead has completed Stage 4. Synthesis will begin shortly.',
+      }
+    });
+
     return { success: true };
   }
 
   async processStage5(sessionId: string, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
-    this.assertOwnership(session, userId);
-    this.assertStage(session, 5);
+    this.assertOwnership(session, userId);           
+    this.assertStage(session, 5);                    
 
-    return this.runSynthesis(session);
+    // Only pick a TechTeam that is NOT yet linked to any project
+    const techProfile = await this.prisma.techTeamProfile.findFirst({
+      where: {
+        linkedClientId: userId,
+        linkedProjectId: null,                       
+      },
+      select: { userId: true },
+    });
+
+    return this.runSynthesis(session, techProfile?.userId);
   }
 
   async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {
@@ -484,13 +489,16 @@ export class ElicitationService {
     const effectiveSelfTechnical = this.getEffectiveSelfTechnical(session, user);
 
     const stage5Request = {
-      session_id:         session.id,
-      stage1_symptoms:    session.stage1SymptomsJson as string[],
-      stage2_archetype:   session.archetype!,
-      stage3_probes:      session.stage3ProbesJson      as Record<string, unknown>,
-      stage4_tech_inputs: session.stage4TechInputsJson  as Record<string, unknown>,
-      void_list_json:     (session.voidListJson as Array<Record<string, unknown>>) ?? [],
-      is_self_technical:  effectiveSelfTechnical,
+      session_id:            session.id,
+      stage1_symptoms:       session.stage1SymptomsJson as string[],
+      stage2_archetype:      session.archetype!,
+      stage3_probes:         session.stage3ProbesJson      as Record<string, unknown>,
+      stage4_tech_inputs:    session.stage4TechInputsJson  as Record<string, unknown>,
+      void_list_json:        (session.voidListJson as Array<Record<string, unknown>>) ?? [],
+      is_self_technical:     effectiveSelfTechnical,
+      estimated_budget_vnd:  session.estimatedBudgetVnd
+                               ? Number(session.estimatedBudgetVnd)
+                               : null,   
     };
 
     let synthesis;
@@ -580,18 +588,24 @@ export class ElicitationService {
     try {
       project = await this.prisma.project.create({
         data: {
-          clientId:               session.userId,
-          elicitationSessionId:   session.id,
-          projectName:            artifactA.project_name ?? 'Untitled AI Project',
-          state:                  'PUBLISHED',
-          archetype:              artifactA.archetype   ?? null,
-          tier:                   artifactA.volume_tier ?? null,
-          selfTechnical:          effectiveSelfTechnical,
-          requiredSeamsJson:      synthesis.required_seams_json      as any,
-          requiredDomainsJson:    synthesis.required_domains_json    as any,
-          milestoneFrameworkJson: synthesis.milestone_framework_json as any,
-          artifactAJson:          synthesis.artifact_a_json          as any,
-          artifactBJson:          synthesis.artifact_b_json          as any,
+          clientId:                  session.userId,
+          elicitationSessionId:      session.id,
+          projectName:               artifactA.project_name ?? 'Untitled AI Project',
+          state:                     'PUBLISHED',
+          archetype:                 artifactA.archetype   ?? null,
+          tier:                      artifactA.volume_tier ?? null,
+          selfTechnical:             effectiveSelfTechnical,
+          requiredSeamsJson:         synthesis.required_seams_json      as any,
+          requiredDomainsJson:       synthesis.required_domains_json    as any,
+          milestoneFrameworkJson:    synthesis.milestone_framework_json as any,
+          artifactAJson:             synthesis.artifact_a_json          as any,
+          artifactBJson:             synthesis.artifact_b_json          as any,
+          estimatedTotalCostVnd:     synthesis.estimated_total_cost_vnd && !isNaN(Number(synthesis.estimated_total_cost_vnd))
+                                       ? BigInt(Math.round(Number(synthesis.estimated_total_cost_vnd)))
+                                       : null,
+          estimatedTotalDurationDays: synthesis.estimated_total_duration_days && !isNaN(Number(synthesis.estimated_total_duration_days))
+                                       ? Math.round(Number(synthesis.estimated_total_duration_days))
+                                       : null,
         },
       });
     } catch (err: any) {
@@ -805,5 +819,21 @@ export class ElicitationService {
     });
 
     return { success: true, message: 'Session deleted successfully.' };
+  }
+
+  async saveStage4Draft(sessionId: string, userId: string, draftJson: Record<string, unknown>) {
+    const session = await this.findSessionOrThrow(sessionId);
+    this.assertOwnership(session, userId);
+
+    if (session.currentStage !== 4 && session.currentStage !== 5) {
+      return { saved: false, reason: 'stage_not_applicable' };
+    }
+
+    await this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: { stage4DraftJson: draftJson as any },
+    });
+
+    return { saved: true };
   }
 }

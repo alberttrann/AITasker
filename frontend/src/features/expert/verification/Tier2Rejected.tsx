@@ -21,7 +21,7 @@ export default function Tier2Rejected({
   const percentage = Math.round(llmConfidence * 100);
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-12 px-6 bg-white rounded-2xl shadow-sm border border-red-100 text-center animate-in slide-in-from-bottom-4 duration-300">
+    <div className="w-full max-w-[1440px] mx-auto py-12 px-6 bg-white rounded-2xl shadow-sm border border-red-100 text-center animate-in slide-in-from-bottom-4 duration-300">
       <div className="flex justify-center mb-6">
         <XCircle className="w-24 h-24 text-red-500" strokeWidth={1.5} />
       </div>

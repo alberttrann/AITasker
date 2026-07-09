@@ -122,19 +122,14 @@ export default function Stage4Form() {
     const techStackString = finalTechStack.join(', ');
 
     try {
-      // Gửi song song cả hai chuẩn đặt tên camelCase và snake_case 
-      // để ngăn chặn hoàn toàn lỗi crash 500 hoặc validate 400 ở backend
+      const current_stack = `Scale & Infra: ${state.scaleAndInfrastructure}\nTech Stack: ${techStackString}\nSchemas: ${state.schemas.join(", ") || "None"}`;
+      const data_available = `Legacy Volume: ${state.legacyVolume}`;
+      const latency_requirement = `Integration Method: ${state.integrationMethod}\nContracts: ${state.contracts.join(", ") || "None"}\nLatency: < 5s`;
+
       await submitStage4Handoff(sessionId, {
-        scaleAndInfrastructure: state.scaleAndInfrastructure,
-        scale_infrastructure: state.scaleAndInfrastructure,
-        integrationMethod: state.integrationMethod,
-        integration_method: state.integrationMethod,
-        legacyVolume: state.legacyVolume,
-        data_available: state.legacyVolume,
-        current_stack: techStackString,
-        currentStack: techStackString,
-        schemas: state.schemas,
-        contracts: state.contracts,
+        current_stack,
+        data_available,
+        latency_requirement
       });
 
       // Dọn dẹp session ID khỏi storage khi thành công
@@ -155,7 +150,7 @@ export default function Stage4Form() {
 
   if (!sessionId) {
     return (
-      <div className="max-w-6xl mx-auto py-16 px-4 text-center font-body">
+      <div className="max-w-[1440px] mx-auto py-16 px-4 text-center font-body">
         <div className="flex justify-center mb-4"><AlertTriangle className="w-16 h-16 text-error" /></div>
         <h3 className="text-xl font-semibold text-primary mb-2 font-headline">
           Session ID Missing
@@ -173,7 +168,7 @@ export default function Stage4Form() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-8 bg-surface rounded-lg shadow-md border border-secondary/15 my-8 font-body">
+    <div className="max-w-[1440px] mx-auto py-10 px-8 bg-surface rounded-lg shadow-md border border-secondary/15 my-8 font-body">
       <h2 className="text-2xl font-bold text-primary mb-2 font-headline leading-[1.25]">
         Complete Technical Context
       </h2>

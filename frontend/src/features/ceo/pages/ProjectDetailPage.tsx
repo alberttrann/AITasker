@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
 import { ARCHETYPES } from "@/hooks/use-elicitation";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
+import { useDomains, useSeams } from "@/hooks/use-config";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +13,9 @@ export default function ProjectDetailPage() {
   
   const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
   const isLoadingProject = isLoadingProjects;
+  
+  const user = useAuthStore(s => s.user);
+  const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
   
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -33,7 +38,7 @@ export default function ProjectDetailPage() {
 
   if (isLoadingProject) {
     return (
-      <div className="flex items-center justify-center py-20 w-full max-w-5xl mx-auto">
+      <div className="flex items-center justify-center py-20 w-full max-w-[1440px] mx-auto">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -41,11 +46,11 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="w-full max-w-5xl mx-auto p-6">
+      <div className="w-full max-w-[1440px] mx-auto p-6">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
           <h2 className="text-xl font-bold text-slate-800 mb-2">Project Not Found</h2>
           <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been removed.</p>
-          <button onClick={() => navigate("/ceo/projects")} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             Back to Projects
           </button>
         </div>
@@ -65,12 +70,25 @@ export default function ProjectDetailPage() {
   const archetype = project.archetype;
   const archetypeData = archetype ? ARCHETYPES.find(a => a.code === archetype) : null;
 
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
+
+  const getDomainName = (code: string) => {
+    const d = dynamicDomains?.find(domain => domain.code === code);
+    return d ? d.name : code.replace(/_/g, ' ');
+  };
+
+  const getSeamName = (code: string) => {
+    const s = dynamicSeams?.find(seam => seam.code === code);
+    return s ? s.name : code.replace(/_/g, ' ');
+  };
+
   return (
-    <div className="w-full max-w-5xl mx-auto relative px-4 sm:px-0">
+    <div className="w-full max-w-[1440px] mx-auto relative px-4 sm:px-0">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")}
             className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
             aria-label="Go back"
           >
@@ -155,12 +173,21 @@ export default function ProjectDetailPage() {
             </p>
           </div>
           <div className="shrink-0 flex items-start">
-            <Link
-              to={`/ceo/shortlist/${project.id}`}
-              className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
-            >
-              View Matched Experts <ArrowRight className="w-4 h-4" />
-            </Link>
+            {isTechTeam ? (
+              <Link
+                to={`/tech-team/bids`}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
+              >
+                View Bids <ArrowRight size={16} />
+              </Link>
+            ) : (
+              <Link
+                to={`/ceo/projects/shortlist/${project.id}`}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
+              >
+                View Shortlist <ArrowRight size={16} />
+              </Link>
+            )}
           </div>
         </div>
 
@@ -190,9 +217,28 @@ export default function ProjectDetailPage() {
                         </span>
                       </div>
                       <p className="text-slate-600 text-sm mb-2">{m.deliverable_statement}</p>
-                      <span className="text-xs font-medium text-slate-500 uppercase">
-                        Sign-off: {m.sign_off_authority?.replace(/_/g, ' ')}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          SIGN OFF:
+                        </span>
+                        <div className="flex gap-1.5">
+                          {(m.sign_off_authority === 'CEO' || m.sign_off_authority === 'JOINT') && (
+                            <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide">
+                              CEO
+                            </span>
+                          )}
+                          {(m.sign_off_authority === 'TECH_TEAM' || m.sign_off_authority === 'JOINT') && (
+                            <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold tracking-wide">
+                              TECH TEAM
+                            </span>
+                          )}
+                          {(m.sign_off_authority && !['CEO', 'TECH_TEAM', 'JOINT'].includes(m.sign_off_authority)) && (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold tracking-wide">
+                              {m.sign_off_authority.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -210,7 +256,7 @@ export default function ProjectDetailPage() {
                   <div className="flex flex-wrap gap-2">
                     {domains.map((d: any) => (
                       <span key={d.domainCode || d.domain_code} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-md border border-slate-200">
-                        {(d.domainCode || d.domain_code).replace(/_/g, ' ')}
+                        {d.domainCode || d.domain_code} · {getDomainName(d.domainCode || d.domain_code)}
                         <span className="text-xs text-slate-400 ml-1">({d.required_depth || d.requiredDepth})</span>
                       </span>
                     ))}
@@ -226,7 +272,7 @@ export default function ProjectDetailPage() {
                   <div className="flex flex-wrap gap-2">
                     {seams.map((s: any) => (
                       <span key={s.seamCode || s.seam_code} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-md border border-slate-200">
-                        {(s.seamCode || s.seam_code).replace(/_/g, ' ')}
+                        {s.seamCode || s.seam_code} · {getSeamName(s.seamCode || s.seam_code)}
                         <span className="text-xs text-slate-400 ml-1">({s.criticality})</span>
                       </span>
                     ))}

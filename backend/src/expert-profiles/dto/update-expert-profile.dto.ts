@@ -1,11 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 class ArchetypeHistoryItemDto {
-  @IsEnum(['1', '2', '3', '4', '5', '6'], {
-    message: 'archetypeCode must be 1-6 per §0.3',
-  })
+  @IsString()
+  @IsNotEmpty()
   archetypeCode: string;
+  // Archetype code validated dynamically against DB in ExpertProfileService
 
   @IsEnum(['TIER_1', 'TIER_2', 'TIER_3'], {
     message: 'tier must be TIER_1, TIER_2, or TIER_3 per §0.3',
@@ -18,8 +18,11 @@ class ArchetypeHistoryItemDto {
 
 // all fields optional. Caller sends only what they want to change
 // writable fields: engagement_model, archetype_history_json, stack_tags_json
-// bio is written via PUT /users/me
 export class UpdateExpertProfileDto {
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
   @IsOptional()
   @IsEnum(['MILESTONE', 'HOURLY', 'HYBRID'], {
     message: 'engagementModel must be MILESTONE, HOURLY, or HYBRID',

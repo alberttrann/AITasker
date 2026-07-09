@@ -2,6 +2,7 @@ import {
   Injectable, NotFoundException, ForbiddenException,
   ConflictException, UnprocessableEntityException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/prisma.service';
 import { LedgerService } from '@shared/ledger/ledger.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
@@ -21,6 +22,7 @@ export class DisputesService {
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
     private readonly fastapiClient: FastapiClient,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // POST /disputes
@@ -93,6 +95,20 @@ export class DisputesService {
 
       return created;
     });
+
+    // Emit dispute:filed to the non-filing party after transaction commits
+    const notifyUserId = engagement.clientId === filerId
+      ? engagement.expertId
+      : engagement.clientId;
+    try {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: notifyUserId,
+        event: 'dispute:filed',
+        payload: { engagement_id: engagement.id },
+      });
+    } catch (_err) {
+      // Broadcast is best-effort; transaction is already committed.
+    }
 
     const latestSubmission = await this.prisma.milestoneSubmission.findFirst({
       where: { milestoneId: milestone.id },
@@ -221,6 +237,27 @@ export class DisputesService {
         },
       });
     });
+
+    // Emit dispute:resolved to both parties after transaction commits
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: dispute.engagementId },
+    });
+    if (engagement) {
+      [engagement.clientId, engagement.expertId].forEach((userId) => {
+        try {
+          this.eventEmitter.emit('socket.broadcast', {
+            userId,
+            event: 'dispute:resolved',
+            payload: {
+              engagement_id: dispute.engagementId,
+              resolution: resolution.decision,
+            },
+          });
+        } catch (_err) {
+          // Broadcast is best-effort; transaction is already committed.
+        }
+      });
+    }
   }
 
   // GET /disputes/:id

@@ -13,7 +13,7 @@ import type {
 import type {
   ArtifactA, ArtifactB, FootprintAlignment, ConditionalPricingItem,
   RequiredSeam, RequiredDomain, MilestoneFrameworkItem,
-  SubmissionFile, SeamSignal, MatchResult,
+  SubmissionFile, SeamSignal, MatchResult, VoidItem
 } from './jsonb.types';
 
 export interface AuthTokens {
@@ -164,6 +164,10 @@ export interface EngagementDto {
   connected_at:           string | null;
   client_nda_accepted_at: string | null;
   expert_nda_accepted_at: string | null;
+  // Adding supportive fields for EngagementDto
+  client_id: string;
+  capabilityBid?: CapabilityBidDto | null;
+  milestones?: MilestoneDto[]
 }
 
 export interface CapabilityBidDto {
@@ -345,3 +349,276 @@ export interface ApiError {
   path:       string;
   timestamp:  string;
 }
+
+// ── Bids API DTOs (from use-bids.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new capability bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCreateBid)
+ */
+export interface CreateBidPayLoad {
+  projectId: string;
+  footprint_alignment_json: FootprintAlignment;
+  approach_summary: string;
+  conditional_pricing_json: ConditionalPricingItem[];
+}
+
+/**
+ * Data transfer object for updating an existing bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useUpdateBid)
+ */
+export interface UpdateBidDto {
+  footprint_alignment_json: FootprintAlignment;
+  approach_summary: string;
+  conditional_pricing_json: ConditionalPricingItem[];
+}
+
+/**
+ * Variables required when calling the update bid mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useUpdateBid)
+ */
+export interface UpdateBidVariables {
+  bidId: string; // param
+  body: UpdateBidDto;
+}
+
+/**
+ * Data transfer object for the technical review of a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useTechReview)
+ */
+export interface TechReviewDto {
+  action: "APPROVED" | "REVISION_REQUESTED";
+  tech_feedback?: string;
+}
+
+/**
+ * Variables required when calling the tech review mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useTechReview)
+ */
+export interface TechReviewVariables {
+  bidId: string;
+  body: TechReviewDto;
+}
+
+/**
+ * Data transfer object for the CEO's decision on a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCeoDecision)
+ */
+export interface CeoDecisionDto {
+  decision: "APPROVED" | "DECLINED";
+}
+
+/**
+ * Variables required when calling the CEO decision mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useCeoDecision)
+ */
+export interface CeoDecisionVariables {
+  bidId: string;
+  body: CeoDecisionDto;
+}
+
+/**
+ * Data transfer object for making a counter-offer on a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCounterOffer)
+ */
+export interface CounterOfferDto {
+  negotiated_price_vnd: number;
+}
+
+/**
+ * Variables required when calling the counter-offer mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useCounterOffer)
+ */
+export interface CounterOfferVariables {
+  bidId: string;
+  body: CounterOfferDto;
+}
+
+// ── Elicitation API DTOs (from use-elicitation.ts) ──────────────────────────
+
+/**
+ * Represents a successful elicitation gate passage.
+ * Used in: frontend/src/hooks/use-elicitation.ts (GateResult)
+ */
+export interface GatePassed {
+  gate_passed: true;
+  completeness_score: number;
+  project_id: string;
+}
+
+/**
+ * Represents a failed elicitation gate attempt.
+ * Used in: frontend/src/hooks/use-elicitation.ts (GateResult)
+ */
+export interface GateFailed {
+  gate_passed: false;
+  completeness_score: number;
+  flagged_void: string | null;
+  return_to_stage: number;
+  advisory_note: string;
+}
+
+/**
+ * Union type representing the result of an elicitation gate.
+ * Used in: frontend/src/hooks/use-elicitation.ts
+ */
+export type GateResult = GatePassed | GateFailed;
+
+/**
+ * Data representation of a completed elicitation stage.
+ * Used in: frontend/src/hooks/use-elicitation.ts
+ */
+export interface StageCompleteData {
+  voidListJson?: VoidItem[];
+  archetype?: string;
+  probeResponses?: Record<string, string>;
+  gateResult?: GateResult;
+  symptomText?: string;
+  acknowledgedVoidCodes?: string[];
+  techContext?: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
+}
+
+// ── Milestones API DTOs (from use-milestones.ts) ──────────────────────────
+
+/**
+ * Payload used for creating a new milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts (useCreateMilestone)
+ */
+export interface CreateMilestonePayload {
+  engagement_id: string;
+  milestone_number: number;
+  deliverable_statement: string;
+  sign_off_authority: SignOffAuthority;
+  payment_amount_vnd: number;
+  criteria: CreateCriterionDto[];
+}
+
+/**
+ * Data transfer object representing a criterion when creating a milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts
+ */
+export interface CreateCriterionDto {
+  criterion_text: string;
+  is_required?: boolean;
+}
+
+// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
+
+/**
+ * Payload used for verifying a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionDto {
+  verification_comment?: string;
+}
+
+/**
+ * Variables required when calling the verify criterion mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionVariable {
+  criterionId: string;
+  body: VerifyCriterionDto;
+}
+
+/**
+ * Payload used for requesting revision on a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteDto {
+  revision_note: string;
+}
+
+/**
+ * Variables required when calling the request revision mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteVariable {
+  criterionId: string;
+  body: RevisionNoteDto;
+}
+
+// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new DoD checklist item.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemDto {
+  item_description: string;
+  is_required?: boolean;
+  maps_to_criterion_id?: string;
+}
+
+/**
+ * Variables required when calling the create DoD item mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemVariable {
+  milestoneId: string;
+  body: CreateDodItemDto;
+}
+
+/**
+ * Payload used for updating a Milestone DoD item status.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemDto {
+  status: DodStatus;
+  completion_note?: string;
+  not_applicable_note?: string;
+}
+
+/**
+ * Variables required when calling the update DoD status mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemVariable {
+  milestoneId: string;
+  itemId: string;
+  body: UpdateMilestoneDoDItemDto;
+}
+
+// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
+
+/**
+ * Payload used for expert submitting deliverables for a milestone.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionDto {
+  description: string;
+  files_json?: string[];
+}
+
+/**
+ * Variables required when calling the submit milestone mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionVariable {
+  milestoneId: string;
+  body: CreateSubmissionDto;
+}
+
+/**
+ * Payload used for staging a detailed technical paygated document.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocDto {
+  document_url: string;
+}
+
+/**
+ * Variables required when calling the upload document mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocVariable {
+  milestoneId: string;
+  body: StagePaygatedDocDto;
+}
+

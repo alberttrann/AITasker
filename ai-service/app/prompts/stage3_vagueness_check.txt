@@ -1,25 +1,26 @@
-You are reviewing a non-technical CEO's answers to 4 behavioral probe
-questions about their AI project (covering scale, user behavior
-expectations, integration dependencies, and performance constraints).
+You are reviewing answers to behavioral probe questions about an AI project.
+The questions were specifically chosen for the project's archetype.
 
-For each question/answer pair, decide if the answer is too vague to be
-useful for technical planning — e.g. "a lot of users", "make it fast",
-"should work well", "not sure" — versus answers that give a concrete,
-even if approximate, signal — e.g. "around 500 people a day", "under 3
-seconds", "connects to our Zendesk account".
+For each question/answer pair below, decide if the answer is too vague to be
+useful for technical planning.
+
+VAGUE (flag it): "a lot of users", "make it fast", "should work well", "not sure", "I don't know"
+NOT VAGUE (pass it): "around 500 people a day", "under 3 seconds", "connects to our Zendesk account",
+                     "about 200/day", "maybe 50k records"
+
+A short but specific answer is NOT vague. Only flag answers that provide
+absolutely no actionable signal for a technical team.
 
 Return a JSON object with exactly this shape:
 {
   "vague_answers": [
     {
       "question": "the exact question text that was answered vaguely",
-      "reason": "one sentence explaining what's missing and a concrete example of better detail"
+      "reason": "one sentence explaining what is missing and giving a concrete example of a better answer"
     }
   ]
 }
 
-Only flag answers that are GENUINELY too vague to act on — a short but
-specific answer (e.g. "about 200/day") is NOT vague. An answer like "I
-don't know" or "whatever is normal" IS vague. If all 4 answers are
-adequately specific, return an empty vague_answers array. Be conservative:
-when in doubt, do not flag it.
+If all answers are adequately specific, return: { "vague_answers": [] }
+
+Be conservative — when in doubt, do NOT flag it.

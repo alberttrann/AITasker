@@ -44,12 +44,13 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
   const canContinue = availableBalance >= 500000;
 
   return (
-    <div className="w-full flex flex-col h-full p-5 sm:p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+    <div className="w-full flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
 
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-slate-900 mb-1">Wallet Top-Up</h2>
-        <p className="text-sm text-slate-500">Fund your wallet to start hiring experts</p>
+      <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 text-center">
+        <h2 className="font-bold text-slate-900">Wallet Top-Up</h2>
       </div>
+
+      <div className="p-5 sm:p-6 flex-1 flex flex-col min-w-0">
 
       {!topUpMutation.data ? (
         <div className="space-y-5 flex flex-col items-center flex-1 justify-center min-w-0">
@@ -102,7 +103,7 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
               <Button
                 variant="primary"
                 className="w-full font-semibold whitespace-normal h-auto leading-tight py-2.5 text-sm"
-                onClick={() => navigate('/ceo/subscription')}
+                onClick={() => navigate('/ceo/subscriptions/plans')}
               >
                 Continue to Subscription
               </Button>
@@ -110,6 +111,7 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

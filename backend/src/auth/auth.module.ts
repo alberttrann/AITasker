@@ -5,15 +5,19 @@ import { PrismaService } from 'prisma/prisma.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { EmailService } from '../common/email/email.service';
+import { EmailValidatorService } from './email-validator.service';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtStrategy],
-
-  // Export section
+  providers: [
+    AuthService,
+    PrismaService,
+    JwtStrategy,
+    EmailService,           // sends password reset emails
+    EmailValidatorService,  // MX record + disposable domain check
+  ],
   exports: [JwtStrategy, PassportModule, AuthService],
-
-  // Import section
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({

@@ -20,7 +20,9 @@ Return a JSON object with EXACTLY this shape — all 6 keys required:
       "milestone_number":      1,
       "deliverable_statement": "concrete, measurable deliverable (not a task list)",
       "sign_off_authority":    "CEO | TECH_TEAM | JOINT",
-      "payment_amount_vnd":    0
+      "payment_amount_vnd":    0,
+      "estimated_cost_vnd":    0,
+      "estimated_duration_days": 0
     }
   ],
   "artifact_a_json": {
@@ -62,6 +64,16 @@ SIGN-OFF AUTHORITY:
 CEO       = business outcome only, no technical review
 TECH_TEAM = technical validation required
 JOINT     = both CEO acceptance + tech sign-off required
+
+BUDGET AWARENESS:
+- If ESTIMATED BUDGET is provided in the input, use it as a hard constraint.
+  The sum of estimated_cost_vnd across all milestones must not substantially exceed the budget.
+- If no budget is provided, derive reasonable estimates from the scope and archetype.
+- estimated_duration_days per milestone = realistic working days for a 2-3 person team.
+- estimated_cost_vnd per milestone = estimated cost in Vietnamese Dong (outsourcing rates).
+  Typical ranges: TIER_1 milestone = 20–60M VND, TIER_2 = 50–150M VND, TIER_3 = 100–300M VND.
+- If total scope is impossible within the stated budget, add a budget_warning to artifact_a_json.sdlc_notices.
+- payment_amount_vnd stays 0 (CEO sets actual payment amounts later).
 
 RULES:
 - Include only seams and domains that are genuinely required (2-5 seams typical).

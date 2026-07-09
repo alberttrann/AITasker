@@ -26,6 +26,9 @@ export class ProjectsService {
         id: true, clientId: true, state: true,
         archetype: true, tier: true, artifactAJson: true,
         projectName: true,
+        requiredDomainsJson:   true,   
+        requiredSeamsJson:     true,   
+        milestoneFrameworkJson: true,  
       },
     });
 
@@ -188,12 +191,15 @@ export class ProjectsService {
 
   private mapProjectResponse(project: any) {
     return {
-      id: project.id,
-      state: project.state,
-      archetype: project.archetype,
-      tier: project.tier,
-      artifact_a_json: project.artifactAJson,
-      projectName: project.projectName,
+      id:                      project.id,
+      state:                   project.state,
+      archetype:               project.archetype,
+      tier:                    project.tier,
+      artifact_a_json:         project.artifactAJson,
+      projectName:             project.projectName,
+      required_domains_json:   project.requiredDomainsJson   ?? [],
+      required_seams_json:     project.requiredSeamsJson     ?? [],
+      milestone_framework_json: project.milestoneFrameworkJson ?? [],
     };
   }
 
@@ -323,5 +329,136 @@ export class ProjectsService {
       data: { projectName },
       select: { id: true, projectName: true } // Trả về gọn nhẹ cho FE
     });
+  }
+
+  async milestoneChatHandler(
+    projectId:     string,
+    userId:        string,
+    message:       string,
+    chatSessionId?: string,
+  ) {
+    // Auth
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { techTeamProfiles: { select: { userId: true } } },
+    });
+    if (!project) throw new NotFoundException('Project not found.');
+
+    const isCeo      = project.clientId === userId;
+    const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
+    if (!isCeo && !isTechTeam) {
+      throw new ForbiddenException(
+        'Only the project CEO or assigned Tech Team can use the milestone assistant.',
+      );
+    }
+
+    // Load or create session 
+    let session: { id: string; title: string | null; messagesJson: unknown };
+
+    if (chatSessionId) {
+      const found = await this.prisma.milestoneChatSession.findFirst({
+        where: { id: chatSessionId, projectId, userId },
+      });
+      if (!found) throw new NotFoundException('Chat session not found or does not belong to you.');
+      session = found;
+    } else {
+      const dateLabel = new Date().toLocaleDateString('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+      });
+      session = await this.prisma.milestoneChatSession.create({
+        data: {
+          projectId,
+          userId,
+          title:       `Chat · ${dateLabel}`,
+          messagesJson: [],
+        },
+      });
+    }
+
+    type ChatMessage = { role: 'user' | 'assistant'; content: string };
+    const history = (session.messagesJson as ChatMessage[]) ?? [];
+
+    // Append user turn, call AI, append assistant turn 
+    const historyWithUserMsg: ChatMessage[] = [
+      ...history,
+      { role: 'user', content: message },
+    ];
+
+    const budgetContext = project.estimatedTotalCostVnd
+      ? `Estimated total: ${project.estimatedTotalCostVnd.toString()} VND` +
+        (project.estimatedTotalDurationDays
+          ? ` over ${project.estimatedTotalDurationDays} working days`
+          : '')
+      : 'No budget estimate available';
+
+    const aiResponse = await this.fastapiClient.milestoneChatAssist({
+      artifact_a:           (project.artifactAJson ?? {})          as Record<string, unknown>,
+      milestone_framework:  (project.milestoneFrameworkJson ?? []) as Array<Record<string, unknown>>,
+      budget_context:       budgetContext,
+      conversation_history: historyWithUserMsg,   // FastAPI uses this as the full messages array
+      user_message:         message,              // redundant but kept for logging on FastAPI side
+    });
+
+    const finalHistory: ChatMessage[] = [
+      ...historyWithUserMsg,
+      { role: 'assistant', content: aiResponse.reply },
+    ];
+
+    // Persist updated history 
+    await this.prisma.milestoneChatSession.update({
+      where: { id: session.id },
+      data:  { messagesJson: finalHistory as any, updatedAt: new Date() },
+    });
+
+    return {
+      reply:          aiResponse.reply,
+      suggestedEdit:  aiResponse.suggested_edit,
+      chatSessionId:  session.id,
+      sessionTitle:   session.title,
+      messageCount:   finalHistory.length,
+    };
+  }
+
+  // List all chat sessions for a project (for the session sidebar)
+  async listMilestoneChatSessions(projectId: string, userId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { techTeamProfiles: { select: { userId: true } } },
+    });
+    if (!project) throw new NotFoundException('Project not found.');
+
+    const isCeo      = project.clientId === userId;
+    const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
+    if (!isCeo && !isTechTeam) throw new ForbiddenException('Access denied.');
+
+    return this.prisma.milestoneChatSession.findMany({
+      where:   { projectId, userId },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id:          true,
+        title:       true,
+        createdAt:   true,
+        updatedAt:   true,
+        // Return message count, not the full history, for the list view
+        messagesJson: true,
+      },
+    }).then((sessions) =>
+      sessions.map((s) => ({
+        id:           s.id,
+        title:        s.title,
+        messageCount: (s.messagesJson as unknown[]).length,
+        createdAt:    s.createdAt,
+        updatedAt:    s.updatedAt,
+      })),
+    );
+  }
+
+  // Get full history for a specific session
+  async getMilestoneChatSession(projectId: string, sessionId: string, userId: string) {
+    const session = await this.prisma.milestoneChatSession.findFirst({
+      where: { id: sessionId, projectId, userId },
+    });
+    if (!session) throw new NotFoundException('Chat session not found.');
+    return session;
   }
 }

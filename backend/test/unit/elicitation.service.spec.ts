@@ -511,13 +511,12 @@ describe('ElicitationService — regression', () => {
   });
 
   // handoff link generation — no email, jti-tracked 
-
   describe('inviteTechTeam — E9 no email binding, jti tracking', () => {
     it('generates a jti, persists it on the session, and returns a link with no email reference', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       prisma.elicitationSession.update.mockResolvedValue({});
 
-      const result = await service.inviteTechTeam(SESSION_ID, CEO_ID);
+      const result = await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
 
       expect(result.invite_link).toContain('/tech-team/register?token=');
       expect(result.expires_in).toBe('72h');
@@ -535,10 +534,10 @@ describe('ElicitationService — regression', () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       prisma.elicitationSession.update.mockResolvedValue({});
 
-      await service.inviteTechTeam(SESSION_ID, CEO_ID);
+      await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
       const firstJti = prisma.elicitationSession.update.mock.calls[0][0].data.handoffTokenJti;
 
-      await service.inviteTechTeam(SESSION_ID, CEO_ID);
+      await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
       const secondJti = prisma.elicitationSession.update.mock.calls[1][0].data.handoffTokenJti;
 
       expect(firstJti).not.toBe(secondJti);

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { PartyPopper, Folder, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useProject } from "@/hooks/use-projects";
 
@@ -89,7 +89,7 @@ export default function QualityGatePassed({
           variant="primary"
           size="lg"
           className="w-full sm:w-auto font-semibold px-8 py-6 text-base"
-          onClick={() => navigate(`/ceo/shortlist/${projectId}`)}
+          onClick={() => navigate(`/ceo/projects/shortlist/${projectId}`)}
         >
           View Matched Experts
         </Button>

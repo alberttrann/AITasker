@@ -6,6 +6,7 @@ import WalletTopUp from '@/features/ceo/onboarding/WalletTopUp';
 import { Wallet, CheckCircle2, Lock, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
+import { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export default function WalletPage() {
   const { user } = useAuth();
@@ -18,8 +19,10 @@ export default function WalletPage() {
   const availableBalance = (wallet as any)?.availableBalance ?? wallet?.availableBalance ?? 0;
   const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.lockedBalance ?? 0;
 
+  const { data: subStatus } = useSubscriptionStatus();
+
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         
         <div className="mb-6 flex items-center gap-3">
           <button 
@@ -57,23 +60,23 @@ export default function WalletPage() {
                       ? user.clientSubtype.replace('_', ' ') 
                       : user?.activeRole || 'USER'}
                   </span>
-                  {user?.subscriptionTier && user.subscriptionTier !== 'free' && (
+                  {subStatus?.tier && subStatus.tier !== 'free' && (
                     <div className="relative flex items-center">
                       <button 
                         onClick={() => setShowProExpiry(!showProExpiry)}
                         onBlur={() => setShowProExpiry(false)}
                         className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-md tracking-wide uppercase hover:opacity-90 transition-opacity"
                       >
-                        {user.subscriptionTier}
+                        {subStatus.tier}
                       </button>
-                      {showProExpiry && user?.subscriptionExpires && (
+                      {showProExpiry && (subStatus?.expiresAt || user?.subscriptionExpires) && (
                         <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
-                          Expires on: {new Date(user.subscriptionExpires).toLocaleDateString()}
+                          Expires on: {new Date(subStatus?.expiresAt || user?.subscriptionExpires || '').toLocaleDateString()}
                         </div>
                       )}
                     </div>
                   )}
-                  {user?.subscriptionTier === 'free' && (
+                  {subStatus?.tier === 'free' && (
                     <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md tracking-wide uppercase">
                       FREE TIER
                     </span>
@@ -120,7 +123,7 @@ export default function WalletPage() {
         </div>
 
         {/* Lower Section: Transaction History & Top-Up */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10 items-start">
           <div className="lg:col-span-2">
             <TransactionHistory />
           </div>

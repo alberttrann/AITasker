@@ -51,6 +51,30 @@ export class IpnHandlerService {
 
       EXPLANATION: ONCE THE WEB SOCKET/EVENT EMITTER FAIL, THE WHOLE PROCESS CHAIN IS DOWN!
     */
+
+    // payment:confirmed for milestone escrow lock (MILESTONE VA type)
+    if (userVirtualAccount.entityType === VAEntityType.MILESTONE && result && 'success' in result) {
+      const milestone = await this.prisma.milestone.findUnique({
+        where: { id: userVirtualAccount.entityId },
+        include: { engagement: { select: { clientId: true } } },
+      });
+      if (milestone) {
+        try {
+          this.eventEmitter.emit('socket.broadcast', {
+            userId: milestone.engagement.clientId,
+            event: 'payment:confirmed',
+            payload: {
+              engagement_id: milestone.engagementId,
+              milestone_number: milestone.milestoneNumber,
+              amount_vnd: Number(transferAmount),
+            },
+          });
+        } catch (_err) {
+          // Broadcast is best-effort; transaction is already committed.
+        }
+      }
+    }
+
     if (
       userVirtualAccount.entityType !== VAEntityType.MILESTONE &&
       userVirtualAccount.entityType !== VAEntityType.SERVICE &&

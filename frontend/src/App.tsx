@@ -1,47 +1,83 @@
-import { Route, Routes } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Route, createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet } from "react-router-dom";
+import { AuthProvider } from '@lib/auth-context';
+import { SocketProvider } from '@lib/socket-provider';
 
 // Guards
-import { GuestRoute, ProtectedRoute, RoleRoute } from "@lib/route-guards";
+import { GuestRoute, ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
 
 // Public pages
-import LandingPage from "@/components/pages/LandingPage";
-import ErrorPage from "@components/pages/ErrorPage";
+const LandingPage = lazy(() => import("@/components/pages/LandingPage"));
+const ErrorPage = lazy(() => import("@components/pages/ErrorPage"));
 
 // Tech Team has a public registration route (no auth, link-based)
-import { HandoffRegister } from "@features/tech-team/auth/HandoffRegister";
-import { LinkExpiredError } from "@features/tech-team/auth/LinkExpiredError";
+const HandoffRegister = lazy(() => import("@features/tech-team/auth/HandoffRegister").then(m => ({ default: m.HandoffRegister })));
+const LinkExpiredError = lazy(() => import("@features/tech-team/auth/LinkExpiredError").then(m => ({ default: m.LinkExpiredError })));
+
+// Auth
+const ResetPasswordPage = lazy(() => import("@components/auth/ResetPasswordPage"));
 
 // Dashboards — stub shells now, built out screen by screen
-import CeoDashboard from "@features/ceo/CeoDashboard";
-import { CeoOverview } from "@features/ceo/CeoDashboard";
-import ExpertDashboard, {
-  ExpertOverview,
-} from "@features/expert/ExpertDashboard";
-import TechTeamDashboard from "@features/tech-team/TechTeamDashboard";
-import TechTeamOverview from "@features/tech-team/TechTeamOverview";
-import Stage4Submitted from "@features/tech-team/stage4/Stage4Submitted";
-import AdminDashboard from "@features/admin/AdminDashboard";
-import ProfilePage from "./components/pages/UserProfilePage";
-import ProfileSettingPage from "./components/pages/ProfileSettingPage";
-import WalletPage from "./components/wallet/WalletPage";
-import ExpertWallet from "@features/expert/wallet/ExpertWallet";
-import BankHubLink from "@features/expert/wallet/BankHubLink";
+const CeoDashboard = lazy(() => import("@features/ceo/CeoDashboard"));
+const CeoOverview = lazy(() => import("@features/ceo/CeoDashboard").then(m => ({ default: m.CeoOverview })));
+const ExpertDashboard = lazy(() => import("@features/expert/ExpertDashboard"));
+const ExpertOverview = lazy(() => import("@features/expert/ExpertDashboard").then(m => ({ default: m.ExpertOverview })));
+const TechTeamDashboard = lazy(() => import("@features/tech-team/TechTeamDashboard"));
+const TechTeamOverview = lazy(() => import("@features/tech-team/TechTeamOverview"));
+const TechTeamProjectsPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectsPage"));
+const Stage4Submitted = lazy(() => import("@features/tech-team/stage4/Stage4Submitted"));
+const AdminDashboard = lazy(() => import("@features/admin/AdminDashboard"));
+const AdminOverview = lazy(() => import("@features/admin/AdminOverview"));
+const AnalyticsDashboard = lazy(() => import("@features/admin/analytics/AnalyticsDashboard"));
+const DisputeMonitor = lazy(() => import("@features/admin/disputes/DisputeMonitor"));
+const TransactionsLedger = lazy(() => import("@features/admin/ledger/TransactionsLedger"));
+const WithdrawalRequests = lazy(() => import("@features/admin/ledger/WithdrawalRequests"));
+const SubscriptionPackagesPage = lazy(() => import("@features/admin/packages/SubscriptionPackagesPage"));
+const ConfigurationPage = lazy(() => import("@features/admin/config/ConfigurationPage"));
+const DomainSeamConfigPage = lazy(() => import("@features/admin/config/DomainSeamConfigPage"));
+const ProfilePage = lazy(() => import("./components/pages/UserProfilePage"));
+const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingPage"));
+const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
+const ExpertWallet = lazy(() => import("@features/expert/wallet/ExpertWallet"));
+const BankHubLink = lazy(() => import("@features/expert/wallet/BankHubLink"));
 
-import SubscriptionActivate from "@features/ceo/onboarding/SubscriptionActivate";
-import ExpertSubscriptionActivate from "@features/expert/onboarding/SubscriptionActivate";
-import ElicitationWizard from "@features/ceo/elicitation/ElicitationWizard";
-import ShortlistView from "@features/ceo/shortlist/ShortlistView";
-import ProjectsPage from "@features/ceo/pages/ProjectsPage";
-import ProjectDetailPage from "@features/ceo/pages/ProjectDetailPage";
-import SessionsListPage from "@features/ceo/pages/SessionsListPage";
-import ExpertProfilePage from "@features/expert/profile/ExpertProfilePage";
-import VerificationHistoryPage from "@features/expert/verification/VerificationHistoryPage";
+const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
+const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/SubscriptionPlans"));
+const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
+const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
+const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
+const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView"));
+const ProjectsPage = lazy(() => import("@features/ceo/pages/ProjectsPage"));
+const ProjectDetailPage = lazy(() => import("@features/ceo/pages/ProjectDetailPage"));
+const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage"));
+const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
+const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
+const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickThrough"));
+const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
+const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
+const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
+const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
+const BidApprove = lazy(() => import("@features/tech-team/bids/BidApprove"));
+const BidRevisionRequest = lazy(() => import("@features/tech-team/bids/BidRevisionRequest"));
 
-export default function App() {
+function RootLayout() {
   return (
-    <Routes>
+    <AuthProvider>
+      <SocketProvider>
+        <Suspense fallback={<AuthGate />}>
+          <Outlet />
+        </Suspense>
+      </SocketProvider>
+    </AuthProvider>
+  );
+}
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<RootLayout />}>
       {/* ── Public ─────────────────────────────────────────────────────── */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       {/* Handoff link lands here — public so TECH_TEAM can register */}
       <Route path="/register/handoff/:token" element={<HandoffRegister />} />
       <Route path="/register/handoff/expired" element={<LinkExpiredError />} />
@@ -58,11 +94,15 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<WalletPage />} />
-            <Route path="session-history" element={<SessionsListPage />} />
-            <Route path="subscription" element={<SubscriptionActivate />} />
-            <Route path="elicitation" element={<ElicitationWizard />} />
-            <Route path="shortlist/:projectId" element={<ShortlistView />} />
-            <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
+            <Route path="projects/session-history" element={<SessionsListPage />} />
+            <Route path="subscriptions" element={<SubscriptionManagement />} />
+            <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
+            <Route path="projects/elicitation" element={<ElicitationWizard />} />
+            <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
+            <Route
+              path="engagements/:engagementId/nda"
+              element={<CeoNdaClickThrough />}
+            />
           </Route>
         </Route>
 
@@ -71,14 +111,26 @@ export default function App() {
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="expert-profile" element={<ExpertProfilePage />} />
+            <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
-            <Route path="verification-history" element={<VerificationHistoryPage />} />
             <Route
-              path="subscription"
-              element={<ExpertSubscriptionActivate />}
+              path="verification-history"
+              element={<VerificationHistoryPage />}
+            />
+            <Route
+              path="subscriptions"
+              element={<ExpertSubscriptionManagement />}
+            />
+            <Route
+              path="subscriptions/plans"
+              element={<ExpertSubscriptionPlans />}
+            />
+            <Route path="bids/:projectId" element={<BidForm />} />
+            <Route
+              path="engagements/:engagementId/nda"
+              element={<ExpertNdaClickThrough />}
             />
           </Route>
         </Route>
@@ -87,18 +139,41 @@ export default function App() {
           {/* /tech-team/* — scoped to one linked project forever */}
           <Route path="/tech-team" element={<TechTeamDashboard />}>
             <Route index element={<TechTeamOverview />} />
+            <Route path="projects" element={<TechTeamProjectsPage />} />
+            <Route path="projects/:id" element={<ProjectDetailPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="submitted" element={<Stage4Submitted />} />
+            <Route path="bids" element={<BidReviewList />} />
+            <Route path="bids/:bidId" element={<BidReviewDetail />} />
+            <Route path="bids/:bidId/approve" element={<BidApprove />} />
+            <Route path="bids/:bidId/revision" element={<BidRevisionRequest />} />
           </Route>
         </Route>
 
         <Route element={<RoleRoute requiredRole="ADMIN" />}>
           {/* /admin/* — all Admin screens will nest here */}
-          <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="account-setting" element={<ProfileSettingPage />} />
+            <Route path="analytics" element={<AnalyticsDashboard />} />
+            <Route path="config" element={<ConfigurationPage />} />
+            <Route path="config/packages" element={<SubscriptionPackagesPage />} />
+            <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
+            <Route path="disputes" element={<DisputeMonitor />} />
+            <Route path="ledger" element={<TransactionsLedger />} />
+            <Route path="withdrawals" element={<WithdrawalRequests />} />
+          </Route>
         </Route>
       </Route>
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}
-      <Route path="/*" element={<ErrorPage />} />
-    </Routes>
-  );
+      <Route path="*" element={<ErrorPage />} />
+    </Route>
+  )
+);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }

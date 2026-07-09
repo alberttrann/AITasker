@@ -5,7 +5,8 @@ import { Spinner } from '@/components/ui/Spinner';
 interface StackTagsPickerProps {
   initialTags: string[];
   initialModel: string;
-  onSave: (tags: string[], model: string) => void;
+  initialBio: string;
+  onSave: (tags: string[], model: string, bio: string) => void;
 }
 
 const SUGGESTED_TAGS = [
@@ -19,10 +20,11 @@ const MODELS = [
   { value: 'HYBRID',     label: 'Hybrid',         desc: 'Mix of milestone + hourly for discovery phases' },
 ];
 
-export default function StackTagsPicker({ initialTags, initialModel, onSave }: StackTagsPickerProps) {
+export default function StackTagsPicker({ initialTags, initialModel, initialBio, onSave }: StackTagsPickerProps) {
   const [tags, setTags] = useState<string[]>(initialTags || []);
   const [inputValue, setInputValue] = useState('');
   const [model, setModel] = useState(initialModel || 'MILESTONE');
+  const [bio, setBio] = useState(initialBio || '');
   const { saveStackAndModel } = useExpertProfile();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,9 +58,10 @@ export default function StackTagsPicker({ initialTags, initialModel, onSave }: S
           engagementModel: model,
           stackTagsJson: tags,
           archetypeHistoryJson: [],
+          bio,
         });
       }
-      onSave(tags, model);
+      onSave(tags, model, bio);
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to save profile');
     } finally {
@@ -68,6 +71,20 @@ export default function StackTagsPicker({ initialTags, initialModel, onSave }: S
 
   return (
     <div className="space-y-8">
+      {/* Bio Section */}
+      <div>
+        <h2 className="text-xl font-bold mb-2">Professional Bio</h2>
+        <p className="text-gray-500 text-sm mb-4">Write a short bio describing your expertise and background.</p>
+        <textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="I am an AI engineer with 5 years of experience..."
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none resize-y min-h-[120px]"
+        />
+      </div>
+
+      <hr className="border-gray-200" />
+
       {/* Stack Tags Section */}
       <div>
         <h2 className="text-xl font-bold mb-2">Tech Stack & Tools</h2>

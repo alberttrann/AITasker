@@ -2,10 +2,13 @@ import { Injectable, NotFoundException, UnprocessableEntityException, ForbiddenE
 import { PrismaService } from '../database/prisma.service'; 
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
-
+import { EventEmitter2 } from '@nestjs/event-emitter';
 @Injectable()
 export class SubmissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2 
+  ) {}
 
   //Expert nộp sản phẩm bàn giao (DoD Gate)
   async submitMilestones(milestoneId: string, dto: CreateSubmissionDto) {
@@ -63,6 +66,19 @@ export class SubmissionsService {
           submittedAt: new Date(),
         },
       });
+
+      const eng = await tx.engagement.findUnique({ where: { id: milestone.engagementId } });
+      if (eng) {
+        this.eventEmitter.emit('socket.broadcast', {
+          userId: eng.clientId,
+          event: 'milestone:updated',
+          payload: { 
+            engagement_id: eng.id, 
+            milestone_number: milestone.milestoneNumber, 
+            state: 'SUBMITTED' 
+          }
+        });
+      }
 
       return submission;
     });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
 import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS, revertSession, useElicitation } from '@/hooks/use-elicitation';
@@ -38,7 +38,7 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
     if (session && !initialized) {
       if (session.archetype) setSelected(session.archetype);
       if (session.voidListJson) {
-        const ack = session.voidListJson.filter((v: any) => v.injected).map((v: any) => v.void_code);
+        const ack = session.voidListJson.map((v: any) => v.void_code);
         setAcknowledged(new Set(ack));
       }
       setInitialized(true);

@@ -13,12 +13,15 @@ class Stage1Response(BaseModel):
     recommended_archetypes: list[str] = []
 
 class Stage5Response(BaseModel):
-    required_seams_json:    list[dict]
-    required_domains_json:  list[dict]
+    required_seams_json:      list[dict]
+    required_domains_json:    list[dict]
     milestone_framework_json: list[dict]
-    artifact_a_json:         dict
-    artifact_b_json:         dict
-    completeness_score:      float
+    artifact_a_json:          dict
+    artifact_b_json:          dict
+    completeness_score:       float
+    # aggregated estimates across all milestones
+    estimated_total_cost_vnd:      int | None = None
+    estimated_total_duration_days: int | None = None
 
 
 class PortfolioEvalResponse(BaseModel):
@@ -68,3 +71,7 @@ class Stage4RecommendResponse(BaseModel):
     recommended_stack: str
     recommended_integration: str
     recommended_legacy_volume: str
+
+class MilestoneChatResponse(BaseModel):
+    reply:           str
+    suggested_edit:  dict | None = None
