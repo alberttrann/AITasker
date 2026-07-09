@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
+import { useAdminArchetypes, useSaveAdminArchetype, useAdminProbeQuestions, useSaveAdminProbeQuestion } from '@/hooks/use-admin';
 import { Plus, Edit2, Trash2, ArrowLeft, Layers, MessageSquare, ChevronRight, GripVertical, Check, Save } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -28,22 +28,9 @@ export default function ArchetypeConfigPage() {
   const [localProbes, setLocalProbes] = useState<any[]>([]);
 
   // --- QUERIES ---
-  const { data: archetypes, isLoading: loadingArchs } = useQuery({
-    queryKey: ['admin-config-archetypes'],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/config/archetypes');
-      return res.data;
-    }
-  });
+  const { data: archetypes, isLoading: loadingArchs } = useAdminArchetypes();
 
-  const { data: probeQuestions, isLoading: loadingProbes } = useQuery({
-    queryKey: ['admin-config-probes', selectedArchetypeCode],
-    queryFn: async () => {
-      const res = await apiClient.get(`/admin/config/probe-questions?archetypeCode=${selectedArchetypeCode}`);
-      return res.data;
-    },
-    enabled: !!selectedArchetypeCode
-  });
+  const { data: probeQuestions, isLoading: loadingProbes } = useAdminProbeQuestions(selectedArchetypeCode);
 
   useEffect(() => {
     if (probeQuestions) {
@@ -58,64 +45,41 @@ export default function ArchetypeConfigPage() {
   }, [probeQuestions, localProbes]);
 
   // --- MUTATIONS: ARCHETYPES ---
-  const saveArchMutation = useMutation({
-    mutationFn: async (data: typeof archFormData) => {
-      if (isCreatingArch) {
-        const nextSortOrder = archetypes && archetypes.length > 0 ? Math.max(...archetypes.map((a: any) => a.sortOrder || 0)) + 1 : 1;
-        const nextCodeNum = archetypes && archetypes.length > 0 ? Math.max(...archetypes.map((a: any) => {
-          const num = parseInt(a.code);
-          return isNaN(num) ? 0 : num;
-        })) + 1 : 1;
-        const payload = { code: nextCodeNum.toString(), name: data.name, description: data.description, sortOrder: nextSortOrder };
-        return apiClient.post(`/admin/config/archetypes`, payload);
-      } else {
-        const payload = { name: data.name, description: data.description, sortOrder: data.sortOrder, isActive: data.isActive };
-        return apiClient.put(`/admin/config/archetypes/${data.id}`, payload);
-      }
-    },
+  const saveArchMutation = useSaveAdminArchetype({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-config-archetypes'] });
       setIsCreatingArch(false);
       setEditingArchId(null);
     }
   });
 
-  const deleteArchMutation = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/admin/config/archetypes/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-config-archetypes'] });
-      setDeleteArchId(null);
-      if (selectedArchetypeCode && archetypes?.find((a: any) => a.id === deleteArchId)?.code === selectedArchetypeCode) {
-        setSelectedArchetypeCode(null);
-      }
+  const handleSaveArch = () => {
+    if (isCreatingArch) {
+      const nextSortOrder = archetypes && archetypes.length > 0 ? Math.max(...archetypes.map((a: any) => a.sortOrder || 0)) + 1 : 1;
+      const nextCodeNum = archetypes && archetypes.length > 0 ? Math.max(...archetypes.map((a: any) => {
+        const num = parseInt(a.code);
+        return isNaN(num) ? 0 : num;
+      })) + 1 : 1;
+      saveArchMutation.mutate({ ...archFormData, code: nextCodeNum.toString(), sortOrder: nextSortOrder });
+    } else {
+      saveArchMutation.mutate(archFormData);
     }
-  });
+  };
 
   // --- MUTATIONS: PROBES ---
-  const saveProbeMutation = useMutation({
-    mutationFn: async (data: typeof probeFormData) => {
-      if (isCreatingProbe) {
-        const payload = { archetypeCode: selectedArchetypeCode, questionText: data.questionText, displayOrder: data.displayOrder };
-        return apiClient.post(`/admin/config/probe-questions`, payload);
-      } else {
-        const payload = { questionText: data.questionText, displayOrder: data.displayOrder, isActive: data.isActive };
-        return apiClient.put(`/admin/config/probe-questions/${data.id}`, payload);
-      }
-    },
+  const saveProbeMutation = useSaveAdminProbeQuestion({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-config-probes', selectedArchetypeCode] });
       setIsCreatingProbe(false);
       setEditingProbeId(null);
     }
   });
 
-  const deleteProbeMutation = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/admin/config/probe-questions/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-config-probes', selectedArchetypeCode] });
-      setDeleteProbeId(null);
+  const handleSaveProbe = () => {
+    if (isCreatingProbe) {
+      saveProbeMutation.mutate({ ...probeFormData, archetypeCode: selectedArchetypeCode });
+    } else {
+      saveProbeMutation.mutate(probeFormData);
     }
-  });
+  };
 
   // --- HANDLERS ---
   const handleEditArch = (e: React.MouseEvent, item: any) => {

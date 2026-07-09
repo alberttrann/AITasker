@@ -1,28 +1,22 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import apiClient from '@/lib/api-client';
 import { Plus, Edit2, Check, X, Package, Trash2, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { DataList } from '@/components/layout/Table';
+import { useSubscriptionPackages, useCreateSubscriptionPackage, useUpdateSubscriptionPackage, useDeleteSubscriptionPackage } from '@/hooks/use-admin';
 
-interface SubPackage {
-  id: string;
-  role: string;
-  name: string;
-  priceVnd: number;
-  durationMonths: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { SubPackage } from '@/types/api.types';
 
 export default function SubscriptionPackagesPage() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [sort, setSort] = useState<'price_asc' | 'price_desc' | 'duration_asc' | 'duration_desc'>('price_asc');
+  const [deletePkg, setDeletePkg] = useState<SubPackage | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     role: 'CLIENT',
@@ -31,13 +25,7 @@ export default function SubscriptionPackagesPage() {
     isActive: false
   });
 
-  const { data: packages, isLoading } = useQuery<SubPackage[]>({
-    queryKey: ['admin-subscription-packages'],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/subscriptions/packages');
-      return res.data;
-    }
-  });
+  const { data: packages, isLoading } = useSubscriptionPackages();
 
   const sortedPackages = React.useMemo(() => {
     if (!packages) return [];
@@ -50,31 +38,37 @@ export default function SubscriptionPackagesPage() {
     });
   }, [packages, sort]);
 
-  const createMutation = useMutation({
-    mutationFn: async (data: any) => apiClient.post('/admin/subscriptions/packages', data),
+  const createMutation = useCreateSubscriptionPackage({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-subscription-packages'] });
       setIsCreating(false);
       resetForm();
     }
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => apiClient.put(`/admin/subscriptions/packages/${id}`, data),
+  const updateMutation = useUpdateSubscriptionPackage({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-subscription-packages'] });
       setEditingId(null);
       resetForm();
     }
   });
 
+  const deleteMutation = useDeleteSubscriptionPackage({
+    onSuccess: () => {
       setDeletePkg(null);
     },
     onError: (error: any) => {
-      const msg = error.response?.data?.message || 'Failed to delete package.';
-      setDeleteError(Array.isArray(msg) ? msg[0] : msg);
+      console.error('Delete failed', error);
+      if (error.response?.data?.message?.includes('foreign key constraint')) {
+        setDeleteError('This package is currently in use by active subscriptions and cannot be deleted. Try setting it to inactive instead.');
+      } else {
+        const msg = error.response?.data?.message || 'Failed to delete package.';
+        setDeleteError(Array.isArray(msg) ? msg[0] : msg);
+      }
+      setDeletePkg(null);
     }
   });
+
+
 
   const resetForm = () => {
     setEditingId(null);
@@ -224,6 +218,13 @@ export default function SubscriptionPackagesPage() {
             >
               <Edit2 size={18} />
             </button>
+            <button 
+              onClick={() => setDeletePkg(pkg)}
+              title="Delete Package"
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+            >
+              <Trash2 size={18} />
+            </button>
           </div>
         </div>
         
@@ -323,6 +324,31 @@ export default function SubscriptionPackagesPage() {
         </DataList>
       )}
 
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletePkg && !deleteError}
+        onClose={() => setDeletePkg(null)}
+        onConfirm={() => deletePkg && deleteMutation.mutate(deletePkg.id)}
+        title="Delete Package"
+        confirmText={deleteMutation.isPending ? "Deleting..." : "Delete"}
+        cancelText="Cancel"
+        isDestructive={true}
+      >
+        Are you sure you want to delete <strong className="text-slate-800">{deletePkg?.name}</strong>? This action cannot be undone.
+      </ConfirmModal>
+
+      {/* Delete Error Modal */}
+      <ConfirmModal
+        isOpen={!!deleteError}
+        onClose={() => { setDeleteError(null); setDeletePkg(null); }}
+        onConfirm={() => { setDeleteError(null); setDeletePkg(null); }}
+        title="Cannot Delete Package"
+        confirmText="Understood"
+        cancelText="Close"
+        isInfo={true}
+      >
+        {deleteError}
+      </ConfirmModal>
     </div>
   );
 }

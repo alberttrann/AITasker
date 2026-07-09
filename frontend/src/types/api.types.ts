@@ -622,3 +622,52 @@ export interface StagePaygatedDocVariable {
   body: StagePaygatedDocDto;
 }
 
+
+
+// ── Admin Config Types ──────────────────────────────────────────
+
+export interface SubPackage {
+  id: string;
+  role: string;
+  name: string;
+  priceVnd: number;
+  durationMonths: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DomainDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SeamDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ArchetypeDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ProbeQuestion {
+  id: string;
+  archetypeCode: string;
+  questionText: string;
+  displayOrder: number;
+  isActive: boolean;
+}

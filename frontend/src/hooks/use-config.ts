@@ -1,40 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 
-export interface DomainDefinition {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  sortOrder: number;
-}
-
-export interface SeamDefinition {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  sortOrder: number;
-}
-
-export interface ArchetypeDefinition {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  sortOrder: number;
-}
-
-export interface ProbeQuestionDefinition {
-  id: string;
-  archetypeCode: string;
-  questionText: string;
-  displayOrder: number;
-}
-
+import type { DomainDefinition, SeamDefinition, ArchetypeDefinition, ProbeQuestion as ProbeQuestionDefinition } from '@/types/api.types';
 export function useDomains() {
   return useQuery({
     queryKey: ['domains'],

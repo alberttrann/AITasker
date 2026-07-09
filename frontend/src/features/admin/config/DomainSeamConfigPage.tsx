@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
+import { useAdminConfigItems, useSaveAdminConfigItem } from '@/hooks/use-admin';
 import { useDomains } from '@/hooks/use-config';
 import { Plus, Edit2, Trash2, ArrowLeft, Globe, Network, Check, GripVertical, Save } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/Modal';
@@ -27,13 +27,7 @@ export default function DomainSeamConfigPage() {
 
   const { data: domainsList } = useDomains();
 
-  const { data: items, isLoading } = useQuery({
-    queryKey: ['admin-config', activeTab],
-    queryFn: async () => {
-      const res = await apiClient.get(`/admin/config/${activeTab}`);
-      return res.data;
-    }
-  });
+  const { data: items, isLoading } = useAdminConfigItems(activeTab);
 
   // Sync local items when API data loads
   useEffect(() => {
@@ -48,38 +42,10 @@ export default function DomainSeamConfigPage() {
     return localItems.some((li, idx) => li.id !== originalSorted[idx].id);
   }, [items, localItems]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      if (isCreating) {
-        const payload = {
-          code: data.code,
-          name: data.name,
-          description: data.description,
-          sortOrder: data.sortOrder
-        };
-        return apiClient.post(`/admin/config/${activeTab}`, payload);
-      } else {
-        const payload = {
-          name: data.name,
-          description: data.description,
-          sortOrder: data.sortOrder,
-          isActive: data.isActive
-        };
-        return apiClient.put(`/admin/config/${activeTab}/${data.id}`, payload);
-      }
-    },
+  const saveMutation = useSaveAdminConfigItem(activeTab, {
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-config', activeTab] });
       setIsCreating(false);
       setEditingId(null);
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/admin/config/${activeTab}/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-config', activeTab] });
-      setDeleteId(null);
     }
   });
 

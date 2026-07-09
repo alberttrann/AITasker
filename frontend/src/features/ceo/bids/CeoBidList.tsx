@@ -1,6 +1,4 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -8,22 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { AlertTriangle, FileText, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements — CEO role-scoped to their projects */
-function useBidsForCeo(projectId: string | undefined) {
-  const user = useAuthStore((s) => s.user);
-  return useQuery({
-    queryKey: ['bids', 'ceo', projectId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto[]>('/engagements');
-      return data;
-    },
-    enabled: !!projectId && !!user,
-    staleTime: 10_000,
-    refetchInterval: 5_000, // Polling until BE emits bid:updated
-  });
-}
+import { useCeoEngagements } from '@/hooks/use-engagements';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -46,7 +29,7 @@ type BidWithEngagement = CapabilityBidDto & { engagementId: string; expertName?:
 export default function CeoBidList() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { data: engagements, isLoading, error, refetch } = useBidsForCeo(projectId);
+  const { data: engagements, isLoading, error, refetch } = useCeoEngagements(projectId);
 
   // Filter to this project + extract bids
   const bids: BidWithEngagement[] = (engagements || [])

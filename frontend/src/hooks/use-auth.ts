@@ -112,6 +112,13 @@ const login = useMutation({
     },
   });
 
+  const refreshUser = async () => {
+    const { data: userRes } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(userRes);
+    queryClient.setQueryData(['user', 'me'], userRes);
+    queryClient.invalidateQueries({ queryKey: ['user'] });
+  };
+
   return {
     // State (read from store directly — reactive)
     user:            store.user,
@@ -128,6 +135,7 @@ const login = useMutation({
     registerHandoff,
     forgotPassword,
     resetPassword,
+    refreshUser,
   };
 }
 
