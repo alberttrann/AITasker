@@ -71,7 +71,10 @@ export class EngagementsService {
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
       return this.prisma.engagement.findMany({
         where: { clientId: user.id },
-        include: { project: PROJECT_SUMMARY_SELECT },
+        include: {
+          project: PROJECT_SUMMARY_SELECT,
+          capabilityBid: true,
+        },
         orderBy: { id: 'desc' },
       });
     }
