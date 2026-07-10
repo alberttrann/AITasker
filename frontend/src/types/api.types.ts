@@ -733,3 +733,14 @@ export interface MilestoneDetailDto extends MilestoneDto {
   acceptanceCriteria: AcceptanceCriterionDto[];
   dodItems: MilestoneDodItemDto[];
 }
+
+/**
+ * Payload required to file a dispute.
+ * Used in: frontend/src/hooks/use-disputes.ts (useCreateDispute)
+ */
+export interface CreateDisputePayload {
+  criterion_id: string;
+  engagement_id: string;
+  milestone_id: string;
+  reason: string;
+}

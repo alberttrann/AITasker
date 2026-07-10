@@ -64,7 +64,7 @@ const login = useMutation({
       return data;
     },
     onSuccess: async (data) => {
-      store.setTokens(data.access_token, null);
+      store.setTokens(data.access_token, store.refreshToken ?? '');
       const { data: userRes } = await apiClient.get<UserDto>('/users/me');
       store.setUser(userRes);
       queryClient.invalidateQueries({ queryKey: ['user'] });

@@ -215,3 +215,35 @@ export function useDeleteSubscriptionPackage(options?: { onSuccess?: () => void;
     }
   });
 }
+
+export function useAdminWithdrawals(status?: string) {
+  return useQuery({
+    queryKey: ["admin", "withdrawals", status],
+    queryFn: () => {
+      const params = status ? { status } : undefined;
+      return apiClient.get("/admin/withdrawals", { params }).then((r) => r.data);
+    },
+  });
+}
+
+export function useCompleteWithdrawal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/withdrawals/${id}/complete`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "withdrawals"] });
+    },
+  });
+}
+
+export function useFailWithdrawal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/withdrawals/${id}/fail`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "withdrawals"] });
+    },
+  });
+}
