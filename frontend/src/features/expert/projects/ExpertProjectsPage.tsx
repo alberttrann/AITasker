@@ -435,7 +435,15 @@ export default function ExpertProjectsPage() {
                     )}
 
                     {selectedProject.status === 'IN_PROGRESS' && (
-                      <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement!.id}`)}>
+                      <Button onClick={() => {
+                        const milestones = selectedProject.engagement?.milestones || [];
+                        const activeMilestone = milestones.find(m => m.state !== 'RELEASED' && m.state !== 'APPROVED') || milestones[0];
+                        if (activeMilestone) {
+                          navigate(`/expert/engagements/${selectedProject.engagement!.id}/milestones/${activeMilestone.id}`);
+                        } else {
+                          alert("No milestones defined yet for this engagement.");
+                        }
+                      }}>
                         Open Workspace
                       </Button>
                     )}

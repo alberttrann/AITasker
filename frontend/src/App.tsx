@@ -67,6 +67,7 @@ const MilestoneList = lazy(() => import("./features/ceo/milestones/MilestoneList
 const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMilestone"));
 const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
 const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
+const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
 
 function RootLayout() {
   return (
@@ -158,6 +159,10 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId"
+              element={<ExpertMilestoneDetail />}
             />
           </Route>
         </Route>
