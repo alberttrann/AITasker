@@ -681,6 +681,14 @@ export default function ExpertProjectsPage() {
                                     {activeM.sign_off_authority === 'JOINT' ? 'CEO, TECH TEAM' : activeM.sign_off_authority.replace('_', ' ')}
                                   </span>
                                 </div>
+                                {activeM.estimated_duration_days !== undefined && (
+                                  <div>
+                                    <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block mb-1">Duration</span>
+                                    <span className="text-xs font-semibold bg-slate-800 border border-slate-700 px-2.5 py-1 rounded text-slate-300">
+                                      {activeM.estimated_duration_days} Days
+                                    </span>
+                                  </div>
+                                )}
                                 <div className="text-right">
                                   <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block mb-1">Payment</span>
                                   <span className="text-emerald-400 font-bold text-base block">

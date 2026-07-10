@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName, useUpdateProjectMilestones } from "@/hooks/use-projects";
 import { 
   ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X,
-  Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase
+  Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
@@ -60,6 +60,7 @@ export default function ProjectDetailPage() {
         milestone_number: editedMilestones.length + 1,
         deliverable_statement: "",
         payment_amount_vnd: 0,
+        estimated_duration_days: 0,
         sign_off_authority: "CEO"
       }
     ]);
@@ -395,22 +396,29 @@ export default function ProjectDetailPage() {
                             {(m.payment_amount_vnd || 0).toLocaleString()} VND
                           </span>
                         </div>
-                        <p className="text-slate-600 text-sm mb-2">{m.deliverable_statement || "Unnamed Milestone"}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            SIGN OFF:
-                          </span>
-                          <div className="flex gap-1.5">
-                            {(m.sign_off_authority === 'CEO' || m.sign_off_authority === 'JOINT') && (
-                              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold tracking-wide">CEO</span>
-                            )}
-                            {(m.sign_off_authority === 'TECH_TEAM' || m.sign_off_authority === 'JOINT') && (
-                              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold tracking-wide">TECH TEAM</span>
-                            )}
-                            {(m.sign_off_authority && !['CEO', 'TECH_TEAM', 'JOINT'].includes(m.sign_off_authority)) && (
-                              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold tracking-wide">{m.sign_off_authority}</span>
-                            )}
+                        <p className="text-slate-600 text-sm mb-3">{m.deliverable_statement || "Unnamed Milestone"}</p>
+                        
+                        <div className="flex items-center justify-between mt-1 pt-3 border-t border-slate-200/60">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                              SIGN OFF:
+                            </span>
+                            <div className="flex gap-1.5">
+                              {(m.sign_off_authority === 'CEO' || m.sign_off_authority === 'JOINT') && (
+                                <span className="px-2 py-0.5 rounded bg-slate-200/50 text-slate-700 text-[10px] font-bold tracking-wide border border-slate-200">CEO</span>
+                              )}
+                              {(m.sign_off_authority === 'TECH_TEAM' || m.sign_off_authority === 'JOINT') && (
+                                <span className="px-2 py-0.5 rounded bg-slate-200/50 text-slate-700 text-[10px] font-bold tracking-wide border border-slate-200">TECH TEAM</span>
+                              )}
+                            </div>
                           </div>
+                          
+                          {m.estimated_duration_days !== undefined && (
+                            <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{m.estimated_duration_days} Days</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -460,7 +468,19 @@ export default function ProjectDetailPage() {
                             placeholder="e.g., Deliver MVP with core features..."
                           />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Duration (Days)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                value={m.estimated_duration_days || 0}
+                                onChange={(e) => handleUpdateMilestone(idx, 'estimated_duration_days', parseInt(e.target.value) || 0)}
+                                className="w-full pl-3 pr-12 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">Days</span>
+                            </div>
+                          </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Amount (VND)</label>
                             <div className="relative">
@@ -482,7 +502,7 @@ export default function ProjectDetailPage() {
                             >
                               <option value="CEO">CEO</option>
                               <option value="TECH_TEAM">Tech Team</option>
-                              <option value="JOINT">Joint (CEO + Tech Team)</option>
+                              <option value="JOINT">Joint</option>
                             </select>
                           </div>
                         </div>
