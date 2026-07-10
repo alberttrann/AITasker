@@ -33,7 +33,7 @@ export default function MilestoneList() {
     const errorMsg =
       (error as any)?.response?.data?.message || "Failed to load milestones.";
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="w-full max-w-[1440px] px-6 mx-auto py-8">
         <ErrorBanner message={errorMsg} onRetry={() => refetch()} />
         <Button
           variant="outline"
@@ -77,7 +77,7 @@ export default function MilestoneList() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-8">
+    <div className="w-full max-w-[1440px] px-6 mx-auto py-8">
       {/* Header and navigation bar */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">

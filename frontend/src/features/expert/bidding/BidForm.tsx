@@ -92,8 +92,9 @@ export default function BidForm() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const isDirty = approach.length > 0 || pricing.length > 0;
+  const isReadOnly = !!bid && (bid as any).tech_status !== 'REVISION_REQUESTED';
 
-  // Auto-calculate footprint alignment
+  // Auto-calculate footprint alignment, submitting raw dynamic data for the backend to process
   const footprint: FootprintAlignmentData = {
     domains: expertProfile?.domainDepths?.map((d: any) => ({
       code: d.domainCode,
@@ -191,8 +192,8 @@ export default function BidForm() {
     <div className="mx-auto max-w-[720px] space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
-          Submit Bid
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          {isReadOnly ? 'View Sent Bid' : 'Submit Bid'}
         </h1>
         <p className="mt-1 text-body text-[#64748B]">
           {project?.projectName || `Project ${actualProjectId}`}
@@ -225,7 +226,7 @@ export default function BidForm() {
               value={approach}
               onChange={setApproach}
               error={fieldErrors.approach}
-              disabled={createBid.isPending}
+              disabled={createBid.isPending || isReadOnly}
             />
           </CardContent>
         </Card>
@@ -237,35 +238,47 @@ export default function BidForm() {
               items={pricing}
               onChange={setPricing}
               errors={fieldErrors}
-              disabled={createBid.isPending}
+              disabled={createBid.isPending || isReadOnly}
             />
           </CardContent>
         </Card>
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={createBid.isPending}
-            onClick={handleCancel}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={createBid.isPending}
-            className="min-w-[140px]"
-          >
-            {createBid.isPending ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" /> Submitting…
-              </span>
-            ) : (
-              'Submit Bid'
-            )}
-          </Button>
+          {isReadOnly ? (
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => navigate('/expert/service/projects')}
+            >
+              Back to Projects
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={createBid.isPending}
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={createBid.isPending}
+                className="min-w-[140px]"
+              >
+                {createBid.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" /> Submitting…
+                  </span>
+                ) : (
+                  'Submit Bid'
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </form>
 

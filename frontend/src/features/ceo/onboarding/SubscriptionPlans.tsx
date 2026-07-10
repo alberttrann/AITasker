@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
+import { useAuth } from '@/hooks/use-auth';
 import { useAuthStore } from '@/store/auth.store';
 import { useSubscription, useSubscriptionPackages, useSubscriptionHistory, useSubscriptionStatus } from '@/hooks/use-subscription';
 import { useNavigate, Link } from 'react-router-dom';
@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/Button';
 export default function SubscriptionPlans() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user, refreshUser } = useAuth();
   const store = useAuthStore();
-  const { user } = store;
   const { data: wallet } = useWallet();
   const { activateSubscription: activateMutation } = useSubscription();
   const { data: packages, isLoading: isLoadingPackages } = useSubscriptionPackages();
@@ -35,11 +35,7 @@ export default function SubscriptionPlans() {
       {
         onSuccess: async (data) => {
           store.setTokens(data.access_token, ''); 
-          const { data: freshUser } = await apiClient.get('/users/me', {
-            headers: { Authorization: `Bearer ${data.access_token}` }
-          });
-          store.setUser(freshUser);
-          queryClient.setQueryData(['user', 'me'], freshUser);
+          await refreshUser();
           queryClient.invalidateQueries({ queryKey: ['wallet'] });
           navigate('/ceo/subscriptions', { state: { success: true } });
         },

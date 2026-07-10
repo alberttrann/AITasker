@@ -1,6 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -8,25 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { AlertTriangle, FileText, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements — TECH_TEAM role-scoped to linked project */
-function useBidsForTechTeam() {
-  const user = useAuthStore((s) => s.user);
-  const techTeamId = user?.id;
-
-  return useQuery({
-    queryKey: ['bids', 'tech-team'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto[]>('/engagements');
-      return data;
-    },
-    enabled: !!techTeamId,
-    staleTime: 10_000,
-    // ⚠️ Polling fallback — BE doesn't emit bid:updated yet
-    refetchInterval: 5_000,
-  });
-}
+import { useTechTeamEngagements } from '@/hooks/use-engagements';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -50,7 +30,7 @@ type BidWithEngagement = CapabilityBidDto & { engagementId: string; expertName?:
 
 export default function BidReviewList() {
   const navigate = useNavigate();
-  const { data: engagements, isLoading, error, refetch } = useBidsForTechTeam();
+  const { data: engagements, isLoading, error, refetch } = useTechTeamEngagements();
 
   // Extract bids from engagements
   const bids: BidWithEngagement[] = (engagements || [])

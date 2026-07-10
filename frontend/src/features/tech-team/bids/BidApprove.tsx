@@ -1,41 +1,24 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
-// ── Inline hook: PUT /bids/:id/tech-review ───────────────────────
-
-function useApproveBid() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (bidId: string) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/tech-review`, {
-        action: 'APPROVED',
-      });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useTechReview } from '@/hooks/use-bids';
 
 export default function BidApprove() {
   const { bidId } = useParams<{ bidId: string }>();
   const navigate = useNavigate();
-  const approveBid = useApproveBid();
+  const approveBid = useTechReview();
   const [showConfirm, setShowConfirm] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const handleApprove = () => {
     if (!bidId) return;
     setServerError(null);
-    approveBid.mutate(bidId, {
+    approveBid.mutate({ bidId, body: { action: 'APPROVED', tech_feedback: '' } }, {
       onSuccess: () => {
         navigate('/tech-team/bids', { replace: true });
       },

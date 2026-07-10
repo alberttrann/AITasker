@@ -47,7 +47,7 @@ export function useCreateBid() {
   });
 }
 
-export function useBid(bidId: string) {
+export function useBid(bidId: string, options?: { refetchInterval?: number }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery({
@@ -57,6 +57,7 @@ export function useBid(bidId: string) {
       return data;
     },
     enabled: isAuthenticated && !!bidId,
+    refetchInterval: options?.refetchInterval,
   });
 }
 

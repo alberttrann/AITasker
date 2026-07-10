@@ -1,7 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -16,38 +14,7 @@ import {
 } from 'lucide-react';
 import type { EngagementDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements/:id */
-function useEngagement(id: string | undefined) {
-  return useQuery({
-    queryKey: ['engagements', id],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto>(`/engagements/${id}`);
-      return data;
-    },
-    enabled: !!id,
-    staleTime: 15_000,
-    refetchInterval: 5_000, // Poll for CEO's signature
-  });
-}
-
-/** POST /engagements/:id/connect — NO body */
-function useAcceptConnect() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (engagementId: string) => {
-      const { data } = await apiClient.post(
-        `/engagements/${engagementId}/connect`
-      );
-      return data;
-    },
-    onSuccess: (_, engagementId) => {
-      qc.invalidateQueries({ queryKey: ['engagements', engagementId] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useEngagement, useAcceptConnect } from '@/hooks/use-engagements';
 
 // ── NDA text ─────────────────────────────────────────────────────
 

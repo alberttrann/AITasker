@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@hooks/use-auth';
+import { apiClient } from '@lib/api-client';
 import { Button } from '@components/ui/Button';
 import { Input, Label } from '@components/ui/Input';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
+import { Spinner } from '@components/ui/Spinner';
 
 const passwordRules = [
   { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -32,7 +35,18 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { resetPassword } = useAuth();
   
-  if (!token) {
+  const verifyTokenQuery = useQuery({
+    queryKey: ['verify-reset-token', token],
+    queryFn: async () => {
+      if (!token) throw new Error("No token");
+      const { data } = await apiClient.get(`/auth/verify-reset-token/${token}`);
+      return data;
+    },
+    enabled: !!token,
+    retry: false,
+  });
+
+  if (!token || verifyTokenQuery.isError) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900 relative overflow-hidden">
         {/* Decorative Background Elements */}
@@ -40,10 +54,23 @@ export default function ResetPasswordPage() {
         <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-48 h-48 rounded-full bg-blue-400 opacity-20 blur-2xl"></div>
 
         <div className="relative z-10 text-center p-8 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">Invalid or Missing Token</h2>
-          <p className="text-slate-500 mb-4">The password reset link is invalid.</p>
-          <Link to="/" className="text-primary hover:underline font-medium">Return Home</Link>
+          <h2 className="text-xl font-semibold text-slate-800 mb-2">Link Expired or Invalid</h2>
+          <p className="text-slate-500 mb-6">This password reset link is invalid or has expired.</p>
+          <Link to="/forgot-password" className="inline-block py-2.5 px-5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm">
+            Request a new one
+          </Link>
+          <div className="mt-6">
+            <Link to="/" className="text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors">Return Home</Link>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  if (verifyTokenQuery.isLoading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900">
+         <Spinner size="lg" className="text-white" />
       </div>
     );
   }
