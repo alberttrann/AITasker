@@ -26,7 +26,7 @@ EXPERT_TOKEN=$(echo "$RES" | jq -r '.access_token')
 EXPERT_AUTH=(-H "Authorization: Bearer ${EXPERT_TOKEN}")
 curl -s -X POST "${BASE_URL}/expert-profile/domains" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" -d '{"domainCode":"A","depthLevel":"DEEP"}' > /dev/null
 curl -s -X POST "${BASE_URL}/expert-profile/seams" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" -d '{"seamCode":"A↔C"}' > /dev/null
-echo "  Expert registered with Domain A (DEEP) and seam A<->C claimed."
+echo "  Expert registered with Domain A (DEEP) and seam A↔C claimed."
 
 step_header "PREREQ — register CEO, fund, activate Client Pro, run elicitation through publish"
 CEO_EMAIL="mf5-ceo-$(date +%s)@aitasker.test"

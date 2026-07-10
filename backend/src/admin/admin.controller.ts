@@ -60,7 +60,6 @@ export class AdminController {
     return this.adminService.resolveDispute(id, dto, user.id);
   }
 
-
   @Get('decisions')
   @ApiOperation({ summary: 'Platform decisions log (LLM confidence, advisory notes, entity refs)' })
   async getDecisions(
@@ -72,10 +71,7 @@ export class AdminController {
 
   @Get('transactions')
   @ApiOperation({ summary: 'Wallet transaction ledger, filterable by type/user' })
-  async getTransactions(
-    @Query('type') type?: string,
-    @Query('userId') userId?: string,
-  ) {
+  async getTransactions(@Query('type') type?: string, @Query('userId') userId?: string) {
     return this.adminService.getTransactions({ type, userId });
   }
 
@@ -85,30 +81,6 @@ export class AdminController {
     return this.adminService.getAnalytics();
   }
 
-  @Get('platform-settings')
-  @ApiOperation({ summary: 'Get current platform fee percentage and wallet ID' })
-  async getPlatformSettings() {
-    return this.adminService.getPlatformSettings();
-  }
-
-  @Put('platform-settings')
-  @ApiOperation({ summary: 'Update platform fee percentage (takes effect on next milestone approval)' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        platform_fee_pct: { type: 'number', minimum: 0, maximum: 1, example: 0.05 },
-        platform_wallet_id: { type: 'string', example: 'wallet-uuid-platform' },
-      },
-    },
-  })
-  async updatePlatformSettings(
-    @Body() dto: { platform_fee_pct?: number; platform_wallet_id?: string },
-  ) {
-    return this.adminService.updatePlatformSettings(dto);
-  }
-
-
   @Get('withdrawals')
   @ApiOperation({ summary: 'Withdrawal requests queue, optionally filtered by status' })
   async getWithdrawalsQueue(@Query('status') status?: string) {
@@ -116,7 +88,9 @@ export class AdminController {
   }
 
   @Put('withdrawals/:id/complete')
-  @ApiOperation({ summary: 'Manually confirm a withdrawal was sent (no real Chi Hộ callback exists)' })
+  @ApiOperation({
+    summary: 'Manually confirm a withdrawal was sent (no real Chi Hộ callback exists)',
+  })
   async completeWithdrawal(@Param('id') id: string) {
     return this.adminService.completeWithdrawal(id);
   }
@@ -127,7 +101,7 @@ export class AdminController {
     return this.adminService.failWithdrawal(id);
   }
 
-  // Subscription Package Management 
+  // Subscription Package Management
   @Get('subscriptions/packages')
   @ApiOperation({ summary: 'List all subscription packages' })
   listSubscriptionPackages() {
@@ -143,7 +117,9 @@ export class AdminController {
   }
 
   @Put('subscriptions/packages/:id')
-  @ApiOperation({ summary: 'Update subscription package price/duration (existing subs unaffected)' })
+  @ApiOperation({
+    summary: 'Update subscription package price/duration (existing subs unaffected)',
+  })
   updateSubscriptionPackage(
     @Param('id') id: string,
     @Body() dto: { priceVnd?: number; durationMonths?: number; name?: string; isActive?: boolean },
@@ -158,9 +134,9 @@ export class AdminController {
       'Only succeeds if the package has zero purchase history. ' +
       'If it has been purchased before, use PUT with isActive: false to deactivate it instead.',
   })
-  @ApiResponse({ status: 200,  description: 'Package deleted.' })
-  @ApiResponse({ status: 422,  description: 'Package has purchase history — deactivate instead.' })
-  @ApiResponse({ status: 404,  description: 'Package not found.' })
+  @ApiResponse({ status: 200, description: 'Package deleted.' })
+  @ApiResponse({ status: 422, description: 'Package has purchase history — deactivate instead.' })
+  @ApiResponse({ status: 404, description: 'Package not found.' })
   deleteSubscriptionPackage(@Param('id') id: string) {
     return this.adminService.deleteSubscriptionPackage(id);
   }

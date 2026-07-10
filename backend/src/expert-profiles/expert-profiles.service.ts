@@ -129,7 +129,7 @@ export class ExpertProfileService {
 
   async syncDomainDepths(userId: string, domains: UpsertDomainDepthDto[]) {
     return this.prisma.$transaction(async (tx) => {
-      const incomingCodes = domains.map(d => d.domainCode);
+      const incomingCodes = domains.map((d) => d.domainCode);
       await tx.expertDomainDepth.deleteMany({
         where: { expertId: userId, domainCode: { notIn: incomingCodes } },
       });
@@ -153,11 +153,11 @@ export class ExpertProfileService {
       });
 
       // 2. Chặn xoá nếu đã có lịch sử submit (để chống việc bypass anti-spam lockout 5 lần)
-      const invalidDeletions = seamsToDelete.filter(s => s.submissionCount > 0);
+      const invalidDeletions = seamsToDelete.filter((s) => s.submissionCount > 0);
       if (invalidDeletions.length > 0) {
-        const lockedSeams = invalidDeletions.map(s => s.seamCode).join(', ');
+        const lockedSeams = invalidDeletions.map((s) => s.seamCode).join(', ');
         throw new BadRequestException(
-          `Cannot remove seams with verification history (${lockedSeams}). This preserves platform verification integrity.`
+          `Cannot remove seams with verification history (${lockedSeams}). This preserves platform verification integrity.`,
         );
       }
 
@@ -168,7 +168,7 @@ export class ExpertProfileService {
       for (const code of seams) {
         await tx.expertSeamClaim.upsert({
           where: { expertId_seamCode: { expertId: userId, seamCode: code } },
-          update: {}, 
+          update: {},
           create: { expertId: userId, seamCode: code },
         });
       }

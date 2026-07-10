@@ -1,6 +1,9 @@
 import {
-  Injectable, NotFoundException, ForbiddenException,
-  ConflictException, UnprocessableEntityException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/prisma.service';
@@ -14,7 +17,7 @@ import { DisputeResolution } from './dto/resolve-dispute.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
-const AUTO_RESOLVE_THRESHOLD = 0.80; 
+const AUTO_RESOLVE_THRESHOLD = 0.8;
 
 @Injectable()
 export class DisputesService {
@@ -35,12 +38,17 @@ export class DisputesService {
       throw new NotFoundException('Acceptance criterion not found.');
     }
     if (criterion.verifiedAt !== null) {
-      throw new UnprocessableEntityException('This criterion has already been verified — cannot dispute it.');
+      throw new UnprocessableEntityException(
+        'This criterion has already been verified — cannot dispute it.',
+      );
     }
 
     const milestone = criterion.milestone;
 
-    if (milestone.state !== MilestoneState.SUBMITTED && milestone.state !== MilestoneState.IN_REVISION) {
+    if (
+      milestone.state !== MilestoneState.SUBMITTED &&
+      milestone.state !== MilestoneState.IN_REVISION
+    ) {
       throw new UnprocessableEntityException(
         `Milestone is in state ${milestone.state}; disputing requires SUBMITTED or IN_REVISION.`,
       );
@@ -137,18 +145,18 @@ export class DisputesService {
         decision: evalResult.finding === 'expert_wins' ? 'EXPERT_WINS' : 'CLIENT_WINS',
       };
       await this.applyResolution(dispute.id, resolution, evalResult.confidence_score);
- 
+
       // platform_decisions write on the auto-resolve path only.
       await this.prisma.platformDecision.create({
         data: {
           decisionType: 'DISPUTE_L1_EVAL',
-          entityType:   'disputes',
-          entityId:     dispute.id,
+          entityType: 'disputes',
+          entityId: dispute.id,
           llmConfidence: evalResult.confidence_score,
-          decision:     'AUTO_RESOLVED',
+          decision: 'AUTO_RESOLVED',
         },
       });
- 
+
       return {
         dispute_id: dispute.id,
         state: DisputeState.AUTO_RESOLVED,
@@ -181,7 +189,10 @@ export class DisputesService {
     if (!dispute) {
       throw new NotFoundException('Dispute not found.');
     }
-    if (dispute.state !== DisputeState.LAYER_1_EVAL && dispute.state !== DisputeState.MANUAL_REVIEW) {
+    if (
+      dispute.state !== DisputeState.LAYER_1_EVAL &&
+      dispute.state !== DisputeState.MANUAL_REVIEW
+    ) {
       throw new ConflictException(`Dispute is in state ${dispute.state}; cannot resolve.`);
     }
 
@@ -269,7 +280,9 @@ export class DisputesService {
 
     if (user.activeRole === 'ADMIN') return dispute;
 
-    const engagement = await this.prisma.engagement.findUnique({ where: { id: dispute.engagementId } });
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: dispute.engagementId },
+    });
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
     }
@@ -287,15 +300,14 @@ export class DisputesService {
 
   // GET /disputes — shared by DisputesController (own) and AdminController
   async findAll(user: ActorUser, filters?: { state?: string }) {
-    
     // Include milestone and escrow account context for the Admin dashboard / general query clarity
     const includeRelations = {
       milestone: {
-        select: { deliverableStatement: true, paymentAmountVnd: true }
+        select: { deliverableStatement: true, paymentAmountVnd: true },
       },
       escrowAccount: {
-        select: { status: true, amount: true }
-      }
+        select: { status: true, amount: true },
+      },
     };
 
     if (user.activeRole === 'ADMIN') {
@@ -310,8 +322,8 @@ export class DisputesService {
       user.activeRole === 'CLIENT'
         ? { clientId: user.id }
         : user.activeRole === 'EXPERT'
-        ? { expertId: user.id }
-        : null;
+          ? { expertId: user.id }
+          : null;
 
     if (!engagementFilter) {
       throw new ForbiddenException('Access denied.');

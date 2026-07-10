@@ -3,18 +3,6 @@ import { cn } from '@/lib/utils';
 import { type FootprintAlignment as FootprintAlignmentData } from '@/types/jsonb.types';
 export type { FootprintAlignmentData };
 
-// ⚠️ Wire format uses '<->' — FE enums use '↔'
-export const toWireSeam = (feCode: string) => feCode.replace(/↔/g, '<->');
-export const toFeSeam = (wireCode: string) => wireCode.replace(/<->/g, '↔');
-
-/** Convert FE seam codes (↔) to wire format (<->) for POST /bids */
-export function toWireFootprint(data: FootprintAlignmentData) {
-  return {
-    domains: data.domains,
-    seams: data.seams.map((s) => ({ ...s, code: toWireSeam(s.code) })),
-  };
-}
-
 import { useDomains, useSeams } from '@/hooks/use-config';
 
 interface FootprintAlignmentProps {

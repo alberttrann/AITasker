@@ -280,13 +280,14 @@ export class AuthService {
           techTeamProfile: {
             create: {
               linkedClientId: payload.ceoId,
-              linkedProjectId: (
-                await tx.project.findFirst({
-                  where:   { clientId: payload.ceoId, state: 'PUBLISHED' },
-                  orderBy: { createdAt: 'desc' },
-                  select:  { id: true },
-                })
-              )?.id ?? null,
+              linkedProjectId:
+                (
+                  await tx.project.findFirst({
+                    where: { clientId: payload.ceoId, state: 'PUBLISHED' },
+                    orderBy: { createdAt: 'desc' },
+                    select: { id: true },
+                  })
+                )?.id ?? null,
             },
           },
         },
@@ -372,9 +373,9 @@ export class AuthService {
 
       // Resolve the CEO's current published project (if it exists already)
       const ceoProject = await tx.project.findFirst({
-        where:   { clientId: payload.ceoId, state: 'PUBLISHED' },
+        where: { clientId: payload.ceoId, state: 'PUBLISHED' },
         orderBy: { createdAt: 'desc' },
-        select:  { id: true },
+        select: { id: true },
       });
       const resolvedProjectId = ceoProject?.id ?? null;
 
@@ -382,11 +383,11 @@ export class AuthService {
         where: { userId },
         create: {
           userId,
-          linkedClientId:  payload.ceoId,
+          linkedClientId: payload.ceoId,
           linkedProjectId: resolvedProjectId,
         },
         update: {
-          linkedClientId:  payload.ceoId,
+          linkedClientId: payload.ceoId,
           linkedProjectId: resolvedProjectId,
         },
       });
@@ -482,7 +483,7 @@ export class AuthService {
       where: { id: user.id },
       data: {
         passwordHash: newHash,
-        passwordResetToken: null,           // invalidate immediately after use
+        passwordResetToken: null, // invalidate immediately after use
         passwordResetTokenExpiresAt: null,
       },
     });
@@ -492,7 +493,7 @@ export class AuthService {
   async verifyResetToken(token: string): Promise<{ valid: true }> {
     const user = await this.prisma.user.findFirst({
       where: {
-        passwordResetToken:          token,
+        passwordResetToken: token,
         passwordResetTokenExpiresAt: { gt: new Date() },
       },
       select: { id: true },

@@ -11,31 +11,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-// Enums mirror docs/06-enum-domains.md §A (Core Taxonomy Domains).
-// Local to this DTO — duplicated in update-bid.dto.ts (intentional, allowed to diverge).
-
-enum DomainCode {
-  A = 'A',
-  B = 'B',
-  C = 'C',
-  D = 'D',
-  E = 'E',
-  F = 'F',
-}
-
-enum SeamCode {
-  A_C = 'A<->C',
-  A_F = 'A<->F',
-  A_D = 'A<->D',
-  D_E = 'D<->E',
-  D_F = 'D<->F',
-  C_F = 'C<->F',
-  E_F = 'E<->F',
-  A_B = 'A<->B',
-  B_E = 'B<->E',
-  C_E = 'C<->E',
-}
-
 enum DomainDepth {
   SURFACE = 'SURFACE',
   OPERATIONAL = 'OPERATIONAL',
@@ -48,12 +23,18 @@ enum VerifyTier {
 }
 
 class DomainClaim {
-  @IsEnum(DomainCode) code!: DomainCode;
+  @IsString()
+  @IsNotEmpty()
+  code!: string;
+
   @IsEnum(DomainDepth) depth!: DomainDepth;
 }
 
 class SeamClaim {
-  @IsEnum(SeamCode) code!: SeamCode;
+  @IsString()
+  @IsNotEmpty()
+  code!: string;
+
   @IsEnum(VerifyTier) tier!: VerifyTier;
 }
 

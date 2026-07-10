@@ -29,7 +29,7 @@ export class ListingsService {
 
   async list(filter: ListServicesFilterDto) {
     const where: any = {
-      state: 'PUBLISHED', 
+      state: 'PUBLISHED',
     };
 
     if (filter.serviceType) {
@@ -261,7 +261,7 @@ export class ListingsService {
       const engagement = await tx.engagement.create({
         data: {
           expertId: service.expertId,
-          clientId: buyer.id, 
+          clientId: buyer.id,
           serviceId: id,
           type: engagementType,
           state: 'PENDING',

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -10,34 +9,7 @@ import { AlertTriangle, CheckCircle2, XCircle, ArrowLeft, DollarSign, MessageSqu
 import { cn } from '@/lib/utils';
 import type { CapabilityBidDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-function useBidDetail(bidId: string | undefined) {
-  return useQuery({
-    queryKey: ['bids', bidId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<CapabilityBidDto>(`/bids/${bidId}`);
-      return data;
-    },
-    enabled: !!bidId,
-    refetchInterval: 5_000, // Polling
-  });
-}
-
-/** PUT /bids/:id/ceo-decision */
-function useCeoDecisionBid() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ bidId, decision }: { bidId: string; decision: 'APPROVED' | 'DECLINED' }) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/ceo-decision`, { decision });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useBid, useCeoDecision } from '@/hooks/use-bids';
 
 /** PUT /bids/:id/counter-offer */
 function useCounterOfferBid() {
@@ -65,8 +37,8 @@ export default function CeoDecision() {
   const { projectId, bidId } = useParams<{ projectId: string; bidId: string }>();
   const navigate = useNavigate();
 
-  const { data: bid, isLoading, error, refetch } = useBidDetail(bidId);
-  const ceoDecision = useCeoDecisionBid();
+  const { data: bid, isLoading, error, refetch } = useBid(bidId as string, { refetchInterval: 5_000 });
+  const ceoDecision = useCeoDecision();
   const counterOffer = useCounterOfferBid();
 
   // Modals state
@@ -114,7 +86,7 @@ export default function CeoDecision() {
     if (!bidId) return;
     setServerError(null);
     ceoDecision.mutate(
-      { bidId, decision: 'APPROVED' },
+      { bidId, body: { decision: 'APPROVED' } },
       {
         onSuccess: (data: any) => {
           const engId = data?.engagement_id || data?.id || bidAny?.engagementId || bidAny?.engagement_id;
@@ -134,7 +106,7 @@ export default function CeoDecision() {
     if (!bidId) return;
     setServerError(null);
     ceoDecision.mutate(
-      { bidId, decision: 'DECLINED' },
+      { bidId, body: { decision: 'DECLINED' } },
       {
         onSuccess: () => {
           navigate(`/ceo/project/${projectId}/bids`, { replace: true });

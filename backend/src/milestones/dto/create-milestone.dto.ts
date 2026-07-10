@@ -1,8 +1,15 @@
 import { Type } from 'class-transformer';
 import {
-  IsString, IsNotEmpty, IsNumber, IsEnum,
-  IsUUID, IsBoolean, IsArray, ValidateNested,
-  IsOptional, Min,
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsEnum,
+  IsUUID,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+  IsOptional,
+  Min,
 } from 'class-validator';
 import { CreateCriterionDto } from './create-criterion.dto';
 export { CreateCriterionDto };

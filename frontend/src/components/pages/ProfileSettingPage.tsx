@@ -88,7 +88,7 @@ export default function ProfileSettingPage() {
     setErrorMsg(null);
     try {
       if (field === 'companyName') {
-        await updateProfile.mutateAsync({ companyName: newValue, taxCode: '' });
+        await updateProfile.mutateAsync({ companyName: newValue });
         setOriginalValues((prev) => ({ ...prev, companyName: newValue }));
         setFormValues((prev) => ({ ...prev, companyName: newValue }));
       } else if (field === 'bio') {
@@ -222,7 +222,7 @@ export default function ProfileSettingPage() {
     
     setErrorMsg(null);
     try {
-      await updateProfile.mutateAsync({ companyName: taxStatus.companyName, taxCode: taxStatus.taxCodeValue });
+      await updateProfile.mutateAsync({ companyName: taxStatus.companyName });
       setOriginalValues((prev) => ({ ...prev, companyName: taxStatus.companyName! }));
       setFormValues((prev) => ({ ...prev, companyName: taxStatus.companyName! }));
       setTaxStatus({ verified: false, companyName: null, taxCodeValue: null, loading: false, error: false });

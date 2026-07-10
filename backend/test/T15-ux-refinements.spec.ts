@@ -1,18 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication }    from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import supertest from 'supertest';
-import { AppModule }           from '../src/app.module';
-import { PrismaService }       from '../src/database/prisma.service';
-import { DbSeeder }            from './helpers/db.seeder';
-import { JwtFactory }          from './helpers/jwt.factory';
-import { IpnHandlerService }   from '../src/payments/ipn-handler.service';
-import { EventEmitter2 }       from '@nestjs/event-emitter';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/database/prisma.service';
+import { DbSeeder } from './helpers/db.seeder';
+import { JwtFactory } from './helpers/jwt.factory';
+import { IpnHandlerService } from '../src/payments/ipn-handler.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let eventEmitter: EventEmitter2;
-  
+
   let ceoToken: string;
   let ceoId: string;
   let sessionId: string;
@@ -40,7 +40,10 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
     });
     ceoId = ceoRes.user.id;
     ceoToken = JwtFactory.ceoToken(ceoId);
-    await prisma.user.update({ where: { id: ceoId }, data: { subscriptionClientTier: 'pro', subClientExpiresAt: new Date(Date.now() + 10000000) }});
+    await prisma.user.update({
+      where: { id: ceoId },
+      data: { subscriptionClientTier: 'pro', subClientExpiresAt: new Date(Date.now() + 10000000) },
+    });
 
     // Manually seed the VirtualAccount since DbSeeder.seedUser bypasses the /auth/register endpoint
     topupVaNumber = 'UX_TEST_VA_123';
@@ -49,8 +52,8 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
         entityId: ceoId,
         entityType: 'WALLET_TOPUP',
         vaNumber: topupVaNumber,
-        status: 'ACTIVE'
-      }
+        status: 'ACTIVE',
+      },
     });
   });
 
@@ -62,7 +65,7 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
   describe('Refinement 1: Real-Time WebSockets for Payments', () => {
     it('Emits wallet:balance-updated and notification:generic events on IPN top-up', async () => {
       const ipnHandler = app.get<IpnHandlerService>(IpnHandlerService);
-      
+
       // Spy on the global event emitter
       const emitSpy = jest.spyOn(eventEmitter, 'emit');
 
@@ -70,26 +73,32 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
       await ipnHandler.handleIpn({
         content: `${topupVaNumber} chuyen tien test`,
         transferAmount: '500000',
-        referenceCode: 'TX-UX-1'
+        referenceCode: 'TX-UX-1',
       });
 
       // Verify the websocket broadcast events were fired
-      expect(emitSpy).toHaveBeenCalledWith('socket.broadcast', expect.objectContaining({
-        userId: ceoId,
-        event: 'wallet:balance-updated',
-        payload: expect.objectContaining({
-          transaction_type: 'TOP_UP',
-          amount: 500000
-        })
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'socket.broadcast',
+        expect.objectContaining({
+          userId: ceoId,
+          event: 'wallet:balance-updated',
+          payload: expect.objectContaining({
+            transaction_type: 'TOP_UP',
+            amount: 500000,
+          }),
+        }),
+      );
 
-      expect(emitSpy).toHaveBeenCalledWith('socket.broadcast', expect.objectContaining({
-        userId: ceoId,
-        event: 'notification:generic',
-        payload: expect.objectContaining({
-          title: 'Top-up Successful'
-        })
-      }));
+      expect(emitSpy).toHaveBeenCalledWith(
+        'socket.broadcast',
+        expect.objectContaining({
+          userId: ceoId,
+          event: 'notification:generic',
+          payload: expect.objectContaining({
+            title: 'Top-up Successful',
+          }),
+        }),
+      );
     });
   });
 
@@ -97,7 +106,7 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
     it('GET /projects includes _count.engagements for the CEO', async () => {
       // 1. Create a Project
       const project = await prisma.project.create({
-        data: { clientId: ceoId, state: 'PUBLISHED' }
+        data: { clientId: ceoId, state: 'PUBLISHED' },
       });
 
       // 2. Create an Expert & an Engagement (Bid) against that project
@@ -112,8 +121,8 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
           expertId: expert.user.id,
           clientId: ceoId,
           type: 'PROJECT_BASED',
-          state: 'PENDING'
-        }
+          state: 'PENDING',
+        },
       });
 
       // 3. Call GET /projects
@@ -123,10 +132,10 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
         .expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
-      
+
       const foundProject = res.body.find((p: any) => p.id === project.id);
       expect(foundProject).toBeDefined();
-      
+
       // Verification: The _count object must be present and engagements must be 1
       expect(foundProject._count).toBeDefined();
       expect(foundProject._count.engagements).toBe(1);
@@ -141,7 +150,7 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
           userId: ceoId,
           currentStage: 2,
           state: 'IN_PROGRESS',
-        }
+        },
       });
       sessionId = session.id;
     });
@@ -155,7 +164,7 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
       expect(res.body.success).toBe(true);
 
       // Verify the row is gone from the database
-      const dbCheck = await prisma.elicitationSession.findUnique({ where: { id: sessionId }});
+      const dbCheck = await prisma.elicitationSession.findUnique({ where: { id: sessionId } });
       expect(dbCheck).toBeNull();
     });
 
@@ -165,7 +174,7 @@ describe('T15: UX Refinements (WebSockets, AI Fallback, Bid Counts, Hard Delete)
           userId: ceoId,
           currentStage: 5,
           state: 'COMPLETED',
-        }
+        },
       });
 
       const res = await supertest(app.getHttpServer())

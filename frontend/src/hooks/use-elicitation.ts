@@ -202,45 +202,6 @@ export const STAGE_LABELS = [
   "Synthesis",
 ];
 
-export const ARCHETYPES = [
-  {
-    code: "1",
-    label: "AI Search & Q&A",
-    desc: "Can AI answer questions from your documents?",
-    icon: "🔍",
-  },
-  {
-    code: "2",
-    label: "Personalisation & Recs",
-    desc: "Can AI personalize content for each user?",
-    icon: "🎯",
-  },
-  {
-    code: "3",
-    label: "Classification & Docs",
-    desc: "Can AI sort, tag, or extract info from documents?",
-    icon: "📄",
-  },
-  {
-    code: "4",
-    label: "Conversational Agent",
-    desc: "Can AI handle customer/service conversations?",
-    icon: "💬",
-  },
-  {
-    code: "5",
-    label: "Predictive Analytics",
-    desc: "Can AI predict outcomes from historical data?",
-    icon: "📈",
-  },
-  {
-    code: "6",
-    label: "AI Process Automation",
-    desc: "Can AI automate a manual workflow?",
-    icon: "⚙️",
-  },
-];
-
 export const VOID_DESCRIPTIONS: Record<string, string> = {
   NO_GROUND_TRUTH: "No baseline established to measure AI performance.",
   NO_BASELINE: "No current system or baseline to compare against.",
@@ -257,56 +218,6 @@ export const VOID_DESCRIPTIONS: Record<string, string> = {
   SCOPE_CREEP_RISK: "Too many objectives for a single engagement.",
 };
 
-export const PROBES: Record<
-  string,
-  { q1: string; q2: string; q3: string; q4: string }
-> = {
-  "1": {
-    q1: "Roughly how many people will search or ask questions per day?",
-    q2: "When someone gets a wrong or unhelpful answer, what do you expect to happen next?",
-    q3: "Does this need to pull from documents/systems you already have, and which ones?",
-    q4: "How quickly does an answer need to appear after someone asks?",
-  },
-  "2": {
-    q1: "Roughly how many users will see recommendations, and how often?",
-    q2: "What should happen if someone ignores or dislikes a recommendation?",
-    q3: "Where do you already track what users like/buy/view \u2014 any existing system?",
-    q4: "How fresh do recommendations need to be (instant, hourly, daily)?",
-  },
-  "3": {
-    q1: "Roughly how many items need classifying per day?",
-    q2: "What should happen when the system isn\u2019t confident about a classification?",
-    q3: "Where does the data to classify come from today \u2014 any existing system?",
-    q4: "How quickly does a classification decision need to be made?",
-  },
-  "4": {
-    q1: "Roughly how much content needs generating per day/week?",
-    q2: "What happens if generated content is wrong or inappropriate \u2014 who reviews it?",
-    q3: "Does generated content need to match an existing brand voice/system/template?",
-    q4: "How long can someone wait for content to be generated?",
-  },
-  "5": {
-    q1: "How far ahead are you trying to predict, and how often do you need a new prediction?",
-    q2: "What happens today when a prediction turns out wrong?",
-    q3: "What historical data do you already have to learn from?",
-    q4: "How quickly after new data arrives do you need an updated prediction?",
-  },
-  "6": {
-    q1: "Roughly how many items (images/audio/video) need processing per day?",
-    q2: "What should happen when the system can\u2019t confidently interpret an input?",
-    q3: "Where does this input data come from today \u2014 any existing system?",
-    q4: "How quickly does processing need to complete after input arrives?",
-  },
-};
-
-export const ARCHETYPE_LABELS: Record<string, string> = {
-  "1": "AI Search & Q&A (RAG)",
-  "2": "Personalisation & Recommendations",
-  "3": "Classification & Document Processing",
-  "4": "Conversational Agent / Chatbot",
-  "5": "Predictive Analytics",
-  "6": "AI Process Automation",
-};
 
 export async function saveDraft(
   sessionId: string,

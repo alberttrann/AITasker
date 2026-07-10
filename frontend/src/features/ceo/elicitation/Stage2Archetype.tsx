@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
-import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { submitStage2, handleElicitationError, VOID_DESCRIPTIONS, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { useArchetypes } from '@/hooks/use-config';
 import { useQueryClient } from '@tanstack/react-query';
 import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, AlertTriangle, Layers } from 'lucide-react';
 
@@ -33,6 +34,8 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
   const [initialized, setInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+
+  const { data: archetypesList, isLoading: loadingArchetypes } = useArchetypes();
 
   useEffect(() => {
     if (session && !initialized) {
@@ -82,7 +85,11 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {ARCHETYPES.map((a) => {
+        {loadingArchetypes ? (
+          <div className="col-span-1 sm:col-span-2 flex justify-center py-10">
+            <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
+          </div>
+        ) : (archetypesList || []).map((a) => {
           const isSelected = selected === a.code;
           const isRecommended = recommended.length === 0 || recommended.includes(a.code);
           
@@ -105,8 +112,8 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
                   </span>
                 )}
               </div>
-              <h4 className="mt-2 font-headline font-semibold text-slate-900">{a.label}</h4>
-              <p className="mt-1 text-body-sm text-secondary">{a.desc}</p>
+              <h4 className="mt-2 font-headline font-semibold text-slate-900">{a.name}</h4>
+              <p className="mt-1 text-body-sm text-secondary">{a.description}</p>
             </button>
           );
         })}

@@ -1,23 +1,23 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService }   from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 
 // Shape of req.user after validate() — available via @CurrentUser() in any controller.
 // Never includes passwordHash.
 export interface AuthUser {
-  id:                      string;
-  email:                   string;
-  activeRole:              string;
-  clientSubtype:           string | null;
-  isActive:                boolean;
-  subscriptionClientTier:  string;
-  subscriptionExpertTier:  string;
-  subClientExpiresAt:      Date | null;              
-  subExpertExpiresAt:      Date | null;               
-  selfTechnical:           boolean;                   
-  selfTechnicalProjects:   Array<{ sessionId: string; override: boolean }>; 
+  id: string;
+  email: string;
+  activeRole: string;
+  clientSubtype: string | null;
+  isActive: boolean;
+  subscriptionClientTier: string;
+  subscriptionExpertTier: string;
+  subClientExpiresAt: Date | null;
+  subExpertExpiresAt: Date | null;
+  selfTechnical: boolean;
+  selfTechnicalProjects: Array<{ sessionId: string; override: boolean }>;
 }
 
 @Injectable()
@@ -27,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     configService: ConfigService,
   ) {
     super({
-      jwtFromRequest:   ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey:
         configService.get<string>('jwt.secret') ??
@@ -46,17 +46,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     return {
-      id:                     user.id,
-      email:                  user.email,
-      activeRole:             user.activeRole,
-      clientSubtype:          user.clientSubtype ?? null,
-      isActive:               user.isActive,
+      id: user.id,
+      email: user.email,
+      activeRole: user.activeRole,
+      clientSubtype: user.clientSubtype ?? null,
+      isActive: user.isActive,
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
-      subClientExpiresAt:     user.subClientExpiresAt ?? null,
-      subExpertExpiresAt:     user.subExpertExpiresAt ?? null,
-      selfTechnical:          user.selfTechnical ?? false,
-      selfTechnicalProjects:  (user.selfTechnicalProjects as any) ?? [],
+      subClientExpiresAt: user.subClientExpiresAt ?? null,
+      subExpertExpiresAt: user.subExpertExpiresAt ?? null,
+      selfTechnical: user.selfTechnical ?? false,
+      selfTechnicalProjects: (user.selfTechnicalProjects as any) ?? [],
     };
   }
 }

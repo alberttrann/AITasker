@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, UnprocessableEntityException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DisputesService } from '../disputes/disputes.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -18,11 +23,11 @@ export class AdminService {
     if (!project) {
       throw new NotFoundException('Project not found.');
     }
-    
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.project.update({
         where: { id: projectId },
-        data: { state: 'SUSPENDED' }
+        data: { state: 'SUSPENDED' },
       });
 
       await tx.platformDecision.create({
@@ -32,7 +37,7 @@ export class AdminService {
           entityId: projectId,
           decision: 'SUSPENDED',
           advisoryNote: 'Admin suspension',
-        }
+        },
       });
 
       return updated;
@@ -45,7 +50,7 @@ export class AdminService {
     if (!user) {
       throw new NotFoundException('User not found.');
     }
-    
+
     return this.prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
@@ -53,10 +58,7 @@ export class AdminService {
   }
 
   async getDisputesQueue(adminUserId: string, state?: string) {
-    return this.disputesService.findAll(
-      { id: adminUserId, activeRole: 'ADMIN' },
-      { state },
-    );
+    return this.disputesService.findAll({ id: adminUserId, activeRole: 'ADMIN' }, { state });
   }
 
   async resolveDispute(disputeId: string, dto: ResolveDisputeDto, adminUserId: string) {
@@ -72,7 +74,7 @@ export class AdminService {
     return this.prisma.platformDecision.findMany({
       where: {
         ...(filters?.decisionType ? { decisionType: filters.decisionType } : {}),
-        ...(filters?.entityType   ? { entityType: filters.entityType }     : {}),
+        ...(filters?.entityType ? { entityType: filters.entityType } : {}),
       },
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -98,13 +100,13 @@ export class AdminService {
     });
 
     return transactions.map((t) => ({
-      id:               t.id,
-      amount:           Number(t.amount),
-      transactionType:  t.transactionType,
-      referenceId:      t.referenceId,
-      createdAt:        t.createdAt,
-      userEmail:        t.wallet.user.email,
-      userFullName:     t.wallet.user.fullName,
+      id: t.id,
+      amount: Number(t.amount),
+      transactionType: t.transactionType,
+      referenceId: t.referenceId,
+      createdAt: t.createdAt,
+      userEmail: t.wallet.user.email,
+      userFullName: t.wallet.user.fullName,
     }));
   }
 
@@ -141,11 +143,14 @@ export class AdminService {
 
     return {
       active_projects_by_archetype_tier: projectsByArchetype,
-      elicitation_completion_rate_pct:   safeRate(completedSessions, totalSessions),
-      portfolio_auto_upgrade_rate_pct:   safeRate(approvedPortfolioSubmissions, totalPortfolioSubmissions),
-      dispute_rate_pct:                  safeRate(totalDisputes, totalMilestones),
-      dispute_auto_resolve_rate_pct:     safeRate(autoResolvedDisputes, totalDisputes),
-      milestone_completion_rate_pct:     safeRate(releasedMilestones, totalMilestones),
+      elicitation_completion_rate_pct: safeRate(completedSessions, totalSessions),
+      portfolio_auto_upgrade_rate_pct: safeRate(
+        approvedPortfolioSubmissions,
+        totalPortfolioSubmissions,
+      ),
+      dispute_rate_pct: safeRate(totalDisputes, totalMilestones),
+      dispute_auto_resolve_rate_pct: safeRate(autoResolvedDisputes, totalDisputes),
+      milestone_completion_rate_pct: safeRate(releasedMilestones, totalMilestones),
     };
   }
 
@@ -159,34 +164,34 @@ export class AdminService {
     if (withdrawal.status !== 'PENDING') {
       throw new ConflictException(`Withdrawal is in status ${withdrawal.status}; cannot complete.`);
     }
- 
+
     if (withdrawal.type !== 'MILESTONE_RELEASE' || !withdrawal.milestoneId) {
       return this.prisma.withdrawalRequest.update({
         where: { id: withdrawalId },
         data: { status: 'COMPLETED', confirmedAt: new Date() },
       });
     }
- 
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.withdrawalRequest.update({
         where: { id: withdrawalId },
         data: { status: 'COMPLETED', confirmedAt: new Date() },
       });
- 
+
       const milestone = await tx.milestone.findUnique({
         where: { id: withdrawal.milestoneId! },
       });
- 
+
       if (milestone && milestone.state === 'APPROVED') {
         await tx.milestone.update({
           where: { id: milestone.id },
           data: { state: 'RELEASED', releasedAt: new Date() },
         });
- 
+
         const unreleased = await tx.milestone.count({
           where: { engagementId: milestone.engagementId, state: { not: 'RELEASED' } },
         });
- 
+
         if (unreleased === 0) {
           await tx.engagement.update({
             where: { id: milestone.engagementId },
@@ -194,7 +199,7 @@ export class AdminService {
           });
         }
       }
- 
+
       return updated;
     });
   }
@@ -223,10 +228,10 @@ export class AdminService {
 
       await tx.walletTransaction.create({
         data: {
-          walletId:        wallet.id,
-          amount:          withdrawal.amount,
+          walletId: wallet.id,
+          amount: withdrawal.amount,
           transactionType: TransactionType.WITHDRAWAL,
-          referenceId:     `WD-${withdrawal.id}-REVERSAL`,
+          referenceId: `WD-${withdrawal.id}-REVERSAL`,
         },
       });
 
@@ -260,9 +265,9 @@ export class AdminService {
   }) {
     return this.prisma.subscriptionPackage.create({
       data: {
-        role:           dto.role,
-        name:           dto.name,
-        priceVnd:       BigInt(dto.priceVnd),
+        role: dto.role,
+        name: dto.name,
+        priceVnd: BigInt(dto.priceVnd),
         durationMonths: dto.durationMonths,
       },
     });
@@ -277,10 +282,10 @@ export class AdminService {
     return this.prisma.subscriptionPackage.update({
       where: { id: packageId },
       data: {
-        ...(dto.priceVnd       !== undefined && { priceVnd: BigInt(dto.priceVnd) }),
+        ...(dto.priceVnd !== undefined && { priceVnd: BigInt(dto.priceVnd) }),
         ...(dto.durationMonths !== undefined && { durationMonths: dto.durationMonths }),
-        ...(dto.name           !== undefined && { name: dto.name }),
-        ...(dto.isActive       !== undefined && { isActive: dto.isActive }),
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });
   }
@@ -370,8 +375,8 @@ export class AdminService {
     if (pkg._count.purchaseLogs > 0) {
       throw new UnprocessableEntityException(
         `Cannot delete "${pkg.name}" — it has ${pkg._count.purchaseLogs} purchase record(s) ` +
-        `linked to it. Deactivate it instead (PUT /admin/subscriptions/packages/${packageId} ` +
-        `with { "isActive": false }) to hide it from new activations without losing history.`,
+          `linked to it. Deactivate it instead (PUT /admin/subscriptions/packages/${packageId} ` +
+          `with { "isActive": false }) to hide it from new activations without losing history.`,
       );
     }
 

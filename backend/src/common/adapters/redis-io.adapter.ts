@@ -12,9 +12,9 @@ export class RedisIoAdapter extends IoAdapter {
     const isTls = redisUrl.startsWith('rediss://');
     const socketOptions = isTls ? { tls: true, rejectUnauthorized: false } : {};
 
-    const pubClient = createClient({ 
+    const pubClient = createClient({
       url: redisUrl,
-      socket: socketOptions
+      socket: socketOptions,
     });
     const subClient = pubClient.duplicate();
 
@@ -30,7 +30,9 @@ export class RedisIoAdapter extends IoAdapter {
     await Promise.all([pubClient.connect(), subClient.connect()]);
 
     this.adapterConstructor = createAdapter(pubClient, subClient);
-    this.logger.log(`Successfully connected to Redis at ${redisUrl.replace(/:[^:]*@/, '@')} for WebSocket scaling`);
+    this.logger.log(
+      `Successfully connected to Redis at ${redisUrl.replace(/:[^:]*@/, '@')} for WebSocket scaling`,
+    );
   }
 
   createIOServer(port: number, options?: ServerOptions): any {

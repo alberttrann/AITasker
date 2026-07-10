@@ -28,11 +28,15 @@ export class LedgerService {
       throw new NotFoundException('Milestone not found.');
     }
 
-    if (!(mileStone.state === MilestoneState.SUBMITTED || mileStone.state === MilestoneState.APPROVED)) {
+    if (
+      !(mileStone.state === MilestoneState.SUBMITTED || mileStone.state === MilestoneState.APPROVED)
+    ) {
       throw new ConflictException('This milestone is not submitted or approved!');
     }
 
-    const escrowAccount = await tx.escrowAccount.findFirst({ where: { milestoneId: mileStone.id } });
+    const escrowAccount = await tx.escrowAccount.findFirst({
+      where: { milestoneId: mileStone.id },
+    });
 
     if (!escrowAccount) {
       throw new NotFoundException('No escrow account found for this milestone.');
@@ -125,22 +129,22 @@ export class LedgerService {
       where: { id: escrowAccount.expertWalletId },
       select: { userId: true },
     });
- 
+
     if (expertWallet) {
       const expertUser = await tx.user.findUnique({
         where: { id: expertWallet.userId },
         select: { sepayBankAccountXid: true },
       });
- 
+
       if (expertUser?.sepayBankAccountXid) {
         await tx.withdrawalRequest.create({
           data: {
-            expertId:       expertWallet.userId,
-            milestoneId:    mileStone.id,
-            type:           'MILESTONE_RELEASE',
-            amount:         expertAmount,
+            expertId: expertWallet.userId,
+            milestoneId: mileStone.id,
+            type: 'MILESTONE_RELEASE',
+            amount: expertAmount,
             bankAccountXid: expertUser.sepayBankAccountXid,
-            status:         'PENDING',
+            status: 'PENDING',
           },
         });
       }
@@ -320,12 +324,12 @@ export class LedgerService {
     referenceCode: string,
   ): Promise<void> {
     const amountValue = typeof amount === 'bigint' ? amount : BigInt(amount);
- 
+
     await tx.wallet.update({
       where: { id: clientWalletId },
       data: { availableBalance: { increment: amountValue } },
     });
- 
+
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
@@ -334,7 +338,7 @@ export class LedgerService {
         referenceId: referenceCode,
       },
     });
- 
+
     await tx.wallet.update({
       where: { id: clientWalletId },
       data: {
@@ -342,7 +346,7 @@ export class LedgerService {
         lockedBalance: { increment: amountValue },
       },
     });
- 
+
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
@@ -351,7 +355,7 @@ export class LedgerService {
         referenceId: `LOCK-${milestoneId}`,
       },
     });
- 
+
     await tx.escrowAccount.create({
       data: {
         milestoneId,

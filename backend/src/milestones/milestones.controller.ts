@@ -1,9 +1,9 @@
-import { Controller, Post, Get, Body, UseGuards, Put, Param } from '@nestjs/common';
-import { MilestonesService }  from './milestones.service';
+import { Controller, Post, Get, Body, UseGuards, Put, Patch, Delete, Param } from '@nestjs/common';
+import { MilestonesService } from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard }   from '../common/guards/roles.guard';
-import { Roles }        from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
@@ -38,6 +38,30 @@ export class MilestonesController {
   @ApiOperation({ summary: 'Initiate funding for a milestone' })
   @ApiResponse({ status: 200, description: 'Milestone status updated to AWAITING_PAYMENT.' })
   async fundMilestone(@Param('id') id: string) {
-    return this.milestonesService.initiateFunding(id);  
+    return this.milestonesService.initiateFunding(id);
+  }
+
+  // Edit milestone fields (only while state = DEFINED)
+  @Patch(':id')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'Edit milestone details — only while state is DEFINED' })
+  @ApiResponse({ status: 200, description: 'Milestone updated.' })
+  @ApiResponse({ status: 422, description: 'Milestone is not in DEFINED state.' })
+  async updateMilestone(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateMilestoneDto,
+  ) {
+    return this.milestonesService.updateMilestone(id, user.id, dto);
+  }
+
+  // Delete milestone (only while state = DEFINED)
+  @Delete(':id')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'Delete a milestone — only while state is DEFINED' })
+  @ApiResponse({ status: 200, description: 'Milestone deleted.' })
+  @ApiResponse({ status: 422, description: 'Milestone is not in DEFINED state.' })
+  async deleteMilestone(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.milestonesService.deleteMilestone(id, user.id);
   }
 }

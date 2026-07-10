@@ -14,8 +14,8 @@ import { EmailValidatorService } from './email-validator.service';
     AuthService,
     PrismaService,
     JwtStrategy,
-    EmailService,           // sends password reset emails
-    EmailValidatorService,  // MX record + disposable domain check
+    EmailService, // sends password reset emails
+    EmailValidatorService, // MX record + disposable domain check
   ],
   exports: [JwtStrategy, PassportModule, AuthService],
   imports: [

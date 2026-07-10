@@ -1,13 +1,11 @@
-import {
-  Controller, Get, Post, Put, Param, Query,
-  UseGuards, Request, Body,
-} from '@nestjs/common';
-import { ProjectsService }   from './projects.service';
-import { JwtAuthGuard }      from '@common/guards/jwt-auth.guard';
-import { RolesGuard }        from '@common/guards/roles.guard';
-import { Roles }             from '@common/decorators/roles.decorator';
+import { Controller, Get, Post, Put, Param, Query, UseGuards, Request, Body } from '@nestjs/common';
+import { ProjectsService } from './projects.service';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { MilestoneChatDto }  from './dto/milestone-chat.dto';
+import { MilestoneChatDto } from './dto/milestone-chat.dto';
+import { UpdateProjectMilestonesDto } from './dto/update-project-milestones.dto';
 
 @ApiTags('Projects')
 @Controller('projects')
@@ -21,7 +19,10 @@ export class ProjectsController {
   @ApiBearerAuth('JWT')
   async getProjectDetails(@Param('id') projectId: string, @Request() req: any) {
     return this.projectsService.findProject(
-      projectId, req.user.id, req.user.activeRole, req.user.clientSubtype,
+      projectId,
+      req.user.id,
+      req.user.activeRole,
+      req.user.clientSubtype,
     );
   }
 
@@ -41,7 +42,10 @@ export class ProjectsController {
   @ApiBearerAuth('JWT')
   async getProjectArtifactA(@Param('id') projectId: string, @Request() req: any) {
     return this.projectsService.findProjectArtifactA(
-      projectId, req.user.id, req.user.activeRole, req.user.clientSubtype,
+      projectId,
+      req.user.id,
+      req.user.activeRole,
+      req.user.clientSubtype,
     );
   }
 
@@ -51,7 +55,10 @@ export class ProjectsController {
   @ApiBearerAuth('JWT')
   async getProjectArtifactB(@Param('id') projectId: string, @Request() req: any) {
     return this.projectsService.findProjectArtifactB(
-      projectId, req.user.id, req.user.activeRole, req.user.clientSubtype,
+      projectId,
+      req.user.id,
+      req.user.activeRole,
+      req.user.clientSubtype,
     );
   }
 
@@ -65,6 +72,19 @@ export class ProjectsController {
     @Request() req: any,
   ) {
     return this.projectsService.updateProjectName(projectId, req.user.id, projectName);
+  }
+
+  @Put(':id/milestones')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Update the project milestone framework' })
+  async updateProjectMilestones(
+    @Param('id') projectId: string,
+    @Body() dto: UpdateProjectMilestonesDto,
+    @Request() req: any,
+  ) {
+    return this.projectsService.updateProjectMilestones(projectId, req.user.id, dto.milestones);
   }
 
   // Milestone contextual chatbot

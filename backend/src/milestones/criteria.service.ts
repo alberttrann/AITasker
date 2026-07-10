@@ -50,7 +50,8 @@ export class CriteriaService {
         if (openDispute) {
           return {
             success: true,
-            message: 'Criterion verified, but milestone has an open dispute — release held until resolved.',
+            message:
+              'Criterion verified, but milestone has an open dispute — release held until resolved.',
           };
         }
 

@@ -1,7 +1,7 @@
-import { Module }               from '@nestjs/common';
-import { PrismaModule }         from '../database/prisma.module';
-import { SubmissionsController }  from './submissions.controller';
-import { SubmissionsService }    from './submissions.service';
+import { Module } from '@nestjs/common';
+import { PrismaModule } from '../database/prisma.module';
+import { SubmissionsController } from './submissions.controller';
+import { SubmissionsService } from './submissions.service';
 
 @Module( {
     imports: [PrismaModule],
@@ -10,5 +10,4 @@ import { SubmissionsService }    from './submissions.service';
     exports : [SubmissionsService]
 
 })
-
 export class SubmissionsModule {}

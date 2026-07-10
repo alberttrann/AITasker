@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service'; 
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -7,7 +12,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly eventEmitter: EventEmitter2 
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   //Expert nộp sản phẩm bàn giao (DoD Gate)
@@ -72,11 +77,11 @@ export class SubmissionsService {
         this.eventEmitter.emit('socket.broadcast', {
           userId: eng.clientId,
           event: 'milestone:updated',
-          payload: { 
-            engagement_id: eng.id, 
-            milestone_number: milestone.milestoneNumber, 
-            state: 'SUBMITTED' 
-          }
+          payload: {
+            engagement_id: eng.id,
+            milestone_number: milestone.milestoneNumber,
+            state: 'SUBMITTED',
+          },
         });
       }
 
@@ -105,7 +110,41 @@ export class SubmissionsService {
         });
   }
 
-  async downloadDocument(milestoneId: string) {
+  async downloadDocument(
+    milestoneId: string,
+    user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: true },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    // Party-checks for highly sensitive artifact access
+    const isExpertParty = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
+    const isAdmin = user.activeRole === 'ADMIN';
+
+    let isLinkedTechTeam = false;
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'TECH_TEAM' &&
+      milestone.engagement.projectId
+    ) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+      });
+      isLinkedTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
+    }
+
+    if (!isExpertParty && !isLinkedTechTeam && !isAdmin) {
+      throw new ForbiddenException(
+        "You are not authorized to access this milestone's pay-gated documents.",
+      );
+    }
+
     const docs = await this.prisma.paygatedDocument.findMany({
       where: {
         milestoneId: milestoneId,

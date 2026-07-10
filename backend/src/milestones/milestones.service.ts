@@ -1,10 +1,12 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
 import { PrismaService }      from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
-import { VAEntityType }       from '@common/enums/va-entity-type.enum';
-import { MilestoneState }     from '@common/enums/milestone-state.enum';
-import { LedgerService }      from '@shared/ledger/ledger.service';
-import { FastapiClient }      from '../elicitation/fastapi.client';
+import { VAEntityType } from '@common/enums/va-entity-type.enum';
+import { MilestoneState } from '@common/enums/milestone-state.enum';
+import { LedgerService } from '@shared/ledger/ledger.service';
+import { FastapiClient } from '../elicitation/fastapi.client';
+import { generateVaNumber } from '@shared/ledger/va-generator';
+import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 
 @Injectable()
 export class MilestonesService {
@@ -133,5 +135,60 @@ export class MilestonesService {
         vaExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
+  }
+
+  async updateMilestone(milestoneId: string, userId: string, dto: UpdateMilestoneDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: {
+        engagement: { select: { clientId: true, state: true } },
+      },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    if (milestone.engagement.clientId !== userId) {
+      throw new ForbiddenException('Only the project CEO can edit milestones.');
+    }
+    if (milestone.state !== 'DEFINED') {
+      throw new UnprocessableEntityException(
+        `Cannot edit a milestone in state '${milestone.state}'. Only DEFINED milestones can be edited.`,
+      );
+    }
+
+    return this.prisma.milestone.update({
+      where: { id: milestoneId },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.deliverable_statement !== undefined && {
+          deliverableStatement: dto.deliverable_statement,
+        }),
+        ...(dto.sign_off_authority !== undefined && { signOffAuthority: dto.sign_off_authority }),
+        ...(dto.payment_amount_vnd !== undefined && {
+          paymentAmountVnd: BigInt(dto.payment_amount_vnd),
+        }),
+        ...(dto.estimated_duration_days !== undefined && {
+          estimatedDurationDays: dto.estimated_duration_days,
+        }),
+        ...(dto.tech_stack !== undefined && { techStackJson: dto.tech_stack }),
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async deleteMilestone(milestoneId: string, userId: string) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: { select: { clientId: true } } },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    if (milestone.engagement.clientId !== userId) {
+      throw new ForbiddenException('Only the project CEO can delete milestones.');
+    }
+    if (milestone.state !== 'DEFINED') {
+      throw new UnprocessableEntityException(
+        `Cannot delete a milestone in state '${milestone.state}'. Only DEFINED milestones can be deleted.`,
+      );
+    }
+
+    return this.prisma.milestone.delete({ where: { id: milestoneId } });
   }
 }

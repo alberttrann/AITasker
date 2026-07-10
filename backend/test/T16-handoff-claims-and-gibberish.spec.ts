@@ -42,7 +42,7 @@ describe('T16: Stage 1 Gibberish Check & Tech Team Handoff Claim (E2E)', () => {
     });
     ceoId = ceoRes.user.id;
     ceoToken = JwtFactory.ceoToken(ceoId);
-    
+
     await prisma.user.update({
       where: { id: ceoId },
       data: {
@@ -97,7 +97,9 @@ describe('T16: Stage 1 Gibberish Check & Tech Team Handoff Claim (E2E)', () => {
         })
         .expect(400);
 
-      expect(res.body.message).toContain('Your description does not contain any recognizable technical or business symptoms');
+      expect(res.body.message).toContain(
+        'Your description does not contain any recognizable technical or business symptoms',
+      );
     });
 
     it('should accept valid symptom text and progress to Stage 2', async () => {
@@ -105,7 +107,8 @@ describe('T16: Stage 1 Gibberish Check & Tech Team Handoff Claim (E2E)', () => {
         .put(`/elicitation/sessions/${sessionId}/stage1`)
         .set('Authorization', `Bearer ${ceoToken}`)
         .send({
-          symptomText: 'Our customer support chatbot keeps giving wrong answers about our product catalogue. We have 50,000 daily users and no system to measure accuracy.',
+          symptomText:
+            'Our customer support chatbot keeps giving wrong answers about our product catalogue. We have 50,000 daily users and no system to measure accuracy.',
         })
         .expect(200);
 
@@ -127,14 +130,16 @@ describe('T16: Stage 1 Gibberish Check & Tech Team Handoff Claim (E2E)', () => {
           recommendedArchetypesJson: recommended,
           stage3ProbesJson: {
             'Roughly how many people will search or ask questions per day?': '2,000',
-            'When someone gets a wrong or unhelpful answer, what do you expect to happen next?': 'Escalate',
-            'Does this need to pull from documents/systems you already have, and which ones?': 'Zendesk',
+            'When someone gets a wrong or unhelpful answer, what do you expect to happen next?':
+              'Escalate',
+            'Does this need to pull from documents/systems you already have, and which ones?':
+              'Zendesk',
             'How quickly does an answer need to appear after someone asks?': '3 seconds',
           },
         },
       });
 
-      // Tạo Link bàn giao 
+      // Tạo Link bàn giao
       const res = await supertest(app.getHttpServer())
         .post(`/elicitation/sessions/${sessionId}/generate-handoff-link`)
         .set('Authorization', `Bearer ${ceoToken}`)
@@ -175,7 +180,7 @@ describe('T16: Stage 1 Gibberish Check & Tech Team Handoff Claim (E2E)', () => {
     it('should reject when trying to reclaim the already consumed handoff token', async () => {
       // Thử dùng một tài khoản khác để chiếm dụng lại token cũ
       const otherCeoToken = JwtFactory.ceoToken('00000000-0000-0000-0000-000000000099');
-      
+
       const res = await supertest(app.getHttpServer())
         .post('/auth/claim-handoff')
         .set('Authorization', `Bearer ${otherCeoToken}`)

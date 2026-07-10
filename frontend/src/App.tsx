@@ -39,6 +39,7 @@ const WithdrawalRequests = lazy(() => import("@features/admin/ledger/WithdrawalR
 const SubscriptionPackagesPage = lazy(() => import("@features/admin/packages/SubscriptionPackagesPage"));
 const ConfigurationPage = lazy(() => import("@features/admin/config/ConfigurationPage"));
 const DomainSeamConfigPage = lazy(() => import("@features/admin/config/DomainSeamConfigPage"));
+const ArchetypeConfigPage = lazy(() => import("@features/admin/config/ArchetypeConfigPage"));
 const ProfilePage = lazy(() => import("./components/pages/UserProfilePage"));
 const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingPage"));
 const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
@@ -53,16 +54,23 @@ const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/Elicitati
 const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView"));
 const ProjectsPage = lazy(() => import("@features/ceo/pages/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("@features/ceo/pages/ProjectDetailPage"));
+const CeoBidList = lazy(() => import("@features/ceo/bids/CeoBidList"));
 const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage"));
 const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
 const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
 const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickThrough"));
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
+const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
+const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
 const BidApprove = lazy(() => import("@features/tech-team/bids/BidApprove"));
 const BidRevisionRequest = lazy(() => import("@features/tech-team/bids/BidRevisionRequest"));
+const MilestoneList = lazy(() => import("./features/ceo/milestones/MilestoneList"));
+const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMilestone"));
+const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
+const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
 
 function RootLayout() {
   return (
@@ -102,10 +110,27 @@ const router = createBrowserRouter(
             <Route path="subscriptions" element={<SubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
-            <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
+            <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
+            <Route path="projects/:projectId/bids" element={<CeoBidList />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones"
+              element={<MilestoneList />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/create"
+              element={<CreateMilestone />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId"
+              element={<MilestoneDetail />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/fund"
+              element={<FundMilestone />}
             />
           </Route>
         </Route>
@@ -114,6 +139,8 @@ const router = createBrowserRouter(
           {/* /expert/* — all Expert screens will nest here */}
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
+            <Route path="service" element={<ExpertServicesPage />} />
+            <Route path="service/projects" element={<ExpertProjectsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
@@ -151,7 +178,10 @@ const router = createBrowserRouter(
             <Route path="bids" element={<BidReviewList />} />
             <Route path="bids/:bidId" element={<BidReviewDetail />} />
             <Route path="bids/:bidId/approve" element={<BidApprove />} />
-            <Route path="bids/:bidId/revision" element={<BidRevisionRequest />} />
+            <Route
+              path="bids/:bidId/revision"
+              element={<BidRevisionRequest />}
+            />
           </Route>
         </Route>
 
@@ -165,6 +195,7 @@ const router = createBrowserRouter(
             <Route path="config" element={<ConfigurationPage />} />
             <Route path="config/packages" element={<SubscriptionPackagesPage />} />
             <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
+            <Route path="config/archetypes" element={<ArchetypeConfigPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
             <Route path="disputes/:id" element={<DisputeDetail />} />
             <Route path="disputes/:id/resolve" element={<ResolutionConfirm />} />
@@ -178,8 +209,8 @@ const router = createBrowserRouter(
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}
       <Route path="*" element={<ErrorPage />} />
-    </Route>
-  )
+    </Route>,
+  ),
 );
 
 export default function App() {

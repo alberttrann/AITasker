@@ -1,7 +1,7 @@
-import { Test, TestingModule }     from '@nestjs/testing';
-import { INestApplication }        from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule }               from '../../src/app.module';
+import { AppModule } from '../../src/app.module';
 
 import supertest = require('supertest');
 
@@ -31,7 +31,9 @@ describe('Swagger spec validation', () => {
     swaggerJson = res.body;
   });
 
-  afterAll(async () => { await app.close(); });
+  afterAll(async () => {
+    await app.close();
+  });
 
   it('generates a valid OpenAPI 3.x spec', () => {
     expect(swaggerJson.openapi).toMatch(/^3\./);
@@ -42,55 +44,45 @@ describe('Swagger spec validation', () => {
   const REQUIRED_ENDPOINTS: Array<[string, string]> = [
     ['post', '/auth/register'],
     ['post', '/auth/login'],
-    ['put',  '/auth/switch-role'],
+    ['put', '/auth/switch-role'],
     ['post', '/auth/register/handoff'],
     ['post', '/auth/refresh'],
     ['post', '/elicitation/sessions'],
-    ['get',  '/elicitation/sessions/{id}'],
-    ['put',  '/elicitation/sessions/{id}/stage1'],
-    ['put',  '/elicitation/sessions/{id}/stage2'],
-    ['put',  '/elicitation/sessions/{id}/stage3'],
-    ['put',  '/elicitation/sessions/{id}/stage4'],
-    ['put',  '/elicitation/sessions/{id}/stage4-handoff'],
-    ['post', '/elicitation/sessions/{id}/generate-handoff-link'],   
-    ['put',  '/elicitation/sessions/{id}/self-technical'],     
-    ['post', '/elicitation/sessions/{id}/retry-synthesis'],    
-    ['get',  '/wallets/me'],
-    ['get',  '/wallets/me/transactions'],
+    ['get', '/elicitation/sessions/{id}'],
+    ['put', '/elicitation/sessions/{id}/stage1'],
+    ['put', '/elicitation/sessions/{id}/stage2'],
+    ['put', '/elicitation/sessions/{id}/stage3'],
+    ['put', '/elicitation/sessions/{id}/stage4'],
+    ['put', '/elicitation/sessions/{id}/stage4-handoff'],
+    ['post', '/elicitation/sessions/{id}/generate-handoff-link'],
+    ['put', '/elicitation/sessions/{id}/self-technical'],
+    ['post', '/elicitation/sessions/{id}/retry-synthesis'],
+    ['get', '/wallets/me'],
+    ['get', '/wallets/me/transactions'],
     ['post', '/wallets/virtual-accounts/topup'],
     ['post', '/webhooks/sepay/ipn'],
-    ['post', '/subscriptions/activate'],                       
-    ['get',  '/subscriptions/status'],                         
+    ['post', '/subscriptions/activate'],
+    ['get', '/subscriptions/status'],
   ];
 
-  it.each(REQUIRED_ENDPOINTS)(
-    '%s %s is documented in the spec',
-    (method, path) => {
-      const pathEntry = swaggerJson.paths[path];
-      expect(pathEntry).toBeDefined();
-      expect(pathEntry[method]).toBeDefined();
-    },
-  );
+  it.each(REQUIRED_ENDPOINTS)('%s %s is documented in the spec', (method, path) => {
+    const pathEntry = swaggerJson.paths[path];
+    expect(pathEntry).toBeDefined();
+    expect(pathEntry[method]).toBeDefined();
+  });
 
   it('POST /elicitation/sessions/{id}/confirm no longer exists (replaced by retry-synthesis)', () => {
     const pathEntry = swaggerJson.paths['/elicitation/sessions/{id}/confirm'];
     expect(pathEntry).toBeUndefined();
   });
 
-  const JWT_PROTECTED = [
-    '/elicitation/sessions',
-    '/wallets/me',
-    '/auth/switch-role',
-  ];
+  const JWT_PROTECTED = ['/elicitation/sessions', '/wallets/me', '/auth/switch-role'];
 
-  it.each(JWT_PROTECTED)(
-    '%s documents Bearer auth requirement',
-    (path) => {
-      const methods = Object.values(swaggerJson.paths[path] ?? {}) as any[];
-      const hasSecurity = methods.some(
-        (m) => m?.security?.some((s: any) => 'bearer' in s || 'JWT' in s),
-      );
-      expect(hasSecurity).toBe(true);
-    },
-  );
+  it.each(JWT_PROTECTED)('%s documents Bearer auth requirement', (path) => {
+    const methods = Object.values(swaggerJson.paths[path] ?? {}) as any[];
+    const hasSecurity = methods.some((m) =>
+      m?.security?.some((s: any) => 'bearer' in s || 'JWT' in s),
+    );
+    expect(hasSecurity).toBe(true);
+  });
 });

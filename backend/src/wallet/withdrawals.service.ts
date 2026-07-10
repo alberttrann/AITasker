@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { TransactionType } from '@common/enums/transaction-type.enum';
@@ -38,20 +43,20 @@ export class WithdrawalsService {
 
       const withdrawalRequest = await tx.withdrawalRequest.create({
         data: {
-          expertId:       expertUserId,
-          type:           'EXPERT_MANUAL',
-          amount:         dto.amount,
+          expertId: expertUserId,
+          type: 'EXPERT_MANUAL',
+          amount: dto.amount,
           bankAccountXid: user.sepayBankAccountXid!,
-          status:         'PENDING',
+          status: 'PENDING',
         },
       });
 
       await tx.walletTransaction.create({
         data: {
-          walletId:        wallet.id,
-          amount:          BigInt(dto.amount),
+          walletId: wallet.id,
+          amount: BigInt(dto.amount),
           transactionType: TransactionType.WITHDRAWAL,
-          referenceId:     `WD-${withdrawalRequest.id}`,
+          referenceId: `WD-${withdrawalRequest.id}`,
         },
       });
 
@@ -60,8 +65,8 @@ export class WithdrawalsService {
 
     return {
       withdrawal_request_id: result.id,
-      status:                result.status,
-      message:               PLACEHOLDER_DISBURSEMENT_MESSAGE,
+      status: result.status,
+      message: PLACEHOLDER_DISBURSEMENT_MESSAGE,
     };
   }
 
