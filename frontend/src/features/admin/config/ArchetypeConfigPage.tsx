@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import apiClient from '@/lib/api-client';
 import { useAdminArchetypes, useSaveAdminArchetype, useAdminProbeQuestions, useSaveAdminProbeQuestion } from '@/hooks/use-admin';
 import { Plus, Edit2, Trash2, ArrowLeft, Layers, MessageSquare, ChevronRight, GripVertical, Check, Save } from 'lucide-react';
