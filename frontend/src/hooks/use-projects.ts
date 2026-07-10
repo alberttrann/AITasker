@@ -103,6 +103,19 @@ export function useUpdateProjectName() {
   });
 }
 
+export function useUpdateProjectMilestones() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, milestones }: { id: string; milestones: any[] }) => {
+      await apiClient.put(`/projects/${id}/milestones`, { milestones });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+}
+
 /**
  * useSlimProjects — lightweight project list for CEO dashboard cards.
  * Hits GET /projects?slim=true — no JSON blobs, just scalar metadata.
