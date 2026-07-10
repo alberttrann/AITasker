@@ -3,6 +3,7 @@ import { Outlet, useNavigate, Link } from "react-router-dom";
 import TopNav from "@/components/layout/TopNav";
 import DashboardGreeting from "@/components/layout/DashboardGreeting";
 import { useProjects, useElicitationSessions } from "@/hooks/use-projects";
+import { useEngagements } from "@/hooks/use-engagements";
 import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock, Building } from "lucide-react";
 import { SuggestBox } from "@/components/ui/SuggestBox";
 import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
@@ -18,6 +19,7 @@ export function CeoOverview() {
 
   const { projects, isLoadingProjects } = useProjects();
   const { sessions, isLoadingSessions } = useElicitationSessions();
+  const { data: engagements, isLoading: isLoadingEngagements } = useEngagements();
 
   const activeSessions = sessions.filter(s => s.state === 'IN_PROGRESS').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   
@@ -57,13 +59,23 @@ export function CeoOverview() {
 
 
 
-  const elicitationMetrics: WidgetMetric[] = [
+  const newBidsCount = (engagements || []).filter((e: any) => e.capabilityBid && (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')).length;
+
+  const dashboardMetrics: WidgetMetric[] = [
     {
       id: 'elicitation',
       label: 'Elicitation Engine',
       value: mostRecentSession ? `Stage ${(mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1}` : 'Ready',
       subValue: mostRecentSession ? getStageName((mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1) : 'Generate a PRD',
       icon: <Bot size={20} />,
+      href: '/ceo/projects'
+    },
+    {
+      id: 'projects',
+      label: 'Active Projects',
+      value: `${projects.length}`,
+      subValue: `${newBidsCount} new bids to review`,
+      icon: <FileText size={20} />,
       href: '/ceo/projects'
     }
   ];
@@ -121,7 +133,7 @@ export function CeoOverview() {
       {/* Workspace / Quick Actions Section */}
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
-        {isLoadingSessions || isLoadingProjects ? (
+        {isLoadingSessions || isLoadingProjects || isLoadingEngagements ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             <div className="h-auto bg-white border border-slate-200 rounded-[20px] p-6 flex flex-col justify-between animate-pulse min-h-[160px]">
               <div className="flex justify-between items-start mb-6">
@@ -137,7 +149,7 @@ export function CeoOverview() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-            <Widget metrics={elicitationMetrics} variant="slate" />
+            <Widget metrics={dashboardMetrics} variant="slate" />
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { useProjects, useUpdateProjectName } from "@/hooks/use-projects";
 import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
+import { useEngagements } from "@/hooks/use-engagements";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,18 @@ export default function ProjectDetailPage() {
   
   const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
   const isLoadingProject = isLoadingProjects;
+  
+  const { data: engagements } = useEngagements();
+  
+  const hasNewBids = useMemo(() => {
+    if (!engagements || !project) return false;
+    return engagements.some(
+      (e: any) =>
+        (e.projectId === project.id || e.project_id === project.id) &&
+        e.capabilityBid &&
+        (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
+    );
+  }, [engagements, project]);
   
   const user = useAuthStore(s => s.user);
   const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
@@ -181,12 +194,27 @@ export default function ProjectDetailPage() {
                 View Bids <ArrowRight size={16} />
               </Link>
             ) : (
-              <Link
-                to={`/ceo/projects/shortlist/${project.id}`}
-                className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
-              >
-                View Shortlist <ArrowRight size={16} />
-              </Link>
+              <div className="flex flex-col items-end gap-2">
+                <Link
+                  to={`/ceo/projects/${project.id}/shortlist`}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-all"
+                >
+                  View matched Expert <ArrowRight size={16} />
+                </Link>
+                <Link
+                  to={`/ceo/projects/${project.id}/bids`}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-800 hover:underline transition-all"
+                >
+                  View Experts bids
+                  {hasNewBids && (
+                    <span className="relative flex h-2 w-2 ml-1">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  )}
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
             )}
           </div>
         </div>

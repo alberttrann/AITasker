@@ -50,11 +50,14 @@ const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/Elicitati
 const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView"));
 const ProjectsPage = lazy(() => import("@features/ceo/pages/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("@features/ceo/pages/ProjectDetailPage"));
+const CeoBidList = lazy(() => import("@features/ceo/bids/CeoBidList"));
 const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage"));
 const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
 const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
 const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickThrough"));
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
+const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
+const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
@@ -99,7 +102,8 @@ const router = createBrowserRouter(
             <Route path="subscriptions" element={<SubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
-            <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
+            <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
+            <Route path="projects/:projectId/bids" element={<CeoBidList />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
@@ -111,6 +115,8 @@ const router = createBrowserRouter(
           {/* /expert/* — all Expert screens will nest here */}
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
+            <Route path="service" element={<ExpertServicesPage />} />
+            <Route path="service/projects" element={<ExpertProjectsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />

@@ -671,3 +671,32 @@ export interface ProbeQuestion {
   displayOrder: number;
   isActive: boolean;
 }
+
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+export interface InvitationDto {
+  id:          string;
+  projectId:   string;
+  expertId:    string;
+  ceoId:       string;
+  message:     string | null;
+  status:      'PENDING' | 'ACCEPTED' | 'DECLINED';
+  invitedAt:   string;
+  respondedAt: string | null;
+  expiresAt:   string | null;
+  isExpired:   boolean;
+  project: {
+    id:                  string;
+    projectName:         string;
+    state:               string;
+    archetype:           string;
+    tier:                string;
+    createdAt:           string;
+    requiredDomainsJson: any[];
+    requiredSeamsJson:   any[];
+  };
+  ceo: {
+    id:       string;
+    fullName: string;
+  };
+}

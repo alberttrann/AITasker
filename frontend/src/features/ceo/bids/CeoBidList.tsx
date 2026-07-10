@@ -87,9 +87,9 @@ export default function CeoBidList() {
             Invite experts from the shortlist to get started.
           </p>
           <Button
-            variant="secondary"
-            className="mt-4"
-            onClick={() => navigate(`/ceo/projects/shortlist/${projectId}`)}
+            variant="outline"
+            className="mt-4 flex items-center gap-2"
+            onClick={() => navigate(`/ceo/projects/${projectId}/shortlist`)}
           >
             View Shortlist
           </Button>
