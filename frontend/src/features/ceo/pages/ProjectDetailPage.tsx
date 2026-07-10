@@ -33,6 +33,10 @@ export default function ProjectDetailPage() {
   const [editNameValue, setEditNameValue] = useState("");
   const updateProjectName = useUpdateProjectName();
 
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
+  const { data: archetypesList } = useArchetypes();
+
   const handleSaveName = () => {
     if (!editNameValue.trim() || !project) {
       setIsEditingName(false);
@@ -78,10 +82,6 @@ export default function ProjectDetailPage() {
   const seams = project.requiredSeamsJson || (project as any).required_seams_json || [];
   const artifactA = project.artifactAJson || (project as any).artifact_a_json || null;
   const milestones = project.milestoneFrameworkJson || (project as any).milestone_framework_json || [];
-  
-  const { data: dynamicDomains } = useDomains();
-  const { data: dynamicSeams } = useSeams();
-  const { data: archetypesList } = useArchetypes();
 
   const archetype = project.archetype;
   const archetypeData = archetype && archetypesList ? archetypesList.find(a => a.code === archetype) : null;
