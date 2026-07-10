@@ -46,6 +46,8 @@ const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/Subscripti
 const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
 const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
 const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
+const BidList = lazy(() => import("@features/ceo/bids/BidList"));
+const BidDetail = lazy(() => import("@features/ceo/bids/BidDetail"));
 const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView"));
 const ProjectsPage = lazy(() => import("@features/ceo/pages/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("@features/ceo/pages/ProjectDetailPage"));
@@ -98,6 +100,8 @@ const router = createBrowserRouter(
             <Route path="subscriptions" element={<SubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
+            <Route path="project/:projectId/bids" element={<BidList />} />
+            <Route path="project/:projectId/bids/:bidId" element={<BidDetail />} />
             <Route path="projects/shortlist/:projectId" element={<ShortlistView />} />
             <Route
               path="engagements/:engagementId/nda"
