@@ -1,38 +1,62 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 
-import type { DomainDefinition, SeamDefinition, ArchetypeDefinition, ProbeQuestion as ProbeQuestionDefinition } from '@/types/api.types';
-export function useDomains() {
+import type { 
+  DomainDefinition, 
+  SeamDefinition, 
+  ArchetypeDefinition, 
+  ProbeQuestion as ProbeQuestionDefinition,
+  SubPackage
+} from '@/types/api.types';
+
+export interface VoidCodeDefinition {
+  code: string;
+  title: string;
+  description: string;
+}
+
+export interface ConfigAllResponse {
+  domains: DomainDefinition[];
+  seams: SeamDefinition[];
+  archetypes: ArchetypeDefinition[];
+  voidCodes: VoidCodeDefinition[];
+  subscriptionPackages: SubPackage[];
+}
+
+export function useConfigAll() {
   return useQuery({
-    queryKey: ['domains'],
+    queryKey: ['config-all'],
     queryFn: async () => {
-      const { data } = await apiClient.get<DomainDefinition[]>('/config/domains');
+      const { data } = await apiClient.get<ConfigAllResponse>('/config/all');
       return data;
     },
-    staleTime: 1000 * 60 * 60, // 1 hour
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
+}
+
+export function useDomains() {
+  const { data, ...rest } = useConfigAll();
+  return { data: data?.domains, ...rest };
 }
 
 export function useSeams() {
-  return useQuery({
-    queryKey: ['seams'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<SeamDefinition[]>('/config/seams');
-      return data;
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
+  const { data, ...rest } = useConfigAll();
+  return { data: data?.seams, ...rest };
 }
 
 export function useArchetypes() {
-  return useQuery({
-    queryKey: ['archetypes'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<ArchetypeDefinition[]>('/config/archetypes');
-      return data;
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
+  const { data, ...rest } = useConfigAll();
+  return { data: data?.archetypes, ...rest };
+}
+
+export function useVoidCodes() {
+  const { data, ...rest } = useConfigAll();
+  return { data: data?.voidCodes, ...rest };
+}
+
+export function useSubscriptionPackages() {
+  const { data, ...rest } = useConfigAll();
+  return { data: data?.subscriptionPackages, ...rest };
 }
 
 export function useProbeQuestions(archetypeCode: string | undefined) {

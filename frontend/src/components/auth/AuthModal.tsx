@@ -95,6 +95,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
     ? ((register.error as any)?.response?.data?.message ?? 'Something went wrong. Please try again.')
     : null;
 
+  const renderApiError = (err: any) => {
+    if (!err) return null;
+    if (Array.isArray(err)) {
+      return (
+        <div className="bg-red-50 text-red-600 font-label-sm text-sm p-3 rounded-md text-left shadow-sm border border-red-100 mt-2">
+          <ul className="list-disc list-inside space-y-1">
+            {err.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </div>
+      );
+    }
+    return <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600 mt-2">{err}</div>;
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
 
@@ -214,7 +228,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <button type="button" onClick={() => setMode('forgotPassword')} className="font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors">Forgot Password?</button>
                 </div>
 
-                {loginError && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">{loginError}</div>}
+                {renderApiError(loginError)}
 
                 <Button
                   type="submit"
@@ -380,7 +394,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   )}
                   </div>
 
-                  {registerError && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600">{registerError}</div>}
+                  {renderApiError(registerError)}
 
                   <Button
                     type="submit"

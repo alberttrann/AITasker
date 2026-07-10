@@ -6,7 +6,7 @@ import { Plus, Edit2, Check, X, Package, Trash2, ArrowLeft } from 'lucide-react'
 import { formatVND } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { DataList } from '@/components/layout/Table';
-import { useSubscriptionPackages, useCreateSubscriptionPackage, useUpdateSubscriptionPackage, useDeleteSubscriptionPackage } from '@/hooks/use-admin';
+import { useAdminSubscriptionPackages, useCreateSubscriptionPackage, useUpdateSubscriptionPackage, useDeleteSubscriptionPackage } from '@/hooks/use-admin';
 
 import type { SubPackage } from '@/types/api.types';
 
@@ -25,7 +25,7 @@ export default function SubscriptionPackagesPage() {
     isActive: false
   });
 
-  const { data: packages, isLoading } = useSubscriptionPackages();
+  const { data: packages, isLoading } = useAdminSubscriptionPackages();
 
   const sortedPackages = React.useMemo(() => {
     if (!packages) return [];

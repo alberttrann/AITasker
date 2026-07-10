@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { formatVND, formatSeamCode } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -150,7 +151,7 @@ export default function BidReviewDetail() {
                       key={s.code}
                       className="inline-flex items-center gap-1.5 rounded-sm bg-tertiary/5 px-3 py-1 text-[13px] font-medium text-tertiary"
                     >
-                      {s.code}
+                      {formatSeamCode(s.code)}
                       <span className="text-[11px] opacity-70">
                         ({s.tier?.replace('_', ' ').toLowerCase()})
                       </span>

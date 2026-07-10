@@ -50,12 +50,29 @@ const login = useMutation({
 });
 
   // Logout 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout API failed:', e);
+    }
     store.logout();
     useNotificationsStore.getState().clear();
     queryClient.clear();
     navigate('/');
   };
+
+  // Change Password
+  const changePassword = useMutation({
+    mutationFn: async (payload: { currentPassword: string; newPassword: string }) => {
+      const { data } = await apiClient.put<{ message: string }>('/auth/me/password', payload);
+      return data;
+    },
+    onSuccess: () => {
+      // Side effect: All sessions invalidated. We should log out immediately.
+      logout();
+    }
+  });
 
   // Switch active role 
   const switchRole = useMutation({
@@ -133,6 +150,7 @@ const login = useMutation({
     switchRole,
     addRole,
     registerHandoff,
+    changePassword,
     forgotPassword,
     resetPassword,
     refreshUser,

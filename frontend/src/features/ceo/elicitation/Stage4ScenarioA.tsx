@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Input';
 import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Server, X } from 'lucide-react';
+import { Loader2, Plus, Trash2, Server, X, CheckCircle2 } from 'lucide-react';
 
 interface Stage4AProps {
   sessionId: string;
@@ -186,7 +186,29 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
             {isRecommending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : 'Let AI Recommend'}
           </Button>
         </div>
+        </div>
       </div>
+      
+      {session?.criticalArtifactsJson && session.criticalArtifactsJson.length > 0 && (
+        <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+          <h3 className="text-body font-bold text-blue-900 flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-blue-600" />
+            Critical Documents Required
+          </h3>
+          <p className="mt-1 text-body-sm text-blue-800">
+            Please make sure to provide links to the following required documents (you can place them in Schemas or Contracts below):
+          </p>
+          <ul className="mt-3 space-y-2">
+            {session.criticalArtifactsJson.map((artifact: any, idx: number) => (
+              <li key={idx} className="flex flex-col text-sm">
+                <span className="font-semibold text-blue-900">• {artifact.label}</span>
+                <span className="text-blue-700 ml-3 text-xs italic">{artifact.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
         {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
       <div className="space-y-6">
         <div className="space-y-2">

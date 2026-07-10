@@ -7,6 +7,7 @@ import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useExpertProfile } from "@/hooks/use-expert-profile";
 import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
+import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 // Unified type combining Invitation and Engagement logic
@@ -594,7 +595,8 @@ export default function ExpertProjectsPage() {
                         ) : fullProject?.required_seams_json?.length ? (
                           <div className="space-y-2">
                             {fullProject.required_seams_json.map((s: any, i: number) => {
-                              const seamName = seams?.find(def => def.code === s.seam_code)?.name || s.seam_code;
+                              const rawSeamName = seams?.find(def => def.code === s.seam_code)?.name || s.seam_code;
+                              const seamName = formatSeamCode(rawSeamName);
                               const isMatch = profile?.seamClaims?.some((ps: any) => (ps.seamCode || ps.code) === s.seam_code);
                               const bgFill = isMatch 
                                 ? "bg-emerald-50 border-emerald-200" 
@@ -654,10 +656,17 @@ export default function ExpertProjectsPage() {
                                   Phase {m.milestone_number}
                                 </span>
                                 
-                                {/* Formatted Price Preview */}
-                                <span className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-full shadow-sm">
-                                  {new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(m.payment_amount_vnd || 0)}
-                                </span>
+                                {/* Formatted Price & Duration Preview */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {m.estimated_duration_days !== undefined && (
+                                    <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <Clock className="w-3 h-3" /> {m.estimated_duration_days}d
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shadow-sm">
+                                    {new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(m.payment_amount_vnd || 0)}
+                                  </span>
+                                </div>
                               </div>
                             );
                           })}

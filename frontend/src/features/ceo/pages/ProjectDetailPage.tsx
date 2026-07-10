@@ -81,9 +81,17 @@ export default function ProjectDetailPage() {
   };
 
   const handleSaveMilestones = () => {
-    if (!project) return;
+    // Strip out any non-whitelisted fields to prevent 400 Bad Request
+    const cleanMilestones = editedMilestones.map(m => ({
+      milestone_number: m.milestone_number,
+      deliverable_statement: m.deliverable_statement || '',
+      payment_amount_vnd: m.payment_amount_vnd || 0,
+      estimated_duration_days: m.estimated_duration_days || 0,
+      sign_off_authority: m.sign_off_authority || 'CEO'
+    }));
+
     updateProjectMilestones.mutate(
-      { id: project.id, milestones: editedMilestones },
+      { id: project.id, milestones: cleanMilestones },
       {
         onSuccess: () => {
           setIsEditingMilestones(false);
@@ -389,36 +397,45 @@ export default function ProjectDetailPage() {
                 milestones?.length > 0 ? (
                   <div className="space-y-4">
                     {milestones.map((m: any, idx: number) => (
-                      <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-slate-800">Milestone {m.milestone_number}</h4>
-                          <span className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                            {(m.payment_amount_vnd || 0).toLocaleString()} VND
-                          </span>
-                        </div>
-                        <p className="text-slate-600 text-sm mb-3">{m.deliverable_statement || "Unnamed Milestone"}</p>
-                        
-                        <div className="flex items-center justify-between mt-1 pt-3 border-t border-slate-200/60">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                              SIGN OFF:
-                            </span>
-                            <div className="flex gap-1.5">
-                              {(m.sign_off_authority === 'CEO' || m.sign_off_authority === 'JOINT') && (
-                                <span className="px-2 py-0.5 rounded bg-slate-200/50 text-slate-700 text-[10px] font-bold tracking-wide border border-slate-200">CEO</span>
-                              )}
-                              {(m.sign_off_authority === 'TECH_TEAM' || m.sign_off_authority === 'JOINT') && (
-                                <span className="px-2 py-0.5 rounded bg-slate-200/50 text-slate-700 text-[10px] font-bold tracking-wide border border-slate-200">TECH TEAM</span>
+                      <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 transition-all duration-200">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="text-sm font-bold text-slate-400 tracking-wider">
+                                MILESTONE #{m.milestone_number}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800">
+                              {m.deliverable_statement || "No deliverable statement provided."}
+                            </h3>
+                            <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
+                              <span>
+                                Sign-off:{" "}
+                                <strong className="text-slate-700">
+                                  {m.sign_off_authority === 'JOINT' ? 'CEO, TECH TEAM' : (m.sign_off_authority || 'CEO').replace('_', ' ')}
+                                </strong>
+                              </span>
+                              {m.estimated_duration_days !== undefined && m.estimated_duration_days > 0 && (
+                                <span>
+                                  Duration:{" "}
+                                  <strong className="text-slate-700">
+                                    {m.estimated_duration_days} Days
+                                  </strong>
+                                </span>
                               )}
                             </div>
                           </div>
                           
-                          {m.estimated_duration_days !== undefined && (
-                            <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                              <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{m.estimated_duration_days} Days</span>
+                          <div className="flex md:flex-col items-end justify-between w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 gap-4">
+                            <div className="text-right">
+                              <p className="text-xs text-slate-400 uppercase font-semibold">
+                                Payment Amount
+                              </p>
+                              <p className="text-lg font-bold text-emerald-600">
+                                {m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—'}
+                              </p>
                             </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     ))}

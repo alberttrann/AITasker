@@ -3,6 +3,7 @@ import { useAuth } from '@hooks/use-auth';
 import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '@components/ui/Modal';
+import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [isSwitchRoleOpen, setIsSwitchRoleOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [showProExpiry, setShowProExpiry] = useState(false);
 
   // Wallet data
@@ -383,6 +385,16 @@ export default function ProfilePage() {
                 </div>
               </button>
             )}
+
+            <button 
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-slate-50 text-slate-900 transition-colors mt-1"
+            >
+              <div className="flex items-center gap-3 text-sm font-medium">
+                <Shield size={18} className="text-slate-600" />
+                Change Password
+              </div>
+            </button>
             
             <button 
               onClick={() => setIsSignOutOpen(true)}
@@ -439,6 +451,11 @@ export default function ProfilePage() {
       >
         Are you sure you want to switch your role to {isClient ? 'Expert' : 'Client'}? You can always switch back.
       </ConfirmModal>
+
+      <ChangePasswordModal 
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 }

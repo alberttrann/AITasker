@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Clock } from 'lucide-react';
 import type { MilestoneFrameworkItem } from '@/types/jsonb.types';
 
 export interface PricingItem {
@@ -100,9 +100,16 @@ export default function ConditionalPricing({
               <div className="bg-[#F8FAFC] p-4 border-b border-[#E2E8F0]">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h5 className="font-headline text-[13px] font-semibold text-[#0F172A]">
-                      Milestone {fwItem.milestone_number}
-                    </h5>
+                    <div className="flex items-center gap-3">
+                      <h5 className="font-headline text-[13px] font-semibold text-[#0F172A]">
+                        Milestone {fwItem.milestone_number}
+                      </h5>
+                      {fwItem.estimated_duration_days !== undefined && fwItem.estimated_duration_days > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                          <Clock className="w-3 h-3" /> {fwItem.estimated_duration_days}d
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-1 text-[13px] text-[#475569] leading-relaxed">
                       {fwItem.deliverable_statement || 'No deliverable statement provided.'}
                     </p>

@@ -1,5 +1,6 @@
 import { useMyPortfolioSubmissions } from '@/hooks/use-portfolio';
 import { CheckCircle2, XCircle, Clock, Lock } from 'lucide-react';
+import { formatSeamCode } from '@/lib/utils';
 
 const SEAM_LABELS: Record<string, string> = {
   'A↔B': 'Applied Agents',
@@ -85,9 +86,9 @@ export default function VerificationHistoryPage() {
               {/* Header row */}
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-slate-900">
-                    {SEAM_LABELS[sub.seamClaim.seamCode] ?? sub.seamClaim.seamCode}
-                  </p>
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">
+                    {formatSeamCode(SEAM_LABELS[sub.seamClaim.seamCode] ?? sub.seamClaim.seamCode)}
+                  </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Submitted {formatDate(sub.createdAt)}
                   </p>

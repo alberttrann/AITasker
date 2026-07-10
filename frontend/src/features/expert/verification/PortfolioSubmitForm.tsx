@@ -6,6 +6,7 @@ import Tier2Rejected from './Tier2Rejected';
 import VerificationLockout from './VerificationLockout';
 import { AlertTriangle, ChevronRight, FileText, Plus, Search, Send, X, AlertCircle, Loader2, CheckSquare } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/Modal';
+import { formatSeamCode } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
 export default function PortfolioSubmitForm() {
@@ -137,7 +138,7 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'success') {
     return (
       <Tier2Success 
-        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
+        seamCode={formatSeamCode(selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown')} 
         llmConfidence={resultData?.llmConfidence || 0} 
         onClose={handleReset} 
         onSubmitAnother={handleReset} 
@@ -148,7 +149,7 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'rejected') {
     return (
       <Tier2Rejected 
-        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
+        seamCode={formatSeamCode(selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown')} 
         llmConfidence={resultData?.llmConfidence || 0} 
         advisoryNote={resultData?.advisoryNote}
         attemptsRemaining={5 - (resultData?.submissionCount ?? (selectedSeamData?.submissionCount || 0))}
@@ -161,7 +162,7 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'lockout') {
     return (
       <VerificationLockout 
-        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
+        seamCode={formatSeamCode(selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown')} 
         lockedUntil={resultData?.lockedUntil || new Date(Date.now() + 86400000).toISOString()}
         onClose={handleReset}
       />
@@ -242,7 +243,7 @@ export default function PortfolioSubmitForm() {
             >
               <option value="" disabled>Select a seam to verify...</option>
               {eligibleSeams.map(s => (
-                <option key={s.id} value={s.id}>{s.seamCode || s.code || s.seam_code} · {getSeamLabel(s.seamCode || s.code || s.seam_code)}</option>
+                <option key={s.id} value={s.id}>{formatSeamCode(s.seamCode || s.code || s.seam_code)} · {getSeamLabel(s.seamCode || s.code || s.seam_code)}</option>
               ))}
             </select>
             {selectedSeamData && (

@@ -169,7 +169,7 @@ export function useSaveAdminProbeQuestion(options?: { onSuccess?: () => void }) 
 
 // ── Admin Packages Hooks ────────────────────────────────────────
 
-export function useSubscriptionPackages() {
+export function useAdminSubscriptionPackages() {
   return useQuery<SubPackage[]>({
     queryKey: ['admin-subscription-packages'],
     queryFn: async () => {

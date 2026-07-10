@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@store/auth.store';
+import { formatSeamCode } from '@/lib/utils';
 import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
@@ -212,8 +213,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         type:  'portfolio_eval',
         title: 'Portfolio evaluation complete',
         body:  data.passed
-          ? `${data.seam_code} — Tier 2 verified ✓`
-          : `${data.seam_code} — did not meet the threshold`,
+          ? `${formatSeamCode(data.seam_code)} — Tier 2 verified ✓`
+          : `${formatSeamCode(data.seam_code)} — did not meet the threshold`,
         link:  '/profile/seams',
       });
     });

@@ -142,8 +142,8 @@ export default function Stage1Symptoms({
       
       const voids = (data.voidListJson as VoidItem[]) ?? [];
 
-      if (voids.length === 0) {
-        // AI found no specific gaps, automatically proceed to Stage 2
+      if (voids.length === 0 && (!data.criticalArtifactsJson || data.criticalArtifactsJson.length === 0)) {
+        // AI found no specific gaps and no critical artifacts, automatically proceed to Stage 2
         localStorage.removeItem(`stage1_${sessionId}`);
         onComplete({
           voidListJson: [],
@@ -203,24 +203,55 @@ export default function Stage1Symptoms({
     );
   }
 
-  // ── Results Screen (voids displayed) ───────────────────────────
+  // ── Results Screen (voids or critical artifacts displayed) ───────────────────────────
 
-  if (showResults && voidList.length > 0) {
+  if (showResults && (voidList.length > 0 || session?.criticalArtifactsJson?.length)) {
     return (
       <div className="space-y-6">
         <div className="text-center mb-6">
           <h2 className="text-h2 font-headline text-primary">Stage 1 of 5</h2>
           <p className="mt-2 text-body text-secondary max-w-md mx-auto">
-            Tell us about your AI needs
+            Analysis Complete
           </p>
         </div>
+
+        {session?.criticalArtifactsJson && session.criticalArtifactsJson.length > 0 && (
+          <div className="mb-6 rounded-lg border-2 border-blue-200 bg-blue-50 p-4 animate-in fade-in zoom-in-95">
+            <h3 className="text-body font-bold text-blue-900 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+              Critical Documents Required
+            </h3>
+            <p className="mt-1 text-body-sm text-blue-800">
+              The AI has determined that we will need the following documents in <strong>Stage 4</strong>. Please prepare them:
+            </p>
+            <ul className="mt-3 space-y-2">
+              {session.criticalArtifactsJson.map((artifact: any, idx: number) => (
+                <li key={idx} className="flex flex-col text-sm">
+                  <span className="font-semibold text-blue-900">• {artifact.label}</span>
+                  <span className="text-blue-700 ml-3 text-xs italic">{artifact.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
           {/* Left Column: Symptoms */}
           <div className="space-y-4">
-            <h3 className="text-h3 font-headline text-primary">Your Project Description</h3>
-            <div className="rounded-lg border border-slate-200 bg-surface p-4 text-body text-secondary whitespace-pre-wrap max-h-[400px] overflow-y-auto">
-              {symptomText}
+            <h3 className="text-h3 font-headline text-primary">What AI Understood</h3>
+            {session?.stage1SymptomsJson && session.stage1SymptomsJson.length > 0 ? (
+              <ul className="list-disc list-inside space-y-2 text-body text-secondary p-4 bg-surface rounded-lg border border-slate-200">
+                {session.stage1SymptomsJson.map((symptom: string, idx: number) => (
+                  <li key={idx} className="leading-relaxed">{symptom}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-body text-secondary italic">No explicit symptoms extracted.</p>
+            )}
+
+            <h3 className="text-body font-semibold text-primary mt-6 mb-2">Your Original Description</h3>
+            <div className="rounded-lg border border-slate-200 bg-surface p-4 text-body-sm text-secondary whitespace-pre-wrap max-h-[200px] overflow-y-auto bg-slate-50 opacity-80">
+              {session?.stage1OriginalInput || symptomText}
             </div>
             <Button
               variant="outline"
@@ -243,10 +274,10 @@ export default function Stage1Symptoms({
           </div>
 
           {/* Right Column: Detected Gaps */}
-          <div className="space-y-4">
-            <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+          <div className="space-y-4 flex flex-col">
+            <div className="rounded-lg border border-warning/20 bg-warning/5 p-4 shrink-0">
               <p className="text-body-sm font-medium text-primary">
-                We detected these potential gaps in your description:
+                {voidList.length > 0 ? "We detected these potential gaps in your description:" : "Great! No major information gaps were detected. You can proceed."}
               </p>
             </div>
 

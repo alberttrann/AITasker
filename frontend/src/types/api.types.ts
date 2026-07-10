@@ -151,6 +151,9 @@ export interface ElicitationSessionDto {
   archetype: ArchetypeCode | null;
   scenario_type: ScenarioType | null;
   void_list_json: object[];
+  criticalArtifactsJson?: any[];
+  stage1OriginalInput?: string | null;
+  stage1SymptomsJson?: string[] | null;
   state: ElicitationState;
   symptom_text_draft: string | null;
   created_at: string;
@@ -504,6 +507,10 @@ export interface StageCompleteData {
   archetype?: string;
   probeResponses?: Record<string, string>;
   gateResult?: GateResult;
+  vaguenessResult?: {
+    vague_answers?: { question: string; reason: string }[];
+    irrelevant_answers?: { question: string; issue: string }[];
+  };
   symptomText?: string;
   acknowledgedVoidCodes?: string[];
   techContext?: {
@@ -744,3 +751,8 @@ export interface CreateDisputePayload {
   milestone_id: string;
   reason: string;
 }
+e x p o r t  
+ i n t e r f a c e  
+ V o i d C o d e D e f i n i t i o n  
+   c o d e :   s t r i n g ;   t i t l e :   s t r i n g ;   d e s c r i p t i o n :   s t r i n g ;    
+ 

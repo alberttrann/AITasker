@@ -62,10 +62,6 @@ export class MilestonesController {
   async deleteMilestone(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.milestonesService.deleteMilestone(id, user.id);
   }
-<<<<<<< ours
-}
-=======
-
   // List milestones for an engagement
   @Get()
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
@@ -84,4 +80,3 @@ export class MilestonesController {
     return this.milestonesService.getMilestoneDisputes(milestoneId);
   }
 }
->>>>>>> theirs
