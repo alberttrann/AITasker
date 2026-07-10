@@ -36,6 +36,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
   const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const user        = useAuthStore((s) => s.user);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
@@ -81,7 +82,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       if (!engagementId) return;
 
       // Ignore if the current user sent the message
-      if (data.senderId === currentUser?.id || data.sender?.id === currentUser?.id) return;
+      if (data.senderId === user?.id || data.sender?.id === user?.id) return;
 
       incrementUnread(engagementId);
       // Only show notification if user is not currently in that conversation

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
 import { ArrowLeft, Plus } from "lucide-react";
 
