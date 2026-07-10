@@ -14,6 +14,7 @@ interface ConditionalPricingProps {
   onChange: (items: PricingItem[]) => void;
   errors?: { items?: string; [key: number]: { price?: string; condition?: string } };
   disabled?: boolean;
+  readOnly?: boolean;
 }
 
 const formatVND = (n: number) =>
@@ -25,6 +26,7 @@ export default function ConditionalPricing({
   onChange,
   errors = {},
   disabled = false,
+  readOnly = false,
 }: ConditionalPricingProps) {
   // If the CEO hasn't defined any milestones, show empty state
   if (!frameworkItems || frameworkItems.length === 0) {
@@ -64,9 +66,15 @@ export default function ConditionalPricing({
         <h4 className="font-headline text-[14px] font-medium text-[#0F172A]">
           Milestones & Conditional Pricing
         </h4>
-        <p className="mt-0.5 text-[12px] text-[#64748B]">
-          Review the project milestones defined by the client. You can optionally add a counter-offer with your own price and condition for any milestone.
-        </p>
+        {readOnly ? (
+          <p className="mt-0.5 text-[12px] text-[#64748B]">
+            These are the milestones and conditional prices you offered.
+          </p>
+        ) : (
+          <p className="mt-0.5 text-[12px] text-[#64748B]">
+            Review the project milestones defined by the client. You can optionally add a counter-offer with your own price and condition for any milestone.
+          </p>
+        )}
       </div>
 
       {errors.items && (
@@ -110,92 +118,112 @@ export default function ConditionalPricing({
 
               {/* Expert Offer Section */}
               <div className="p-4">
-                {!offer ? (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => addOffer(fwItem.milestone_number)}
-                    className="inline-flex items-center gap-1.5 rounded-[6px] border border-dashed border-[#CBD5E1] px-3 py-2 text-[13px] font-medium text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors"
-                  >
-                    <Plus size={14} />
-                    Add your offer
-                  </button>
+                {readOnly ? (
+                  offer ? (
+                    <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-[8px] p-4 relative shadow-sm">
+                      <h6 className="font-headline text-[12px] font-semibold text-[#0F172A] mb-3 uppercase tracking-wider">Your Counter Offer</h6>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-1">Counter Price</p>
+                          <p className="text-[14px] font-bold text-[#0F172A]">{formatVND(offer.price_vnd)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-1">Condition / Deliverable</p>
+                          <p className="text-[14px] font-medium text-[#0F172A] leading-relaxed">{offer.condition}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[13px] text-[#94A3B8] italic px-2">No counter-offer made for this milestone.</div>
+                  )
                 ) : (
-                  <div className="space-y-3 relative pt-2">
-                    <div className="absolute right-4 top-2">
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => removeOffer(fwItem.milestone_number)}
-                        className="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1 text-[12px] font-medium text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"
-                      >
-                        <Trash2 size={14} />
-                        Remove offer
-                      </button>
-                    </div>
-                    
-                    <h6 className="font-headline text-[12px] font-semibold text-[#2563EB] mb-3">Your Counter Offer</h6>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {/* Price */}
-                      <div>
-                        <label className="block text-[12px] font-medium text-[#64748B] mb-1">
-                          Counter Price (VND) <span className="text-[#EF4444]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={offer.price_vnd ? offer.price_vnd.toLocaleString('vi-VN') : ''}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/\D/g, '');
-                            updateOffer(fwItem.milestone_number, { price_vnd: parseInt(raw, 10) || 0 });
-                          }}
+                  !offer ? (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => addOffer(fwItem.milestone_number)}
+                      className="inline-flex items-center gap-1.5 rounded-[6px] border border-dashed border-[#CBD5E1] px-3 py-2 text-[13px] font-medium text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors"
+                    >
+                      <Plus size={14} />
+                      Add your offer
+                    </button>
+                  ) : (
+                    <div className="space-y-3 relative pt-2">
+                      <div className="absolute right-4 top-2">
+                        <button
+                          type="button"
                           disabled={disabled}
-                          aria-invalid={!!itemErr.price}
-                          className={cn(
-                            'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10',
-                            itemErr.price
-                              ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
-                              : 'border-[#E2E8F0]'
-                          )}
-                          placeholder="0"
-                        />
-                        {itemErr.price && (
-                          <p className="mt-1 text-[12px] text-[#EF4444]" role="alert">
-                            {itemErr.price}
-                          </p>
-                        )}
-                        <p className="mt-0.5 text-[12px] text-[#94A3B8]">
-                          {formatVND(offer.price_vnd)}
-                        </p>
+                          onClick={() => removeOffer(fwItem.milestone_number)}
+                          className="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1 text-[12px] font-medium text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          Remove offer
+                        </button>
                       </div>
+                      
+                      <h6 className="font-headline text-[12px] font-semibold text-[#2563EB] mb-3">Your Counter Offer</h6>
 
-                      {/* Condition */}
-                      <div>
-                        <label className="block text-[12px] font-medium text-[#64748B] mb-1">
-                          Condition / Deliverable <span className="text-[#EF4444]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={offer.condition}
-                          onChange={(e) => updateOffer(fwItem.milestone_number, { condition: e.target.value })}
-                          disabled={disabled}
-                          aria-invalid={!!itemErr.condition}
-                          className={cn(
-                            'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10',
-                            itemErr.condition
-                              ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
-                              : 'border-[#E2E8F0]'
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {/* Price */}
+                        <div>
+                          <label className="block text-[12px] font-medium text-[#64748B] mb-1">
+                            Counter Price (VND) <span className="text-[#EF4444]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={offer.price_vnd ? offer.price_vnd.toLocaleString('vi-VN') : ''}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, '');
+                              updateOffer(fwItem.milestone_number, { price_vnd: parseInt(raw, 10) || 0 });
+                            }}
+                            disabled={disabled}
+                            aria-invalid={!!itemErr.price}
+                            className={cn(
+                              'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10',
+                              itemErr.price
+                                ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
+                                : 'border-[#E2E8F0]'
+                            )}
+                            placeholder="0"
+                          />
+                          {itemErr.price && (
+                            <p className="mt-1 text-[12px] text-[#EF4444]" role="alert">
+                              {itemErr.price}
+                            </p>
                           )}
-                          placeholder="e.g. After data schema freeze"
-                        />
-                        {itemErr.condition && (
-                          <p className="mt-1 text-[12px] text-[#EF4444]" role="alert">
-                            {itemErr.condition}
+                          <p className="mt-0.5 text-[12px] text-[#94A3B8]">
+                            {formatVND(offer.price_vnd)}
                           </p>
-                        )}
+                        </div>
+
+                        {/* Condition */}
+                        <div>
+                          <label className="block text-[12px] font-medium text-[#64748B] mb-1">
+                            Condition / Deliverable <span className="text-[#EF4444]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={offer.condition}
+                            onChange={(e) => updateOffer(fwItem.milestone_number, { condition: e.target.value })}
+                            disabled={disabled}
+                            aria-invalid={!!itemErr.condition}
+                            className={cn(
+                              'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10',
+                              itemErr.condition
+                                ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
+                                : 'border-[#E2E8F0]'
+                            )}
+                            placeholder="e.g. After data schema freeze"
+                          />
+                          {itemErr.condition && (
+                            <p className="mt-1 text-[12px] text-[#EF4444]" role="alert">
+                              {itemErr.condition}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )
                 )}
               </div>
             </div>
