@@ -63,6 +63,10 @@ const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
 const BidApprove = lazy(() => import("@features/tech-team/bids/BidApprove"));
 const BidRevisionRequest = lazy(() => import("@features/tech-team/bids/BidRevisionRequest"));
+const MilestoneList = lazy(() => import("./features/ceo/milestones/MilestoneList"));
+const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMilestone"));
+const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
+const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
 
 function RootLayout() {
   return (
@@ -107,6 +111,22 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones"
+              element={<MilestoneList />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/create"
+              element={<CreateMilestone />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId"
+              element={<MilestoneDetail />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/fund"
+              element={<FundMilestone />}
             />
           </Route>
         </Route>
@@ -154,7 +174,10 @@ const router = createBrowserRouter(
             <Route path="bids" element={<BidReviewList />} />
             <Route path="bids/:bidId" element={<BidReviewDetail />} />
             <Route path="bids/:bidId/approve" element={<BidApprove />} />
-            <Route path="bids/:bidId/revision" element={<BidRevisionRequest />} />
+            <Route
+              path="bids/:bidId/revision"
+              element={<BidRevisionRequest />}
+            />
           </Route>
         </Route>
 
@@ -178,8 +201,8 @@ const router = createBrowserRouter(
 
       {/* ── 404 ──────────────────────────────────────────────────────── */}
       <Route path="*" element={<ErrorPage />} />
-    </Route>
-  )
+    </Route>,
+  ),
 );
 
 export default function App() {
