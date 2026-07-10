@@ -18,9 +18,9 @@ export class InvitationsService {
    */
   async upsertInvitation(data: {
     projectId: string;
-    expertId:  string;
-    ceoId:     string;
-    message?:  string | null;
+    expertId: string;
+    ceoId: string;
+    message?: string | null;
   }) {
     const expiresAt = addDays(new Date(), 7);
 
@@ -28,23 +28,23 @@ export class InvitationsService {
       where: {
         projectId_expertId: {
           projectId: data.projectId,
-          expertId:  data.expertId,
+          expertId: data.expertId,
         },
       },
       create: {
         projectId: data.projectId,
-        expertId:  data.expertId,
-        ceoId:     data.ceoId,
-        message:   data.message ?? null,
-        status:    'PENDING',
+        expertId: data.expertId,
+        ceoId: data.ceoId,
+        message: data.message ?? null,
+        status: 'PENDING',
         expiresAt,
       },
       update: {
         // Re-inviting a declined expert resets the invitation
-        status:      'PENDING',
-        ceoId:       data.ceoId,
-        message:     data.message ?? null,
-        invitedAt:   new Date(),
+        status: 'PENDING',
+        ceoId: data.ceoId,
+        message: data.message ?? null,
+        invitedAt: new Date(),
         expiresAt,
         respondedAt: null,
       },
@@ -57,18 +57,18 @@ export class InvitationsService {
    */
   async getExpertInvitations(expertId: string) {
     const invitations = await this.prisma.invitation.findMany({
-      where:   { expertId },
+      where: { expertId },
       include: {
         project: {
           select: {
-            id:                  true,
-            projectName:         true,
-            state:               true,
-            archetype:           true,
-            tier:                true,
-            createdAt:           true,
+            id: true,
+            projectName: true,
+            state: true,
+            archetype: true,
+            tier: true,
+            createdAt: true,
             requiredDomainsJson: true,
-            requiredSeamsJson:   true,
+            requiredSeamsJson: true,
           },
         },
         ceo: {
@@ -82,10 +82,7 @@ export class InvitationsService {
     const now = new Date();
     return invitations.map((inv) => ({
       ...inv,
-      isExpired:
-        inv.status === 'PENDING' &&
-        inv.expiresAt !== null &&
-        inv.expiresAt < now,
+      isExpired: inv.status === 'PENDING' && inv.expiresAt !== null && inv.expiresAt < now,
     }));
   }
 
@@ -111,7 +108,7 @@ export class InvitationsService {
 
     return this.prisma.invitation.update({
       where: { id: invitationId },
-      data:  { status: 'DECLINED', respondedAt: new Date() },
+      data: { status: 'DECLINED', respondedAt: new Date() },
     });
   }
 
@@ -123,7 +120,7 @@ export class InvitationsService {
   async markAccepted(projectId: string, expertId: string) {
     await this.prisma.invitation.updateMany({
       where: { projectId, expertId, status: 'PENDING' },
-      data:  { status: 'ACCEPTED', respondedAt: new Date() },
+      data: { status: 'ACCEPTED', respondedAt: new Date() },
     });
   }
 }

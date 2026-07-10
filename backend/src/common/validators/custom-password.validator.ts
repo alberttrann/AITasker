@@ -2,14 +2,20 @@ import { ValidateBy, ValidationOptions } from 'class-validator';
 
 export function HasUppercase(validationOptions?: ValidationOptions) {
   return ValidateBy(
-    { name: 'hasUppercase', validator: { validate: (v) => typeof v === 'string' && /[A-Z]/.test(v) } },
+    {
+      name: 'hasUppercase',
+      validator: { validate: (v) => typeof v === 'string' && /[A-Z]/.test(v) },
+    },
     validationOptions,
   );
 }
 
 export function HasLowercase(validationOptions?: ValidationOptions) {
   return ValidateBy(
-    { name: 'hasLowercase', validator: { validate: (v) => typeof v === 'string' && /[a-z]/.test(v) } },
+    {
+      name: 'hasLowercase',
+      validator: { validate: (v) => typeof v === 'string' && /[a-z]/.test(v) },
+    },
     validationOptions,
   );
 }
@@ -23,7 +29,12 @@ export function HasNumber(validationOptions?: ValidationOptions) {
 
 export function HasSpecialChar(validationOptions?: ValidationOptions) {
   return ValidateBy(
-    { name: 'hasSpecialChar', validator: { validate: (v) => typeof v === 'string' && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(v) } },
+    {
+      name: 'hasSpecialChar',
+      validator: {
+        validate: (v) => typeof v === 'string' && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(v),
+      },
+    },
     validationOptions,
   );
 }

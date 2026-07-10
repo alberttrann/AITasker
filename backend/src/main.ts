@@ -3,7 +3,7 @@ declare global {
     toJSON(): string;
   }
 }
- 
+
 BigInt.prototype.toJSON = function () {
   return this.toString();
 };
@@ -32,7 +32,10 @@ async function bootstrap() {
       await redisIoAdapter.connectToRedis(redisUrl);
       app.useWebSocketAdapter(redisIoAdapter);
     } catch (err) {
-      logger.error('Failed to connect to Redis Adapter. Falling back to default in-memory adapter.', err);
+      logger.error(
+        'Failed to connect to Redis Adapter. Falling back to default in-memory adapter.',
+        err,
+      );
     }
   }
 

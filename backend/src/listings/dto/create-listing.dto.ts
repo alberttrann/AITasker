@@ -12,32 +12,9 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-
 enum ServiceType {
   AI_SERVICE = 'AI_SERVICE',
   TECH_DISCOVERY = 'TECH_DISCOVERY',
-}
-
-enum DomainCode {
-  A = 'A',
-  B = 'B',
-  C = 'C',
-  D = 'D',
-  E = 'E',
-  F = 'F',
-}
-
-enum SeamCode {
-  A_C = 'A<->C',
-  A_F = 'A<->F',
-  A_D = 'A<->D',
-  D_E = 'D<->E',
-  D_F = 'D<->F',
-  C_F = 'C<->F',
-  E_F = 'E<->F',
-  A_B = 'A<->B',
-  B_E = 'B<->E',
-  C_E = 'C<->E',
 }
 
 export class ListServicesFilterDto {
@@ -47,15 +24,15 @@ export class ListServicesFilterDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(DomainCode, { each: true })
+  @IsString({ each: true })
   @Type(() => String)
-  domains?: DomainCode[];
+  domains?: string[];
 
   @IsOptional()
   @IsArray()
-  @IsEnum(SeamCode, { each: true })
+  @IsString({ each: true })
   @Type(() => String)
-  seams?: SeamCode[];
+  seams?: string[];
 
   @IsOptional()
   @Type(() => Number)
@@ -76,15 +53,15 @@ export class CreateListingDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(DomainCode, { each: true })
+  @IsString({ each: true })
   @Type(() => String)
-  domainsJson?: DomainCode[];
+  domainsJson?: string[];
 
   @IsOptional()
   @IsArray()
-  @IsEnum(SeamCode, { each: true })
+  @IsString({ each: true })
   @Type(() => String)
-  seamsJson?: SeamCode[];
+  seamsJson?: string[];
 
   @IsOptional()
   @IsBoolean()

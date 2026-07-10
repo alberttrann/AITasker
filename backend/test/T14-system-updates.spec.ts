@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication }    from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import supertest from 'supertest';
-import { AppModule }           from '../src/app.module';
-import { PrismaService }       from '../src/database/prisma.service';
-import { DbSeeder }            from './helpers/db.seeder';
-import { JwtFactory }          from './helpers/jwt.factory';
-import { FastapiClient }       from '../src/elicitation/fastapi.client';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/database/prisma.service';
+import { DbSeeder } from './helpers/db.seeder';
+import { JwtFactory } from './helpers/jwt.factory';
+import { FastapiClient } from '../src/elicitation/fastapi.client';
 
 describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  
+
   let expertToken: string;
   let expertId: string;
   let ceoToken: string;
@@ -27,9 +27,9 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     const module: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-    .overrideProvider(FastapiClient)
-    .useValue(mockFastapiClient)
-    .compile();
+      .overrideProvider(FastapiClient)
+      .useValue(mockFastapiClient)
+      .compile();
 
     app = module.createNestApplication();
     await app.init();
@@ -46,10 +46,13 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     });
     expertId = expertRes.user.id;
     expertToken = JwtFactory.expertToken(expertId);
-    
+
     // Give expert a profile and Pro tier (for portfolio eval)
     await prisma.expertProfile.create({ data: { userId: expertId } });
-    await prisma.user.update({ where: { id: expertId }, data: { subscriptionExpertTier: 'pro', subExpertExpiresAt: new Date(Date.now() + 10000000) }});
+    await prisma.user.update({
+      where: { id: expertId },
+      data: { subscriptionExpertTier: 'pro', subExpertExpiresAt: new Date(Date.now() + 10000000) },
+    });
 
     // 2. Seed CEO
     const ceoRes = await DbSeeder.seedUser(prisma as any, {
@@ -60,7 +63,10 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     });
     ceoId = ceoRes.user.id;
     ceoToken = JwtFactory.ceoToken(ceoId);
-    await prisma.user.update({ where: { id: ceoId }, data: { subscriptionClientTier: 'pro', subClientExpiresAt: new Date(Date.now() + 10000000) }});
+    await prisma.user.update({
+      where: { id: ceoId },
+      data: { subscriptionClientTier: 'pro', subClientExpiresAt: new Date(Date.now() + 10000000) },
+    });
   });
 
   afterAll(async () => {
@@ -72,7 +78,7 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     it('PUT /expert-profile/domains/sync - replaces old domains with new ones', async () => {
       // Setup: Manually insert Domain A
       await prisma.expertDomainDepth.create({
-        data: { expertId: expertId, domainCode: 'A', depthLevel: 'DEEP' }
+        data: { expertId: expertId, domainCode: 'A', depthLevel: 'DEEP' },
       });
 
       // Action: Sync sending only Domain B
@@ -94,7 +100,7 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     it('PUT /expert-profile/seams/sync - replaces old seams with new ones', async () => {
       // Setup: Manually insert Seam A<->C
       await prisma.expertSeamClaim.create({
-        data: { expertId: expertId, seamCode: 'A↔C' }
+        data: { expertId: expertId, seamCode: 'A↔C' },
       });
 
       // Action: Sync sending only A<->F and D<->E
@@ -107,7 +113,7 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
       // Verify DB
       const dbSeams = await prisma.expertSeamClaim.findMany({ where: { expertId: expertId } });
       expect(dbSeams.length).toBe(2);
-      const codes = dbSeams.map(s => s.seamCode);
+      const codes = dbSeams.map((s) => s.seamCode);
       expect(codes).not.toContain('A↔C');
       expect(codes).toContain('A↔F');
       expect(codes).toContain('D↔E');
@@ -124,8 +130,8 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
           state: 'IN_PROGRESS',
           stage1SymptomsJson: ['dummy symptom'],
           archetype: '1',
-          stage3ProbesJson: { 'q1': 'a1' }
-        }
+          stage3ProbesJson: { q1: 'a1' },
+        },
       });
       sessionId = session.id;
     });
@@ -151,8 +157,8 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
       expect(res.body.currentStage).toBe(1);
       expect(res.body.archetype).toBeNull();
       expect(res.body.stage3ProbesJson).toBeNull();
-      
-      const dbSession = await prisma.elicitationSession.findUnique({ where: { id: sessionId }});
+
+      const dbSession = await prisma.elicitationSession.findUnique({ where: { id: sessionId } });
       expect(dbSession?.stage1SymptomsJson).toBeNull(); // Stage 1 data is wiped when reverting TO stage 1
     });
 
@@ -177,7 +183,7 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     it('GET /projects - lists CEO projects', async () => {
       // Seed a project
       await prisma.project.create({
-        data: { clientId: ceoId, state: 'PUBLISHED' }
+        data: { clientId: ceoId, state: 'PUBLISHED' },
       });
 
       const res = await supertest(app.getHttpServer())
@@ -195,13 +201,13 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
     it('POST /portfolio-submissions - returns attemptsRemaining and lockedUntil on rejection', async () => {
       // Mock AI rejection
       mockFastapiClient.portfolioEval.mockResolvedValueOnce({
-        confidence_score: 0.60,
+        confidence_score: 0.6,
         passed_boolean: false,
-        gap_advisory: 'Missing data'
+        gap_advisory: 'Missing data',
       });
 
       // Get the seam claim ID we created in the sync test
-      const claim = await prisma.expertSeamClaim.findFirst({ where: { expertId: expertId }});
+      const claim = await prisma.expertSeamClaim.findFirst({ where: { expertId: expertId } });
 
       const res = await supertest(app.getHttpServer())
         .post('/portfolio-submissions')
@@ -209,7 +215,7 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
         .send({
           seamClaimId: claim!.id,
           projectDescription: 'x'.repeat(55),
-          decisionPoints: 'y'.repeat(25)
+          decisionPoints: 'y'.repeat(25),
         })
         .expect(201);
 
@@ -220,14 +226,16 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
 
     it('GET /matching/:projectId/shortlist - appends contact_info to matched experts', async () => {
       // Mock matching return from FastAPI
-      mockFastapiClient.matching.mockResolvedValueOnce([{
-        expert_id: expertId,
-        composite_score: 0.95,
-        strength_label: 'STRONG_MATCH',
-        gap_map: []
-      }]);
+      mockFastapiClient.matching.mockResolvedValueOnce([
+        {
+          expert_id: expertId,
+          composite_score: 0.95,
+          strength_label: 'STRONG_MATCH',
+          gap_map: [],
+        },
+      ]);
 
-      const project = await prisma.project.findFirst({ where: { clientId: ceoId }});
+      const project = await prisma.project.findFirst({ where: { clientId: ceoId } });
 
       const res = await supertest(app.getHttpServer())
         .get(`/matching/${project!.id}/shortlist`)
@@ -236,10 +244,10 @@ describe('T14: System Updates (Bulk Sync, Elicitation Mgmt, Portfolio, Shortlist
 
       expect(res.body.length).toBe(1);
       expect(res.body[0].expert_id).toBe(expertId);
-      
+
       // Numeric score should NOT be present
       expect(res.body[0].composite_score).toBeUndefined();
-      
+
       // NEW: Contact info MUST be present
       expect(res.body[0].contact_info).toBeDefined();
       expect(res.body[0].contact_info.email).toBe('expert-sync@test.com');

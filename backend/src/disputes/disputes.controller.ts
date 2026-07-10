@@ -18,7 +18,10 @@ export class DisputesController {
 
   @Post()
   @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)' })
+  @ApiOperation({
+    summary:
+      'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)',
+  })
   async create(@CurrentUser() user: ActorUser, @Body() dto: CreateDisputeDto) {
     return this.disputesService.create(user.id, dto);
   }

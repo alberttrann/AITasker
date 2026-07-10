@@ -13,30 +13,13 @@ import {
   ConditionalPricingItem,
   FootprintAlignment,
 } from "@/types/jsonb.types";
-function normalizeSeamCodes(alignment: FootprintAlignment) {
-  return {
-    ...alignment,
-    seams: alignment.seams.map((s) => ({
-      ...s,
-      code: s.code.replace(/↔/g, "<->"),
-    })),
-  };
-}
-
 export function useCreateBid() {
   const queryClient = useQueryClient();
 
   return useMutation({
     // Payload for sending the DTO needed for the BE to receive, if there's already a defined DTO in the FE -> use it, if not, create a custom payload to fit with the BE requires
     mutationFn: async (payload: CreateBidPayLoad) => {
-      const body = {
-        ...payload,
-        footprint_alignment_json: normalizeSeamCodes(
-          payload.footprint_alignment_json,
-        ),
-      };
-
-      const { data } = await apiClient.post("/bids", body);
+      const { data } = await apiClient.post("/bids", payload);
       return data;
     },
 
@@ -67,16 +50,9 @@ export function useUpdateBid() {
   return useMutation({
     // Payload for sending the DTO needed for the BE to receive, if there's already a defined DTO in the FE -> use it, if not, create a custom payload to fit with the BE requires
     mutationFn: async ({ bidId, body }: UpdateBidVariables) => {
-      const modifiedBody = {
-        ...body,
-        footprint_alignment_json: normalizeSeamCodes(
-          body.footprint_alignment_json,
-        ),
-      };
-
       const { data } = await apiClient.put<CapabilityBidDto>(
         `/bids/${bidId}`,
-        modifiedBody,
+        body,
       );
       return data;
     },

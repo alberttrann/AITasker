@@ -9,6 +9,6 @@ import { AdminConfigService } from './config/admin-config.service';
 @Module({
   imports: [DisputesModule, PrismaModule],
   controllers: [AdminController, AdminConfigController], // <-- Added AdminConfigController
-  providers: [AdminService, AdminConfigService],         // <-- Added AdminConfigService
+  providers: [AdminService, AdminConfigService], // <-- Added AdminConfigService
 })
 export class AdminModule {}

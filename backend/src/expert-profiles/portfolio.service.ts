@@ -255,7 +255,7 @@ export class PortfolioService {
         });
         return {
           ...sub,
-          createdAt: sub.submittedAt,   
+          createdAt: sub.submittedAt,
           advisoryNote: decision?.advisoryNote ?? null,
         };
       }),

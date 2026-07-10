@@ -6,7 +6,9 @@ export class ActivateSubscriptionDto {
   @IsEnum(ActiveRole)
   activeRole: ActiveRole;
 
-  @IsNotEmpty({ message: 'packageId is required — send the id from GET /config/subscription-packages.' })
+  @IsNotEmpty({
+    message: 'packageId is required — send the id from GET /config/subscription-packages.',
+  })
   @IsUUID('4', { message: 'packageId must be a valid UUID.' })
   packageId: string;
 }

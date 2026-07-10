@@ -60,10 +60,7 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @UseGuards(JwtAuthGuard)
   @Post('claim-handoff')
-  claimHandoff(
-    @CurrentUser() user: AuthUser,
-    @Body('invite_token') inviteToken: string,
-  ) {
+  claimHandoff(@CurrentUser() user: AuthUser, @Body('invite_token') inviteToken: string) {
     return this.authService.claimHandoff(user.id, inviteToken);
   }
 

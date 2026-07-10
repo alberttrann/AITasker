@@ -12,7 +12,7 @@ import { UpdateBidDto } from './dto/update-bid.dto';
 import { TechReviewDto } from './dto/tech-review.dto';
 import { CeoDecisionDto } from './dto/ceo-decision.dto';
 import { CounterOfferDto } from './dto/counter-offer.dto';
-import { EventEmitter2 } from '@nestjs/event-emitter'; 
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string };
 
@@ -104,34 +104,34 @@ export class BidsService {
       // Uses updateMany so it silently no-ops if the expert bid without an invitation.
       await tx.invitation.updateMany({
         where: { projectId: project.id, expertId: expertUserId, status: 'PENDING' },
-        data:  { status: 'ACCEPTED', respondedAt: new Date() },
+        data: { status: 'ACCEPTED', respondedAt: new Date() },
       });
 
       this.eventEmitter.emit('socket.broadcast', {
         userId: project.clientId,
         event: 'notification:generic',
         payload: {
-          type:  'bid_update',
+          type: 'bid_update',
           title: 'New Expert Bid!',
-          body:  'An expert has submitted a capability bid for your project.',
-          link:  `/ceo/projects/${project.id}`,
+          body: 'An expert has submitted a capability bid for your project.',
+          link: `/ceo/projects/${project.id}`,
         },
       });
 
-      // Notify all linked Tech Team members 
+      // Notify all linked Tech Team members
       const techTeamMembers = await tx.techTeamProfile.findMany({
-        where:  { linkedProjectId: project.id },
+        where: { linkedProjectId: project.id },
         select: { userId: true },
       });
       for (const member of techTeamMembers) {
         this.eventEmitter.emit('socket.broadcast', {
           userId: member.userId,
-          event:  'notification:generic',
+          event: 'notification:generic',
           payload: {
-            type:  'bid_update',
+            type: 'bid_update',
             title: 'New Bid Awaiting Review',
-            body:  'An expert has submitted a capability bid. Your technical review is required.',
-            link:  `/tech-team/projects/${project.id}`,
+            body: 'An expert has submitted a capability bid. Your technical review is required.',
+            link: `/tech-team/projects/${project.id}`,
           },
         });
       }
@@ -143,7 +143,7 @@ export class BidsService {
   // GET /bids/:id — view full bid detail.
   // CEO (project owner), EXPERT (bid owner), ADMIN. No state filter.
   async findById(bidId: string, user: ActorUser) {
-    // 1. fetch the bid row only 
+    // 1. fetch the bid row only
     const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
     if (!bid) {
       throw new NotFoundException('Bid not found.');
@@ -261,7 +261,7 @@ export class BidsService {
     // 2. fetch engagement for projectId (needed for the link check)
     const engagement = await this.prisma.engagement.findUnique({
       where: { id: bid.engagementId },
-      select: { id: true, projectId: true, expertId: true }, 
+      select: { id: true, projectId: true, expertId: true },
     });
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
@@ -293,7 +293,7 @@ export class BidsService {
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.expertId,
         event: 'bid:updated', // Matches the specific frontend socket listener
-        payload: { engagement_id: engagement.id, state: 'REVISION_REQUESTED' }
+        payload: { engagement_id: engagement.id, state: 'REVISION_REQUESTED' },
       });
     } else if (dto.action === 'APPROVED') {
       // Notify CEO that tech review passed
@@ -306,8 +306,8 @@ export class BidsService {
             type: 'system',
             title: 'Tech Review Passed',
             body: 'A bid has passed technical review and awaits your final decision.',
-            link: `/ceo/projects/${project.id}`
-          }
+            link: `/ceo/projects/${project.id}`,
+          },
         });
       }
     }
@@ -379,10 +379,10 @@ export class BidsService {
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.expertId,
         event: 'bid:updated',
-        payload: { 
-          engagement_id: engagement.id, 
-          state: dto.decision === 'APPROVED' ? 'SELECTED' : 'DECLINED' 
-        }
+        payload: {
+          engagement_id: engagement.id,
+          state: dto.decision === 'APPROVED' ? 'SELECTED' : 'DECLINED',
+        },
       });
       return updatedBid;
     });

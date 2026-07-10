@@ -1,6 +1,11 @@
 import { IsString, IsNotEmpty, IsEmail, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { HasUppercase, HasLowercase, HasNumber, HasSpecialChar } from '../../common/validators/custom-password.validator';
+import {
+  HasUppercase,
+  HasLowercase,
+  HasNumber,
+  HasSpecialChar,
+} from '../../common/validators/custom-password.validator';
 
 export class RegisterHandoffDto {
   @IsString()
@@ -17,7 +22,9 @@ export class RegisterHandoffDto {
   @HasUppercase({ message: 'Password must contain at least one uppercase letter.' })
   @HasLowercase({ message: 'Password must contain at least one lowercase letter.' })
   @HasNumber({ message: 'Password must contain at least one number.' })
-  @HasSpecialChar({ message: 'Password must contain at least one special character (!@#$%^&* ...).' })
+  @HasSpecialChar({
+    message: 'Password must contain at least one special character (!@#$%^&* ...).',
+  })
   password: string;
 
   @IsString()

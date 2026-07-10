@@ -107,7 +107,7 @@ curl -s -X POST "${BASE_URL}/bank-hub/initiate-link" -H "Content-Type: applicati
 RES=$(curl -s -X POST "${BASE_URL}/bids" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
   -d "{
     \"projectId\":\"${PROJECT_ID}\",
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
     \"approach_summary\":\"RAG pipeline grounded in the Zendesk KB.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery sign-off\"}]
   }")
