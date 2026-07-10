@@ -46,7 +46,7 @@ print_body "$BODY"
 check_status "201" "$CODE" "Domain depth claim accepted"
 check_field_equals "$BODY" ".verificationTier" "CLAIMED" "verificationTier is CLAIMED (Tier 1)"
 
-step_header "POST /expert-profile/seams — claim seam A<->C (Tier 1 CLAIMED)"
+step_header "POST /expert-profile/seams — claim seam A↔C (Tier 1 CLAIMED)"
 RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/expert-profile/seams" \
   -H "Content-Type: application/json" "${AUTH[@]}" \
   -d '{"seamCode":"A↔C"}')

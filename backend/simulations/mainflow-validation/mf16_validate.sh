@@ -42,7 +42,7 @@ curl -s -X POST "${BASE_URL}/webhooks/sepay/ipn" -H "Content-Type: application/j
 RES=$(curl -s -X POST "${BASE_URL}/subscriptions/activate" -H "Content-Type: application/json" "${AUTH[@]}" -d '{"activeRole":"EXPERT"}')
 TOKEN=$(echo "$RES" | jq -r '.access_token')
 AUTH=(-H "Authorization: Bearer ${TOKEN}")
-echo "  Expert ready: seam A<->C claimed (Tier 1), Pro active."
+echo "  Expert ready: seam A↔C claimed (Tier 1), Pro active."
 
 # ── A genuinely weak submission, deliberately, to test the REJECTED path ─
 

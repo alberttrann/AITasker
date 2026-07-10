@@ -12,10 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
-import { FootprintAlignmentData } from './FootprintAlignment';
-import FootprintAlignment, {
-  toWireFootprint,
-} from './FootprintAlignment';
+import FootprintAlignment, { type FootprintAlignmentData } from './FootprintAlignment';
 import ConditionalPricing, { type PricingItem } from './ConditionalPricing';
 
 // ── Inline hooks ─────────────────────────────────────────────────
@@ -32,7 +29,7 @@ function useArtifactA(projectId: string | undefined) {
   });
 }
 
-/** POST /bids — expert-only bid creation with SeamCode conversion */
+/** POST /bids — expert-only bid creation */
 function useCreateBid() {
   const qc = useQueryClient();
   return useMutation({
@@ -42,13 +39,7 @@ function useCreateBid() {
       approach_summary: string;
       conditional_pricing_json: PricingItem[];
     }) => {
-      const wirePayload = {
-        ...payload,
-        footprint_alignment_json: payload.footprint_alignment_json
-          ? toWireFootprint(payload.footprint_alignment_json)
-          : null,
-      };
-      const { data } = await apiClient.post('/bids', wirePayload);
+      const { data } = await apiClient.post('/bids', payload);
       return data; // { engagement, bid }
     },
     onSuccess: () => {

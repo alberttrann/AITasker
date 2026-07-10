@@ -100,7 +100,7 @@ curl -s -X POST "${BASE_URL}/bank-hub/initiate-link" -H "Content-Type: applicati
 RES=$(curl -s -X POST "${BASE_URL}/bids" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
   -d "{
     \"projectId\":\"${PROJECT_ID}\",
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
     \"approach_summary\":\"RAG pipeline grounded in the Zendesk KB.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery sign-off\"}]
   }")
@@ -138,7 +138,7 @@ echo "  Milestone ${MILESTONE_ID} is SUBMITTED, criterion ${CRITERION_ID} unveri
 
 step_header "POST /disputes — CEO files a dispute against the unverified criterion (step 1-2)"
 RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/disputes" -H "Content-Type: application/json" "${CEO_AUTH[@]}" \
-  -d "{\"criterion_id\":\"${CRITERION_ID}\",\"additional_context\":\"The architecture diagram is missing the A<->C seam entirely.\"}")
+  -d "{\"criterion_id\":\"${CRITERION_ID}\",\"additional_context\":\"The architecture diagram is missing the A↔C seam entirely.\"}")
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
 check_status "201" "$CODE" "Dispute filed"
