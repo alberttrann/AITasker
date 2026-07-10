@@ -1,10 +1,10 @@
-import { Controller, Post, Get, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, ParseUUIDPipe, Delete } from '@nestjs/common';
 import { PortfolioService } from './portfolio.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CreatePortfolioSubmissionDto } from './dto/create-portfolio-submission.dto';
 import { SubscriptionGuard } from '@common/guards/subscription.guard';
 /**
@@ -66,5 +66,27 @@ export class PortfolioController {
   ) {
     const isAdmin = user.activeRole === 'ADMIN';
     return this.portfolioService.getById(user.id, id, isAdmin);
+  }
+
+  @Delete('me/portfolio/:id')
+  @Roles('EXPERT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Delete a portfolio submission' })
+  async deletePortfolioEntry(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    return this.portfolioService.delete(user.id, id);
+  }
+
+  @Get('me/portfolio/:id')
+  @Roles('EXPERT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get a specific portfolio submission' })
+  async getPortfolioEntry(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    return this.portfolioService.getEntry(user.id, id);
   }
 }

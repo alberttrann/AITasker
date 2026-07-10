@@ -175,4 +175,67 @@ export class ExpertProfileService {
       return { success: true };
     });
   }
+
+  async searchExperts(filters: { domain?: string; seam?: string; archetype?: string; limit?: number }) {
+    const where: any = {};
+    if (filters.domain) {
+      where.expertDomainDepths = { some: { domainCode: filters.domain } };
+    }
+    if (filters.seam) {
+      where.expertSeamClaims = { some: { seamCode: filters.seam } };
+    }
+
+    const experts = await this.prisma.expertProfile.findMany({
+      where,
+      take: Math.min(filters.limit ?? 20, 50),
+      include: {
+        user: { select: { id: true, fullName: true } },
+        expertDomainDepths: { select: { domainCode: true, depthLevel: true } },
+        expertSeamClaims: { select: { seamCode: true, verificationTier: true } },
+      },
+    });
+    return experts;
+  }
+
+  async getPublicExpertProfile(expertUserId: string) {
+    const profile = await this.prisma.expertProfile.findUnique({
+      where: { userId: expertUserId },
+      include: {
+        user: { select: { id: true, fullName: true, createdAt: true } },
+      },
+    });
+    if (!profile) throw new NotFoundException('Expert profile not found.');
+
+    const [domainDepths, seamClaims, reviews] = await Promise.all([
+      this.prisma.expertDomainDepth.findMany({ where: { expertId: expertUserId } }),
+      this.prisma.expertSeamClaim.findMany({ where: { expertId: expertUserId } }),
+      this.prisma.review.aggregate({
+        where: { targetId: expertUserId },
+        _avg: { rating: true }, _count: true,
+      }),
+    ]);
+
+    return { profile, domainDepths, seamClaims, avgRating: reviews._avg.rating, reviewCount: reviews._count };
+  }
+
+  async getMyDomains(userId: string) {
+    return this.prisma.expertDomainDepth.findMany({
+      where: { expertId: userId },
+      orderBy: { domainCode: 'asc' },
+    });
+  }
+
+  async getMySeams(userId: string) {
+    return this.prisma.expertSeamClaim.findMany({
+      where: { expertId: userId },
+      orderBy: { seamCode: 'asc' },
+    });
+  }
+
+  async deleteDomainDepth(userId: string, id: string) {
+    const existing = await this.prisma.expertDomainDepth.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Domain depth not found.');
+    if (existing.expertId !== userId) throw new ForbiddenException('Not your domain depth.');
+    return this.prisma.expertDomainDepth.delete({ where: { id } });
+  }
 }

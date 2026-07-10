@@ -1,35 +1,27 @@
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import {
-  Controller,
-  Post,
-  Put,
-  Patch,
-  Get,
-  Delete,
-  Param,
-  Body,
-  UseGuards,
-  ForbiddenException,
+  Controller, Post, Put, Patch, Get, Delete,
+  Param, Body, UseGuards, ForbiddenException,
 } from '@nestjs/common';
-import { ElicitationService } from './elicitation.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { SubscriptionGuard } from '../common/guards/subscription.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Stage1Dto } from './dto/stage1.dto';
-import { Stage2Dto } from './dto/stage2.dto';
-import { Stage3Dto } from './dto/stage3.dto';
-import { Stage4Dto } from './dto/stage4.dto';
-import { Stage4HandoffDto } from './dto/stage4-handoff.dto';
-import { Stage4DraftDto } from './dto/stage4-draft.dto';
-import { SetSelfTechnicalDto } from './dto/set-self-technical.dto';
-import { RevertSessionDto } from './dto/revert-session.dto';
-import { PatchSessionDraftDto } from './dto/patch-session-draft.dto';
+import { ElicitationService }     from './elicitation.service';
+import { JwtAuthGuard }           from '../common/guards/jwt-auth.guard';
+import { RolesGuard }             from '../common/guards/roles.guard';
+import { SubscriptionGuard }      from '../common/guards/subscription.guard';
+import { Roles }                  from '../common/decorators/roles.decorator';
+import { CurrentUser }            from '../common/decorators/current-user.decorator';
+import { Stage1Dto }              from './dto/stage1.dto';
+import { Stage2Dto }              from './dto/stage2.dto';
+import { Stage3Dto }              from './dto/stage3.dto';
+import { Stage4Dto }              from './dto/stage4.dto';
+import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
+import { Stage4DraftDto }         from './dto/stage4-draft.dto';
+import { SetSelfTechnicalDto }    from './dto/set-self-technical.dto';
+import { RevertSessionDto }       from './dto/revert-session.dto';
+import { PatchSessionDraftDto }   from './dto/patch-session-draft.dto';
 
 interface AuthUser {
-  id: string;
-  activeRole: string;
+  id:             string;
+  activeRole:     string;
   clientSubtype?: string | null;
 }
 
@@ -106,10 +98,7 @@ export class ElicitationController {
   ) {
     this.assertCeoOnly(user);
     return this.elicitationService.processStage2(
-      id,
-      body.archetype,
-      user.id,
-      body.acknowledgedVoidCodes,
+      id, body.archetype, user.id, body.acknowledgedVoidCodes,
     );
   }
 
@@ -139,19 +128,6 @@ export class ElicitationController {
     return this.elicitationService.processStage4(id, body, user.id);
   }
 
-  @Patch('sessions/:id/stage4-draft')
-  @Roles('CLIENT')
-  @UseGuards(SubscriptionGuard)
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Auto-save Stage 4 form without triggering LLM' })
-  saveStage4Draft(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-    @Body() dto: Stage4DraftDto,
-  ) {
-    return this.elicitationService.saveStage4Draft(id, user.id, dto.draftJson ?? {});
-  }
-
   @Put('sessions/:id/stage4-handoff')
   @Roles('CLIENT')
   async processStage4Handoff(
@@ -160,7 +136,9 @@ export class ElicitationController {
     @CurrentUser() user: AuthUser,
   ) {
     if (user.clientSubtype !== 'TECH_TEAM') {
-      throw new ForbiddenException('Only a delegated Tech Team member can submit this form.');
+      throw new ForbiddenException(
+        'Only a delegated Tech Team member can submit this form.',
+      );
     }
     return this.elicitationService.processStage4Handoff(id, body, user.id);
   }
@@ -168,7 +146,10 @@ export class ElicitationController {
   @Post('sessions/:id/stage5')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async processStage5(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async processStage5(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
     this.assertCeoOnly(user);
     return this.elicitationService.processStage5(id, user.id);
   }
@@ -177,11 +158,7 @@ export class ElicitationController {
   @Post('sessions/:id/generate-handoff-link')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async inviteTechTeam(
-    @Param('id') id: string,
-    @Body('email') email: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async inviteTechTeam(@Param('id') id: string, @Body('email') email: string, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
     return this.elicitationService.inviteTechTeam(id, user.id, email);
   }
@@ -221,14 +198,11 @@ export class ElicitationController {
   @Put('sessions/:id/revert')
   @UseGuards(SubscriptionGuard)
   @Roles('CLIENT')
-  async revertSession(
-    @Param('id') id: string,
-    @Body() dto: RevertSessionDto,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async revertSession(@Param('id') id: string, @Body() dto: RevertSessionDto, @CurrentUser() user: AuthUser) {
     this.assertCeoOnly(user);
     return this.elicitationService.revertSession(id, user.id, dto.targetStage);
   }
+
 
   // [Pro-C]
   @Put('sessions/:id/continue')
@@ -253,7 +227,7 @@ export class ElicitationController {
     this.assertCeoOnly(user);
     return this.elicitationService.recommendTechContext(id, user.id);
   }
-
+  
   // [Pro-C]
   @Delete('sessions/:id')
   @UseGuards(SubscriptionGuard)
@@ -273,5 +247,17 @@ export class ElicitationController {
   ) {
     this.assertCeoOnly(user);
     return this.elicitationService.saveDraft(id, user.id, dto.symptomTextDraft ?? '');
+  }
+
+  @Patch('sessions/:id/stage4-draft')
+  @Roles('CLIENT')
+  @UseGuards(SubscriptionGuard)
+  @ApiOperation({ summary: 'Auto-save Stage 4 tech context form without triggering LLM' })
+  async saveStage4Draft(
+    @Param('id') id: string,
+    @Body() dto: Stage4DraftDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.elicitationService.saveStage4Draft(id, user.id, dto.draftJson ?? {});
   }
 }

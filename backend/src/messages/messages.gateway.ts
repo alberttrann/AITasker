@@ -8,14 +8,14 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { MessagesService } from './messages.service';
+import { MessagesService }    from './messages.service';
 import { InvitationsService } from '../invitations/invitations.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { InviteExpertDto } from './dto/invite-expert.dto';
-import { JwtService } from '@nestjs/jwt';
-import { UsePipes, ValidationPipe } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-
+import { CreateMessageDto }   from './dto/create-message.dto';
+import { InviteExpertDto }    from './dto/invite-expert.dto';
+import { JwtService }         from '@nestjs/jwt';
+import { UsePipes, ValidationPipe, Logger } from '@nestjs/common'; 
+import { OnEvent }            from '@nestjs/event-emitter';
+import { PrismaService }      from '../database/prisma.service';
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -25,10 +25,13 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(MessagesGateway.name); 
+
   constructor(
-    private readonly messagesService: MessagesService,
+    private readonly messagesService:    MessagesService,
     private readonly invitationsService: InvitationsService,
-    private readonly jwtService: JwtService,
+    private readonly jwtService:         JwtService,
+    private readonly prisma:             PrismaService, 
   ) {}
 
   async handleConnection(client: Socket) {
@@ -53,11 +56,32 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   // Listen for internal server events and push them to the specific user's socket
   @OnEvent('socket.broadcast')
-  handleSocketBroadcast(data: { userId: string; event: string; payload: any }) {
+  async handleSocketBroadcast(payload: {
+    userId: string; event: string; payload: Record<string, any>;
+  }) {
     if (!this.server) return;
-    this.server.to(data.userId).emit(data.event, data.payload);
-  }
+    
+    // Always emit real-time regardless of persistence
+    this.server.to(payload.userId).emit(payload.event, payload.payload);
 
+    // Persist notification:generic events to DB for REST retrieval
+    if (payload.event === 'notification:generic' && payload.payload?.title) {
+      try {
+        await this.prisma.notification.create({
+          data: {
+            userId: payload.userId,
+            type:   payload.payload.type  ?? 'system',
+            title:  payload.payload.title,
+            body:   payload.payload.body  ?? null,
+            link:   payload.payload.link  ?? null,
+          },
+        });
+      } catch (err) {
+        this.logger.error('Failed to persist notification', err);
+        // Never throw — WebSocket delivery is more important than DB persistence
+      }
+    }
+  }
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
     @ConnectedSocket() client: Socket,
@@ -114,7 +138,10 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   @SubscribeMessage('inviteExpert')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleInviteExpert(@ConnectedSocket() client: Socket, @MessageBody() dto: InviteExpertDto) {
+  async handleInviteExpert(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() dto: InviteExpertDto,
+  ) {
     const user = client.data.user;
     if (!user) {
       client.emit('error', { message: 'Unauthorized.' });
@@ -132,17 +159,17 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
       //    Uses upsert — re-inviting a declined expert resets status to PENDING.
       await this.invitationsService.upsertInvitation({
         projectId: dto.projectId,
-        expertId: dto.expertId,
-        ceoId: user.sub,
-        message: dto.content ?? null,
+        expertId:  dto.expertId,
+        ceoId:     user.sub,
+        message:   dto.content ?? null,
       });
 
       // 3. Push real-time notification to the expert's personal socket room
       this.server.to(dto.expertId).emit('notification:generic', {
-        type: 'system',
+        type:  'system',
         title: 'Project Invitation',
-        body: 'A CEO has invited you to submit a bid for their project.',
-        link: `/expert/invitations`, // now points to the new Invitations page
+        body:  'A CEO has invited you to submit a bid for their project.',
+        link:  `/expert/invitations`,   // now points to the new Invitations page
       });
 
       // 4. Create the initial chat message in the DB for the project chat thread
@@ -160,7 +187,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   private extractToken(client: Socket): string | null {
-    // 1. Check standard Socket.io auth payload
+    // 1. Check standard Socket.io auth payload 
     if (client.handshake.auth && client.handshake.auth.token) {
       return client.handshake.auth.token;
     }

@@ -9,7 +9,6 @@ export const SEED_IDS = {
 
 export class DbSeeder {
   // Wipe all test data in FK-safe order (children before parents)
-  // Wipe all test data in FK-safe order (children before parents)
   static async cleanDatabase(prisma: PrismaClient): Promise<void> {
     // 1. Leaf nodes (Audit, Messaging, Reviews, Chats, Invitations)
     await prisma.platformDecision.deleteMany({});
@@ -51,6 +50,8 @@ export class DbSeeder {
     await prisma.walletTransaction.deleteMany({});
     await prisma.virtualAccount.deleteMany({});
     await prisma.platformSettings.deleteMany({});
+    await prisma.subscriptionPurchaseLog.deleteMany({}); 
+    await prisma.subscriptionPackage.deleteMany({});     
     await prisma.wallet.deleteMany({});
 
     await prisma.subscriptionPurchaseLog.deleteMany({});

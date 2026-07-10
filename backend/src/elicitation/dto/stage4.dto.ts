@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsObject } from 'class-validator';
 
 export class Stage4Dto {
   @IsString()
@@ -13,8 +13,11 @@ export class Stage4Dto {
   @IsOptional()
   latency_requirement?: string;
 
-  // Optional supplemental text the Expert/CEO can add to Requirement 1
   @IsString()
   @IsOptional()
   additional_requirement_1?: string;
+
+  @IsObject()
+  @IsOptional()
+  technical_artifacts?: Record<string, string>; 
 }

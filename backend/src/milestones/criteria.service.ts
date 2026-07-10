@@ -50,8 +50,7 @@ export class CriteriaService {
         if (openDispute) {
           return {
             success: true,
-            message:
-              'Criterion verified, but milestone has an open dispute — release held until resolved.',
+            message: 'Criterion verified, but milestone has an open dispute — release held until resolved.',
           };
         }
 
@@ -95,5 +94,33 @@ export class CriteriaService {
 
       return { success: true, message: 'Revision requested successfully.' };
     });
+  }
+
+  async listCriteria(milestoneId: string) {
+    return this.prisma.acceptanceCriterion.findMany({
+      where: { milestoneId },
+      orderBy: { id: 'asc' }, 
+    });
+  }
+
+  async create(milestoneId: string, dto: { criterion_text: string; is_required?: boolean }) {
+    const milestone = await this.prisma.milestone.findUnique({ where: { id: milestoneId } });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    
+    // Connect via relation to satisfy the compiler and pass the required verifiedByRole
+    return this.prisma.acceptanceCriterion.create({
+      data: {
+        milestone: { connect: { id: milestoneId } }, 
+        criterionText: dto.criterion_text,
+        isRequired: dto.is_required ?? true,
+        verifiedByRole: milestone.signOffAuthority, 
+      },
+    });
+  }
+
+  async deleteCriterion(id: string) {
+    const c = await this.prisma.acceptanceCriterion.findUnique({ where: { id } });
+    if (!c) throw new NotFoundException('Criterion not found.');
+    return this.prisma.acceptanceCriterion.delete({ where: { id } });
   }
 }

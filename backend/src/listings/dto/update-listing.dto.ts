@@ -1,11 +1,13 @@
 import { Type } from 'class-transformer';
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+
 enum ServiceState {
+  DRAFT     = 'DRAFT',
   PUBLISHED = 'PUBLISHED',
 }
 
 enum ServiceType {
-  AI_SERVICE = 'AI_SERVICE',
+  AI_SERVICE     = 'AI_SERVICE',
   TECH_DISCOVERY = 'TECH_DISCOVERY',
 }
 
@@ -27,12 +29,14 @@ export class UpdateListingDto {
   @IsString()
   timeline?: string;
 
+  // Domain codes — any string validated against DB at service layer
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @Type(() => String)
   domainsJson?: string[];
 
+  // Seam codes — use ↔ arrow format, validated at service layer
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

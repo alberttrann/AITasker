@@ -1,4 +1,4 @@
-import { Controller, Param, Put, Body, UseGuards } from '@nestjs/common';
+import { Controller, Param, Put, Body, UseGuards, Get, Post, Delete } from '@nestjs/common';
 import { CriteriaService } from './criteria.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -18,13 +18,43 @@ export class CriteriaController {
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Verify and sign off an acceptance criterion' })
   @ApiResponse({ status: 200, description: 'Criterion verified successfully.' })
-  async verifyCriterion(@Param('id') criterionId: string, @Body() dto: VerifyCriterionDto) {
+  async verifyCriterion(
+    @Param('id') criterionId: string,
+    @Body() dto: VerifyCriterionDto, 
+  ) {
     return this.criteriaService.verify(criterionId, dto);
   }
 
-  @Put(':id/revision')
+  @Put(':id/revision') 
   @Roles('CLIENT')
-  async rejectCriterion(@Param('id') criterionId: string, @Body() dto: RevisionNoteDto) {
+  async rejectCriterion(
+    @Param('id') criterionId: string,
+    @Body() dto: RevisionNoteDto, 
+  ) {
     return this.criteriaService.requestRevision(criterionId, dto);
+  }
+
+  @Get(':milestoneId')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiOperation({ summary: 'List acceptance criteria for a milestone' })
+  async listCriteria(@Param('milestoneId') milestoneId: string) {
+    return this.criteriaService.listCriteria(milestoneId);
+  }
+
+  @Post(':milestoneId')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'Add an acceptance criterion to a milestone' })
+  async createCriterion(
+    @Param('milestoneId') milestoneId: string,
+    @Body() dto: { criterion_text: string; is_required?: boolean },
+  ) {
+    return this.criteriaService.create(milestoneId, dto);
+  }
+
+  @Delete(':id')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'Delete an acceptance criterion (only in DEFINED state)' })
+  async deleteCriterion(@Param('id') id: string) {
+    return this.criteriaService.deleteCriterion(id);
   }
 }

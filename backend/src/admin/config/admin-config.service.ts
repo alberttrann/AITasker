@@ -110,6 +110,31 @@ export class AdminConfigService {
     return this.prisma.probeQuestion.update({ where: { id }, data: { isActive: false } });
   }
 
+  // Void Codes
+  listVoidCodes() {
+    return this.prisma.voidCodeDefinition.findMany({ orderBy: { sortOrder: 'asc' } });
+  }
+
+  async createVoidCode(dto: {
+    code: string; name: string; description: string;
+    severity?: string; sortOrder?: number;
+  }) {
+    return this.prisma.voidCodeDefinition.create({ data: dto });
+  }
+
+  async updateVoidCode(id: string, dto: {
+    name?: string; description?: string; severity?: string;
+    isActive?: boolean; sortOrder?: number;
+  }) {
+    await this._findOrThrow('voidCodeDefinition', id);
+    return this.prisma.voidCodeDefinition.update({ where: { id }, data: dto });
+  }
+
+  async deleteVoidCode(id: string) {
+    await this._findOrThrow('voidCodeDefinition', id);
+    return this.prisma.voidCodeDefinition.update({ where: { id }, data: { isActive: false } });
+  }
+
   // Private
   private async _findOrThrow(model: string, id: string) {
     const record = await (this.prisma as any)[model].findUnique({ where: { id } });

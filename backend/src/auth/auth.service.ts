@@ -182,9 +182,16 @@ export class AuthService {
       throw new UnauthorizedException('Not a refresh token');
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user) throw new UnauthorizedException('User not found.');
+    // Validate token hash (logout invalidates it)
+    if (user.refreshTokenHash) {
+      const { createHash } = await import('crypto');
+      const incomingHash = createHash('sha256').update(tokenString).digest('hex');
+      if (incomingHash !== user.refreshTokenHash) {
+        throw new UnauthorizedException('Refresh token has been invalidated. Please log in again.');
+      }
+    }
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -223,6 +230,15 @@ export class AuthService {
     };
 
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
+
+    // Hash and store the refresh token on the user record in the DB (for server-side logout support)
+    const { createHash } = await import('crypto');
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokenHash: tokenHash },
+    });
+
     return refreshToken;
   }
 
@@ -507,5 +523,34 @@ export class AuthService {
 
     // Return a simple object — 200 means valid, 400 means invalid/expired.
     return { valid: true };
+  }
+
+  async logout(userId: string): Promise<{ success: true }> {
+    // Clear the stored hash — next refresh call with this token will be rejected
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshTokenHash: null },
+    });
+    return { success: true };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found.');
+
+    const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentValid) {
+      throw new UnauthorizedException('Current password is incorrect.');
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash:    newHash,
+        refreshTokenHash: null,  // invalidate all sessions after password change
+      },
+    });
+    return { message: 'Password changed successfully. Please log in again.' };
   }
 }

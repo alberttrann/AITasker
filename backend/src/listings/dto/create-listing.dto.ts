@@ -12,25 +12,32 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+// ServiceType is kept as enum — it's a fixed product type, not admin-configurable.
 enum ServiceType {
-  AI_SERVICE = 'AI_SERVICE',
+  AI_SERVICE     = 'AI_SERVICE',
   TECH_DISCOVERY = 'TECH_DISCOVERY',
 }
 
+// Filter DTO for GET /services?domain=...&seam=...
+// DomainCode and SeamCode are removed — any string is now valid.
 export class ListServicesFilterDto {
   @IsOptional()
   @IsEnum(ServiceType)
   serviceType?: ServiceType;
 
+  // Domain filter — any active domain code e.g. "A", "B", "G"
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true, message: 'each domain code must not be empty' })
   @Type(() => String)
   domains?: string[];
 
+  // Seam filter — use ↔ arrow format e.g. "A↔C", "A↔D"
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true, message: 'each seam code must not be empty' })
   @Type(() => String)
   seams?: string[];
 
@@ -49,17 +56,21 @@ export class ListServicesFilterDto {
 
 export class CreateListingDto {
   @IsEnum(ServiceType)
-  serviceType!: ServiceType;
+  serviceType: ServiceType;
 
+  // Domain codes the listing targets — any string validated against DB at service layer
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @Type(() => String)
   domainsJson?: string[];
 
+  // Seam codes the listing covers — use ↔ arrow format
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @Type(() => String)
   seamsJson?: string[];
 

@@ -501,4 +501,5 @@ export class ProjectsService {
     if (!session) throw new NotFoundException('Chat session not found.');
     return session;
   }
+
 }

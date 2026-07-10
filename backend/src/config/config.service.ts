@@ -45,12 +45,31 @@ export class ConfigReadService {
       },
       orderBy: { role: 'asc' },
       select: {
-        id: true,
-        role: true,
-        name: true,
-        priceVnd: true,
+        id:             true,
+        role:           true,
+        name:           true,
+        priceVnd:       true,
         durationMonths: true,
       },
     });
+  }
+
+  getVoidCodes() {
+    return this.prisma.voidCodeDefinition.findMany({
+      where:   { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select:  { id: true, code: true, name: true, description: true, severity: true },
+    });
+  }
+
+  async getAllConfig() {
+    const [domains, seams, archetypes, voidCodes, subscriptionPackages] = await Promise.all([
+      this.getDomains(),
+      this.getSeams(),
+      this.getArchetypes(),
+      this.getVoidCodes(),
+      this.getSubscriptionPackages(),
+    ]);
+    return { domains, seams, archetypes, voidCodes, subscriptionPackages };
   }
 }

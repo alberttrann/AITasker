@@ -3,45 +3,52 @@ Extract structured information from their input.
 
 Return a JSON object with exactly this shape:
 {
-  "symptoms": ["string array of distinct technical/business symptoms mentioned"],
+  "symptoms": ["string array of distinct technical/business symptoms"],
   "scale_signals": {
-    "user_count": "string or null — e.g. '10,000 daily users'",
-    "data_volume": "string or null — e.g. '2TB logs per month'",
-    "transaction_rate": "string or null — e.g. '500 requests per second'",
-    "latency_requirement": "string or null — e.g. 'under 200ms'"
+    "user_count":         "string or null — e.g. '10,000 daily users'",
+    "data_volume":        "string or null — e.g. '2TB logs per month'",
+    "transaction_rate":   "string or null — e.g. '500 requests per second'",
+    "latency_requirement":"string or null — e.g. 'under 200ms'",
+    "budget_vnd":         "integer or null — budget in VND if mentioned, e.g. 50000000"
   },
   "voids": [
-    {
-      "void_code": "string — short identifier e.g. 'NO_GROUND_TRUTH'",
-      "severity": "HIGH | MEDIUM | LOW"
-    }
+    { "void_code": "one of the codes below", "severity": "HIGH | MEDIUM | LOW" }
   ],
   "recommended_archetypes": [
-    "array of 3-5 archetype codes from the set below, ordered most-to-least likely fit"
+    "3-5 archetype codes from the list below, ordered most-to-least likely"
+  ],
+  "critical_artifacts_required": [
+    {
+      "artifact_key":        "snake_case identifier, e.g. compliance_ruleset",
+      "label":               "Human readable name, e.g. Compliance Ruleset",
+      "reason":              "Why this is critical for accurate project scope",
+      "placeholder_prompt":  "What to show the user, e.g. Please paste your compliance rules here"
+    }
   ]
 }
 
-Common void codes to detect:
-- NO_GROUND_TRUTH: no labelled data or evaluation benchmark mentioned
-- NO_BASELINE: no current system or baseline to compare against
-- UNCLEAR_SUCCESS_METRIC: success criteria are vague or unmeasurable
-- DATA_PRIVACY_CONSTRAINT: sensitive data involved, compliance unclear
-- INTEGRATION_UNCLEAR: how AI connects to existing systems not described
-- TIMELINE_UNREALISTIC: requested timeline appears too aggressive
-- SCOPE_CREEP_RISK: too many objectives for a single engagement
+VOID CODES to detect (use code exactly as written):
+{% for v in void_codes %}
+- {{ v.code }}: {{ v.description }}
+{% endfor %}
 
-Archetype codes (choose 3-5 that plausibly fit, most likely first):
-- "1" RAG/Search: chatbots, knowledge base Q&A, document retrieval
-- "2" Recommendation: product/content/user recommendation engines
-- "3" Classification: fraud detection, sentiment analysis, categorisation
-- "4" Generation: content/code/creative generation
-- "5" Prediction/Forecasting: churn prediction, demand forecasting, time-series
-- "6" Multimodal: vision+language, audio+text, cross-modal AI
+ARCHETYPE CODES (pick 3-5 most plausible, most-likely first):
+{% for a in archetypes %}
+- "{{ a.code }}" {{ a.name }}{% if a.description %}: {{ a.description }}{% endif %}
 
-Keep symptoms concise (1 sentence each). Detect only voids clearly evidenced
-by the text. Always return 3-5 recommended_archetypes even if the input is
-sparse — use your best judgment about which archetypes the described
-problem could plausibly map to; never return an empty array.
+{% endfor %}
 
-If the symptoms have meaning but does not relate to the business problem.
-Then you will leave the symptoms array empty. If the input is too vague to extract any meaningful information.
+CRITICAL ARTIFACT DETECTION RULES:
+Flag an artifact as required ONLY when the user mentions they ALREADY HAVE a specific
+technical document that the AI system will DIRECTLY DEPEND ON:
+  ✓ "based on our compliance ruleset"  → artifact: compliance_ruleset
+  ✓ "using our existing product catalog" → artifact: product_catalog
+  ✓ "we have an internal API your system must integrate with" → artifact: api_documentation
+  ✓ "trained on our proprietary data schema" → artifact: data_schema
+  ✗ "we need to build a classifier" — no existing artifact, do NOT flag
+  ✗ "we have many customers" — not a technical document, do NOT flag
+
+If no proprietary technical documents are mentioned, return: "critical_artifacts_required": []
+
+Keep symptoms concise (1 sentence each). Always return 3-5 recommended_archetypes.
+If symptoms are meaningful but unrelated to AI/tech, return an empty symptoms array.

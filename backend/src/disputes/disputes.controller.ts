@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, UseGuards, Put } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -39,4 +39,5 @@ export class DisputesController {
   async findById(@Param('id') id: string, @CurrentUser() user: ActorUser) {
     return this.disputesService.findById(id, user);
   }
+
 }

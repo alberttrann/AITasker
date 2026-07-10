@@ -1,196 +1,243 @@
-import { PrismaService } from '../database/prisma.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { PrismaService } from "../database/prisma.service";
+import { CreateMessageDto } from "./dto/create-message.dto";
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 
 type ActorUser = { id: string; activeRole: string };
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) {}
 
-  async assertPartyToEngagement(engagementId: string, userId: string) {
-    const engagement = await this.prisma.engagement.findUnique({
-      where: { id: engagementId },
-    });
-    if (!engagement) {
-      throw new NotFoundException('Engagement not found.');
+    async assertPartyToEngagement(engagementId: string, userId: string) {
+        const engagement = await this.prisma.engagement.findUnique({
+            where: { id: engagementId },
+        });
+        if (!engagement) {
+            throw new NotFoundException('Engagement not found.');
+        }
+
+        const isClient = engagement.clientId === userId;
+        const isExpert = engagement.expertId === userId;
+
+        let isTechTeam = false;
+        if (engagement.projectId) {
+            const techProfile = await this.prisma.techTeamProfile.findUnique({
+                where: { userId },
+            });
+            isTechTeam = techProfile?.linkedProjectId === engagement.projectId;
+        }
+
+        if (!isClient && !isExpert && !isTechTeam) {
+            throw new ForbiddenException('You are not a party to this engagement.');
+        }
+
+        return engagement;
     }
 
-    const isClient = engagement.clientId === userId;
-    const isExpert = engagement.expertId === userId;
+    async assertPartyToProject(projectId: string, user: ActorUser) {
+        const project = await this.prisma.project.findUnique({
+            where: { id: projectId },
+        });
+        if (!project) {
+            throw new NotFoundException('Project not found.');
+        }
+        if (project.state !== 'PUBLISHED') {
+            throw new ForbiddenException('This project is not open for questions.');
+        }
 
-    let isTechTeam = false;
-    if (engagement.projectId) {
-      const techProfile = await this.prisma.techTeamProfile.findUnique({
-        where: { userId },
-      });
-      isTechTeam = techProfile?.linkedProjectId === engagement.projectId;
+        if (project.clientId === user.id) {
+            return project;   // CEO answering on their own project
+        }
+
+        if (user.activeRole === 'EXPERT') {
+            return project;                                  
+        }
+
+        const techProfile = await this.prisma.techTeamProfile.findUnique({
+            where: { userId: user.id },
+        });
+        if (techProfile?.linkedProjectId === projectId) {
+            return project;   // linked TECH_TEAM answering
+        }
+
+        throw new ForbiddenException('You are not authorized to message on this project.');
     }
 
-    if (!isClient && !isExpert && !isTechTeam) {
-      throw new ForbiddenException('You are not a party to this engagement.');
+    async createMessage(sender: ActorUser, dto: CreateMessageDto) {
+        const hasEngagement = !!dto.engagement_id;
+        const hasProject    = !!dto.project_id;
+
+        if (hasEngagement === hasProject) {
+            throw new BadRequestException(
+                'Exactly one of engagement_id or project_id must be provided.',
+            );
+        }
+
+        if (hasEngagement) {
+            await this.assertPartyToEngagement(dto.engagement_id!, sender.id);
+        } else {
+            await this.assertPartyToProject(dto.project_id!, sender);
+        }
+
+        return this.prisma.message.create({
+            data: {
+                engagementId:  dto.engagement_id ?? null,
+                projectId:     dto.project_id ?? null,
+                senderId:      sender.id,
+                content:       dto.content,
+                attachmentUrl: dto.attachment_url || null,
+            },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        email: true,
+                        fullName: true,
+                        activeRole: true,
+                    },
+                },
+            },
+        });
     }
 
-    return engagement;
-  }
+    async getChatHistory(
+        engagementId: string,
+        userId: string,
+        limit: number = 50,
+        cursorId?: string,
+    ) {
+        await this.assertPartyToEngagement(engagementId, userId);
 
-  async assertPartyToProject(projectId: string, user: ActorUser) {
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId },
-    });
-    if (!project) {
-      throw new NotFoundException('Project not found.');
-    }
-    if (project.state !== 'PUBLISHED') {
-      throw new ForbiddenException('This project is not open for questions.');
-    }
-
-    if (project.clientId === user.id) {
-      return project; // CEO answering on their own project
-    }
-
-    if (user.activeRole === 'EXPERT') {
-      return project;
-    }
-
-    const techProfile = await this.prisma.techTeamProfile.findUnique({
-      where: { userId: user.id },
-    });
-    if (techProfile?.linkedProjectId === projectId) {
-      return project; // linked TECH_TEAM answering
+        return this.prisma.message.findMany({
+            where: { engagementId },
+            orderBy: { timestamp: 'asc' },
+            take: limit,
+            ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        email: true,
+                        fullName: true,
+                        activeRole: true,
+                    },
+                },
+            },
+        });
     }
 
-    throw new ForbiddenException('You are not authorized to message on this project.');
-  }
+    // project-scoped chat history, the pre-bid thread's read side.
+    async getProjectChatHistory(
+        projectId: string,
+        user: ActorUser,
+        limit: number = 50,
+        cursorId?: string,
+    ) {
+        await this.assertPartyToProject(projectId, user);
 
-  async createMessage(sender: ActorUser, dto: CreateMessageDto) {
-    const hasEngagement = !!dto.engagement_id;
-    const hasProject = !!dto.project_id;
-
-    if (hasEngagement === hasProject) {
-      throw new BadRequestException('Exactly one of engagement_id or project_id must be provided.');
+        return this.prisma.message.findMany({
+            where: { projectId },
+            orderBy: { timestamp: 'asc' },
+            take: limit,
+            ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        email: true,
+                        fullName: true,
+                        activeRole: true,
+                    },
+                },
+            },
+        });
     }
 
-    if (hasEngagement) {
-      await this.assertPartyToEngagement(dto.engagement_id!, sender.id);
-    } else {
-      await this.assertPartyToProject(dto.project_id!, sender);
+    async markAsRead(messageId: string, userId: string) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+
+        if (!message) {
+            throw new NotFoundException('Message not found in Database');
+        }
+
+        return this.prisma.messageRead.upsert({
+            where: {
+                messageId_userId: {
+                    messageId,
+                    userId,
+                },
+            },
+            update: {},
+            create: {
+                messageId,
+                userId,
+            },
+        });
     }
 
-    return this.prisma.message.create({
-      data: {
-        engagementId: dto.engagement_id ?? null,
-        projectId: dto.project_id ?? null,
-        senderId: sender.id,
-        content: dto.content,
-        attachmentUrl: dto.attachment_url || null,
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            activeRole: true,
-          },
+    async unreadCount(engagementId: string, userId: string) {
+        return this.prisma.message.count({
+            where: {
+                engagementId: engagementId,
+                senderId: { not: userId },
+                reads: {
+                    none: {
+                        userId,
+                    },
+                },
+            },
+        });
+    }
+
+    async getConversations(user: { id: string; activeRole: string }) {
+        // Get engagement-based conversations
+        const engagements = await this.prisma.engagement.findMany({
+        where: {
+            OR: [{ clientId: user.id }, { expertId: user.id }],
+            state: { not: 'DECLINED' },
         },
-      },
-    });
-  }
-
-  async getChatHistory(
-    engagementId: string,
-    userId: string,
-    limit: number = 50,
-    cursorId?: string,
-  ) {
-    await this.assertPartyToEngagement(engagementId, userId);
-
-    return this.prisma.message.findMany({
-      where: { engagementId },
-      orderBy: { timestamp: 'asc' },
-      take: limit,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      include: {
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            activeRole: true,
-          },
+        select: {
+            id: true, 
+            state: true, 
+            projectId: true,
+            clientId: true,
+            expertId: true,
+            project: { select: { projectName: true } },
+            expert:  { select: { id: true, fullName: true } },
+            client:  { select: { id: true, fullName: true } },
         },
-      },
-    });
-  }
+        orderBy: { id: 'desc' }, 
+        take: 20,
+        });
 
-  // project-scoped chat history, the pre-bid thread's read side.
-  async getProjectChatHistory(
-    projectId: string,
-    user: ActorUser,
-    limit: number = 50,
-    cursorId?: string,
-  ) {
-    await this.assertPartyToProject(projectId, user);
+        const threads = await Promise.all(engagements.map(async (eng) => {
+        const lastMessage = await this.prisma.message.findFirst({
+            where: { engagementId: eng.id },
+            orderBy: { timestamp: 'desc' }, 
+            select: { content: true, timestamp: true, senderId: true }, 
+        });
+        const unread = await this.prisma.message.count({
+            where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
+        });
+        return {
+            type:        'engagement',
+            id:          eng.id,
+            projectName: eng.project?.projectName ?? 'Unknown Project',
+            otherParty:  eng.clientId === user.id ? eng.expert : eng.client,
+            lastMessage, 
+            unreadCount: unread,
+        };
+        }));
 
-    return this.prisma.message.findMany({
-      where: { projectId },
-      orderBy: { timestamp: 'asc' },
-      take: limit,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      include: {
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            activeRole: true,
-          },
-        },
-      },
-    });
-  }
-
-  async markAsRead(messageId: string, userId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message) {
-      throw new NotFoundException('Message not found in Database');
+        return threads.sort((a, b) =>
+        (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 
+        );
     }
-
-    return this.prisma.messageRead.upsert({
-      where: {
-        messageId_userId: {
-          messageId,
-          userId,
-        },
-      },
-      update: {},
-      create: {
-        messageId,
-        userId,
-      },
-    });
-  }
-
-  async unreadCount(engagementId: string, userId: string) {
-    return this.prisma.message.count({
-      where: {
-        engagementId: engagementId,
-        senderId: { not: userId },
-        reads: {
-          none: {
-            userId,
-          },
-        },
-      },
-    });
-  }
+    async projectUnreadCount(projectId: string, userId: string) {
+        return this.prisma.message.count({
+        where: { projectId, senderId: { not: userId }, readAt: null },
+        });
+    }
 }

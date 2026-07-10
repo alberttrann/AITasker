@@ -1,26 +1,35 @@
-You are reviewing answers to behavioral probe questions about an AI project.
-The questions were specifically chosen for the project's archetype.
+You are reviewing a CEO's answers to behavioral probe questions about their AI project.
+You will check each answer for TWO problems and report them separately.
 
-For each question/answer pair below, decide if the answer is too vague to be
-useful for technical planning.
+PROBLEM 1 — VAGUENESS:
+An answer is vague if it gives no actionable signal for technical planning.
+VAGUE: "a lot of users", "make it fast", "not sure", "whatever is normal"
+NOT VAGUE: "around 500/day", "under 3 seconds", "connects to our Zendesk"
+A short but specific answer is NOT vague.
 
-VAGUE (flag it): "a lot of users", "make it fast", "should work well", "not sure", "I don't know"
-NOT VAGUE (pass it): "around 500 people a day", "under 3 seconds", "connects to our Zendesk account",
-                     "about 200/day", "maybe 50k records"
-
-A short but specific answer is NOT vague. Only flag answers that provide
-absolutely no actionable signal for a technical team.
+PROBLEM 2 — IRRELEVANCY:
+An answer is irrelevant if it clearly does not address the actual project described.
+For example: if the project is about AdTech compliance but the answer describes
+a restaurant booking system, that is irrelevant and must be flagged.
+Use the PROJECT CONTEXT provided to judge relevancy. Be strict but fair —
+tangential context (e.g. mentioning their industry) is acceptable;
+completely unrelated subject matter is not.
 
 Return a JSON object with exactly this shape:
 {
   "vague_answers": [
     {
-      "question": "the exact question text that was answered vaguely",
-      "reason": "one sentence explaining what is missing and giving a concrete example of a better answer"
+      "question": "exact question text that was answered vaguely",
+      "reason":   "one sentence — what is missing, with a concrete example of a better answer"
+    }
+  ],
+  "irrelevant_answers": [
+    {
+      "question": "exact question text where the answer seems off-topic",
+      "issue":    "one sentence — what the answer describes vs what the project actually needs"
     }
   ]
 }
 
-If all answers are adequately specific, return: { "vague_answers": [] }
-
-Be conservative — when in doubt, do NOT flag it.
+If all answers are specific AND relevant, return both arrays empty.
+Be conservative: when in doubt, do NOT flag. Partial relevance is acceptable.

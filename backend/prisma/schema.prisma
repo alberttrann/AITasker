@@ -57,7 +57,8 @@ model User {
   milestoneChatSessions     MilestoneChatSession[]
   invitationsReceived       Invitation[]               @relation("InvitationExpert")
   invitationsSent           Invitation[]               @relation("InvitationCeo")
-
+  notifications Notification[]
+  refreshTokenHash String? @map("refresh_token_hash")
   @@index([activeRole])
   @@map("users")
 }
@@ -189,6 +190,7 @@ model ElicitationSession {
   stage1OriginalInput       String?   @map("stage1_original_input")
   stage4DraftJson           Json?     @map("stage4_draft_json")
   estimatedBudgetVnd        BigInt?   @map("estimated_budget_vnd")
+  criticalArtifactsJson     Json?     @map("critical_artifacts_json")
 
   user    User     @relation(fields: [userId], references: [id])
   project Project?
@@ -650,6 +652,32 @@ model SubscriptionPackage {
   @@map("subscription_packages")
 }
 
+model VoidCodeDefinition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique           // e.g. "NO_GROUND_TRUTH"
+  name        String                     // short human-readable label
+  description String                     
+  severity    String   @default("MEDIUM") // HIGH | MEDIUM | LOW
+  isActive    Boolean  @default(true)    @map("is_active")
+  sortOrder   Int      @default(0)       @map("sort_order")
+  createdAt   DateTime @default(now())   @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("void_code_definitions")
+}
+
+// Falls back to .txt files on disk if no DB record exists for a stage.
+model PromptTemplate {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stage        String   @unique           // e.g. "stage1_extract", "stage5_synthesize"
+  templateText String   @map("template_text")
+  description  String?                    // human-readable note for admin UI
+  version      Int      @default(1)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("prompt_templates")
+}
+
 // History of subscription purchases per user
 model SubscriptionPurchaseLog {
   id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -711,4 +739,22 @@ model Invitation {
   @@index([expertId])
   @@index([projectId])
   @@map("invitations")
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String                         // "bid_update", "system", "milestone_update"
+  title     String
+  body      String?
+  link      String?
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at")     @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
 }
