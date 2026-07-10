@@ -221,14 +221,24 @@ export default function MilestoneDetail() {
               )}
 
               {isDisputed && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 text-red-900">
-                  <Scale className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-bold">Dispute File Pending Review</p>
-                    <p className="text-red-800">
-                      This milestone has an open dispute. Escrow funds are frozen. The system AI or platform administrator is resolving the dispute.
-                    </p>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-red-900">
+                  <div className="flex gap-3">
+                    <Scale className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-bold">Dispute File Pending Review</p>
+                      <p className="text-red-800 font-body">
+                        This milestone has an open dispute. Escrow funds are frozen. The system AI or platform administrator is resolving the dispute.
+                      </p>
+                    </div>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute/result`)}
+                    className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 shrink-0 h-8 font-headline"
+                  >
+                    View Dispute Status
+                  </Button>
                 </div>
               )}
 

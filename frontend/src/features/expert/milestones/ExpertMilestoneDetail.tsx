@@ -168,14 +168,24 @@ export default function ExpertMilestoneDetail() {
               {/* SUBMITTED STATE: Deliverables Awaiting Signoff */}
               {isUnderReview && (
                 <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-900">
-                    <CheckCircle2 className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-bold">Awaiting Client Sign-off</p>
-                      <p className="text-blue-800">
-                        You have submitted the deliverables for this milestone. The sign-off authority is currently reviewing the submission against the acceptance criteria.
-                      </p>
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-blue-900">
+                    <div className="flex gap-3">
+                      <CheckCircle2 className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-bold">Awaiting Client Sign-off</p>
+                        <p className="text-blue-800 font-body">
+                          You have submitted the deliverables for this milestone. The sign-off authority is currently reviewing the submission against the acceptance criteria.
+                        </p>
+                      </div>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/expert/engagements/${engagementId}/milestones/${milestoneId}/dispute`)}
+                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 shrink-0 h-8 font-headline"
+                    >
+                      File Dispute
+                    </Button>
                   </div>
 
                   {/* Submitted contents preview */}
@@ -241,19 +251,26 @@ export default function ExpertMilestoneDetail() {
                     <ShieldAlert className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
                     <div className="text-sm">
                       <p className="font-bold">Milestone in Dispute</p>
-                      <p className="text-rose-800">
+                      <p className="text-rose-800 font-body">
                         An official dispute has been filed regarding this milestone. The escrow funds are frozen, and the submission is under evaluation by the platform AI and manual admin review.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex justify-center py-4">
+                  <div className="flex justify-center py-4 gap-3">
                     <Button
                       variant="outline"
                       onClick={() => navigate(`/expert/wallet`)}
-                      className="inline-flex items-center gap-1.5"
+                      className="inline-flex items-center gap-1.5 font-headline text-xs h-9 px-3"
                     >
-                      Check Dispute Logs in Wallet
+                      Check Wallet Logs
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => navigate(`/expert/engagements/${engagementId}/milestones/${milestoneId}/dispute/result`)}
+                      className="inline-flex items-center gap-1.5 font-headline text-xs h-9 px-3 text-white border-none"
+                    >
+                      View Dispute Status
                     </Button>
                   </div>
                 </div>
@@ -277,7 +294,19 @@ export default function ExpertMilestoneDetail() {
 
                   {/* Acceptance Criteria listing with revision comments */}
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria to Meet</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria to Meet</h3>
+                      {milestone.state === "IN_REVISION" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/expert/engagements/${engagementId}/milestones/${milestoneId}/dispute`)}
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 inline-flex items-center gap-1 h-8 font-headline"
+                        >
+                          File Dispute
+                        </Button>
+                      )}
+                    </div>
                     <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
                       {milestone.acceptanceCriteria && milestone.acceptanceCriteria.map((c, idx) => (
                         <div

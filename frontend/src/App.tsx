@@ -68,6 +68,8 @@ const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMiles
 const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
 const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
+const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
+const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
 
 function RootLayout() {
   return (
@@ -129,6 +131,14 @@ const router = createBrowserRouter(
               path="engagements/:engagementId/milestones/:milestoneId/fund"
               element={<FundMilestone />}
             />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute"
+              element={<DisputeFile />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute/result"
+              element={<DisputeResult />}
+            />
           </Route>
         </Route>
 
@@ -163,6 +173,14 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
               element={<ExpertMilestoneDetail />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute"
+              element={<DisputeFile />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute/result"
+              element={<DisputeResult />}
             />
           </Route>
         </Route>
