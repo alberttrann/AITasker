@@ -32,23 +32,23 @@ export class WalletService {
     };
   }
 
-  async getWalletTransaction(userId: string) {
+  async getWalletTransaction(
+    userId: string,
+    filters: { type?: string; limit?: number; offset?: number } = {},
+  ) {
     const walletId = await this.getWalletId(userId);
-
     const transactions = await this.prisma.walletTransaction.findMany({
       where: {
-        walletId: walletId,
+        walletId,
+        ...(filters.type ? { transactionType: filters.type } : {}),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 50, 100),
+      skip: filters.offset ?? 0,
     });
-
-    return transactions.map((item) => ({
-      id: item.id,
-      amount: Number(item.amount),
-      transactionType: item.transactionType,
-      createdAt: item.createdAt,
+    return transactions.map(item => ({
+      id: item.id, amount: Number(item.amount),
+      transactionType: item.transactionType, createdAt: item.createdAt,
     }));
   }
 

@@ -128,19 +128,6 @@ export class ElicitationController {
     return this.elicitationService.processStage4(id, body, user.id);
   }
 
-  @Patch('sessions/:id/stage4-draft')
-  @Roles('CLIENT')
-  @UseGuards(SubscriptionGuard)
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Auto-save Stage 4 form without triggering LLM' })
-  saveStage4Draft(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-    @Body() dto: Stage4DraftDto,
-  ) {
-    return this.elicitationService.saveStage4Draft(id, user.id, dto.draftJson ?? {});
-  }
-
   @Put('sessions/:id/stage4-handoff')
   @Roles('CLIENT')
   async processStage4Handoff(
@@ -260,5 +247,17 @@ export class ElicitationController {
   ) {
     this.assertCeoOnly(user);
     return this.elicitationService.saveDraft(id, user.id, dto.symptomTextDraft ?? '');
+  }
+
+  @Patch('sessions/:id/stage4-draft')
+  @Roles('CLIENT')
+  @UseGuards(SubscriptionGuard)
+  @ApiOperation({ summary: 'Auto-save Stage 4 tech context form without triggering LLM' })
+  async saveStage4Draft(
+    @Param('id') id: string,
+    @Body() dto: Stage4DraftDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.elicitationService.saveStage4Draft(id, user.id, dto.draftJson ?? {});
   }
 }

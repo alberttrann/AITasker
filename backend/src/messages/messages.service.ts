@@ -190,4 +190,54 @@ export class MessagesService {
             },
         });
     }
+
+    async getConversations(user: { id: string; activeRole: string }) {
+        // Get engagement-based conversations
+        const engagements = await this.prisma.engagement.findMany({
+        where: {
+            OR: [{ clientId: user.id }, { expertId: user.id }],
+            state: { not: 'DECLINED' },
+        },
+        select: {
+            id: true, 
+            state: true, 
+            projectId: true,
+            clientId: true,
+            expertId: true,
+            project: { select: { projectName: true } },
+            expert:  { select: { id: true, fullName: true } },
+            client:  { select: { id: true, fullName: true } },
+        },
+        orderBy: { id: 'desc' }, 
+        take: 20,
+        });
+
+        const threads = await Promise.all(engagements.map(async (eng) => {
+        const lastMessage = await this.prisma.message.findFirst({
+            where: { engagementId: eng.id },
+            orderBy: { timestamp: 'desc' }, 
+            select: { content: true, timestamp: true, senderId: true }, 
+        });
+        const unread = await this.prisma.message.count({
+            where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
+        });
+        return {
+            type:        'engagement',
+            id:          eng.id,
+            projectName: eng.project?.projectName ?? 'Unknown Project',
+            otherParty:  eng.clientId === user.id ? eng.expert : eng.client,
+            lastMessage, 
+            unreadCount: unread,
+        };
+        }));
+
+        return threads.sort((a, b) =>
+        (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 
+        );
+    }
+    async projectUnreadCount(projectId: string, userId: string) {
+        return this.prisma.message.count({
+        where: { projectId, senderId: { not: userId }, readAt: null },
+        });
+    }
 }

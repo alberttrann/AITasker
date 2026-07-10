@@ -13,9 +13,9 @@ import { InvitationsService } from '../invitations/invitations.service';
 import { CreateMessageDto }   from './dto/create-message.dto';
 import { InviteExpertDto }    from './dto/invite-expert.dto';
 import { JwtService }         from '@nestjs/jwt';
-import { UsePipes, ValidationPipe } from '@nestjs/common';
+import { UsePipes, ValidationPipe, Logger } from '@nestjs/common'; 
 import { OnEvent }            from '@nestjs/event-emitter';
-
+import { PrismaService }      from '../database/prisma.service';
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -25,10 +25,13 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(MessagesGateway.name); 
+
   constructor(
     private readonly messagesService:    MessagesService,
     private readonly invitationsService: InvitationsService,
     private readonly jwtService:         JwtService,
+    private readonly prisma:             PrismaService, 
   ) {}
 
   async handleConnection(client: Socket) {
@@ -53,11 +56,32 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   // Listen for internal server events and push them to the specific user's socket
   @OnEvent('socket.broadcast')
-  handleSocketBroadcast(data: { userId: string; event: string; payload: any }) {
+  async handleSocketBroadcast(payload: {
+    userId: string; event: string; payload: Record<string, any>;
+  }) {
     if (!this.server) return;
-    this.server.to(data.userId).emit(data.event, data.payload);
-  }
+    
+    // Always emit real-time regardless of persistence
+    this.server.to(payload.userId).emit(payload.event, payload.payload);
 
+    // Persist notification:generic events to DB for REST retrieval
+    if (payload.event === 'notification:generic' && payload.payload?.title) {
+      try {
+        await this.prisma.notification.create({
+          data: {
+            userId: payload.userId,
+            type:   payload.payload.type  ?? 'system',
+            title:  payload.payload.title,
+            body:   payload.payload.body  ?? null,
+            link:   payload.payload.link  ?? null,
+          },
+        });
+      } catch (err) {
+        this.logger.error('Failed to persist notification', err);
+        // Never throw — WebSocket delivery is more important than DB persistence
+      }
+    }
+  }
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
     @ConnectedSocket() client: Socket,

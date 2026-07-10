@@ -72,7 +72,14 @@ export class InvitationsService {
           },
         },
         ceo: {
-          select: { id: true, fullName: true },
+            select: {
+            id:       true,
+            fullName: true,
+            // clientProfile holds company info for CEO accounts
+            clientProfile: {
+                select: { companyName: true },
+            },
+            },
         },
       },
       orderBy: { invitedAt: 'desc' },
@@ -124,6 +131,45 @@ export class InvitationsService {
     await this.prisma.invitation.updateMany({
       where: { projectId, expertId, status: 'PENDING' },
       data:  { status: 'ACCEPTED', respondedAt: new Date() },
+    });
+  }
+
+  async getSentInvitations(ceoId: string) {
+    return this.prisma.invitation.findMany({
+      where: { ceoId },
+      include: {
+        project: { select: { id: true, projectName: true } },
+        expert:  { select: { id: true, fullName: true, email: true } },
+        // Also include CEO's own company name on sent invitations (for admin views)
+      },
+      orderBy: { invitedAt: 'desc' },
+    });
+  }
+
+  async getProjectInvitations(projectId: string, ceoId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found.');
+    if (project.clientId !== ceoId) throw new ForbiddenException('Only the CEO can view project invitations.');
+
+    return this.prisma.invitation.findMany({
+      where: { projectId },
+      include: {
+        expert: { select: { id: true, fullName: true, email: true } },
+      },
+      orderBy: { invitedAt: 'desc' },
+    });
+  }
+
+  async retractInvitation(invitationId: string, ceoId: string) {
+    const invitation = await this.prisma.invitation.findUnique({ where: { id: invitationId } });
+    if (!invitation) throw new NotFoundException('Invitation not found.');
+    if (invitation.ceoId !== ceoId) throw new ForbiddenException('Only the sender can retract this invitation.');
+    if (invitation.status === 'ACCEPTED') {
+      throw new UnprocessableEntityException('Cannot retract an accepted invitation — the expert has already submitted a bid.');
+    }
+    return this.prisma.invitation.update({
+      where: { id: invitationId },
+      data: { status: 'DECLINED', respondedAt: new Date() },
     });
   }
 }

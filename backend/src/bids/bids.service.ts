@@ -177,6 +177,49 @@ export class BidsService {
     return bid;
   }
 
+  async findAll(user: { id: string; activeRole: string; clientSubtype?: string }, projectId?: string) {
+    if (user.activeRole === 'EXPERT') {
+      // Expert sees all their own bids (filters by traversing the nested engagement relation)
+      return this.prisma.capabilityBid.findMany({
+        where: { engagement: { expertId: user.id } }, 
+        include: {
+          engagement: {
+            include: { project: { select: { id: true, projectName: true, state: true } } },
+          },
+        },
+        orderBy: { id: 'desc' }, 
+      });
+    }
+
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
+      // CEO sees bids for their project(s)
+      const where: any = {
+        engagement: { project: { clientId: user.id } },
+      };
+      if (projectId) where.engagement.projectId = projectId;
+
+      return this.prisma.capabilityBid.findMany({
+        where,
+        include: {
+          engagement: {
+            include: { project: { select: { id: true, projectName: true } } },
+          },
+        },
+        orderBy: { id: 'desc' }, 
+      });
+    }
+
+    if (user.activeRole === 'ADMIN') {
+      return this.prisma.capabilityBid.findMany({
+        where: projectId ? { engagement: { projectId } } : undefined,
+        orderBy: { id: 'desc' }, 
+        take: 100,
+      });
+    }
+
+    return [];
+  }
+
   private async isProjectOwner(projectId: string, userId: string): Promise<boolean> {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
@@ -428,5 +471,38 @@ export class BidsService {
       where: { id: bidId },
       data: { negotiatedPriceVnd: dto.negotiated_price_vnd },
     });
+  }
+
+  async withdraw(bidId: string, expertUserId: string) {
+    // Include the engagement relation to verify ownership (CapabilityBid has no direct expertId)
+    const bid = await this.prisma.capabilityBid.findUnique({
+      where: { id: bidId },
+      include: {
+        engagement: {
+          select: { expertId: true },
+        },
+      },
+    });
+
+    if (!bid) throw new NotFoundException('Bid not found.');
+
+    // Check ownership via the fetched relation
+    if (bid.engagement.expertId !== expertUserId) {
+      throw new ForbiddenException('You do not own this bid.');
+    }
+
+    if (bid.state !== 'SUBMITTED') {
+      throw new UnprocessableEntityException(
+        `Cannot withdraw a bid in state '${bid.state}'. Only SUBMITTED bids can be withdrawn.`,
+      );
+    }
+
+    // Invalidate the bid
+    await this.prisma.capabilityBid.update({
+      where: { id: bidId },
+      data: { state: 'WITHDRAWN' as any },
+    });
+
+    return { withdrawn: true, bidId };
   }
 }

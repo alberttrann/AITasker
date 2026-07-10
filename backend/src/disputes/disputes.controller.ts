@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, UseGuards, Put } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -35,5 +35,26 @@ export class DisputesController {
   @ApiOperation({ summary: 'View dispute detail' })
   async findById(@Param('id') id: string, @CurrentUser() user: ActorUser) {
     return this.disputesService.findById(id, user);
+  }
+
+  @Post(':id/evidence')
+  @Roles('CLIENT', 'EXPERT')
+  @ApiOperation({ summary: 'Submit additional evidence for an open dispute' })
+  async submitEvidence(
+    @Param('id') id: string,
+    @CurrentUser() user: ActorUser,
+    @Body() dto: { evidence_description: string; file_urls?: string[] },
+  ) {
+    return this.disputesService.submitEvidence(id, user.id, dto);
+  }
+
+  @Put(':id/withdraw')
+  @Roles('CLIENT', 'EXPERT')
+  @ApiOperation({ summary: 'Withdraw a dispute before it is resolved' })
+  async withdrawDispute(
+    @Param('id') id: string,
+    @CurrentUser() user: ActorUser,
+  ) {
+    return this.disputesService.withdrawDispute(id, user.id);
   }
 }

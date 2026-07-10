@@ -216,4 +216,40 @@ export class UserService {
       companyName: null,
     };
   }
+
+  async browseExperts(filters: {
+    stackTag?: string; archetype?: string; limit?: number;
+  }) {
+    const experts = await this.prisma.user.findMany({
+      where: {
+        roles: { array_contains: 'EXPERT' },
+        isActive: true,
+        expertProfile: { isNot: null },
+      },
+      take: Math.min(filters.limit ?? 20, 50),
+      include: {
+        expertProfile: {
+          select: {
+            bio: true, engagementModel: true, stackTagsJson: true, archetypeHistoryJson: true,
+          },
+        },
+        expertDomainDepths: { select: { domainCode: true, depthLevel: true } },
+        expertSeamClaims: {
+          select: { seamCode: true, verificationTier: true },
+          where: { verificationTier: { not: 'SELF_DECLARED' } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return experts.map(e => ({
+      id:              e.id,
+      fullName:        e.fullName,
+      bio:             e.expertProfile?.bio,
+      engagementModel: e.expertProfile?.engagementModel,
+      stackTags:       e.expertProfile?.stackTagsJson ?? [],
+      domainDepths:    e.expertDomainDepths,
+      verifiedSeams:   e.expertSeamClaims,
+    }));
+  }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { UpdateMilestoneDoDItemDto } from './dto/update-dod-item.dto';
 import { PrismaService } from '../database/prisma.service';
 import { CreateDodItemDto } from './dto/create-dod-item.dto';
@@ -54,5 +54,21 @@ export class DodService {
         completedAt: dto.status === 'COMPLETED' ? new Date() : null,
       },
     });
+  }
+
+  async list(milestoneId: string) {
+    return this.prisma.milestoneDodItem.findMany({
+      where: { milestoneId },
+      orderBy: { id: 'asc' }, 
+    });
+  }
+
+  async delete(itemId: string) {
+    const item = await this.prisma.milestoneDodItem.findUnique({ where: { id: itemId } });
+    if (!item) throw new NotFoundException(`DoD item ${itemId} not found.`);
+    if (item.status !== 'PENDING') {
+      throw new UnprocessableEntityException('Can only delete PENDING DoD items.');
+    }
+    return this.prisma.milestoneDodItem.delete({ where: { id: itemId } });
   }
 }

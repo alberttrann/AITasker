@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Delete } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard }   from '../common/guards/roles.guard';
@@ -41,5 +41,19 @@ export class InvitationsController {
   @ApiOperation({ summary: 'Decline a project invitation' })
   declineInvitation(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.invitationsService.declineInvitation(id, user.id);
+  }
+
+  @Get('sent')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'List invitations the CEO has sent (across all projects)' })
+  getSentInvitations(@CurrentUser() user: AuthUser) {
+    return this.invitationsService.getSentInvitations(user.id);
+  }
+
+  @Delete(':id')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'Retract a pending invitation' })
+  retractInvitation(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.invitationsService.retractInvitation(id, user.id);
   }
 }

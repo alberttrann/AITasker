@@ -42,4 +42,18 @@ export class ConfigController {
   getSubscriptionPackages(@Query('role') role?: string) {
     return this.configService.getSubscriptionPackages(role);
   }
+  @Get('void-codes')
+  @ApiOperation({ summary: 'List active void code definitions (no auth required)' })
+  getVoidCodes() {
+    return this.configService.getVoidCodes();
+  }
+  @Get('all')
+  @ApiOperation({
+    summary: 'Fetch all config in one call (for app bootstrap)',
+    description: 'Returns domains, seams, archetypes, void codes, and subscription packages. ' +
+                 'Use on app mount to avoid 5 separate round trips.',
+  })
+  getAllConfig() {
+    return this.configService.getAllConfig();
+  }
 }

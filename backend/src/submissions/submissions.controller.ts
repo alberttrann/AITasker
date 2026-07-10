@@ -42,4 +42,24 @@ export class SubmissionsController {
   ) {
     return this.submissionsService.downloadDocument(milestoneId, user);
   }
+
+  @Get(':id/submissions')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiOperation({ summary: 'List all submissions (revision history) for a milestone' })
+  async getSubmissions(
+    @Param('id') milestoneId: string,
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    return this.submissionsService.listSubmissions(milestoneId, user);
+  }
+
+  @Get(':id/submissions/latest')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiOperation({ summary: 'Get the most recent submission for a milestone' })
+  async getLatestSubmission(
+    @Param('id') milestoneId: string,
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    return this.submissionsService.getLatestSubmission(milestoneId, user);
+  }
 }

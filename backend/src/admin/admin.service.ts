@@ -306,4 +306,124 @@ export class AdminService {
     await this.prisma.subscriptionPackage.delete({ where: { id: packageId } });
     return { deleted: true, id: packageId, name: pkg.name };
   }
+
+  async listUsers(filters: { role?: string; isActive?: boolean; search?: string }) {
+    const where: any = {};
+    if (filters.isActive !== undefined) where.isActive = filters.isActive;
+    if (filters.search) {
+      where.OR = [
+        { email: { contains: filters.search, mode: 'insensitive' } },
+        { fullName: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.user.findMany({
+      where,
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, email: true, fullName: true, roles: true,
+        activeRole: true, isActive: true, createdAt: true,
+        subscriptionClientTier: true, subscriptionExpertTier: true,
+      },
+    });
+  }
+
+  async getUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        wallet: { select: { availableBalance: true, lockedBalance: true } },
+        clientProfile: true, expertProfile: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found.');
+    return {
+      ...user,
+      wallet: user.wallet
+        ? { availableBalance: Number(user.wallet.availableBalance), lockedBalance: Number(user.wallet.lockedBalance) }
+        : null,
+    };
+  }
+
+  async reactivateUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found.');
+    return this.prisma.user.update({ where: { id: userId }, data: { isActive: true } });
+  }
+
+  async listProjects(filters: { state?: string; archetype?: string }) {
+    return this.prisma.project.findMany({
+      where: {
+        ...(filters.state     ? { state: filters.state }         : {}),
+        ...(filters.archetype ? { archetype: filters.archetype } : {}),
+      },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, projectName: true, state: true, archetype: true,
+        tier: true, createdAt: true, clientId: true,
+      },
+    });
+  }
+
+  async getProjectDetail(projectId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        client: { select: { id: true, fullName: true, email: true } },
+        techTeamProfiles: { include: { user: { select: { id: true, fullName: true } } } },
+        _count: { select: { invitations: true } },
+      },
+    });
+    if (!project) throw new NotFoundException('Project not found.');
+    return {
+      ...project,
+      estimatedTotalCostVnd: project.estimatedTotalCostVnd?.toString() ?? null,
+    };
+  }
+
+  async listEngagements(filters: { state?: string; projectId?: string }) {
+    return this.prisma.engagement.findMany({
+      where: {
+        ...(filters.state     ? { state: filters.state }         : {}),
+        ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      },
+      include: {
+        project: { select: { id: true, projectName: true } },
+        expert:  { select: { id: true, fullName: true, email: true } },
+        client:  { select: { id: true, fullName: true, email: true } },
+        _count:  { select: { milestones: true } },
+      },
+      orderBy: { id: 'desc' }, 
+      take: 100,
+    });
+  }
+
+  async listExperts(filters: { verificationTier?: string; limit?: number }) {
+    const experts = await this.prisma.user.findMany({
+      where: {
+        roles: { array_contains: 'EXPERT' },
+        expertProfile: { isNot: null },
+      },
+      take: Math.min(filters.limit ?? 50, 100),
+      include: {
+        expertSeamClaims: { select: { seamCode: true, verificationTier: true } },
+        expertDomainDepths: { select: { domainCode: true, depthLevel: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return experts;
+  }
+
+  async reopenProject(projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found.');
+    if (project.state !== 'SUSPENDED') {
+      throw new UnprocessableEntityException(`Project is in state '${project.state}', not SUSPENDED.`);
+    }
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { state: 'PUBLISHED' },
+    });
+  }
 }

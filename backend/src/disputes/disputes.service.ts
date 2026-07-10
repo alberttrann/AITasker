@@ -294,4 +294,37 @@ export class DisputesService {
       include: includeRelations,
     });
   }
+
+  async submitEvidence(disputeId: string, userId: string, dto: { evidence_description: string; file_urls?: string[] }) {
+    const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
+    if (!dispute) throw new NotFoundException('Dispute not found.');
+    if (!['LAYER_1_EVAL', 'MANUAL_REVIEW'].includes(dispute.state)) {
+      throw new UnprocessableEntityException('Can only add evidence to open disputes.');
+    }
+
+    // Append to existing platform decision record
+    await this.prisma.platformDecision.create({
+      data: {
+        decisionType: 'EVIDENCE_SUBMISSION',
+        entityType:   'disputes',
+        entityId:     disputeId,
+        advisoryNote: `[${userId}] ${dto.evidence_description}`,
+        decision:     (dto.file_urls ?? []).join(', ') || 'text only',
+      },
+    });
+    return { submitted: true, disputeId };
+  }
+
+  async withdrawDispute(disputeId: string, userId: string) {
+    const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
+    if (!dispute) throw new NotFoundException('Dispute not found.');
+    if (dispute.filedBy !== userId) throw new ForbiddenException('Only the filer can withdraw this dispute.'); // ← FIXED
+    if (!['LAYER_1_EVAL', 'MANUAL_REVIEW'].includes(dispute.state)) {
+      throw new UnprocessableEntityException('Can only withdraw open disputes.');
+    }
+    return this.prisma.dispute.update({
+      where: { id: disputeId },
+      data: { state: 'WITHDRAWN' as any },
+    });
+  }
 }

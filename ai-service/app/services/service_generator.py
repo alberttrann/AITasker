@@ -1,39 +1,34 @@
 """
-Service generator — drafts a structured marketplace listing for an expert.
-
-Called by NestJS ListingsService when an expert requests AI-assisted service creation.
-The expert reviews and edits the draft before publishing.
-
-No threshold logic here — all fields are returned as-is from the LLM.
-The suggested_price_vnd is 0 when scope is too vague to estimate; NestJS
-surfaces this as a reminder for the expert to set a price manually.
+Service generator — drafts a marketplace listing for an expert.
 """
-
 import logging
 from app.services import llm_client
-from app.services.prompt_loader import load_prompt
+from app.services.prompt_service import get_rendered_prompt
 from app.models.requests import ServiceGenerateRequest
 from app.models.responses import ServiceGenerateResponse
 
 logger = logging.getLogger(__name__)
 
-# Price sanity bounds (VND) — reject clearly hallucinated values
 _MIN_PRICE_VND = 0
-_MAX_PRICE_VND = 2_000_000_000   # 2 billion VND ≈ $80k — hard ceiling
+_MAX_PRICE_VND = 2_000_000_000
 
 
 async def generate(request: ServiceGenerateRequest) -> ServiceGenerateResponse:
-    """
-    Generate a structured service listing draft from expert capabilities and use cases.
+    # Build default price guidance if not provided
+    price_guidance = request.price_guidance or {
+        "small_min":  5_000_000,  "small_max":  15_000_000,
+        "medium_min": 15_000_000, "medium_max": 50_000_000,
+        "large_min":  50_000_000,
+    }
 
-    Args:
-        request.expert_capabilities: list of skill/experience statements
-        request.target_use_cases:    list of problems the expert can solve
+    prompt_context = {
+        "price_guidance":  price_guidance,
+        "claimed_domains": request.claimed_domains,
+        "claimed_seams":   request.claimed_seams,
+        "is_pro_expert":   request.is_pro_expert,
+    }
 
-    Returns:
-        ServiceGenerateResponse — title, description, scope, timeline, suggested_price_vnd
-    """
-    system = load_prompt("service_generate")
+    system = await get_rendered_prompt("service_generate", prompt_context)
 
     capabilities_block = "\n".join(
         f"- {cap.strip()}" for cap in request.expert_capabilities if cap.strip()
@@ -42,25 +37,35 @@ async def generate(request: ServiceGenerateRequest) -> ServiceGenerateResponse:
         f"- {uc.strip()}" for uc in request.target_use_cases if uc.strip()
     )
 
+    domain_block = ""
+    if request.claimed_domains:
+        domain_block = "\n\nEXPERT'S CLAIMED DOMAIN EXPERTISE:\n" + "\n".join(
+            f"- {d.get('code','?')} ({d.get('name','?')}): {d.get('depth','?')} level"
+            for d in request.claimed_domains
+        )
+
+    seam_block = ""
+    if request.claimed_seams:
+        seam_block = "\n\nEXPERT'S CLAIMED SEAM COMPETENCIES:\n" + "\n".join(
+            f"- {s.get('code','?')} ({s.get('name','?')})"
+            for s in request.claimed_seams
+        )
+
     user_prompt = (
         f"EXPERT CAPABILITIES:\n{capabilities_block}\n\n"
-        f"TARGET USE CASES:\n{use_cases_block}\n\n"
-        "Generate a compelling AI consulting service listing for this expert."
+        f"TARGET USE CASES:\n{use_cases_block}"
+        f"{domain_block}"
+        f"{seam_block}\n\n"
+        "Generate a compelling AI consulting service listing."
     )
 
-    raw: dict = await llm_client.call_llm_json_with_system(
-        prompt=user_prompt,
-        system=system,
-    )
-
+    raw: dict = await llm_client.call_llm_json_with_system(prompt=user_prompt, system=system)
     logger.debug("service_generate raw keys: %s", list(raw.keys()))
 
-    # Parse and sanitise suggested_price_vnd
     try:
         raw_price = int(raw.get("suggested_price_vnd", 0))
         price_vnd = max(_MIN_PRICE_VND, min(_MAX_PRICE_VND, raw_price))
     except (TypeError, ValueError):
-        logger.warning("Could not parse suggested_price_vnd: %s", raw.get("suggested_price_vnd"))
         price_vnd = 0
 
     return ServiceGenerateResponse(
@@ -69,4 +74,7 @@ async def generate(request: ServiceGenerateRequest) -> ServiceGenerateResponse:
         scope=str(raw.get("scope", "")).strip(),
         timeline=str(raw.get("timeline", "")).strip(),
         suggested_price_vnd=price_vnd,
+        suggested_domains=raw.get("suggested_domains", []),
+        suggested_seams=raw.get("suggested_seams", []),
+        pricing_rationale=str(raw.get("pricing_rationale", "")).strip(),
     )

@@ -114,4 +114,62 @@ export class ProjectsController {
   ) {
     return this.projectsService.getMilestoneChatSession(projectId, sessionId, req.user.id);
   }
+
+  @Get(':id/milestones')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List all milestones for a project' })
+  async getProjectMilestones(@Param('id') id: string, @Request() req: any) {
+    return this.projectsService.getProjectMilestones(id, req.user.id, req.user.activeRole);
+  }
+
+  @Put(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Cancel a project (only allowed in PUBLISHED state with no active engagements)' })
+  async cancelProject(@Param('id') id: string, @Request() req: any) {
+    return this.projectsService.cancelProject(id, req.user.id);
+  }
+
+  @Get(':id/engagements')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List all engagements on a project (CEO/TechTeam/Admin only)' })
+  async getProjectEngagements(@Param('id') id: string, @Request() req: any) {
+    return this.projectsService.getProjectEngagements(id, req.user.id, req.user.activeRole);
+  }
+
+  @Get(':id/invitations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List all expert invitations sent for this project (CEO only)' })
+  async getProjectInvitations(@Param('id') id: string, @Request() req: any) {
+    return this.projectsService.getProjectInvitations(id, req.user.id);
+  }
+
+  @Get(':id/team')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get the Tech Team assigned to this project' })
+  async getProjectTeam(@Param('id') id: string, @Request() req: any) {
+    return this.projectsService.getProjectTeam(id, req.user.id);
+  }
+
+  @Put(':id/milestones')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: "Update the project's milestone framework JSON array (CEO only)" })
+  async updateMilestoneFramework(
+    @Param('id') projectId: string,
+    @Body('milestoneFramework') milestoneFramework: any[],
+    @Request() req: any,
+  ) {
+    return this.projectsService.updateMilestoneFramework(projectId, req.user.id, milestoneFramework);
+  }
 }

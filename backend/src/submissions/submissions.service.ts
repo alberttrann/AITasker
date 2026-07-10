@@ -157,4 +157,29 @@ export class SubmissionsService {
 
     return docs;
   }
+
+  async listSubmissions(milestoneId: string, user: { id: string; activeRole: string; clientSubtype?: string | null }) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: { select: { clientId: true, expertId: true } } },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+
+    const isParty =
+      user.activeRole === 'ADMIN' ||
+      milestone.engagement.clientId === user.id ||
+      milestone.engagement.expertId === user.id;
+    if (!isParty) throw new ForbiddenException('Not a party to this engagement.');
+
+    return this.prisma.milestoneSubmission.findMany({
+      where: { milestoneId },
+      orderBy: { submittedAt: 'desc' }, 
+    });
+  }
+
+  async getLatestSubmission(milestoneId: string, user: { id: string; activeRole: string; clientSubtype?: string | null }) {
+    const submissions = await this.listSubmissions(milestoneId, user);
+    if (!submissions.length) throw new NotFoundException('No submissions found for this milestone.');
+    return submissions[0]; // already sorted desc
+  }
 }

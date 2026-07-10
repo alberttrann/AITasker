@@ -1,7 +1,7 @@
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Put, UseGuards, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { AuthUser } from 'src/auth/strategies/jwt.strategy';
 import { AddRoleDto } from './dto/add-role.dto';
 import { UserService } from './users.service';
@@ -48,5 +48,20 @@ export class UserController {
   @Roles('CLIENT')
   updateTaxCode(@CurrentUser() user: AuthUser, @Body() updateTaxCodeDto: UpdateTaxCodeDto) {
     return this.userService.updateTaxCode(user.id, updateTaxCodeDto.taxCode);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get('experts')
+  @Roles('CLIENT', 'ADMIN')
+  @ApiOperation({ summary: 'Browse expert users — for CEO searching for talent' })
+  @ApiQuery({ name: 'stackTag', required: false })
+  @ApiQuery({ name: 'archetype', required: false })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  browseExperts(
+    @Query('stackTag') stackTag?: string,
+    @Query('archetype') archetype?: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
+    return this.userService.browseExperts({ stackTag, archetype, limit });
   }
 }

@@ -128,8 +128,24 @@ export class ElicitationService {
       return session; // return cached result without re-calling AI
     }
 
+    // Fetch live config for prompt template rendering 
+    const [archetypes, voidCodesRaw] = await Promise.all([
+      this.prisma.archetypeDefinition.findMany({
+        where: { isActive: true }, orderBy: { sortOrder: 'asc' },
+        select: { code: true, name: true, description: true },
+      }),
+      // Void codes are now DB-driven via VoidCodeDefinition table (Step 3/4 above).
+      // Admin can add/edit/remove void types without code redeployment.
+      this.prisma.voidCodeDefinition.findMany({
+        where: { isActive: true }, orderBy: { sortOrder: 'asc' },
+        select: { code: true, description: true },
+      }),
+    ]);
+
     const aiResponse = await this.fastapiClient.stage1Extract({
       symptom_text: symptomText,
+      archetypes,
+      void_codes: voidCodesRaw,
     });
     if (!aiResponse.symptoms || aiResponse.symptoms.length === 0) {
       throw new BadRequestException(
@@ -144,11 +160,12 @@ export class ElicitationService {
       where: { id: sessionId },
       data: {
         currentStage:               2,
-        stage1OriginalInput:        symptomText.trim(),          
+        stage1OriginalInput:        symptomText.trim(),
         stage1SymptomsJson:         aiResponse.symptoms as any,
         voidListJson:               aiResponse.voids as any,
         recommendedArchetypesJson:  (aiResponse.recommended_archetypes ?? []) as any,
-        estimatedBudgetVnd:         budgetSignal ? BigInt(budgetSignal) : undefined, 
+        estimatedBudgetVnd:         budgetSignal ? BigInt(budgetSignal) : undefined,
+        criticalArtifactsJson:      (aiResponse.critical_artifacts_required ?? []) as any,
         state:                      'IN_PROGRESS',
         updatedAt:                  new Date(),
       },
@@ -234,8 +251,11 @@ export class ElicitationService {
     try {
       vaguenessResult = await this.fastapiClient.stage3VaguenessCheck({
         archetype:        session.archetype,
-        probe_questions:  requiredQuestions,   // send actual questions to AI
+        probe_questions:  requiredQuestions,
         probe_responses:  probeResponses,
+        // pass symptom context so AI can check relevancy
+        stage1_symptoms:  (session.stage1SymptomsJson as string[]) ?? [],
+        stage1_voids:     (session.voidListJson as any[]) ?? [],
       });
     } catch (err) {
       vaguenessResult = { vague_answers: [] };
@@ -279,8 +299,17 @@ export class ElicitationService {
       current_stack:            dto.current_stack,
       data_available:           dto.data_available,
       latency_requirement:      dto.latency_requirement ?? null,
-      additional_requirement_1: dto.additional_requirement_1 ?? null,  
+      additional_requirement_1: dto.additional_requirement_1 ?? null,
+      // include submitted artifact content
+      technical_artifacts:      dto.technical_artifacts ?? {},
     };
+
+    // check which critical artifacts are still missing
+    const criticalArtifacts = (session.criticalArtifactsJson as any[]) ?? [];
+    const submittedKeys = Object.keys(dto.technical_artifacts ?? {});
+    const missingArtifacts = criticalArtifacts.filter(
+      (a: any) => !submittedKeys.includes(a.artifact_key),
+    );
 
     const updated = await this.prisma.elicitationSession.update({
       where: { id: sessionId },
@@ -292,7 +321,22 @@ export class ElicitationService {
       },
     });
 
-    return { success: true };
+    const updatedSession = await this.prisma.elicitationSession.update({
+      where: { id: sessionId },
+      data: {
+        currentStage:         5,
+        stage4TechInputsJson: techInputs as any,
+        stage4DraftJson:      null,    // draft consumed on submit
+        state:                'IN_PROGRESS',
+        updatedAt:            new Date(),
+      },
+    });
+
+    return {
+      session: updatedSession,
+      // FE shows these as warnings (not a hard block — CEO can still publish)
+      missingArtifacts,
+    };
   }
 
   async processStage4Handoff(
@@ -320,14 +364,24 @@ export class ElicitationService {
       current_stack:            dto.current_stack,
       data_available:           dto.data_available,
       latency_requirement:      dto.latency_requirement ?? null,
-      additional_requirement_1: dto.additional_requirement_1 ?? null,  
+      additional_requirement_1: dto.additional_requirement_1 ?? null,
+      // include submitted artifact content
+      technical_artifacts:      dto.technical_artifacts ?? {},
     };
+
+    // check which critical artifacts are still missing
+    const criticalArtifacts = (session.criticalArtifactsJson as any[]) ?? [];
+    const submittedKeys = Object.keys(dto.technical_artifacts ?? {});
+    const missingArtifacts = criticalArtifacts.filter(
+      (a: any) => !submittedKeys.includes(a.artifact_key),
+    );
 
     const updated = await this.prisma.elicitationSession.update({
       where: { id: sessionId },
       data: {
         currentStage:         5,
         stage4TechInputsJson: techInputs as any,
+        stage4DraftJson:      null,    // draft consumed on submit
         state:                'IN_PROGRESS',
         updatedAt:            new Date(),
       },
@@ -343,7 +397,11 @@ export class ElicitationService {
       }
     });
 
-    return { success: true };
+    return {
+      session: updated,
+      // FE shows these as warnings (not a hard block — CEO can still publish)
+      missingArtifacts,
+    };
   }
 
   async processStage5(sessionId: string, userId: string) {
@@ -488,17 +546,39 @@ export class ElicitationService {
     const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
     const effectiveSelfTechnical = this.getEffectiveSelfTechnical(session, user);
 
+    // Fetch live config from DB to inject into prompt templates
+    const [domains, seams, archetypes] = await Promise.all([
+      this.prisma.domainDefinition.findMany({
+        where: { isActive: true }, orderBy: { sortOrder: 'asc' },
+        select: { code: true, name: true },
+      }),
+      this.prisma.seamDefinition.findMany({
+        where: { isActive: true }, orderBy: { sortOrder: 'asc' },
+        select: { code: true, name: true },
+      }),
+      this.prisma.archetypeDefinition.findMany({
+        where: { isActive: true }, orderBy: { sortOrder: 'asc' },
+        select: { code: true, name: true, description: true },
+      }),
+    ]);
+
     const stage5Request = {
-      session_id:            session.id,
-      stage1_symptoms:       session.stage1SymptomsJson as string[],
-      stage2_archetype:      session.archetype!,
-      stage3_probes:         session.stage3ProbesJson      as Record<string, unknown>,
-      stage4_tech_inputs:    session.stage4TechInputsJson  as Record<string, unknown>,
-      void_list_json:        (session.voidListJson as Array<Record<string, unknown>>) ?? [],
-      is_self_technical:     effectiveSelfTechnical,
-      estimated_budget_vnd:  session.estimatedBudgetVnd
-                               ? Number(session.estimatedBudgetVnd)
-                               : null,   
+      session_id:                    session.id,
+      stage1_symptoms:               session.stage1SymptomsJson as string[],
+      stage2_archetype:              session.archetype!,
+      stage3_probes:                 session.stage3ProbesJson      as Record<string, unknown>,
+      stage4_tech_inputs:            session.stage4TechInputsJson  as Record<string, unknown>,
+      void_list_json:                (session.voidListJson as Array<Record<string, unknown>>) ?? [],
+      is_self_technical:             effectiveSelfTechnical,
+      estimated_budget_vnd:          session.estimatedBudgetVnd
+                                       ? Number(session.estimatedBudgetVnd)
+                                       : null,
+      // pass critical artifacts and what was submitted
+      critical_artifacts_required:   (session.criticalArtifactsJson as any[]) ?? [],
+      // live config for Jinja2 template rendering
+      domains,
+      seams,
+      archetypes,
     };
 
     let synthesis;
@@ -549,7 +629,7 @@ export class ElicitationService {
     });
   }
 
-  async recommendTechContext(sessionId: string, userId: string) {
+  async recommendTechContext(sessionId: string, userId: string, additionalRequirement?: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);
 
@@ -562,6 +642,8 @@ export class ElicitationService {
         stage1_symptoms: session.stage1SymptomsJson as string[],
         stage2_archetype: session.archetype!,
         stage3_probes: session.stage3ProbesJson as Record<string, unknown>,
+        additional_requirement_1: additionalRequirement, // ← FIX: matches interface
+        void_list_json: (session.voidListJson as any[]) ?? [],
       });
       return response;
     } catch (err) {

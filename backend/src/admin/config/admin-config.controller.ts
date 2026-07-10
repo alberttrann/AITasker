@@ -91,4 +91,22 @@ export class AdminConfigController {
 
   @Delete('probe-questions/:id')
   deleteProbeQuestion(@Param('id') id: string) { return this.svc.deleteProbeQuestion(id); }
+
+  // Void Codes
+  @Get('void-codes')
+  listVoidCodes() { return this.svc.listVoidCodes(); }
+
+  @Post('void-codes')
+  createVoidCode(@Body() dto: {
+    code: string; name: string; description: string;
+    severity?: string; sortOrder?: number;
+  }) { return this.svc.createVoidCode(dto); }
+
+  @Put('void-codes/:id')
+  updateVoidCode(@Param('id') id: string, @Body() dto: UpdateDefinitionDto & { severity?: string }) {
+    return this.svc.updateVoidCode(id, dto);
+  }
+
+  @Delete('void-codes/:id')
+  deleteVoidCode(@Param('id') id: string) { return this.svc.deleteVoidCode(id); }
 }

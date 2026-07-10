@@ -333,4 +333,80 @@ export class EngagementsService {
       data: { state: 'DECLINED' },
     });
   }
+
+  async getEngagementMilestones(engagementId: string, user: ActorUser) {
+    const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    // Basic party check
+    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+      throw new ForbiddenException('Not a party to this engagement.');
+    }
+    return this.prisma.milestone.findMany({
+      where: { engagementId },
+      orderBy: { milestoneNumber: 'asc' },
+      include: { acceptanceCriteria: true, dodItems: true },
+    });
+  }
+
+  async getEngagementSubmissions(engagementId: string, user: ActorUser) {
+    const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+      throw new ForbiddenException('Not a party to this engagement.');
+    }
+    return this.prisma.milestoneSubmission.findMany({
+      where: { milestone: { engagementId } },
+      orderBy: { id: 'desc' }, 
+      include: { milestone: { select: { milestoneNumber: true, deliverableStatement: true } } },
+    });
+  }
+
+  async getEngagementBid(engagementId: string, user: ActorUser) {
+    const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+      throw new ForbiddenException('Not a party to this engagement.');
+    }
+    const bid = await this.prisma.capabilityBid.findFirst({
+      where: { engagementId },
+      orderBy: { id: 'asc' }, 
+    });
+    if (!bid) throw new NotFoundException('No bid found for this engagement.');
+    return bid;
+  }
+
+  async getEngagementDisputes(engagementId: string, user: ActorUser) {
+    const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+      throw new ForbiddenException('Not a party to this engagement.');
+    }
+    return this.prisma.dispute.findMany({
+      where: { milestone: { engagementId } },
+      orderBy: { filedAt: 'desc' }, 
+      include: {
+        milestone: { select: { milestoneNumber: true, deliverableStatement: true } },
+      },
+    });
+  }
+
+  async cancelEngagement(engagementId: string, user: ActorUser) {
+    const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+      throw new ForbiddenException('Not a party to this engagement.');
+    }
+    const fundedMilestones = await this.prisma.milestone.count({
+      where: { engagementId, state: { in: ['FUNDED', 'SUBMITTED', 'IN_REVISION'] } },
+    });
+    if (fundedMilestones > 0) {
+      throw new UnprocessableEntityException(
+        `Cannot cancel engagement with ${fundedMilestones} active milestone(s). Resolve them first.`,
+      );
+    }
+    return this.prisma.engagement.update({
+      where: { id: engagementId },
+      data: { state: 'CANCELLED' as any },
+    });
+  }
 }

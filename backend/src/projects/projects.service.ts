@@ -461,4 +461,117 @@ export class ProjectsService {
     if (!session) throw new NotFoundException('Chat session not found.');
     return session;
   }
+
+  async getProjectMilestones(projectId: string, userId: string, activeRole: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { techTeamProfiles: { select: { userId: true } } },
+    });
+    if (!project) throw new NotFoundException('Project not found.');
+
+    const isCeo      = project.clientId === userId;
+    const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
+    const isAdmin    = activeRole === 'ADMIN';
+    if (!isCeo && !isTechTeam && !isAdmin) throw new ForbiddenException('Access denied.');
+
+    return this.prisma.milestone.findMany({
+      where: { engagement: { projectId } },
+      orderBy: { milestoneNumber: 'asc' },
+      include: {
+        acceptanceCriteria: true,
+        dodItems:           true,
+      },
+    });
+  }
+
+  async cancelProject(projectId: string, userId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found.');
+    if (project.clientId !== userId) throw new ForbiddenException('Only the CEO can cancel this project.');
+    if (project.state !== 'PUBLISHED') {
+      throw new UnprocessableEntityException(`Cannot cancel a project in state '${project.state}'.`);
+    }
+
+    const activeEngagements = await this.prisma.engagement.count({
+      where: { projectId, state: { notIn: ['CLOSED', 'CANCELLED'] } },
+    });
+    if (activeEngagements > 0) {
+      throw new UnprocessableEntityException(
+        `Cannot cancel project with ${activeEngagements} active engagement(s). Close them first.`,
+      );
+    }
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { state: 'SUSPENDED' },
+    });
+  }
+
+  async getProjectEngagements(projectId: string, userId: string, activeRole: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { techTeamProfiles: { select: { userId: true } } },
+    });
+    if (!project) throw new NotFoundException('Project not found.');
+
+    const isCeo      = project.clientId === userId;
+    const isTechTeam = project.techTeamProfiles.some(t => t.userId === userId);
+    const isAdmin    = activeRole === 'ADMIN';
+    if (!isCeo && !isTechTeam && !isAdmin) throw new ForbiddenException('Access denied.');
+
+    return this.prisma.engagement.findMany({
+      where: { projectId },
+      include: {
+        expert: { select: { id: true, fullName: true, email: true } },
+        _count: { select: { milestones: true } },
+      },
+      orderBy: { id: 'desc' }, 
+    });
+  }
+
+  async getProjectInvitations(projectId: string, userId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found.');
+    if (project.clientId !== userId) throw new ForbiddenException('Only the CEO can view invitations.');
+
+    return this.prisma.invitation.findMany({
+      where: { projectId },
+      include: {
+        expert: { select: { id: true, fullName: true, email: true } },
+      },
+      orderBy: { invitedAt: 'desc' },
+    });
+  }
+
+  async getProjectTeam(projectId: string, userId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found.');
+    if (project.clientId !== userId) throw new ForbiddenException('Access denied.');
+
+    return this.prisma.techTeamProfile.findMany({
+      where: { linkedProjectId: projectId },
+      include: { user: { select: { id: true, fullName: true, email: true } } },
+    });
+  }
+
+  async updateMilestoneFramework(projectId: string, userId: string, milestoneFramework: any[]) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+    
+    // Only the CEO owner can edit the raw template
+    if (project.clientId !== userId) {
+      throw new ForbiddenException('Only the project owner can update the milestone framework.');
+    }
+    
+    // Can only edit before any actual milestone execution records are locked in
+    if (project.state !== 'PUBLISHED' && project.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only edit milestone framework for active projects.');
+    }
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { milestoneFrameworkJson: milestoneFramework as any },
+      select: { id: true, milestoneFrameworkJson: true }
+    });
+  }
 }

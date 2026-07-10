@@ -194,4 +194,21 @@ export class MilestonesService {
 
     return this.prisma.milestone.delete({ where: { id: milestoneId } });
   }
+
+  async listByEngagement(engagementId: string) {
+    return this.prisma.milestone.findMany({
+      where: { engagementId },
+      orderBy: { milestoneNumber: 'asc' },
+      include: { acceptanceCriteria: true, dodItems: true },
+    });
+  }
+
+  async getMilestoneDisputes(milestoneId: string) {
+    const milestone = await this.prisma.milestone.findUnique({ where: { id: milestoneId } });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    return this.prisma.dispute.findMany({
+      where: { milestoneId },
+      orderBy: { filedAt: 'desc' }, 
+    });
+  }
 }

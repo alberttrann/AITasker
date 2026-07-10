@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Put, Patch, Delete, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Put, Patch, Delete, Param, Query } from '@nestjs/common';
 import { MilestonesService }  from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
@@ -6,7 +6,7 @@ import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard }   from '../common/guards/roles.guard';
 import { Roles }        from '../common/decorators/roles.decorator';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
 
@@ -64,5 +64,23 @@ export class MilestonesController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.milestonesService.deleteMilestone(id, user.id);
+  }
+
+  // List milestones for an engagement
+  @Get()
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List milestones, filtered by engagementId' })
+  @ApiQuery({ name: 'engagementId', required: true })
+  async listMilestones(@Query('engagementId') engagementId: string) {
+    return this.milestonesService.listByEngagement(engagementId);
+  }
+
+  @Get(':id/disputes')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List disputes for a milestone' })
+  async getMilestoneDisputes(@Param('id') milestoneId: string) {
+    return this.milestonesService.getMilestoneDisputes(milestoneId);
   }
 }
