@@ -102,15 +102,17 @@ export default function BidForm() {
   const validate = (): boolean => {
     const errs: Record<string, any> = {};
     if (!approach.trim()) errs.approach = 'Approach summary is required.';
-    if (pricing.length === 0) errs.pricing = { items: 'At least one pricing milestone is required.' };
-    else {
-      pricing.forEach((p, i) => {
-        const itemErrs: any = {};
-        if (!p.price_vnd || p.price_vnd <= 0) itemErrs.price = 'Price must be a positive integer.';
-        if (!p.condition.trim()) itemErrs.condition = 'Describe the milestone condition.';
-        if (Object.keys(itemErrs).length) errs[`pricing_${i}`] = itemErrs;
-      });
-    }
+    // Removed requirement for at least one pricing milestone
+    pricing.forEach((p, idx) => {
+      const itemErrs: any = {};
+      if (!p.price_vnd || p.price_vnd <= 0) itemErrs.price = 'Price must be a positive integer.';
+      if (!p.condition.trim()) itemErrs.condition = 'Describe the milestone condition.';
+      if (Object.keys(itemErrs).length) {
+        // Find original index in pricing array to map error correctly
+        const originalIndex = pricing.findIndex(it => it.milestone_number === p.milestone_number);
+        errs[originalIndex] = itemErrs;
+      }
+    });
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -226,6 +228,7 @@ export default function BidForm() {
         <Card>
           <CardContent className="pt-6">
             <ConditionalPricing
+              frameworkItems={project?.milestone_framework_json || []}
               items={pricing}
               onChange={setPricing}
               errors={fieldErrors}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInvitations, useDeclineInvitation } from "@/hooks/use-invitations";
 import { useEngagements } from "@/hooks/use-engagements";
@@ -32,7 +32,7 @@ export default function ExpertProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
   const [activePopupId, setActivePopupId] = useState<string | null>(null);
-  const [activeMilestoneId, setActiveMilestoneId] = useState<number | null>(null);
+  const [activeMilestoneId, setActiveMilestoneId] = useState<number | null>(1);
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -165,6 +165,11 @@ export default function ExpertProjectsPage() {
   if (unifiedProjects.length > 0 && !selectedProjectId) {
     setSelectedProjectId(unifiedProjects[0].projectId);
   }
+
+  // Reset phase to 1 when selected project changes
+  useEffect(() => {
+    setActiveMilestoneId(1);
+  }, [selectedProjectId]);
 
   const selectedProject = unifiedProjects.find(p => p.projectId === selectedProjectId);
   const isLoading = isLoadingInvites || isLoadingEngagements;
@@ -384,7 +389,7 @@ export default function ExpertProjectsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
                       <p className="flex items-center gap-1.5">
-                        <Building2 className="w-4 h-4" /> {selectedProject.ceoName}
+                        <User className="w-4 h-4" /> {selectedProject.ceoName}
                       </p>
                       {fullProject?.milestone_framework_json && fullProject.milestone_framework_json.length > 0 && (
                         <>
