@@ -423,13 +423,13 @@ export default function ExpertProjectsPage() {
                     )}
                     
                     {selectedProject.status === 'BID_SENT' && (
-                      <Button variant="outline" onClick={() => navigate(`/expert/bids/${selectedProject.engagement?.capabilityBid?.id || selectedProject.projectId}`)}>
+                      <Button variant="outline" onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
                         View Bid
                       </Button>
                     )}
 
                     {selectedProject.status === 'COUNTER_OFFER' && (
-                      <Button onClick={() => navigate(`/expert/bids/${selectedProject.engagement?.capabilityBid?.id || selectedProject.projectId}`)}>
+                      <Button onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
                         Review Offer
                       </Button>
                     )}

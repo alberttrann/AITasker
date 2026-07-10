@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { useProject } from '@/hooks/use-projects';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
-import { useBid } from '@/hooks/use-bids';
+import { useEngagement, useEngagements } from '@/hooks/use-engagements';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -62,14 +62,21 @@ function useCreateBid() {
 
 export default function BidForm() {
   const { projectId: routeId } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  // Try to fetch as a bid (if the routeId is actually a bidId)
-  const { data: bid, isLoading: isLoadingBid } = useBid(routeId || '');
-  
-  // If we found a bid, use its projectId. Otherwise assume routeId IS the projectId.
-  const actualProjectId = (bid as any)?.project_id || routeId;
+  const actualProjectId = routeId;
+
+  // Find if we have an existing engagement for this project
+  const { data: engagements } = useEngagements();
+  const matchedEngagement = engagements?.find((e: any) => e.projectId === actualProjectId || e.project_id === actualProjectId);
+  const engagementId = searchParams.get('engagementId') || matchedEngagement?.id;
+
+  // Fetch full engagement to get the capabilityBid
+  const { data: fullEngagement, isLoading: isLoadingEngagement } = useEngagement(engagementId || undefined);
+  const bid = fullEngagement?.capabilityBid;
+  const isLoadingBid = isLoadingEngagement;
 
   const { project, isLoadingProject, error: specError } = useProject(actualProjectId);
   const { profile: expertProfile, isLoadingProfile } = useExpertProfile();
@@ -82,8 +89,8 @@ export default function BidForm() {
   // Sync state when bid loads
   useEffect(() => {
     if (bid) {
-      if ((bid as any).approach_summary) setApproach((bid as any).approach_summary);
-      if ((bid as any).conditional_pricing_json) setPricing((bid as any).conditional_pricing_json);
+      if ((bid as any).approachSummary || (bid as any).approach_summary) setApproach((bid as any).approachSummary || (bid as any).approach_summary);
+      if ((bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json) setPricing((bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json);
     }
   }, [bid]);
 
@@ -92,7 +99,7 @@ export default function BidForm() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const isDirty = approach.length > 0 || pricing.length > 0;
-  const isReadOnly = !!bid && (bid as any).tech_status !== 'REVISION_REQUESTED';
+  const isReadOnly = !!bid && (bid as any).techStatus !== 'REVISION_REQUESTED' && (bid as any).tech_status !== 'REVISION_REQUESTED';
 
   // Auto-calculate footprint alignment, submitting raw dynamic data for the backend to process
   const footprint: FootprintAlignmentData = {
@@ -143,8 +150,12 @@ export default function BidForm() {
       },
       {
         onSuccess: (data: any) => {
-          const bidId = data?.bid?.id;
-          if (bidId) navigate(`/expert/bids/${bidId}`, { replace: true });
+          const engId = data?.engagement?.id || matchedEngagement?.id;
+          if (engId) {
+            navigate(`/expert/bids/${actualProjectId}?engagementId=${engId}`, { replace: true });
+          } else {
+            navigate(`/expert/service/projects`);
+          }
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || 'Failed to submit bid.';
@@ -229,6 +240,7 @@ export default function BidForm() {
               onChange={setApproach}
               error={fieldErrors.approach}
               disabled={createBid.isPending || isReadOnly}
+              readOnly={isReadOnly}
             />
           </CardContent>
         </Card>
@@ -242,6 +254,7 @@ export default function BidForm() {
               onChange={setPricing}
               errors={fieldErrors}
               disabled={createBid.isPending || isReadOnly}
+              readOnly={isReadOnly}
             />
           </CardContent>
         </Card>
