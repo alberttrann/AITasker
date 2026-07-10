@@ -91,9 +91,9 @@ export default function PortfolioSubmitForm() {
         };
       } else {
         data = await submitPortfolio.mutateAsync({
-          seamClaimId: selectedSeamId,
-          projectDescription: description,
-          decisionPoints: decisions,
+          seam_code: selectedSeamId,
+          project_description: description,
+          decision_points: decisions,
         });
       }
 

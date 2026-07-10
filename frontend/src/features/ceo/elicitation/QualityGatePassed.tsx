@@ -80,6 +80,34 @@ export default function QualityGatePassed({
             </span>
           </div>
 
+          {project?.estimatedTotalCostVnd && (
+            <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-3 text-slate-600">
+                <div className="p-2 rounded-lg bg-slate-100 text-slate-500 font-bold">
+                  ₫
+                </div>
+                <span className="font-medium">Est. AI Budget</span>
+              </div>
+              <span className="font-medium text-slate-900">
+                {Number(project.estimatedTotalCostVnd).toLocaleString()} VND
+              </span>
+            </div>
+          )}
+
+          {project?.estimatedTotalDurationDays && (
+            <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-3 text-slate-600">
+                <div className="p-2 rounded-lg bg-slate-100 text-slate-500">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <span className="font-medium">Est. Timeline</span>
+              </div>
+              <span className="font-medium text-slate-900">
+                {project.estimatedTotalDurationDays} days
+              </span>
+            </div>
+          )}
+
 
         </div>
       </div>

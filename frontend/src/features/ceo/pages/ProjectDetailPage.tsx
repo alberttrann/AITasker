@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useProjects, useUpdateProjectName, useUpdateProjectMilestones } from "@/hooks/use-projects";
+import { useProjects, useUpdateProjectName, useUpdateProjectMilestones, useProjectMilestones } from "@/hooks/use-projects";
 import { 
   ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X,
   Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
@@ -8,6 +8,9 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
+import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
+import AcceptanceCriteriaEditor from "@/features/ceo/milestones/AcceptanceCriteriaEditor";
+import DoDEditor from "@/features/ceo/milestones/DoDEditor";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,14 +45,26 @@ export default function ProjectDetailPage() {
   const { data: dynamicSeams } = useSeams();
   const { data: archetypesList } = useArchetypes();
 
+  const { data: projectMilestones } = useProjectMilestones(id || "");
+
   // Milestones State
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
   const [editedMilestones, setEditedMilestones] = useState<any[]>([]);
 
-  const milestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const displayMilestones = projectMilestones?.length > 0 ? projectMilestones : jsonMilestones;
 
   const handleEditMilestones = () => {
-    setEditedMilestones(JSON.parse(JSON.stringify(milestones)));
+    // When editing in bulk, we edit the JSON structure. If projectMilestones exist, we convert them back to the JSON structure for the bulk edit endpoint.
+    const toEdit = projectMilestones?.length > 0 ? projectMilestones.map((pm: any) => ({
+      milestone_number: pm.milestoneNumber,
+      deliverable_statement: pm.deliverableStatement,
+      payment_amount_vnd: pm.paymentAmountVnd,
+      estimated_duration_days: pm.estimatedDurationDays,
+      sign_off_authority: pm.signOffAuthority
+    })) : jsonMilestones;
+    
+    setEditedMilestones(JSON.parse(JSON.stringify(toEdit)));
     setIsEditingMilestones(true);
   };
 
@@ -394,9 +409,9 @@ export default function ProjectDetailPage() {
             <div className="p-6 flex-1">
               {!isEditingMilestones ? (
                 /* VIEW MODE */
-                milestones?.length > 0 ? (
+                displayMilestones?.length > 0 ? (
                   <div className="space-y-4">
-                    {milestones.map((m: any, idx: number) => (
+                    {displayMilestones.map((m: any, idx: number) => (
                       <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 transition-all duration-200">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
                           <div className="flex-1 space-y-2">
@@ -432,11 +447,18 @@ export default function ProjectDetailPage() {
                                 Payment Amount
                               </p>
                               <p className="text-lg font-bold text-emerald-600">
-                                {m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—'}
+                                {m.paymentAmountVnd !== undefined ? (m.paymentAmountVnd).toLocaleString('vi-VN') + ' ₫' : (m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—')}
                               </p>
                             </div>
                           </div>
                         </div>
+                        {/* Inline Editors for Relational Milestones */}
+                        {m.id && isCeo && (
+                          <div className="px-6 pb-6 pt-2 bg-slate-50 border-t border-slate-100 rounded-b-xl">
+                            <AcceptanceCriteriaEditor milestoneId={m.id} />
+                            <DoDEditor milestoneId={m.id} />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -540,6 +562,8 @@ export default function ProjectDetailPage() {
         </div>
 
       </div>
+
+      <MilestoneChatAssistant projectId={project.id} />
     </div>
   );
 }

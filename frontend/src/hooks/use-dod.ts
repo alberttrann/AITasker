@@ -6,7 +6,7 @@ import {
   UpdateMilestoneDoDItemDto,
   UpdateMilestoneDoDItemVariable,
 } from "@/types/api.types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 
 export function useCreateDodItem() {
   const queryClient = useQueryClient();
@@ -48,6 +48,38 @@ export function useUpdateDodStatus() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["milestones", variables.milestoneId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["milestones", variables.milestoneId, "dod"],
+      });
+    },
+  });
+}
+
+export function useGetDodItems(milestoneId: string) {
+  return useQuery({
+    queryKey: ["milestones", milestoneId, "dod"],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/milestones/${milestoneId}/dod`);
+      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+    },
+    enabled: !!milestoneId,
+  });
+}
+
+export function useDeleteDodItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ milestoneId, itemId }: { milestoneId: string; itemId: string }) => {
+      const { data } = await apiClient.delete(`/milestones/${milestoneId}/dod/${itemId}`);
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["milestones", variables.milestoneId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["milestones", variables.milestoneId, "dod"],
       });
     },
   });

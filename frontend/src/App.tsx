@@ -41,9 +41,11 @@ const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingP
 const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
 const ExpertWallet = lazy(() => import("@features/expert/wallet/ExpertWallet"));
 const BankHubLink = lazy(() => import("@features/expert/wallet/BankHubLink"));
+const ServiceListingCreate = lazy(() => import("./features/expert/services/ServiceListingCreate"));
 
 const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
 const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/SubscriptionPlans"));
+const MarketplaceBrowse = lazy(() => import("@features/ceo/marketplace/MarketplaceBrowse"));
 const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
 const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
 const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
@@ -106,6 +108,7 @@ const router = createBrowserRouter(
             <Route path="subscriptions" element={<SubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
+            <Route path="marketplace" element={<MarketplaceBrowse />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
             <Route path="projects/:projectId/bids" element={<CeoBidList />} />
             <Route
@@ -137,6 +140,7 @@ const router = createBrowserRouter(
             <Route index element={<ExpertOverview />} />
             <Route path="service" element={<ExpertServicesPage />} />
             <Route path="service/projects" element={<ExpertProjectsPage />} />
+            <Route path="service/create-listing" element={<ServiceListingCreate />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />

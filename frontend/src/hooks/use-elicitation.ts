@@ -94,23 +94,33 @@ export async function submitStage3(
   return data;
 }
 
-/** Stage 4 — Submit technical context (Scenario A). Returns GateResult. */
+/** Stage 4 — Submit technical context (Scenario A). Returns { session, missingArtifacts }. */
 export async function submitStage4(
   sessionId: string,
-  scaleAndInfrastructure: string,
-  integrationMethod: string,
-  legacyVolume: string,
-  schemas: string[],
-  contracts: string[],
+  current_stack: string,
+  integration_method: string,
+  data_available: string,
+  additional_requirement_1: string,
+  technical_artifacts: Record<string, string>
 ) {
-  const current_stack = `Scale & Infra: ${scaleAndInfrastructure}\nSchemas: ${schemas.join(", ") || "None"}`;
-  const data_available = `Legacy Volume: ${legacyVolume}`;
-  const latency_requirement = `Integration Method: ${integrationMethod}\nContracts: ${contracts.join(", ") || "None"}`;
+  const latency_requirement = `Integration Method: ${integration_method}`;
 
-  const { data } = await apiClient.put(
+  const { data } = await apiClient.post(
     `/elicitation/sessions/${sessionId}/stage4`,
-    { current_stack, data_available, latency_requirement },
+    { current_stack, data_available, latency_requirement, additional_requirement_1, technical_artifacts },
     { timeout: 120_000 },
+  );
+  return data;
+}
+
+/** Stage 4 — Auto-Save Draft */
+export async function saveStage4Draft(
+  sessionId: string,
+  draftJson: any
+): Promise<{ saved: boolean }> {
+  const { data } = await apiClient.patch(
+    `/elicitation/sessions/${sessionId}/stage4-draft`,
+    { draftJson }
   );
   return data;
 }

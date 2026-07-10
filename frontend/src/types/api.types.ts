@@ -173,6 +173,8 @@ export interface ProjectDto {
   milestone_framework_json: MilestoneFrameworkItem[];
   artifact_a_json: ArtifactA | null;
   projectName?: string | null;
+  estimatedTotalCostVnd?: string;
+  estimatedTotalDurationDays?: number;
   created_at: string;
 }
 
@@ -740,6 +742,200 @@ export interface MilestoneDetailDto extends MilestoneDto {
   acceptanceCriteria: AcceptanceCriterionDto[];
   dodItems: MilestoneDodItemDto[];
 }
+// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
+
+/**
+ * Payload used for verifying a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionDto {
+  verification_comment?: string;
+}
+
+/**
+ * Variables required when calling the verify criterion mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionVariable {
+  criterionId: string;
+  body: VerifyCriterionDto;
+}
+
+/**
+ * Payload used for requesting revision on a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteDto {
+  revision_note: string;
+}
+
+/**
+ * Variables required when calling the request revision mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteVariable {
+  criterionId: string;
+  body: RevisionNoteDto;
+}
+
+// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new DoD checklist item.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemDto {
+  item_description: string;
+  is_required?: boolean;
+  maps_to_criterion_id?: string;
+}
+
+/**
+ * Variables required when calling the create DoD item mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemVariable {
+  milestoneId: string;
+  body: CreateDodItemDto;
+}
+
+/**
+ * Payload used for updating a Milestone DoD item status.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemDto {
+  status: DodStatus;
+  completion_note?: string;
+  not_applicable_note?: string;
+}
+
+/**
+ * Variables required when calling the update DoD status mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemVariable {
+  milestoneId: string;
+  itemId: string;
+  body: UpdateMilestoneDoDItemDto;
+}
+
+// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
+
+/**
+ * Payload used for expert submitting deliverables for a milestone.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionDto {
+  description: string;
+  files_json?: string[];
+}
+
+/**
+ * Variables required when calling the submit milestone mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionVariable {
+  milestoneId: string;
+  body: CreateSubmissionDto;
+}
+
+/**
+ * Payload used for staging a detailed technical paygated document.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocDto {
+  document_url: string;
+}
+
+/**
+ * Variables required when calling the upload document mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocVariable {
+  milestoneId: string;
+  body: StagePaygatedDocDto;
+}
+
+// ── Admin Config Types ───────────────────────────────────────────────────────
+
+export interface SubPackage {
+  id: string;
+  role: string;
+  name: string;
+  priceVnd: number;
+  durationMonths: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DomainDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SeamDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ArchetypeDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ProbeQuestion {
+  id: string;
+  archetypeCode: string;
+  questionText: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+export interface InvitationDto {
+  id:          string;
+  projectId:   string;
+  expertId:    string;
+  ceoId:       string;
+  message:     string | null;
+  status:      'PENDING' | 'ACCEPTED' | 'DECLINED';
+  invitedAt:   string;
+  respondedAt: string | null;
+  expiresAt:   string | null;
+  isExpired:   boolean;
+  project: {
+    id:                  string;
+    projectName:         string;
+    state:               string;
+    archetype:           string;
+    tier:                string;
+    createdAt:           string;
+    requiredDomainsJson: any[];
+    requiredSeamsJson:   any[];
+  };
+  ceo: {
+    id:       string;
+    fullName: string;
+  };
+}
+
+export interface MilestoneDetailDto extends MilestoneDto {
+  acceptanceCriteria: AcceptanceCriterionDto[];
+  dodItems: MilestoneDodItemDto[];
+}
 
 /**
  * Payload required to file a dispute.
@@ -751,8 +947,53 @@ export interface CreateDisputePayload {
   milestone_id: string;
   reason: string;
 }
-e x p o r t  
- i n t e r f a c e  
- V o i d C o d e D e f i n i t i o n  
-   c o d e :   s t r i n g ;   t i t l e :   s t r i n g ;   d e s c r i p t i o n :   s t r i n g ;    
- 
+
+export interface VoidCodeDefinition {
+  code: string;
+  title: string;
+  description: string;
+}
+
+export interface MilestoneChatMessageDto {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface MilestoneChatSessionDto {
+  id: string;
+  title: string;
+  messageCount: number;
+  updatedAt: string;
+  messagesJson?: MilestoneChatMessageDto[];
+  createdAt?: string;
+}
+
+export interface MilestoneChatResponseDto {
+  reply: string;
+  suggestedEdit: {
+    milestone_number: number;
+    field: string;
+    suggested_value: any;
+    reason: string;
+  } | null;
+  chatSessionId: string;
+  sessionTitle: string;
+  messageCount: number;
+}
+
+export interface AcceptanceCriterionDto {
+  id: string;
+  milestoneId: string;
+  criterionText: string;
+  isRequired: boolean;
+  platformDecisionsJson?: any[]; // optional platform notes
+}
+
+export interface MilestoneDodItemDto {
+  id: string;
+  milestoneId: string;
+  itemDescription: string;
+  isRequired: boolean;
+  status: string; // e.g. "PENDING", "COMPLETED"
+  mapsToCriterionId?: string | null;
+}
