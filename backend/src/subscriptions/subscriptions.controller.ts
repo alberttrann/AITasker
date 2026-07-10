@@ -17,10 +17,7 @@ export class SubscriptionController {
 
   @ApiBearerAuth('JWT')
   @Post('activate')
-  activateSubscription(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: ActivateSubscriptionDto,
-  ) {
+  activateSubscription(@CurrentUser() user: AuthUser, @Body() dto: ActivateSubscriptionDto) {
     return this.subscriptionService.activateSubscription(user.id, dto);
   }
 
@@ -33,7 +30,7 @@ export class SubscriptionController {
   @Get('history')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get current user\'s subscription purchase history' })
+  @ApiOperation({ summary: "Get current user's subscription purchase history" })
   async getSubscriptionHistory(@CurrentUser() user: AuthUser) {
     return this.subscriptionService.getSubscriptionHistory(user.id);
   }

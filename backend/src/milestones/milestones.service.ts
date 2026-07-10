@@ -13,7 +13,7 @@ import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { LedgerService } from '@shared/ledger/ledger.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { generateVaNumber } from '@shared/ledger/va-generator';
- import { UpdateMilestoneDto } from './dto/update-milestone.dto';
+import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 
 @Injectable()
 export class MilestonesService {
@@ -145,7 +145,6 @@ export class MilestonesService {
     });
   }
 
-  
   async updateMilestone(milestoneId: string, userId: string, dto: UpdateMilestoneDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
@@ -166,12 +165,18 @@ export class MilestonesService {
     return this.prisma.milestone.update({
       where: { id: milestoneId },
       data: {
-        ...(dto.title                !== undefined && { title: dto.title }),
-        ...(dto.deliverable_statement !== undefined && { deliverableStatement: dto.deliverable_statement }),
-        ...(dto.sign_off_authority   !== undefined && { signOffAuthority: dto.sign_off_authority }),
-        ...(dto.payment_amount_vnd   !== undefined && { paymentAmountVnd: BigInt(dto.payment_amount_vnd) }),
-        ...(dto.estimated_duration_days !== undefined && { estimatedDurationDays: dto.estimated_duration_days }),
-        ...(dto.tech_stack           !== undefined && { techStackJson: dto.tech_stack }),
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.deliverable_statement !== undefined && {
+          deliverableStatement: dto.deliverable_statement,
+        }),
+        ...(dto.sign_off_authority !== undefined && { signOffAuthority: dto.sign_off_authority }),
+        ...(dto.payment_amount_vnd !== undefined && {
+          paymentAmountVnd: BigInt(dto.payment_amount_vnd),
+        }),
+        ...(dto.estimated_duration_days !== undefined && {
+          estimatedDurationDays: dto.estimated_duration_days,
+        }),
+        ...(dto.tech_stack !== undefined && { techStackJson: dto.tech_stack }),
         updatedAt: new Date(),
       },
     });

@@ -22,7 +22,7 @@ export class UpdateListingDto {
   @IsOptional()
   @IsString()
   scope?: string;
- 
+
   @IsOptional()
   @IsString()
   timeline?: string;

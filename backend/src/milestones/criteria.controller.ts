@@ -18,19 +18,13 @@ export class CriteriaController {
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Verify and sign off an acceptance criterion' })
   @ApiResponse({ status: 200, description: 'Criterion verified successfully.' })
-  async verifyCriterion(
-    @Param('id') criterionId: string,
-    @Body() dto: VerifyCriterionDto, 
-  ) {
+  async verifyCriterion(@Param('id') criterionId: string, @Body() dto: VerifyCriterionDto) {
     return this.criteriaService.verify(criterionId, dto);
   }
 
-  @Put(':id/revision') 
+  @Put(':id/revision')
   @Roles('CLIENT')
-  async rejectCriterion(
-    @Param('id') criterionId: string,
-    @Body() dto: RevisionNoteDto, 
-  ) {
+  async rejectCriterion(@Param('id') criterionId: string, @Body() dto: RevisionNoteDto) {
     return this.criteriaService.requestRevision(criterionId, dto);
   }
 }

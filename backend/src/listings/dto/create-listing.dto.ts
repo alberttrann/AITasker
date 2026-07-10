@@ -12,7 +12,6 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-
 enum ServiceType {
   AI_SERVICE = 'AI_SERVICE',
   TECH_DISCOVERY = 'TECH_DISCOVERY',

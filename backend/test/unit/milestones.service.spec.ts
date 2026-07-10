@@ -1,16 +1,16 @@
 // @ts-nocheck
-import { Test, TestingModule }   from '@nestjs/testing';
-import { BadRequestException }   from '@nestjs/common';
-import { MilestonesService }     from '../../src/milestones/milestones.service';
-import { PrismaService }         from '../../src/database/prisma.service';
-import { MilestoneBuilder }      from '../helpers/mock.builders';
-import { FastapiClient }         from '../../src/elicitation/fastapi.client';
+import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
+import { MilestonesService } from '../../src/milestones/milestones.service';
+import { PrismaService } from '../../src/database/prisma.service';
+import { MilestoneBuilder } from '../helpers/mock.builders';
+import { FastapiClient } from '../../src/elicitation/fastapi.client';
 
 // Prisma mock
 const makeMockTx = (overrides: Record<string, any> = {}) => ({
   milestone: {
-    count:      jest.fn<any>().mockResolvedValue(0),
-    create:     jest.fn<any>().mockResolvedValue({ id: 'milestone-uuid' }),
+    count: jest.fn<any>().mockResolvedValue(0),
+    create: jest.fn<any>().mockResolvedValue({ id: 'milestone-uuid' }),
     findUnique: jest.fn<any>().mockResolvedValue({
       id: 'milestone-uuid',
       acceptanceCriteria: [{ id: 'criterion-uuid' }],
@@ -27,7 +27,7 @@ const makeMockPrisma = () => ({
   $transaction: jest.fn<any>().mockImplementation((cb: Function) => cb(makeMockTx())),
   platformDecision: {
     create: jest.fn<any>().mockResolvedValue({}),
-  }
+  },
 });
 
 const makeMockFastapiClient = () => ({
@@ -49,7 +49,7 @@ describe('MilestonesService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: FastapiClient, useValue: mockFastapiClient },
         // Dummy LedgerService mock to satisfy dependency injection
-        { provide: 'LedgerService', useValue: {} } 
+        { provide: 'LedgerService', useValue: {} },
       ],
     }).compile();
 

@@ -45,10 +45,10 @@ export class ConfigReadService {
       },
       orderBy: { role: 'asc' },
       select: {
-        id:             true,
-        role:           true,
-        name:           true,
-        priceVnd:       true,
+        id: true,
+        role: true,
+        name: true,
+        priceVnd: true,
         durationMonths: true,
       },
     });

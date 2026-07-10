@@ -34,15 +34,13 @@ export class SubscriptionService {
       );
     }
 
-    // Resolve the package the user explicitly chose 
+    // Resolve the package the user explicitly chose
     const pkg = await this.prisma.subscriptionPackage.findUnique({
       where: { id: dto.packageId },
     });
 
     if (!pkg) {
-      throw new NotFoundException(
-        `Subscription package ${dto.packageId} not found.`,
-      );
+      throw new NotFoundException(`Subscription package ${dto.packageId} not found.`);
     }
     if (!pkg.isActive) {
       throw new UnprocessableEntityException(
@@ -56,26 +54,24 @@ export class SubscriptionService {
       );
     }
 
-    const tierKey    = userCurrentActiveRole === ActiveRole.CLIENT
-      ? 'subscriptionClientTier'
-      : 'subscriptionExpertTier';
-    const expiresKey = userCurrentActiveRole === ActiveRole.CLIENT
-      ? 'subClientExpiresAt'
-      : 'subExpertExpiresAt';
+    const tierKey =
+      userCurrentActiveRole === ActiveRole.CLIENT
+        ? 'subscriptionClientTier'
+        : 'subscriptionExpertTier';
+    const expiresKey =
+      userCurrentActiveRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
     const roleTypeLabel = userCurrentActiveRole === ActiveRole.CLIENT ? 'client' : 'expert';
 
     // Idempotency: block if subscription is still active
     const now = new Date();
     const isCurrentlyActive =
-      user[tierKey] === SubscriptionTier.PRO &&
-      user[expiresKey] !== null &&
-      user[expiresKey] > now;
+      user[tierKey] === SubscriptionTier.PRO && user[expiresKey] !== null && user[expiresKey] > now;
 
     if (isCurrentlyActive) {
       throw new ConflictException('Your subscription is still active.');
     }
 
-    // Billing transaction 
+    // Billing transaction
     const updatedUser = await this.prisma.$transaction(async (tx) => {
       const userWallet = await tx.wallet.findUnique({ where: { userId: user.id } });
       if (!userWallet) throw new UnprocessableEntityException('Wallet not found.');
@@ -87,15 +83,15 @@ export class SubscriptionService {
 
       await tx.wallet.update({
         where: { userId: user.id },
-        data:  { availableBalance: { decrement: pkg.priceVnd } },
+        data: { availableBalance: { decrement: pkg.priceVnd } },
       });
 
       await tx.walletTransaction.create({
         data: {
-          walletId:        userWallet.id,
-          amount:          pkg.priceVnd,
+          walletId: userWallet.id,
+          amount: pkg.priceVnd,
           transactionType: TransactionType.SUBSCRIPTION,
-          referenceId:     `SUB-${userId}:${roleTypeLabel}:${pkg.id}:${Date.now()}`,
+          referenceId: `SUB-${userId}:${roleTypeLabel}:${pkg.id}:${Date.now()}`,
         },
       });
 
@@ -104,9 +100,9 @@ export class SubscriptionService {
       // Purchase log (for subscription history)
       await tx.subscriptionPurchaseLog.create({
         data: {
-          userId:        user.id,
-          packageId:     pkg.id,
-          role:          userCurrentActiveRole,
+          userId: user.id,
+          packageId: pkg.id,
+          role: userCurrentActiveRole,
           amountPaidVnd: pkg.priceVnd,
           expiresAt,
           paymentMethod: 'WALLET',
@@ -116,7 +112,7 @@ export class SubscriptionService {
       return tx.user.update({
         where: { id: user.id },
         data: {
-          [tierKey]:    SubscriptionTier.PRO,
+          [tierKey]: SubscriptionTier.PRO,
           [expiresKey]: expiresAt,
         },
       });
@@ -124,11 +120,11 @@ export class SubscriptionService {
 
     this.eventEmitter.emit('socket.broadcast', {
       userId: user.id,
-      event:  'notification:generic',
+      event: 'notification:generic',
       payload: {
-        type:  'system',
+        type: 'system',
         title: 'Pro Activated',
-        body:  `Welcome to ${pkg.name}! Valid for ${pkg.durationMonths} month(s).`,
+        body: `Welcome to ${pkg.name}! Valid for ${pkg.durationMonths} month(s).`,
       },
     });
 
@@ -136,8 +132,8 @@ export class SubscriptionService {
     return {
       access_token,
       activatedPackage: {
-        name:           pkg.name,
-        priceVnd:       pkg.priceVnd.toString(),
+        name: pkg.name,
+        priceVnd: pkg.priceVnd.toString(),
         durationMonths: pkg.durationMonths,
       },
     };
@@ -170,7 +166,7 @@ export class SubscriptionService {
     return {
       subscriptionTier: isExpired ? 'free' : user[tierKey],
       subscriptionExpires: user[expiresKey],
-      isExpired,   
+      isExpired,
     };
   }
   async getSubscriptionHistory(userId: string) {
@@ -185,14 +181,14 @@ export class SubscriptionService {
     });
 
     return logs.map((log) => ({
-      id:            log.id,
-      packageName:   log.package.name,
-      role:          log.role,
+      id: log.id,
+      packageName: log.package.name,
+      role: log.role,
       amountPaidVnd: log.amountPaidVnd.toString(),
-      purchasedAt:   log.purchasedAt,
-      expiresAt:     log.expiresAt,
+      purchasedAt: log.purchasedAt,
+      expiresAt: log.expiresAt,
       paymentMethod: log.paymentMethod,
-      isExpired:     log.expiresAt < new Date(),
+      isExpired: log.expiresAt < new Date(),
     }));
   }
 }

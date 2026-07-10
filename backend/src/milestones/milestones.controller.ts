@@ -1,11 +1,11 @@
 import { Controller, Post, Get, Body, UseGuards, Put, Patch, Delete, Param } from '@nestjs/common';
-import { MilestonesService }  from './milestones.service';
+import { MilestonesService } from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard }   from '../common/guards/roles.guard';
-import { Roles }        from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
@@ -59,10 +59,7 @@ export class MilestonesController {
   @ApiOperation({ summary: 'Delete a milestone — only while state is DEFINED' })
   @ApiResponse({ status: 200, description: 'Milestone deleted.' })
   @ApiResponse({ status: 422, description: 'Milestone is not in DEFINED state.' })
-  async deleteMilestone(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async deleteMilestone(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.milestonesService.deleteMilestone(id, user.id);
   }
 }

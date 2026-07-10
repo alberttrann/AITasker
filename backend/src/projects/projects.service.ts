@@ -1,6 +1,9 @@
 import {
-  Injectable, NotFoundException, ForbiddenException,
-  ServiceUnavailableException, UnprocessableEntityException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { MatchingService } from './matching.service';
@@ -11,7 +14,7 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly matchingService: MatchingService,
-    private readonly fastapiClient: FastapiClient,   
+    private readonly fastapiClient: FastapiClient,
   ) {}
 
   async findProject(
@@ -23,12 +26,16 @@ export class ProjectsService {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: {
-        id: true, clientId: true, state: true,
-        archetype: true, tier: true, artifactAJson: true,
+        id: true,
+        clientId: true,
+        state: true,
+        archetype: true,
+        tier: true,
+        artifactAJson: true,
         projectName: true,
-        requiredDomainsJson:   true,   
-        requiredSeamsJson:     true,   
-        milestoneFrameworkJson: true,  
+        requiredDomainsJson: true,
+        requiredSeamsJson: true,
+        milestoneFrameworkJson: true,
       },
     });
 
@@ -42,7 +49,10 @@ export class ProjectsService {
 
     if (project.state !== 'PUBLISHED') {
       const isOwnerOrLinkedTech = await this.checkClientOwnership(
-        project, userId, activeRole, clientSubtype,
+        project,
+        userId,
+        activeRole,
+        clientSubtype,
       );
       if (!isOwnerOrLinkedTech) {
         throw new ForbiddenException('Access denied. This project spec is not yet published.');
@@ -78,7 +88,10 @@ export class ProjectsService {
 
     if (project.state !== 'PUBLISHED') {
       const isOwnerOrLinkedTech = await this.checkClientOwnership(
-        project, userId, activeRole, clientSubtype,
+        project,
+        userId,
+        activeRole,
+        clientSubtype,
       );
       if (!isOwnerOrLinkedTech) {
         throw new ForbiddenException('Artifact A is only available on published projects.');
@@ -92,11 +105,11 @@ export class ProjectsService {
 
     return { artifact_a_json: project.artifactAJson };
   }
-  
+
   async findProjectArtifactB(
-    projectId:     string,
-    userId:        string,
-    activeRole:    'CLIENT' | 'EXPERT' | 'ADMIN',
+    projectId: string,
+    userId: string,
+    activeRole: 'CLIENT' | 'EXPERT' | 'ADMIN',
     clientSubtype?: 'CEO' | 'TECH_TEAM',
   ) {
     // "requester.active_role = CLIENT/CEO → 403 permanent" — checked
@@ -104,7 +117,7 @@ export class ProjectsService {
     if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
       throw new ForbiddenException(
         'CEOs cannot access Artifact B — this is the technical deep-dive ' +
-        'spec for matched experts and tech teams only.',
+          'spec for matched experts and tech teams only.',
       );
     }
 
@@ -140,7 +153,9 @@ export class ProjectsService {
         include: { capabilityBid: true },
       });
       if (!engagement) {
-        throw new ForbiddenException('No engagement on this project has progressed far enough yet.');
+        throw new ForbiddenException(
+          'No engagement on this project has progressed far enough yet.',
+        );
       }
     } else {
       throw new ForbiddenException('Access denied.');
@@ -151,10 +166,10 @@ export class ProjectsService {
     let guardResult;
     try {
       guardResult = await this.fastapiClient.checkArtifactBAccess(projectId, {
-        engagement_state:    engagement.state,
-        bid_state:           bidState,
+        engagement_state: engagement.state,
+        bid_state: bidState,
         expert_nda_accepted: !!engagement.expertNdaAcceptedAt,
-        ceo_nda_accepted:    !!engagement.clientNdaAcceptedAt,
+        ceo_nda_accepted: !!engagement.clientNdaAcceptedAt,
       });
     } catch (err: any) {
       if (err.response?.status === 403) {
@@ -162,7 +177,9 @@ export class ProjectsService {
           err.response.data?.detail ?? 'Artifact B is not yet accessible for this engagement.',
         );
       }
-      throw new ServiceUnavailableException('Could not verify Artifact B access — please try again.');
+      throw new ServiceUnavailableException(
+        'Could not verify Artifact B access — please try again.',
+      );
     }
 
     return { artifact_b_json: project.artifactBJson };
@@ -184,27 +201,30 @@ export class ProjectsService {
     }
 
     const shortlist = await this.matchingService.getShortlist(projectId);
-    // strip composite_score before returning 
+    // strip composite_score before returning
     // numeric scores must never reach the frontend, labels/colors only.
     return await this.matchingService.mapShortlistForFrontend(shortlist ?? []);
   }
 
   private mapProjectResponse(project: any) {
     return {
-      id:                      project.id,
-      state:                   project.state,
-      archetype:               project.archetype,
-      tier:                    project.tier,
-      artifact_a_json:         project.artifactAJson,
-      projectName:             project.projectName,
-      required_domains_json:   project.requiredDomainsJson   ?? [],
-      required_seams_json:     project.requiredSeamsJson     ?? [],
+      id: project.id,
+      state: project.state,
+      archetype: project.archetype,
+      tier: project.tier,
+      artifact_a_json: project.artifactAJson,
+      projectName: project.projectName,
+      required_domains_json: project.requiredDomainsJson ?? [],
+      required_seams_json: project.requiredSeamsJson ?? [],
       milestone_framework_json: project.milestoneFrameworkJson ?? [],
     };
   }
 
   private async checkClientOwnership(
-    project: any, userId: string, activeRole: string, clientSubtype?: string,
+    project: any,
+    userId: string,
+    activeRole: string,
+    clientSubtype?: string,
   ): Promise<boolean> {
     if (activeRole !== 'CLIENT') return false;
 
@@ -225,7 +245,8 @@ export class ProjectsService {
   }
 
   private async isUserAuthorized(
-    project: any, userId: string,
+    project: any,
+    userId: string,
     activeRole: 'CLIENT' | 'EXPERT' | 'ADMIN',
     clientSubtype?: 'CEO' | 'TECH_TEAM',
   ): Promise<boolean> {
@@ -241,7 +262,7 @@ export class ProjectsService {
     if (activeRole === 'EXPERT') {
       return true;
     }
- 
+
     return false;
   }
 
@@ -250,12 +271,7 @@ export class ProjectsService {
    *             Cuts payload ~80% for list/card views.
    *             Full record (artifactAJson, etc.) should be fetched via GET /projects/:id.
    */
-  async getProjects(
-    userId: string,
-    activeRole: string,
-    clientSubtype?: string,
-    slim = false,
-  ) {
+  async getProjects(userId: string, activeRole: string, clientSubtype?: string, slim = false) {
     const slimSelect = slim
       ? {
           id: true,
@@ -276,9 +292,7 @@ export class ProjectsService {
           },
         };
 
-    const queryOptions = slim
-      ? { select: slimSelect }
-      : { include: fullInclude };
+    const queryOptions = slim ? { select: slimSelect } : { include: fullInclude };
 
     if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
       if (slim) {
@@ -286,8 +300,13 @@ export class ProjectsService {
           where: { clientId: userId },
           orderBy: { createdAt: 'desc' },
           select: {
-            id: true, projectName: true, state: true,
-            archetype: true, tier: true, selfTechnical: true, createdAt: true,
+            id: true,
+            projectName: true,
+            state: true,
+            archetype: true,
+            tier: true,
+            selfTechnical: true,
+            createdAt: true,
           },
         });
       }
@@ -305,8 +324,13 @@ export class ProjectsService {
           where: { id: tech.linkedProjectId },
           orderBy: { createdAt: 'desc' },
           select: {
-            id: true, projectName: true, state: true,
-            archetype: true, tier: true, selfTechnical: true, createdAt: true,
+            id: true,
+            projectName: true,
+            state: true,
+            archetype: true,
+            tier: true,
+            selfTechnical: true,
+            createdAt: true,
           },
         });
       }
@@ -322,19 +346,34 @@ export class ProjectsService {
   async updateProjectName(projectId: string, userId: string, projectName: string) {
     const project = await this.prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw new NotFoundException('Project not found');
-    if (project.clientId !== userId) throw new ForbiddenException('Only the owner can rename the project');
+    if (project.clientId !== userId)
+      throw new ForbiddenException('Only the owner can rename the project');
 
     return this.prisma.project.update({
       where: { id: projectId },
       data: { projectName },
-      select: { id: true, projectName: true } // Trả về gọn nhẹ cho FE
+      select: { id: true, projectName: true }, // Trả về gọn nhẹ cho FE
+    });
+  }
+
+  async updateProjectMilestones(projectId: string, userId: string, milestones: any[]) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.clientId !== userId) {
+      throw new ForbiddenException('Only the project owner can update project milestones');
+    }
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { milestoneFrameworkJson: milestones },
+      select: { id: true, milestoneFrameworkJson: true },
     });
   }
 
   async milestoneChatHandler(
-    projectId:     string,
-    userId:        string,
-    message:       string,
+    projectId: string,
+    userId: string,
+    message: string,
     chatSessionId?: string,
   ) {
     // Auth
@@ -344,7 +383,7 @@ export class ProjectsService {
     });
     if (!project) throw new NotFoundException('Project not found.');
 
-    const isCeo      = project.clientId === userId;
+    const isCeo = project.clientId === userId;
     const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
     if (!isCeo && !isTechTeam) {
       throw new ForbiddenException(
@@ -352,7 +391,7 @@ export class ProjectsService {
       );
     }
 
-    // Load or create session 
+    // Load or create session
     let session: { id: string; title: string | null; messagesJson: unknown };
 
     if (chatSessionId) {
@@ -363,13 +402,15 @@ export class ProjectsService {
       session = found;
     } else {
       const dateLabel = new Date().toLocaleDateString('vi-VN', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
       });
       session = await this.prisma.milestoneChatSession.create({
         data: {
           projectId,
           userId,
-          title:       `Chat · ${dateLabel}`,
+          title: `Chat · ${dateLabel}`,
           messagesJson: [],
         },
       });
@@ -378,11 +419,8 @@ export class ProjectsService {
     type ChatMessage = { role: 'user' | 'assistant'; content: string };
     const history = (session.messagesJson as ChatMessage[]) ?? [];
 
-    // Append user turn, call AI, append assistant turn 
-    const historyWithUserMsg: ChatMessage[] = [
-      ...history,
-      { role: 'user', content: message },
-    ];
+    // Append user turn, call AI, append assistant turn
+    const historyWithUserMsg: ChatMessage[] = [...history, { role: 'user', content: message }];
 
     const budgetContext = project.estimatedTotalCostVnd
       ? `Estimated total: ${project.estimatedTotalCostVnd.toString()} VND` +
@@ -392,11 +430,11 @@ export class ProjectsService {
       : 'No budget estimate available';
 
     const aiResponse = await this.fastapiClient.milestoneChatAssist({
-      artifact_a:           (project.artifactAJson ?? {})          as Record<string, unknown>,
-      milestone_framework:  (project.milestoneFrameworkJson ?? []) as Array<Record<string, unknown>>,
-      budget_context:       budgetContext,
-      conversation_history: historyWithUserMsg,   // FastAPI uses this as the full messages array
-      user_message:         message,              // redundant but kept for logging on FastAPI side
+      artifact_a: (project.artifactAJson ?? {}) as Record<string, unknown>,
+      milestone_framework: (project.milestoneFrameworkJson ?? []) as Array<Record<string, unknown>>,
+      budget_context: budgetContext,
+      conversation_history: historyWithUserMsg, // FastAPI uses this as the full messages array
+      user_message: message, // redundant but kept for logging on FastAPI side
     });
 
     const finalHistory: ChatMessage[] = [
@@ -404,18 +442,18 @@ export class ProjectsService {
       { role: 'assistant', content: aiResponse.reply },
     ];
 
-    // Persist updated history 
+    // Persist updated history
     await this.prisma.milestoneChatSession.update({
       where: { id: session.id },
-      data:  { messagesJson: finalHistory as any, updatedAt: new Date() },
+      data: { messagesJson: finalHistory as any, updatedAt: new Date() },
     });
 
     return {
-      reply:          aiResponse.reply,
-      suggestedEdit:  aiResponse.suggested_edit,
-      chatSessionId:  session.id,
-      sessionTitle:   session.title,
-      messageCount:   finalHistory.length,
+      reply: aiResponse.reply,
+      suggestedEdit: aiResponse.suggested_edit,
+      chatSessionId: session.id,
+      sessionTitle: session.title,
+      messageCount: finalHistory.length,
     };
   }
 
@@ -427,30 +465,32 @@ export class ProjectsService {
     });
     if (!project) throw new NotFoundException('Project not found.');
 
-    const isCeo      = project.clientId === userId;
+    const isCeo = project.clientId === userId;
     const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
     if (!isCeo && !isTechTeam) throw new ForbiddenException('Access denied.');
 
-    return this.prisma.milestoneChatSession.findMany({
-      where:   { projectId, userId },
-      orderBy: { updatedAt: 'desc' },
-      select: {
-        id:          true,
-        title:       true,
-        createdAt:   true,
-        updatedAt:   true,
-        // Return message count, not the full history, for the list view
-        messagesJson: true,
-      },
-    }).then((sessions) =>
-      sessions.map((s) => ({
-        id:           s.id,
-        title:        s.title,
-        messageCount: (s.messagesJson as unknown[]).length,
-        createdAt:    s.createdAt,
-        updatedAt:    s.updatedAt,
-      })),
-    );
+    return this.prisma.milestoneChatSession
+      .findMany({
+        where: { projectId, userId },
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          createdAt: true,
+          updatedAt: true,
+          // Return message count, not the full history, for the list view
+          messagesJson: true,
+        },
+      })
+      .then((sessions) =>
+        sessions.map((s) => ({
+          id: s.id,
+          title: s.title,
+          messageCount: (s.messagesJson as unknown[]).length,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        })),
+      );
   }
 
   // Get full history for a specific session

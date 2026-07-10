@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
@@ -7,7 +12,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly eventEmitter: EventEmitter2 
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async submitMilestones(milestoneId: string, expertId: string, dto: CreateSubmissionDto) {
@@ -71,11 +76,11 @@ export class SubmissionsService {
         this.eventEmitter.emit('socket.broadcast', {
           userId: eng.clientId,
           event: 'milestone:updated',
-          payload: { 
-            engagement_id: eng.id, 
-            milestone_number: milestone.milestoneNumber, 
-            state: 'SUBMITTED' 
-          }
+          payload: {
+            engagement_id: eng.id,
+            milestone_number: milestone.milestoneNumber,
+            state: 'SUBMITTED',
+          },
         });
       }
 
@@ -118,10 +123,16 @@ export class SubmissionsService {
     // Party-checks for highly sensitive artifact access
     const isExpertParty = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
     const isAdmin = user.activeRole === 'ADMIN';
-    
+
     let isLinkedTechTeam = false;
-    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && milestone.engagement.projectId) {
-      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId: user.id } });
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'TECH_TEAM' &&
+      milestone.engagement.projectId
+    ) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+      });
       isLinkedTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
     }
 

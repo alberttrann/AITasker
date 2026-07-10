@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard }   from '../common/guards/roles.guard';
-import { Roles }        from '../common/decorators/roles.decorator';
-import { CurrentUser }  from '../common/decorators/current-user.decorator';
-import { AuthUser }     from '../auth/strategies/jwt.strategy';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthUser } from '../auth/strategies/jwt.strategy';
 import { InvitationsService } from './invitations.service';
 
 @ApiTags('Invitations')
