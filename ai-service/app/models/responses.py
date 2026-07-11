@@ -81,12 +81,12 @@ class CriterionCheckResponse(BaseModel):
 class ServiceGenerateResponse(BaseModel):
     title:               str
     description:         str
-    scope:               str
-    timeline:            str
+    scope:               list[str]   
+    timeline:            str         
     suggested_price_vnd: int
-    suggested_domains:   list[str] = []  # domain codes the listing should target
-    suggested_seams:     list[str] = []  # seam codes relevant to this service
-    pricing_rationale:   str = ""        # brief explanation of suggested price
+    suggested_domains:   list[str] = []
+    suggested_seams:     list[str] = []
+    pricing_rationale:   str       = ""
 
 class MilestoneChatResponse(BaseModel):
     reply:          str

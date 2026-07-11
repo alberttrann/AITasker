@@ -156,12 +156,12 @@ export interface ServiceGenerateRequest {
 export interface ServiceGenerateResponse {
   title:               string;
   description:         string;
-  scope:               string;
-  timeline:            string;
+  scope:               string[];        
+  timeline:            string;          
   suggested_price_vnd: number;
-  suggested_domains?:  string[];   
-  suggested_seams?:    string[];   
-  pricing_rationale?:  string;     
+  suggested_domains:   string[];        
+  suggested_seams:     string[];        
+  pricing_rationale:   string;          
 }
 
 // artifact-b guard check
