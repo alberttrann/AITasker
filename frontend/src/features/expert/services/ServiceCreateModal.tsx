@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useCreateService } from '@/hooks/use-services';
+import { useDomains, useSeams } from '@/hooks/use-config';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
-import { Loader2, DollarSign, Clock, Tags, X, Send, Wand2 } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { Loader2, DollarSign, Clock, Tags, X, Send, Wand2, CheckCircle, ChevronDown } from 'lucide-react';
 import { DomainCode, SeamCode } from '@/types/api.types';
 
 export interface ServiceCreateModalProps {
@@ -18,12 +20,15 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
   // State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [scope, setScope] = useState('');
   const [timeline, setTimeline] = useState('');
-  const [priceVnd, setPriceVnd] = useState('');
+  const [priceVnd, setPriceVnd] = useState<number | undefined>(undefined);
+
+  const { data: domainsList } = useDomains();
+  const { data: seamsList } = useSeams();
   
-  // Show/Hide specific inputs
-  const [showPriceInput, setShowPriceInput] = useState(false);
-  const [showTimelineInput, setShowTimelineInput] = useState(false);
+  const [showDomainsDropdown, setShowDomainsDropdown] = useState(false);
+  const [showSeamsDropdown, setShowSeamsDropdown] = useState(false);
   const [isAiMode, setIsAiMode] = useState(false);
   const [aiCapabilities, setAiCapabilities] = useState('');
   const [targetUseCases, setTargetUseCases] = useState('');
@@ -45,13 +50,14 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
   const resetAndClose = () => {
     setTitle('');
     setDescription('');
+    setScope('');
     setTimeline('');
-    setPriceVnd('');
+    setPriceVnd(undefined);
     setAiCapabilities('');
     setTargetUseCases('');
+    setDomainsJson([]);
+    setSeamsJson([]);
     setIsAiMode(false);
-    setShowPriceInput(false);
-    setShowTimelineInput(false);
     setShowWarning(false);
     onClose();
   };
@@ -63,7 +69,7 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
         useAiGenerator: true,
         capabilities: aiCapabilities.split('\n').filter(s => s.trim() !== ''),
         targetUseCases: targetUseCases.split('\n').filter(s => s.trim() !== ''),
-        priceVnd: priceVnd ? parseInt(priceVnd) : undefined,
+        priceVnd: priceVnd || undefined,
         timeline: timeline || undefined
       }, {
         onSuccess: () => resetAndClose()
@@ -74,8 +80,9 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
         useAiGenerator: false,
         title: title || 'Service Listing', // Fallback title
         description,
+        scope,
         timeline,
-        priceVnd: priceVnd ? parseInt(priceVnd) : undefined,
+        priceVnd: priceVnd || undefined,
         domainsJson,
         seamsJson
       }, {
@@ -137,6 +144,16 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
               </div>
             ) : (
               <div className="animate-in fade-in duration-200">
+                <div className="mb-4 flex justify-end">
+                  <button 
+                    onClick={() => setIsAiMode(true)}
+                    className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"
+                  >
+                    <Wand2 size={14} />
+                    <span>Auto-generate with AI</span>
+                  </button>
+                </div>
+
                 <input 
                    type="text" 
                    placeholder="Service Title..." 
@@ -146,103 +163,125 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
                 />
                 <textarea 
                    placeholder="What service are you offering? Detail your process, deliverables, and value here..."
-                   className="w-full min-h-[120px] text-[16px] text-[#334155] placeholder-[#94A3B8] outline-none resize-none bg-transparent leading-[1.6]"
+                   className="w-full min-h-[120px] text-[16px] text-[#334155] placeholder-[#94A3B8] outline-none resize-none bg-transparent leading-[1.6] mb-2"
                    value={description} 
                    onChange={e => setDescription(e.target.value)}
                 />
                 
-                <div className="mt-1 mb-2">
-                  <button 
-                    onClick={() => setIsAiMode(true)}
-                    className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+                <textarea 
+                   placeholder="Scope of work (What exactly is included?)"
+                   className="w-full min-h-[80px] text-[15px] text-[#334155] placeholder-[#94A3B8] outline-none resize-none bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6"
+                   value={scope} 
+                   onChange={e => setScope(e.target.value)}
+                />
+
+                <div className="mb-6 relative">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Target Domains</h4>
+                  <div 
+                    className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 flex flex-wrap gap-2 items-center cursor-pointer min-h-[46px] hover:bg-slate-100 transition-colors"
+                    onClick={() => { setShowDomainsDropdown(!showDomainsDropdown); setShowSeamsDropdown(false); }}
                   >
-                    <Wand2 size={14} />
-                    <span>Auto-generate with AI</span>
-                  </button>
+                     {domainsJson.length === 0 ? <span className="text-slate-400 text-sm">Select Domains...</span> : null}
+                     {domainsJson.map(d => {
+                        const domain = domainsList?.find(x => x.code === d);
+                        return (
+                          <span key={d} className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded-md uppercase tracking-wider border border-slate-300 flex items-center gap-1">
+                            {domain ? `${domain.code} - ${domain.name}` : d}
+                            <button onClick={(e) => { e.stopPropagation(); setDomainsJson(prev => prev.filter(x => x !== d)); }} className="hover:text-slate-900"><X size={12} /></button>
+                          </span>
+                        )
+                     })}
+                     <ChevronDown size={16} className="text-slate-400 ml-auto" />
+                  </div>
+                  {showDomainsDropdown && (
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-[200px] overflow-y-auto p-1.5">
+                       {(domainsList || []).map(d => {
+                         const isSelected = domainsJson.includes(d.code);
+                         return (
+                           <div 
+                             key={d.code} 
+                             onClick={() => setDomainsJson(prev => isSelected ? prev.filter(c => c !== d.code) : [...prev, d.code])}
+                             className={`p-2 rounded-md cursor-pointer text-sm flex items-center justify-between transition-colors ${isSelected ? 'bg-slate-100 text-slate-800 font-bold' : 'hover:bg-slate-50 text-slate-600 font-semibold'}`}
+                           >
+                              <span><span className="font-bold mr-2 text-slate-800">{d.code}</span> {d.name}</span>
+                              {isSelected && <CheckCircle size={16} className="text-slate-700" />}
+                           </div>
+                         )
+                       })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mb-4 relative">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Technical Seams</h4>
+                  <div 
+                    className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 flex flex-wrap gap-2 items-center cursor-pointer min-h-[46px] hover:bg-slate-100 transition-colors"
+                    onClick={() => { setShowSeamsDropdown(!showSeamsDropdown); setShowDomainsDropdown(false); }}
+                  >
+                     {seamsJson.length === 0 ? <span className="text-slate-400 text-sm">Select Seams...</span> : null}
+                     {seamsJson.map(s => {
+                        const seam = seamsList?.find(x => x.code === s);
+                        return (
+                          <span key={s} className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded-md uppercase tracking-wider border border-slate-300 flex items-center gap-1">
+                            {seam ? `${seam.code} - ${seam.name}` : s}
+                            <button onClick={(e) => { e.stopPropagation(); setSeamsJson(prev => prev.filter(x => x !== s)); }} className="hover:text-slate-900"><X size={12} /></button>
+                          </span>
+                        )
+                     })}
+                     <ChevronDown size={16} className="text-slate-400 ml-auto" />
+                  </div>
+                  {showSeamsDropdown && (
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-[200px] overflow-y-auto p-1.5">
+                       {(seamsList || []).map(s => {
+                         const isSelected = seamsJson.includes(s.code);
+                         return (
+                           <div 
+                             key={s.code} 
+                             onClick={() => setSeamsJson(prev => isSelected ? prev.filter(c => c !== s.code) : [...prev, s.code])}
+                             className={`p-2 rounded-md cursor-pointer text-sm flex items-center justify-between transition-colors ${isSelected ? 'bg-slate-100 text-slate-800 font-bold' : 'hover:bg-slate-50 text-slate-600 font-semibold'}`}
+                           >
+                              <span><span className="font-bold mr-2 text-slate-800">{s.code}</span> {s.name}</span>
+                              {isSelected && <CheckCircle size={16} className="text-slate-700" />}
+                           </div>
+                         )
+                       })}
+                    </div>
+                  )}
                 </div>
                 
-                {/* Active Add-ons */}
-                <div className="flex flex-wrap gap-2 mt-4">
-                   {priceVnd ? (
-                     <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2">
-                       <span>{(parseInt(priceVnd)).toLocaleString('vi-VN')} ₫</span>
-                       <button onClick={() => {setPriceVnd(''); setShowPriceInput(false);}} className="hover:text-emerald-900"><X size={14}/></button>
-                     </div>
-                   ) : null}
-                   {timeline ? (
-                     <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2">
-                       <Clock size={14}/> {timeline}
-                       <button onClick={() => {setTimeline(''); setShowTimelineInput(false);}} className="hover:text-blue-900"><X size={14}/></button>
-                     </div>
-                   ) : null}
+                <div className="flex gap-4 mb-6">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">Price (VND)</h4>
+                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-3 hover:bg-slate-100 transition-colors">
+                      <DollarSign className="text-slate-400" size={18} />
+                      <CurrencyInput 
+                        placeholder="e.g. 5.000.000" 
+                        className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
+                        value={priceVnd}
+                        onChange={(val) => setPriceVnd(val)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">Estimated Timeline</h4>
+                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-3 hover:bg-slate-100 transition-colors">
+                      <Clock className="text-slate-400" size={18} />
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 2-4 Weeks" 
+                        className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
+                        value={timeline}
+                        onChange={(e) => setTimeline(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Interactive Pop-in Inputs */}
-            {showPriceInput && !priceVnd && (
-              <div className="mt-4 p-3 bg-slate-50 rounded-[8px] flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200 border border-slate-200">
-                <DollarSign className="text-slate-500" size={18} />
-                <input 
-                  type="number" 
-                  placeholder="Enter price in VND" 
-                  className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
-                  autoFocus
-                  onBlur={(e) => {
-                    if (e.target.value) setPriceVnd(e.target.value);
-                    else setShowPriceInput(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setPriceVnd(e.currentTarget.value);
-                    }
-                  }}
-                />
-              </div>
-            )}
-
-            {showTimelineInput && !timeline && (
-              <div className="mt-4 p-3 bg-slate-50 rounded-[8px] flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200 border border-slate-200">
-                <Clock className="text-slate-500" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="e.g. 2-4 Weeks" 
-                  className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
-                  autoFocus
-                  onBlur={(e) => {
-                    if (e.target.value) setTimeline(e.target.value);
-                    else setShowTimelineInput(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setTimeline(e.currentTarget.value);
-                    }
-                  }}
-                />
               </div>
             )}
           </div>
 
           {/* Footer: Actions */}
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0 rounded-b-[12px]">
-            <div className="flex gap-2 font-body">
-              <span className="text-[14px] font-semibold text-[#64748B] mr-1 sm:mr-2 flex items-center hidden sm:flex">Add:</span>
-              <button 
-                onClick={() => setShowPriceInput(true)}
-                className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-[#334155] bg-white shadow-sm border border-slate-200"
-                title="Add Price"
-              >
-                 <DollarSign size={18} strokeWidth={2} />
-              </button>
-              <button 
-                onClick={() => setShowTimelineInput(true)}
-                className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-[#334155] bg-white shadow-sm border border-slate-200"
-                title="Add Timeline"
-              >
-                 <Clock size={18} strokeWidth={2} />
-              </button>
-            </div>
-            
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end shrink-0 rounded-b-[12px]">
             <div className="flex flex-col items-end gap-2">
               <Button 
                 variant="primary"

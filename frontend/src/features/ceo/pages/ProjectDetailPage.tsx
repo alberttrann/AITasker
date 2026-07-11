@@ -5,6 +5,8 @@ import {
   ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X,
   Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
 } from "lucide-react";
+import { formatVND } from '@/lib/utils';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useAuthStore } from "@/store/auth.store";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
@@ -513,8 +515,8 @@ export default function ProjectDetailPage() {
                             <div className="relative">
                               <input 
                                 type="number" 
-                                value={m.estimated_duration_days || 0}
-                                onChange={(e) => handleUpdateMilestone(idx, 'estimated_duration_days', parseInt(e.target.value) || 0)}
+                                value={m.estimated_duration_days || ''}
+                                onChange={(e) => handleUpdateMilestone(idx, 'estimated_duration_days', parseInt(e.target.value) || undefined)}
                                 className="w-full pl-3 pr-12 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900"
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">Days</span>
@@ -523,13 +525,11 @@ export default function ProjectDetailPage() {
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Amount (VND)</label>
                             <div className="relative">
-                              <input 
-                                type="number" 
+                              <CurrencyInput 
                                 value={m.payment_amount_vnd}
-                                onChange={(e) => handleUpdateMilestone(idx, 'payment_amount_vnd', parseInt(e.target.value) || 0)}
-                                className="w-full pl-3 pr-12 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900"
+                                onChange={(val) => handleUpdateMilestone(idx, 'payment_amount_vnd', val)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">VND</span>
                             </div>
                           </div>
                           <div>

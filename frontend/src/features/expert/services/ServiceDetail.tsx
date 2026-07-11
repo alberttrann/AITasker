@@ -18,6 +18,38 @@ export default function ServiceDetail() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const renderTimeline = (timelineStr: string) => {
+    if (!timelineStr) return null;
+    if (timelineStr.trim().startsWith('{') && timelineStr.trim().endsWith('}')) {
+      try {
+        const jsonStr = timelineStr.replace(/'/g, '"');
+        const obj = JSON.parse(jsonStr);
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 font-bold">
+              <Clock size={16} />
+              <span>Total Estimated Time: {obj.total_estimated_time || 'N/A'}</span>
+            </div>
+            <div className="pl-6 mt-1 flex flex-col gap-1">
+              {Object.entries(obj).map(([k, v]) => {
+                if (k === 'total_estimated_time') return null;
+                const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return <div key={k} className="text-xs text-blue-800/80">• {label}: {String(v)}</div>
+              })}
+            </div>
+          </div>
+        );
+      } catch (e) {
+        // Fallback to regex if JSON parse fails
+        const match = timelineStr.match(/['"]total_estimated_time['"]\s*:\s*['"]([^'"]+)['"]/);
+        if (match && match[1]) {
+           return <div className="flex items-center gap-2"><Clock size={16} /><span>{match[1]}</span></div>;
+        }
+      }
+    }
+    return <div className="flex items-center gap-2"><Clock size={16} /><span>{timelineStr}</span></div>;
+  };
+
   if (isLoading) {
     return (
       <div className="w-full max-w-2xl px-6 mx-auto py-12 flex justify-center">
@@ -92,6 +124,26 @@ export default function ServiceDetail() {
           <div className="text-[16px] text-[#334155] leading-[1.6] whitespace-pre-wrap mb-6">
             {service.description}
           </div>
+
+          {service.scope && (
+             <div className="mb-6">
+               <h3 className="font-headline font-semibold text-lg text-slate-800 mb-2">Scope of Work</h3>
+               <div className="text-[15px] text-[#334155] leading-[1.6] whitespace-pre-wrap bg-slate-50 p-4 rounded-xl border border-slate-100">
+                 {service.scope}
+               </div>
+             </div>
+          )}
+
+          {((service.domainsJson && service.domainsJson.length > 0) || (service.seamsJson && service.seamsJson.length > 0)) && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              {service.domainsJson?.map((d: string) => (
+                <span key={`domain-${d}`} className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-md uppercase tracking-wider border border-purple-100">{d}</span>
+              ))}
+              {service.seamsJson?.map((s: string) => (
+                <span key={`seam-${s}`} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-md uppercase tracking-wider border border-indigo-100">{s}</span>
+              ))}
+            </div>
+          )}
           
           <div className="flex flex-wrap gap-3">
             {service.price_vnd && (
@@ -101,9 +153,8 @@ export default function ServiceDetail() {
               </div>
             )}
             {service.timeline && (
-              <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-[8px] text-sm font-semibold flex items-center gap-2">
-                <Clock size={16} />
-                <span>{service.timeline}</span>
+              <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-[8px] text-sm flex items-start gap-2">
+                {renderTimeline(service.timeline)}
               </div>
             )}
           </div>

@@ -1,10 +1,11 @@
 import { cn } from '@/lib/utils';
 import { Plus, Trash2, Clock } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import type { MilestoneFrameworkItem } from '@/types/jsonb.types';
 
 export interface PricingItem {
   milestone_number: number;
-  price_vnd: number;
+  price_vnd?: number;
   condition: string;
   estimated_duration_days?: number;
 }
@@ -46,7 +47,7 @@ export default function ConditionalPricing({
   }
 
   const addOffer = (milestone_number: number) => {
-    onChange([...items, { milestone_number, price_vnd: 0, condition: '' }]);
+    onChange([...items, { milestone_number, price_vnd: undefined, condition: '' }]);
   };
 
   const removeOffer = (milestone_number: number) => {
@@ -133,7 +134,7 @@ export default function ConditionalPricing({
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
                           <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-1">Counter Price</p>
-                          <p className="text-[14px] font-bold text-[#0F172A]">{formatVND(offer.price_vnd)}</p>
+                          <p className="text-[14px] font-bold text-[#0F172A]">{formatVND(offer.price_vnd || 0)}</p>
                         </div>
                         <div>
                           <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-1">Condition / Deliverable</p>
@@ -183,13 +184,9 @@ export default function ConditionalPricing({
                           <label className="block text-[12px] font-medium text-[#64748B] mb-1">
                             Counter Price (VND) <span className="text-[#EF4444]">*</span>
                           </label>
-                          <input
-                            type="text"
-                            value={offer.price_vnd ? offer.price_vnd.toLocaleString('vi-VN') : ''}
-                            onChange={(e) => {
-                              const raw = e.target.value.replace(/\D/g, '');
-                              updateOffer(fwItem.milestone_number, { price_vnd: parseInt(raw, 10) || 0 });
-                            }}
+                          <CurrencyInput
+                            value={offer.price_vnd}
+                            onChange={(val) => updateOffer(fwItem.milestone_number, { price_vnd: val })}
                             disabled={disabled}
                             aria-invalid={!!itemErr.price}
                             className={cn(
@@ -198,7 +195,7 @@ export default function ConditionalPricing({
                                 ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
                                 : 'border-[#E2E8F0]'
                             )}
-                            placeholder="0"
+                            placeholder="e.g. 5.000.000"
                           />
                           {itemErr.price && (
                             <p className="mt-1 text-[12px] text-[#EF4444]" role="alert">
@@ -206,7 +203,7 @@ export default function ConditionalPricing({
                             </p>
                           )}
                           <p className="mt-0.5 text-[12px] text-[#94A3B8]">
-                            {formatVND(offer.price_vnd)}
+                            {formatVND(offer.price_vnd || 0)}
                           </p>
                         </div>
 

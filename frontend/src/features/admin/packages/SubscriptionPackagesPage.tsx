@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import apiClient from '@/lib/api-client';
 import { Plus, Edit2, Check, X, Package, Trash2, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { DataList } from '@/components/layout/Table';
 import { useAdminSubscriptionPackages, useCreateSubscriptionPackage, useUpdateSubscriptionPackage, useDeleteSubscriptionPackage } from '@/hooks/use-admin';
@@ -133,11 +134,9 @@ export default function SubscriptionPackagesPage() {
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Price (VND)</label>
-            <input 
-              type="number" 
-              min="0" step="1000"
+            <CurrencyInput 
               value={formData.priceVnd} 
-              onChange={e => setFormData(f => ({...f, priceVnd: Number(e.target.value) || 0}))} 
+              onChange={val => setFormData(f => ({...f, priceVnd: val || 0}))} 
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-mono" 
             />
           </div>
