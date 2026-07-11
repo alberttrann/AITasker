@@ -1,228 +1,179 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateService } from '@/hooks/use-services';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
-import { Loader2, Wand2, PlusCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, DollarSign, Clock, Tags, X, ArrowLeft, Send } from 'lucide-react';
+import { DomainCode, SeamCode } from '@/types/api.types';
 
 export default function ServiceListingCreate() {
   const navigate = useNavigate();
   const createService = useCreateService();
+  const { user } = useAuth();
 
-  const [mode, setMode] = useState<'AI' | 'MANUAL'>('AI');
-  
-  // AI Form State
-  const [aiCapabilities, setAiCapabilities] = useState('');
-  const [targetUseCases, setTargetUseCases] = useState('');
-  
-  // Manual Form State
+  // State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [scope, setScope] = useState('');
   const [timeline, setTimeline] = useState('');
   const [priceVnd, setPriceVnd] = useState('');
+  
+  // Show/Hide specific inputs
+  const [showPriceInput, setShowPriceInput] = useState(false);
+  const [showTimelineInput, setShowTimelineInput] = useState(false);
 
-  const [aiResult, setAiResult] = useState<any>(null);
+  const [domainsJson, setDomainsJson] = useState<DomainCode[]>([]);
+  const [seamsJson, setSeamsJson] = useState<SeamCode[]>([]);
 
   const handleCreate = () => {
-    if (mode === 'AI') {
-      createService.mutate({
-        serviceType: 'AI_SERVICE',
-        useAiGenerator: true,
-        aiCapabilities,
-        targetUseCases
-      }, {
-        onSuccess: (data) => {
-          setAiResult(data);
-        }
-      });
-    } else {
-      createService.mutate({
-        serviceType: 'AI_SERVICE',
-        useAiGenerator: false,
-        title,
-        description,
-        scope,
-        timeline,
-        priceVnd: priceVnd ? parseInt(priceVnd) : undefined,
-        domainsJson: [],
-        seamsJson: []
-      }, {
-        onSuccess: () => {
-          navigate('/expert/service');
-        }
-      });
-    }
+    createService.mutate({
+      serviceType: 'AI_SERVICE',
+      useAiGenerator: false,
+      title: title || 'Service Listing', // Fallback title
+      description,
+      timeline,
+      priceVnd: priceVnd ? parseInt(priceVnd) : undefined,
+      domainsJson,
+      seamsJson
+    }, {
+      onSuccess: () => {
+        navigate('/expert'); // Navigate to the dashboard where the services are
+      }
+    });
   };
 
   return (
-    <div className="w-full max-w-[1440px] px-6 mx-auto py-8">
+    <div className="w-full max-w-2xl px-6 mx-auto py-12">
       <div className="flex items-center gap-3 mb-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-2 hover:bg-slate-200 rounded-full">
           <ArrowLeft size={20} />
         </Button>
-        <h1 className="text-2xl font-bold text-slate-900">Create New Service Listing</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Create Service</h1>
       </div>
 
-      {!aiResult ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-              <div className="flex bg-slate-100 p-1 rounded-xl mb-8 w-fit">
-                <button
-                  onClick={() => setMode('AI')}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                    mode === 'AI' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Wand2 className="w-4 h-4" /> AI-Assisted
-                </button>
-                <button
-                  onClick={() => setMode('MANUAL')}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                    mode === 'MANUAL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <PlusCircle className="w-4 h-4" /> Manual Setup
-                </button>
-              </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Header: User Info */}
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-lg">
+            {user?.fullName?.charAt(0) || 'E'}
+          </div>
+          <div>
+            <div className="font-bold text-slate-900">{user?.fullName || 'Expert'}</div>
+            <div className="text-xs text-slate-500 font-medium">Publishing a new service to the marketplace</div>
+          </div>
+        </div>
 
-              {mode === 'AI' ? (
-                <div className="space-y-6 animate-in fade-in duration-300">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Your Core Capabilities</label>
-                    <textarea 
-                      rows={4}
-                      placeholder="e.g. Expert in Python, FastAPI, and RAG pipelines using Pinecone and LangChain."
-                      className="w-full border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none resize-none transition-all"
-                      value={aiCapabilities}
-                      onChange={e => setAiCapabilities(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Target Use Cases (Optional)</label>
-                    <textarea 
-                      rows={3}
-                      placeholder="e.g. Enterprise document Q&A, Customer support bots"
-                      className="w-full border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none resize-none transition-all"
-                      value={targetUseCases}
-                      onChange={e => setTargetUseCases(e.target.value)}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6 animate-in fade-in duration-300">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Service Title</label>
-                    <input 
-                      type="text"
-                      className="w-full border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
-                    <textarea 
-                      rows={4}
-                      className="w-full border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-all"
-                      value={description}
-                      onChange={e => setDescription(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Timeline</label>
-                      <input 
-                        type="text"
-                        placeholder="e.g. 2-4 Weeks"
-                        className="w-full border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                        value={timeline}
-                        onChange={e => setTimeline(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Price (VND)</label>
-                      <input 
-                        type="number"
-                        placeholder="e.g. 45000000"
-                        className="w-full border border-slate-200 rounded-xl p-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                        value={priceVnd}
-                        onChange={e => setPriceVnd(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+        {/* Body: Inputs */}
+        <div className="p-6">
+          <input 
+             type="text" 
+             placeholder="Service Title..." 
+             className="w-full text-xl font-bold text-slate-900 placeholder:text-slate-300 outline-none mb-3"
+             value={title} 
+             onChange={e => setTitle(e.target.value)}
+          />
+          <textarea 
+             placeholder="What service are you offering? Detail your process, deliverables, and value here..."
+             className="w-full min-h-[150px] text-lg text-slate-700 placeholder:text-slate-300 outline-none resize-none"
+             value={description} 
+             onChange={e => setDescription(e.target.value)}
+          />
+          
+          {/* Active Add-ons */}
+          <div className="flex flex-wrap gap-2 mt-4">
+             {priceVnd ? (
+               <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2">
+                 <span>{(parseInt(priceVnd)).toLocaleString('vi-VN')} ₫</span>
+                 <button onClick={() => {setPriceVnd(''); setShowPriceInput(false);}} className="hover:text-emerald-900"><X size={14}/></button>
+               </div>
+             ) : null}
+             {timeline ? (
+               <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2">
+                 <Clock size={14}/> {timeline}
+                 <button onClick={() => {setTimeline(''); setShowTimelineInput(false);}} className="hover:text-blue-900"><X size={14}/></button>
+               </div>
+             ) : null}
+          </div>
 
-              <div className="mt-8 flex justify-end">
-                <Button 
-                  onClick={handleCreate} 
-                  disabled={createService.isPending}
-                  className={`px-8 py-3 rounded-xl shadow-sm text-white font-bold transition-all ${
-                    mode === 'AI' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {createService.isPending ? (
-                    <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Generating...</>
-                  ) : mode === 'AI' ? (
-                    <><Wand2 className="w-5 h-5 mr-2" /> Generate Listing</>
-                  ) : (
-                    'Create Listing'
-                  )}
-                </Button>
-              </div>
+          {/* Interactive Pop-in Inputs */}
+          {showPriceInput && !priceVnd && (
+            <div className="mt-4 p-3 bg-emerald-50 rounded-xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
+              <DollarSign className="text-emerald-500" size={18} />
+              <input 
+                type="number" 
+                placeholder="Enter price in VND" 
+                className="bg-transparent border-none outline-none text-emerald-900 placeholder:text-emerald-300 font-bold w-full"
+                autoFocus
+                onBlur={(e) => {
+                  if (e.target.value) setPriceVnd(e.target.value);
+                  else setShowPriceInput(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setPriceVnd(e.currentTarget.value);
+                  }
+                }}
+              />
             </div>
+          )}
+
+          {showTimelineInput && !timeline && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
+              <Clock className="text-blue-500" size={18} />
+              <input 
+                type="text" 
+                placeholder="e.g. 2-4 Weeks" 
+                className="bg-transparent border-none outline-none text-blue-900 placeholder:text-blue-300 font-bold w-full"
+                autoFocus
+                onBlur={(e) => {
+                  if (e.target.value) setTimeline(e.target.value);
+                  else setShowTimelineInput(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setTimeline(e.currentTarget.value);
+                  }
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Footer: Actions */}
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex gap-2">
+            <span className="text-sm font-bold text-slate-400 mr-2 flex items-center">Add to your post:</span>
+            <button 
+              onClick={() => setShowPriceInput(true)}
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-emerald-500 bg-white shadow-sm border border-slate-200"
+              title="Add Price"
+            >
+               <DollarSign size={18} strokeWidth={2.5} />
+            </button>
+            <button 
+              onClick={() => setShowTimelineInput(true)}
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-blue-500 bg-white shadow-sm border border-slate-200"
+              title="Add Timeline"
+            >
+               <Clock size={18} strokeWidth={2.5} />
+            </button>
+            <button 
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-purple-500 bg-white shadow-sm border border-slate-200 cursor-not-allowed opacity-50"
+              title="Add Tags (Coming soon)"
+            >
+               <Tags size={18} strokeWidth={2.5} />
+            </button>
           </div>
           
-          <div className="lg:col-span-1">
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-              <h3 className="font-bold text-slate-800 mb-4">Tips for a great listing</h3>
-              <ul className="space-y-4 text-sm text-slate-600">
-                <li className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
-                  <p>Be specific about the frameworks and tools you use.</p>
-                </li>
-                <li className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
-                  <p>Highlight the direct business value your service provides.</p>
-                </li>
-                <li className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
-                  <p>Include potential timeline and pricing ranges to manage client expectations.</p>
-                </li>
-              </ul>
-            </div>
-          </div>
+          <Button 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2 rounded-full transition-all flex items-center gap-2"
+            disabled={(!title && !description) || createService.isPending}
+            onClick={handleCreate}
+          >
+            {createService.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
+            {createService.isPending ? 'Posting...' : 'Post Service'}
+          </Button>
         </div>
-      ) : (
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white border border-emerald-200 rounded-2xl p-8 shadow-sm text-center">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Wand2 className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">AI Generated Your Listing!</h2>
-            <p className="text-slate-600 mb-8">We've drafted a professional service listing based on your capabilities. You can review and edit it in your services dashboard.</p>
-            
-            <div className="bg-slate-50 rounded-xl p-6 text-left border border-slate-100 mb-8 space-y-4">
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Title</h4>
-                <p className="text-lg font-semibold text-slate-900">{aiResult.title}</p>
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Pricing Rationale</h4>
-                <p className="text-sm text-slate-700">{aiResult.pricingRationale || 'Based on market average for this complexity.'}</p>
-              </div>
-            </div>
-
-            <Button 
-              onClick={() => navigate('/expert/service')}
-              className="bg-slate-900 text-white hover:bg-slate-800 px-8 py-3 rounded-xl"
-            >
-              Go to My Services
-            </Button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

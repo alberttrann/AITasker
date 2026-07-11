@@ -1,9 +1,12 @@
 import { FolderKanban, User, Briefcase, PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ServiceCreateModal } from "./ServiceCreateModal";
 
 export default function ExpertServicesPage() {
   const navigate = useNavigate();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
     <div className="w-full max-w-[1440px] px-6 mx-auto mb-12">
@@ -54,7 +57,7 @@ export default function ExpertServicesPage() {
 
       <div className="mt-12 mb-6 flex items-center justify-between">
         <h2 className="text-xl font-bold text-slate-900">Service Listings</h2>
-        <Button onClick={() => navigate('/expert/service/create-listing')} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+        <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
           <PlusCircle className="w-4 h-4" /> Create Listing
         </Button>
       </div>
@@ -63,10 +66,15 @@ export default function ExpertServicesPage() {
         <Briefcase className="w-12 h-12 mx-auto text-slate-300 mb-4" />
         <p className="text-lg font-semibold text-slate-700 mb-2">No active service listings</p>
         <p className="max-w-md mx-auto mb-6">Create standardized service packages (e.g., "RAG Architecture Setup") that CEOs can purchase directly from the marketplace.</p>
-        <Button onClick={() => navigate('/expert/service/create-listing')} variant="outline" className="gap-2">
+        <Button onClick={() => setIsCreateModalOpen(true)} variant="outline" className="gap-2">
           Create Your First Listing
         </Button>
       </div>
+
+      <ServiceCreateModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ export interface PricingItem {
   milestone_number: number;
   price_vnd: number;
   condition: string;
+  estimated_duration_days?: number;
 }
 
 interface ConditionalPricingProps {
@@ -138,6 +139,12 @@ export default function ConditionalPricing({
                           <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-1">Condition / Deliverable</p>
                           <p className="text-[14px] font-medium text-[#0F172A] leading-relaxed">{offer.condition}</p>
                         </div>
+                        {offer.estimated_duration_days !== undefined && (
+                          <div className="col-span-2 sm:col-span-1">
+                            <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-1">Estimated Duration</p>
+                            <p className="text-[14px] font-medium text-[#0F172A]">{offer.estimated_duration_days} days</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -227,6 +234,24 @@ export default function ConditionalPricing({
                               {itemErr.condition}
                             </p>
                           )}
+                        </div>
+
+                        {/* Duration */}
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="block text-[12px] font-medium text-[#64748B] mb-1">
+                            Estimated Duration (Days)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={offer.estimated_duration_days || ''}
+                            onChange={(e) => updateOffer(fwItem.milestone_number, { estimated_duration_days: parseInt(e.target.value, 10) || undefined })}
+                            disabled={disabled}
+                            className={cn(
+                              'w-full rounded-[8px] border border-[#E2E8F0] bg-white px-[14px] py-[10px] font-body text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10'
+                            )}
+                            placeholder="e.g. 7"
+                          />
                         </div>
                       </div>
                     </div>

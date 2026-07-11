@@ -195,7 +195,7 @@ export default function ElicitationWizard() {
           type: "INIT_SUCCESS",
           payload: {
             sessionId: data.id,
-            currentStage: data.currentStage ?? 1,
+            currentStage: data.currentStage ?? data.current_stage ?? 1,
             sessionState: finalSessionState,
             gateResult: initGateResult as GateResult | null,
             archetype: data.archetype || null,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import type { CapabilityBidDto } from '@/types/api.types';
 
 import { useBid, useCeoDecision } from '@/hooks/use-bids';
-
+import { apiClient } from '@/lib/api-client';
 /** PUT /bids/:id/counter-offer */
 function useCounterOfferBid() {
   const qc = useQueryClient();
@@ -153,7 +153,7 @@ export default function CeoDecision() {
       {/* Header */}
       <div>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
-          Bid from {bidAny?.expert?.fullName || bidAny?.expertName || 'Expert'}
+          Bid from {bidAny?.engagement?.expert?.fullName || bidAny?.expert?.fullName || bidAny?.expertName || 'Expert'}
         </h1>
         {alreadyDecided && (
           <span
@@ -222,10 +222,17 @@ export default function CeoDecision() {
                   key={i}
                   className="flex items-center justify-between rounded-[6px] bg-[#F8FAFC] px-4 py-3"
                 >
-                  <span className="text-[13px] text-[#334155]">
-                    M{m.milestone_number}: {m.condition}
-                  </span>
-                  <span className="font-headline text-[14px] font-semibold text-[#0F172A]">
+                  <div>
+                    <span className="text-[13px] text-[#334155] block">
+                      M{m.milestone_number}: {m.condition}
+                    </span>
+                    {m.estimated_duration_days && (
+                      <span className="text-[12px] text-[#64748B] mt-0.5 block flex items-center gap-1">
+                        ⏱ {m.estimated_duration_days} days
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-headline text-[14px] font-semibold text-[#0F172A] shrink-0">
                     {formatVND(m.price_vnd)}
                   </span>
                 </div>

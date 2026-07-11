@@ -29,9 +29,7 @@ const TECH_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   REVISION_REQUESTED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Revision Requested', icon: AlertCircle },
 };
 
-function formatVND(n: number) {
-  return n ? n.toLocaleString('vi-VN') + ' ₫' : '—';
-}
+
 
 export default function BidReviewDetail() {
   const { bidId } = useParams<{ bidId: string }>();
@@ -183,11 +181,16 @@ export default function BidReviewDetail() {
                   className="flex items-center justify-between rounded-[6px] bg-[#F8FAFC] px-4 py-3"
                 >
                   <div>
-                    <span className="text-[13px] font-medium text-primary">
+                    <span className="text-[13px] font-medium text-primary block">
                       M{m.milestone_number}: {m.condition}
                     </span>
+                    {m.estimated_duration_days && (
+                      <span className="text-[12px] text-secondary mt-0.5 block flex items-center gap-1">
+                        <Clock size={12} /> {m.estimated_duration_days} days
+                      </span>
+                    )}
                   </div>
-                  <span className="font-headline text-[14px] font-semibold text-primary">
+                  <span className="font-headline text-[14px] font-semibold text-primary shrink-0">
                     {formatVND(m.price_vnd)}
                   </span>
                 </div>

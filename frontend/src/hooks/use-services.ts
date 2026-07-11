@@ -25,6 +25,18 @@ export function useGetServices(queryParams?: Record<string, any>) {
   });
 }
 
+export function useGetService(id?: string) {
+  return useQuery({
+    queryKey: ['services', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data } = await apiClient.get(`/services/${id}`);
+      return data;
+    },
+    enabled: !!id,
+  });
+}
+
 export function useMyServices() {
   return useQuery({
     queryKey: ['services', 'me'],

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useMilestoneChatSessions, useMilestoneChatHistory, useSendMilestoneMessage, useUpdateMilestone } from '@/hooks/use-projects';
+import { useMilestoneChatSessions, useMilestoneChatHistory, useSendMilestoneMessage, useUpdateMilestone, useProjectMilestones } from '@/hooks/use-projects';
 import { Button } from '@/components/ui/Button';
 import { Loader2, Send, MessageSquare, Bot, User, CheckCircle2, AlertTriangle, ChevronRight, Menu, X } from 'lucide-react';
 

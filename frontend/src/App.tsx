@@ -41,7 +41,7 @@ const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingP
 const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
 const ExpertWallet = lazy(() => import("@features/expert/wallet/ExpertWallet"));
 const BankHubLink = lazy(() => import("@features/expert/wallet/BankHubLink"));
-const ServiceListingCreate = lazy(() => import("./features/expert/services/ServiceListingCreate"));
+const ServiceDetail = lazy(() => import("./features/expert/services/ServiceDetail"));
 
 const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
 const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/SubscriptionPlans"));
@@ -53,6 +53,7 @@ const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView")
 const ProjectsPage = lazy(() => import("@features/ceo/pages/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("@features/ceo/pages/ProjectDetailPage"));
 const CeoBidList = lazy(() => import("@features/ceo/bids/CeoBidList"));
+const CeoDecision = lazy(() => import("@features/ceo/bids/CeoDecision"));
 const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage"));
 const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
 const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
@@ -111,6 +112,7 @@ const router = createBrowserRouter(
             <Route path="marketplace" element={<MarketplaceBrowse />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
             <Route path="projects/:projectId/bids" element={<CeoBidList />} />
+            <Route path="project/:projectId/bids/:bidId" element={<CeoDecision />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
@@ -139,8 +141,8 @@ const router = createBrowserRouter(
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
             <Route path="service" element={<ExpertServicesPage />} />
+            <Route path="service/:id" element={<ServiceDetail />} />
             <Route path="service/projects" element={<ExpertProjectsPage />} />
-            <Route path="service/create-listing" element={<ServiceListingCreate />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
