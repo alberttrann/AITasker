@@ -1,0 +1,1594 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AITasker LLM Service",
+    "description": "Internal LLM microservice — called exclusively by NestJS backend.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/llm/elicitation/stage1-extract": {
+      "post": {
+        "tags": [
+          "Elicitation"
+        ],
+        "summary": "Extract symptoms, scale signals, voids, and recommended archetypes from CEO free-text input",
+        "operationId": "stage1_extract_llm_elicitation_stage1_extract_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Stage1Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stage1Response"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/elicitation/stage3-vagueness-check": {
+      "post": {
+        "tags": [
+          "Elicitation"
+        ],
+        "summary": "Check Stage 3 behavioral probe answers for vagueness",
+        "description": "Called by NestJS ElicitationService.processStage3() before advancing to\nStage 4. Fails OPEN internally (see elicitation_engine) — this endpoint\nitself only raises 503 on a genuine unhandled error, never on \"the LLM\ndidn't flag anything,\" which always returns 200 with an empty list.",
+        "operationId": "stage3_vagueness_check_llm_elicitation_stage3_vagueness_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Stage3VaguenessCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stage3VaguenessCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/elicitation/stage4-recommend": {
+      "post": {
+        "tags": [
+          "Elicitation"
+        ],
+        "summary": "AI recommends technical context for non-technical CEOs",
+        "operationId": "stage4_recommend_llm_elicitation_stage4_recommend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Stage4RecommendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stage4RecommendResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/elicitation/stage5-synthesize": {
+      "post": {
+        "tags": [
+          "Elicitation"
+        ],
+        "summary": "Synthesise complete project spec from all 4 elicitation stages",
+        "operationId": "stage5_synthesize_llm_elicitation_stage5_synthesize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Stage5Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stage5Response"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/elicitation/milestone-chat": {
+      "post": {
+        "tags": [
+          "Elicitation"
+        ],
+        "summary": "Context-aware milestone editing assistant",
+        "operationId": "milestone_chat_llm_elicitation_milestone_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestoneChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestoneChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/portfolio-eval": {
+      "post": {
+        "tags": [
+          "Portfolio"
+        ],
+        "summary": "Evaluate expert portfolio submission for seam-boundary competency",
+        "description": "Called by NestJS PortfolioService after an expert submits a portfolio entry.\n\nFlow (NestJS side):\n  1. Increment expert_seam_claims.submission_count\n  2. Call this endpoint\n  3. If passed_boolean = True → update verification_tier to EVIDENCE_BACKED\n  4. If passed_boolean = False → increment failure count, check lockout threshold\n  5. Write platform_decisions row with confidence + gap_advisory\n\nReturns:\n    PortfolioEvalResponse — confidence_score, passed_boolean, gap_advisory",
+        "operationId": "portfolio_eval_llm_portfolio_eval_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioEvalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioEvalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/matching": {
+      "post": {
+        "tags": [
+          "Matching"
+        ],
+        "summary": "Score and rank expert profiles against project requirements",
+        "description": "Called by NestJS ProjectsService when a CEO project is published.\n\nScores each expert in expert_profiles using a 5-dimension composite:\n  40% seam coverage (weighted by criticality)\n  25% domain depth match\n  20% portfolio evaluation quality\n  10% archetype history match\n   5% engagement model compat (always 1.0 — NestJS pre-filters)\n\nReturns experts sorted by composite_score descending.\nNestJS displays the top N results in the CEO shortlist view.\n\nReturns an empty list (not an error) if no experts were provided.",
+        "operationId": "match_experts_llm_matching_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MatchResult"
+                  },
+                  "type": "array",
+                  "title": "Response Match Experts Llm Matching Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/dispute-eval": {
+      "post": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Neutral arbitration — evaluate deliverable against acceptance criterion",
+        "description": "Called by NestJS DisputeService immediately after a dispute is filed.\n\nFlow (NestJS side):\n  1. Create dispute row (state = LAYER_1_EVAL)\n  2. Call this endpoint\n  3. Write llm_confidence to dispute row\n  4. If confidence_score >= 0.80:\n        state = AUTO_RESOLVED\n        call LedgerService.resolveDispute() with finding-based resolution\n     else:\n        state = MANUAL_REVIEW\n        admin sees it in the Dispute Monitor dashboard\n\nReturns:\n    DisputeEvalResponse — confidence_score, finding (\"expert_wins\"|\"client_wins\")",
+        "operationId": "dispute_eval_llm_dispute_eval_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisputeEvalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeEvalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/criterion-check": {
+      "post": {
+        "tags": [
+          "Criteria"
+        ],
+        "summary": "Detect subjective language in an acceptance criterion",
+        "operationId": "criterion_check_llm_criterion_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriterionCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/service-generate": {
+      "post": {
+        "tags": [
+          "Service Generator"
+        ],
+        "summary": "Generate a structured AI consulting service listing draft",
+        "description": "Called by NestJS ListingsService when an expert uses the AI-assist feature.\n\nFlow (NestJS side):\n  1. Expert clicks 'Generate with AI' on the service creation form\n  2. Frontend sends expert's capabilities + intended use cases to NestJS\n  3. NestJS calls this endpoint\n  4. Draft is pre-filled into the form; expert edits and publishes\n\nThe generated draft is not persisted directly — the expert always reviews.\nsuggested_price_vnd=0 means the LLM could not estimate from the scope given.",
+        "operationId": "service_generate_llm_service_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceGenerateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/artifact-b": {
+      "get": {
+        "tags": [
+          "Artifact B"
+        ],
+        "summary": "Gate check — can this expert access the technical specification?",
+        "description": "Called by NestJS ProjectsService before returning artifact_b_json to an expert.\n\nNestJS flow:\n  1. Expert calls GET /projects/{id} (NestJS endpoint)\n  2. NestJS fetches engagement + bid state from DB\n  3. NestJS calls this endpoint with context\n  4. If 200: NestJS includes artifact_b_json in the response\n  5. If 403: NestJS returns project without artifact_b_json\n\nAll 4 conditions must be true simultaneously.\nThe first failing condition is returned as the denial reason.",
+        "operationId": "artifact_b_gate_projects__project_id__artifact_b_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "engagement_state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current engagement state",
+              "title": "Engagement State"
+            },
+            "description": "Current engagement state"
+          },
+          {
+            "name": "bid_state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current bid state",
+              "title": "Bid State"
+            },
+            "description": "Current bid state"
+          },
+          {
+            "name": "expert_nda_accepted",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "description": "Has expert accepted NDA?",
+              "title": "Expert Nda Accepted"
+            },
+            "description": "Has expert accepted NDA?"
+          },
+          {
+            "name": "ceo_nda_accepted",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "description": "Has CEO accepted NDA?",
+              "title": "Ceo Nda Accepted"
+            },
+            "description": "Has CEO accepted NDA?"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CriterionCheckRequest": {
+        "properties": {
+          "criterion_text": {
+            "type": "string",
+            "title": "Criterion Text"
+          },
+          "project_archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Archetype"
+          },
+          "archetype_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype Name"
+          },
+          "milestone_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Milestone Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "criterion_text"
+        ],
+        "title": "CriterionCheckRequest"
+      },
+      "CriterionCheckResponse": {
+        "properties": {
+          "is_subjective": {
+            "type": "boolean",
+            "title": "Is Subjective"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity",
+            "default": "LOW"
+          },
+          "context_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_subjective",
+          "suggestions"
+        ],
+        "title": "CriterionCheckResponse"
+      },
+      "CriticalArtifact": {
+        "properties": {
+          "artifact_key": {
+            "type": "string",
+            "title": "Artifact Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "placeholder_prompt": {
+            "type": "string",
+            "title": "Placeholder Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "artifact_key",
+          "label",
+          "reason",
+          "placeholder_prompt"
+        ],
+        "title": "CriticalArtifact",
+        "description": "Issue 4: an artifact Stage 1 AI says must be submitted before synthesis."
+      },
+      "DisputeEvalRequest": {
+        "properties": {
+          "criterion_text": {
+            "type": "string",
+            "title": "Criterion Text"
+          },
+          "deliverable_description": {
+            "type": "string",
+            "title": "Deliverable Description"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files",
+            "default": []
+          },
+          "project_archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Archetype"
+          },
+          "milestone_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Milestone Context"
+          },
+          "prior_revision_count": {
+            "type": "integer",
+            "title": "Prior Revision Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "criterion_text",
+          "deliverable_description"
+        ],
+        "title": "DisputeEvalRequest"
+      },
+      "DisputeEvalResponse": {
+        "properties": {
+          "confidence_score": {
+            "type": "number",
+            "title": "Confidence Score"
+          },
+          "finding": {
+            "type": "string",
+            "title": "Finding"
+          },
+          "reasoning": {
+            "type": "string",
+            "title": "Reasoning",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "confidence_score",
+          "finding"
+        ],
+        "title": "DisputeEvalResponse"
+      },
+      "GapMapItem": {
+        "properties": {
+          "seam_code": {
+            "type": "string",
+            "title": "Seam Code"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seam_code",
+          "color"
+        ],
+        "title": "GapMapItem"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MatchResult": {
+        "properties": {
+          "expert_id": {
+            "type": "string",
+            "title": "Expert Id"
+          },
+          "composite_score": {
+            "type": "number",
+            "title": "Composite Score"
+          },
+          "strength_label": {
+            "type": "string",
+            "title": "Strength Label"
+          },
+          "gap_map": {
+            "items": {
+              "$ref": "#/components/schemas/GapMapItem"
+            },
+            "type": "array",
+            "title": "Gap Map"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expert_id",
+          "composite_score",
+          "strength_label",
+          "gap_map"
+        ],
+        "title": "MatchResult"
+      },
+      "MatchingRequest": {
+        "properties": {
+          "required_seams_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Required Seams Json"
+          },
+          "required_domains_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Required Domains Json"
+          },
+          "expert_profiles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Expert Profiles"
+          },
+          "project_archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Archetype"
+          }
+        },
+        "type": "object",
+        "required": [
+          "required_seams_json",
+          "required_domains_json",
+          "expert_profiles"
+        ],
+        "title": "MatchingRequest"
+      },
+      "MilestoneChatRequest": {
+        "properties": {
+          "artifact_a": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Artifact A"
+          },
+          "milestone_framework": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Milestone Framework"
+          },
+          "budget_context": {
+            "type": "string",
+            "title": "Budget Context",
+            "default": "No budget specified"
+          },
+          "conversation_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Conversation History",
+            "default": []
+          },
+          "user_message": {
+            "type": "string",
+            "title": "User Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "artifact_a",
+          "milestone_framework",
+          "user_message"
+        ],
+        "title": "MilestoneChatRequest"
+      },
+      "MilestoneChatResponse": {
+        "properties": {
+          "reply": {
+            "type": "string",
+            "title": "Reply"
+          },
+          "suggested_edit": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Edit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reply"
+        ],
+        "title": "MilestoneChatResponse"
+      },
+      "PortfolioEvalRequest": {
+        "properties": {
+          "project_description": {
+            "type": "string",
+            "title": "Project Description"
+          },
+          "decision_points": {
+            "type": "string",
+            "title": "Decision Points"
+          },
+          "seam_code": {
+            "type": "string",
+            "title": "Seam Code"
+          },
+          "seam_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seam Name"
+          },
+          "seam_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seam Description"
+          },
+          "all_seam_definitions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "All Seam Definitions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_description",
+          "decision_points",
+          "seam_code"
+        ],
+        "title": "PortfolioEvalRequest"
+      },
+      "PortfolioEvalResponse": {
+        "properties": {
+          "confidence_score": {
+            "type": "number",
+            "title": "Confidence Score"
+          },
+          "passed_boolean": {
+            "type": "boolean",
+            "title": "Passed Boolean"
+          },
+          "gap_advisory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gap Advisory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confidence_score",
+          "passed_boolean"
+        ],
+        "title": "PortfolioEvalResponse"
+      },
+      "RelevancyFlag": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "issue": {
+            "type": "string",
+            "title": "Issue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "issue"
+        ],
+        "title": "RelevancyFlag",
+        "description": "Issue 2: answer doesn't address the project's actual context."
+      },
+      "ServiceGenerateRequest": {
+        "properties": {
+          "expert_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Expert Capabilities"
+          },
+          "target_use_cases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Target Use Cases"
+          },
+          "claimed_domains": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Claimed Domains",
+            "default": []
+          },
+          "claimed_seams": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Claimed Seams",
+            "default": []
+          },
+          "price_guidance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Price Guidance",
+            "default": {}
+          },
+          "is_pro_expert": {
+            "type": "boolean",
+            "title": "Is Pro Expert",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "expert_capabilities",
+          "target_use_cases"
+        ],
+        "title": "ServiceGenerateRequest"
+      },
+      "ServiceGenerateResponse": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "timeline": {
+            "type": "string",
+            "title": "Timeline"
+          },
+          "suggested_price_vnd": {
+            "type": "integer",
+            "title": "Suggested Price Vnd"
+          },
+          "suggested_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggested Domains",
+            "default": []
+          },
+          "suggested_seams": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggested Seams",
+            "default": []
+          },
+          "pricing_rationale": {
+            "type": "string",
+            "title": "Pricing Rationale",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "scope",
+          "timeline",
+          "suggested_price_vnd"
+        ],
+        "title": "ServiceGenerateResponse"
+      },
+      "Stage1Request": {
+        "properties": {
+          "symptom_text": {
+            "type": "string",
+            "title": "Symptom Text"
+          },
+          "archetypes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Archetypes",
+            "default": []
+          },
+          "void_codes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Void Codes",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "symptom_text"
+        ],
+        "title": "Stage1Request"
+      },
+      "Stage1Response": {
+        "properties": {
+          "symptoms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Symptoms"
+          },
+          "scale_signals": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scale Signals"
+          },
+          "voids": {
+            "items": {
+              "$ref": "#/components/schemas/VoidItem"
+            },
+            "type": "array",
+            "title": "Voids"
+          },
+          "recommended_archetypes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Archetypes",
+            "default": []
+          },
+          "critical_artifacts_required": {
+            "items": {
+              "$ref": "#/components/schemas/CriticalArtifact"
+            },
+            "type": "array",
+            "title": "Critical Artifacts Required",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "symptoms",
+          "scale_signals",
+          "voids"
+        ],
+        "title": "Stage1Response"
+      },
+      "Stage3VaguenessCheckRequest": {
+        "properties": {
+          "archetype": {
+            "type": "string",
+            "title": "Archetype"
+          },
+          "probe_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Probe Questions",
+            "default": []
+          },
+          "probe_responses": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Probe Responses"
+          },
+          "is_self_technical": {
+            "type": "boolean",
+            "title": "Is Self Technical",
+            "default": false
+          },
+          "stage1_symptoms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stage1 Symptoms",
+            "default": []
+          },
+          "stage1_voids": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Stage1 Voids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "archetype",
+          "probe_responses"
+        ],
+        "title": "Stage3VaguenessCheckRequest"
+      },
+      "Stage3VaguenessCheckResponse": {
+        "properties": {
+          "vague_answers": {
+            "items": {
+              "$ref": "#/components/schemas/VaguenessFlag"
+            },
+            "type": "array",
+            "title": "Vague Answers",
+            "default": []
+          },
+          "irrelevant_answers": {
+            "items": {
+              "$ref": "#/components/schemas/RelevancyFlag"
+            },
+            "type": "array",
+            "title": "Irrelevant Answers",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "Stage3VaguenessCheckResponse"
+      },
+      "Stage4RecommendRequest": {
+        "properties": {
+          "stage1_symptoms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stage1 Symptoms"
+          },
+          "stage2_archetype": {
+            "type": "string",
+            "title": "Stage2 Archetype"
+          },
+          "stage3_probes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Stage3 Probes"
+          },
+          "void_list_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Void List Json",
+            "default": []
+          },
+          "is_self_technical": {
+            "type": "boolean",
+            "title": "Is Self Technical",
+            "default": false
+          },
+          "additional_requirement_1": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Requirement 1"
+          },
+          "estimated_budget_vnd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Budget Vnd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage1_symptoms",
+          "stage2_archetype",
+          "stage3_probes"
+        ],
+        "title": "Stage4RecommendRequest"
+      },
+      "Stage4RecommendResponse": {
+        "properties": {
+          "recommended_stack": {
+            "type": "string",
+            "title": "Recommended Stack"
+          },
+          "recommended_integration": {
+            "type": "string",
+            "title": "Recommended Integration"
+          },
+          "recommended_legacy_volume": {
+            "type": "string",
+            "title": "Recommended Legacy Volume"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recommended_stack",
+          "recommended_integration",
+          "recommended_legacy_volume"
+        ],
+        "title": "Stage4RecommendResponse"
+      },
+      "Stage5Request": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "stage1_symptoms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stage1 Symptoms"
+          },
+          "stage2_archetype": {
+            "type": "string",
+            "title": "Stage2 Archetype"
+          },
+          "stage3_probes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Stage3 Probes"
+          },
+          "stage4_tech_inputs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Stage4 Tech Inputs"
+          },
+          "void_list_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Void List Json"
+          },
+          "is_self_technical": {
+            "type": "boolean",
+            "title": "Is Self Technical",
+            "default": false
+          },
+          "estimated_budget_vnd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Budget Vnd"
+          },
+          "critical_artifacts_required": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Critical Artifacts Required",
+            "default": []
+          },
+          "domains": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Domains",
+            "default": []
+          },
+          "seams": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Seams",
+            "default": []
+          },
+          "archetypes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Archetypes",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "stage1_symptoms",
+          "stage2_archetype",
+          "stage3_probes",
+          "stage4_tech_inputs",
+          "void_list_json"
+        ],
+        "title": "Stage5Request"
+      },
+      "Stage5Response": {
+        "properties": {
+          "required_seams_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Required Seams Json"
+          },
+          "required_domains_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Required Domains Json"
+          },
+          "milestone_framework_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Milestone Framework Json"
+          },
+          "artifact_a_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Artifact A Json"
+          },
+          "artifact_b_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Artifact B Json"
+          },
+          "completeness_score": {
+            "type": "number",
+            "title": "Completeness Score"
+          },
+          "estimated_total_cost_vnd": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Total Cost Vnd"
+          },
+          "estimated_total_duration_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Total Duration Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "required_seams_json",
+          "required_domains_json",
+          "milestone_framework_json",
+          "artifact_a_json",
+          "artifact_b_json",
+          "completeness_score"
+        ],
+        "title": "Stage5Response"
+      },
+      "VaguenessFlag": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "reason"
+        ],
+        "title": "VaguenessFlag"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VoidItem": {
+        "properties": {
+          "void_code": {
+            "type": "string",
+            "title": "Void Code"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "void_code",
+          "severity"
+        ],
+        "title": "VoidItem"
+      }
+    }
+  }
+}
