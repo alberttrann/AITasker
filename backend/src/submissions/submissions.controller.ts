@@ -36,7 +36,10 @@ export class SubmissionsController {
   @Get('milestones/:id/paygated-docs')
   @Roles('TECH_TEAM', 'EXPERT') 
   @ApiOperation({ summary: 'TECH_TEAM or EXPERT downloads unlocked documents (CEO is excluded)' })
-  async downloadDocument(@Param('id') milestoneId: string,) {
-    return this.submissionsService.downloadDocument(milestoneId);
+  async downloadDocument(
+    @Param('id') milestoneId: string,
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
+  ) {
+    return this.submissionsService.downloadDocument(milestoneId, user);
   }
 }

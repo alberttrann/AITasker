@@ -74,6 +74,7 @@ export class EngagementsService {
         include: {
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
+          expert: true,
         },
         orderBy: { id: 'desc' },
       });
@@ -92,7 +93,11 @@ export class EngagementsService {
 
       return this.prisma.engagement.findMany({
         where: { projectId: techProfile.linkedProjectId },
-        include: { project: PROJECT_SUMMARY_SELECT },
+        include: {
+          project: PROJECT_SUMMARY_SELECT,
+          capabilityBid: true,
+          expert: true,
+        },
         orderBy: { id: 'desc' },
       });
     }
