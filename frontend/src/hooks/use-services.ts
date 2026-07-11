@@ -15,6 +15,20 @@ export function useCreateService() {
   });
 }
 
+export function useUpdateService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string, payload: any }) => {
+      const { data } = await apiClient.put(`/services/${id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+  });
+}
+
 export function useGetServices(queryParams?: Record<string, any>) {
   return useQuery({
     queryKey: ['services', queryParams],

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useCreateService } from '@/hooks/use-services';
+import { useCreateService, useUpdateService } from '@/hooks/use-services';
+import { useNavigate } from 'react-router-dom';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
@@ -15,9 +16,12 @@ export interface ServiceCreateModalProps {
 
 export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps) {
   const createService = useCreateService();
+  const updateService = useUpdateService();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // State
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [scope, setScope] = useState('');
@@ -59,8 +63,10 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
     setSeamsJson([]);
     setIsAiMode(false);
     setShowWarning(false);
+    setDraftId(null);
     onClose();
   };
+
 
   const handleCreate = () => {
     if (isAiMode) {
@@ -72,10 +78,25 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
         priceVnd: priceVnd || undefined,
         timeline: timeline || undefined
       }, {
-        onSuccess: () => resetAndClose()
+        onSuccess: (data) => {
+          if (data && data.id) {
+            setDraftId(data.id);
+            setTitle(data.title || '');
+            setDescription(data.description || '');
+            setScope(data.scope || '');
+            setTimeline(data.timeline || '');
+            // Price might come as string or number from backend, convert safely
+            setPriceVnd(data.priceVnd ? Number(data.priceVnd) : undefined);
+            setDomainsJson(data.domainsJson || []);
+            setSeamsJson(data.seamsJson || []);
+            setIsAiMode(false); // Switch to manual mode to review
+          } else {
+            resetAndClose();
+          }
+        }
       });
     } else {
-      createService.mutate({
+      const payload = {
         serviceType: 'AI_SERVICE',
         useAiGenerator: false,
         title: title || 'Service Listing', // Fallback title
@@ -85,9 +106,27 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
         priceVnd: priceVnd || undefined,
         domainsJson,
         seamsJson
-      }, {
-        onSuccess: () => resetAndClose()
-      });
+      };
+
+      if (draftId) {
+        updateService.mutate({ id: draftId, payload }, {
+          onSuccess: (data) => {
+            resetAndClose();
+            if (data && data.id) {
+              navigate(`/expert/service/${data.id}`);
+            }
+          }
+        });
+      } else {
+        createService.mutate(payload, {
+          onSuccess: (data) => {
+            resetAndClose();
+            if (data && data.id) {
+              navigate(`/expert/service/${data.id}`);
+            }
+          }
+        });
+      }
     }
   };
 
@@ -144,7 +183,10 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
               </div>
             ) : (
               <div className="animate-in fade-in duration-200">
-                <div className="mb-4 flex justify-end">
+                <div className="mb-4 flex justify-between items-center">
+                  <h3 className="font-semibold text-slate-800 text-lg">
+                    {draftId ? 'Review Generated Draft' : ''}
+                  </h3>
                   <button 
                     onClick={() => setIsAiMode(true)}
                     className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-slate-900 transition-colors bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"
@@ -252,8 +294,7 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
                 <div className="flex gap-4 mb-6">
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">Price (VND)</h4>
-                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-3 hover:bg-slate-100 transition-colors">
-                      <DollarSign className="text-slate-400" size={18} />
+                    <div className="px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200 focus-within:bg-white transition-colors">
                       <CurrencyInput 
                         placeholder="e.g. 5.000.000" 
                         className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
@@ -264,8 +305,7 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
                   </div>
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">Estimated Timeline</h4>
-                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-3 hover:bg-slate-100 transition-colors">
-                      <Clock className="text-slate-400" size={18} />
+                    <div className="px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200 focus-within:bg-white transition-colors">
                       <input 
                         type="text" 
                         placeholder="e.g. 2-4 Weeks" 
@@ -286,15 +326,15 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
               <Button 
                 variant="primary"
                 className="font-headline font-semibold px-6 py-2 rounded-[8px] transition-all flex items-center gap-2"
-                disabled={isAiMode ? (!aiCapabilities || !targetUseCases) : (!title && !description) || createService.isPending}
+                disabled={isAiMode ? (!aiCapabilities || !targetUseCases) : (!title && !description) || createService.isPending || updateService.isPending}
                 onClick={handleCreate}
               >
-                {createService.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (isAiMode ? <Wand2 className="w-4 h-4" /> : <Send className="w-4 h-4" />)}
-                {createService.isPending ? 'Working...' : (isAiMode ? 'Generate Draft' : 'Post Service')}
+                {(createService.isPending || updateService.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : (isAiMode ? <Wand2 className="w-4 h-4" /> : <Send className="w-4 h-4" />)}
+                {(createService.isPending || updateService.isPending) ? 'Working...' : (isAiMode ? 'Generate Draft' : 'Save & Preview')}
               </Button>
-              {createService.isError && (
+              {(createService.isError || updateService.isError) && (
                 <p className="text-red-500 text-sm font-semibold max-w-sm text-right">
-                  {(createService.error as any)?.response?.data?.message || 'An error occurred. Please try again.'}
+                  {((createService.error || updateService.error) as any)?.response?.data?.message || 'An error occurred. Please try again.'}
                 </p>
               )}
             </div>

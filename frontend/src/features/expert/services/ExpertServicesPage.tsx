@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ServiceCreateModal } from "./ServiceCreateModal";
+import { ServiceListingsGrid } from "./ServiceListingsGrid";
+import { useMyServices } from "@/hooks/use-services";
 
 export default function ExpertServicesPage() {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const { data: services, isLoading: isLoadingServices } = useMyServices();
 
   return (
     <div className="w-full max-w-[1440px] px-6 mx-auto mb-12">
@@ -62,14 +65,11 @@ export default function ExpertServicesPage() {
         </Button>
       </div>
       
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
-        <Briefcase className="w-12 h-12 mx-auto text-slate-300 mb-4" />
-        <p className="text-lg font-semibold text-slate-700 mb-2">No active service listings</p>
-        <p className="max-w-md mx-auto mb-6">Create standardized service packages (e.g., "RAG Architecture Setup") that CEOs can purchase directly from the marketplace.</p>
-        <Button onClick={() => setIsCreateModalOpen(true)} variant="outline" className="gap-2">
-          Create Your First Listing
-        </Button>
-      </div>
+      <ServiceListingsGrid 
+        services={services} 
+        isLoading={isLoadingServices} 
+        onEmptyClick={() => setIsCreateModalOpen(true)} 
+      />
 
       <ServiceCreateModal 
         isOpen={isCreateModalOpen} 
