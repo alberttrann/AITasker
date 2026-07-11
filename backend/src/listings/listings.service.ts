@@ -107,8 +107,20 @@ export class ListingsService {
     let description = dto.description;
     let scope = dto.scope;
     let timeline = dto.timeline;
-    let domainsJson = dto.domainsJson ?? [];
-    let seamsJson = dto.seamsJson ?? [];
+    
+    // Unconditionally fetch expert's verified competencies from DB
+    const [domainDepths, seamClaims] = await Promise.all([
+      this.prisma.expertDomainDepth.findMany({
+        where: { expertId: expertUserId },
+      }),
+      this.prisma.expertSeamClaim.findMany({
+        where: { expertId: expertUserId },
+      }),
+    ]);
+
+    // Unconditionally use expert profile data for domains and seams
+    let domainsJson = domainDepths.map(d => d.domainCode);
+    let seamsJson = seamClaims.map(s => s.seamCode);
     let priceVnd: bigint | null = dto.priceVnd !== undefined ? BigInt(dto.priceVnd) : null;
 
     if (dto.useAiGenerator) {
@@ -137,16 +149,6 @@ export class ListingsService {
         throw new BadRequestException('targetUseCases is required when useAiGenerator=true.');
       }
 
-      // 2. Fetch expert's verified competencies from DB to inject into AI prompt context (Issue 1)
-      const [domainDepths, seamClaims] = await Promise.all([
-        this.prisma.expertDomainDepth.findMany({
-          where: { expertId: expertUserId },
-        }),
-        this.prisma.expertSeamClaim.findMany({
-          where: { expertId: expertUserId },
-        }),
-      ]);
-
       // 3. Call AI with rich context
       const ai = await this.fastapiClient.serviceGenerate({
         expert_capabilities: dto.capabilities,
@@ -165,14 +167,6 @@ export class ListingsService {
       description = dto.description ?? ai.description;
       scope = dto.scope ?? ai.scope;
       timeline = dto.timeline ?? ai.timeline;
-      
-      // Auto-tag domains and seams if not explicitly set in the request
-      if (domainsJson.length === 0 && ai.suggested_domains) {
-        domainsJson = ai.suggested_domains as any;
-      }
-      if (seamsJson.length === 0 && ai.suggested_seams) {
-        seamsJson = ai.suggested_seams as any;
-      }
 
       if (priceVnd === null) {
         priceVnd = BigInt(ai.suggested_price_vnd);

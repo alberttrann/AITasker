@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useDisputeDetail, useResolveDispute } from "@/hooks/use-admin";
+import { useResolveDispute } from "@/hooks/use-admin";
+import { useDispute as useDisputeDetail } from "@/hooks/use-disputes";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import {

@@ -204,3 +204,34 @@ When a PRO expert attempts to use the AI Generation feature (`POST /services` wi
 **Required Fix:**
 1. Ensure the Python FastAPI microservice is actually running alongside the NestJS backend in your local development environment.
 2. If it is running, check the FastAPI terminal logs. A 503 usually means the LLM provider (e.g. OpenAI) call failed due to missing environment variables, network issues, or API rate limits.
+
+---
+
+## Standardize AI Service Generator Output Schema (`serviceGenerate`)
+
+**Issue:**
+Currently, the AI Generator endpoint (`/llm/service-generate`) returns `scope` and `timeline` as unstructured text or sometimes Python-style string representations (e.g., `"['INCLUDED:', ...]"`) which can cause display issues when populating structured form inputs on the frontend.
+
+**Required Fix:**
+To integrate seamlessly with the Frontend dynamic input builders (`ServiceCreateModal`), please ensure the FastAPI prompt/response schema for `serviceGenerate` follows this clean output format:
+
+1. **`scope` (JSON Array String or Clean Newline-Separated Deliverables)**
+   Configure the AI output schema for `scope` to return a **JSON array of clean strings** (or clean newline-separated deliverables without python array syntax `['...']`).
+   - **Expected format (JSON array string):**
+     ```json
+     [
+       "RAG system architecture design tailored for e-commerce data",
+       "Implementation of RAG pipeline using Langchain and Pinecone",
+       "Development of a conversational interface for chatbot"
+     ]
+     ```
+
+2. **`timeline` (Structured Phases separated by Newlines)**
+   Instruct the LLM to format the `timeline` string strictly with one phase per line using `Phase X: [Name] ([Duration])`, followed by a final line for `Total Estimated Time`.
+   - **Expected format:**
+     ```text
+     Phase 1: Discovery & System Architecture Design (1 week)
+     Phase 2: RAG Pipeline Development & Integration (2-3 weeks)
+     Phase 3: Testing & Deployment (1 week)
+     Total Estimated Time: 4-5 weeks
+     ```

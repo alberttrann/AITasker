@@ -224,7 +224,15 @@ export default function ProjectsPage() {
             }
           >
             <div className="flex flex-col gap-4">
-              {sortedProjects.map((project) => (
+              {sortedProjects.map((project) => {
+                const hasNewBids = (engagements || []).some(
+                  (e: any) =>
+                    (e.projectId === project.id || e.project_id === project.id) &&
+                    e.capabilityBid &&
+                    (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
+                );
+
+                return (
                   <div key={project.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -279,17 +287,6 @@ export default function ProjectsPage() {
                             <h4 className="text-lg font-bold text-slate-900 truncate max-w-sm sm:max-w-md">
                               {project.projectName || `Project ${project.id}`}
                             </h4>
-                            {(engagements || []).some(
-                              (e: any) =>
-                                (e.projectId === project.id || e.project_id === project.id) &&
-                                e.capabilityBid &&
-                                (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
-                            ) && (
-                              <span className="relative flex h-2.5 w-2.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                              </span>
-                            )}
                           </div>
                           <button
                             onClick={() => {
@@ -312,14 +309,22 @@ export default function ProjectsPage() {
 
                       <Link
                         to={`/ceo/projects/${project.id}`}
-                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors border border-slate-200"
+                        className="relative flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors border border-slate-200"
                       >
-                        View Details <ArrowRight className="w-4 h-4" />
+                        View Details
+                        {hasNewBids && (
+                          <span className="relative flex h-2.5 w-2.5" title="New bids waiting for review">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                          </span>
+                        )}
+                        <ArrowRight className="w-4 h-4" />
                       </Link>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
           </DataList>
         </div>
       )}

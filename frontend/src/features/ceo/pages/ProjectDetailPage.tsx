@@ -24,14 +24,14 @@ export default function ProjectDetailPage() {
   
   const { data: engagements } = useEngagements();
   
-  const hasNewBids = useMemo(() => {
-    if (!engagements || !project) return false;
-    return engagements.some(
+  const activeBidsCount = useMemo(() => {
+    if (!engagements || !project) return 0;
+    return engagements.filter(
       (e: any) =>
         (e.projectId === project.id || e.project_id === project.id) &&
         e.capabilityBid &&
         (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
-    );
+    ).length;
   }, [engagements, project]);
   
   const user = useAuthStore(s => s.user);
@@ -256,10 +256,9 @@ export default function ProjectDetailPage() {
                 className="relative flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-600/20"
               >
                 View Experts bids
-                {hasNewBids && (
-                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white"></span>
+                {activeBidsCount > 0 && (
+                  <span className="absolute -top-2 -right-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold leading-none text-white bg-rose-500 rounded-full border-2 border-white shadow-sm">
+                    {activeBidsCount}
                   </span>
                 )}
               </Link>
@@ -531,7 +530,7 @@ export default function ProjectDetailPage() {
                               <CurrencyInput 
                                 value={m.payment_amount_vnd}
                                 onChange={(val) => handleUpdateMilestone(idx, 'payment_amount_vnd', val)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900 bg-white shadow-sm"
                               />
                             </div>
                           </div>
