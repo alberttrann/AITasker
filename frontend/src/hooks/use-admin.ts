@@ -43,6 +43,63 @@ export function useResolveDispute() {
   });
 }
 
+// ── Users ──────────────────────────────────────────────────────────────
+// GET /admin/users
+export function useAdminUsers(page = 1, limit = 20) {
+  return useQuery({
+    queryKey: ["admin", "users", page, limit],
+    queryFn: () =>
+      apiClient
+        .get("/admin/users", { params: { page, limit } })
+        .then((r) => r.data),
+  });
+}
+
+// PUT /admin/users/:id/suspend
+export function useSuspendUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/users/${id}/suspend`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+// PUT /admin/users/:id/reactivate
+export function useReactivateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/users/${id}/reactivate`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+// ── Platform Settings ──────────────────────────────────────────────────
+// GET /admin/platform-settings
+export function usePlatformSettings() {
+  return useQuery({
+    queryKey: ["admin", "platform-settings"],
+    queryFn: () =>
+      apiClient.get("/admin/platform-settings").then((r) => r.data),
+  });
+}
+
+// PUT /admin/platform-settings
+export function useUpdatePlatformSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { platform_fee_pct: number }) =>
+      apiClient.put("/admin/platform-settings", body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "platform-settings"] });
+    },
+  });
+}
 
 // ── Admin Config Hooks ──────────────────────────────────────────
 

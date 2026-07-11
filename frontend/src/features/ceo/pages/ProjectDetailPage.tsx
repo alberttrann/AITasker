@@ -440,6 +440,9 @@ export default function ProjectDetailPage() {
                                   </strong>
                                 </span>
                               )}
+                              {(m.sign_off_authority && !['CEO', 'TECH_TEAM', 'JOINT'].includes(m.sign_off_authority)) && (
+                                <span className="px-2 py-0.5 rounded bg-slate-200/50 text-slate-700 text-[10px] font-bold tracking-wide border border-slate-200">{m.sign_off_authority}</span>
+                              )}
                             </div>
                           </div>
                           
@@ -541,7 +544,7 @@ export default function ProjectDetailPage() {
                             >
                               <option value="CEO">CEO</option>
                               <option value="TECH_TEAM">Tech Team</option>
-                              <option value="JOINT">Joint</option>
+                              <option value="JOINT">Joint (CEO + Tech Team)</option>
                             </select>
                           </div>
                         </div>

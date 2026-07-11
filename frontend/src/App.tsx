@@ -7,7 +7,7 @@ import { SocketProvider } from '@lib/socket-provider';
 import { GuestRoute, ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
 
 // Public pages
-const LandingPage = lazy(() => import("@/components/pages/LandingPage"));
+const LandingPage = lazy(() => import("@/components/pages/landingPage"));
 const ErrorPage = lazy(() => import("@components/pages/ErrorPage"));
 
 // Tech Team has a public registration route (no auth, link-based)
@@ -30,6 +30,10 @@ const AdminDashboard = lazy(() => import("@features/admin/AdminDashboard"));
 const AdminOverview = lazy(() => import("@features/admin/AdminOverview"));
 const AnalyticsDashboard = lazy(() => import("@features/admin/analytics/AnalyticsDashboard"));
 const DisputeMonitor = lazy(() => import("@features/admin/disputes/DisputeMonitor"));
+const DisputeDetail = lazy(() => import("@features/admin/disputes/DisputeDetail"));
+const ResolutionConfirm = lazy(() => import("@features/admin/disputes/ResolutionConfirm"));
+const UserList = lazy(() => import("@features/admin/accounts/UserList"));
+const PlatformSettings = lazy(() => import("@features/admin/PlatformSettings"));
 const TransactionsLedger = lazy(() => import("@features/admin/ledger/TransactionsLedger"));
 const WithdrawalRequests = lazy(() => import("@features/admin/ledger/WithdrawalRequests"));
 const SubscriptionPackagesPage = lazy(() => import("@features/admin/packages/SubscriptionPackagesPage"));
@@ -70,6 +74,9 @@ const MilestoneList = lazy(() => import("./features/ceo/milestones/MilestoneList
 const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMilestone"));
 const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
 const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
+const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
+const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
+const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
 
 function RootLayout() {
   return (
@@ -113,6 +120,7 @@ const router = createBrowserRouter(
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
             <Route path="projects/:projectId/bids" element={<CeoBidList />} />
             <Route path="project/:projectId/bids/:bidId" element={<CeoDecision />} />
+            <Route path="projects/:projectId/bids/:bidId" element={<CeoDecision />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
@@ -132,6 +140,14 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/milestones/:milestoneId/fund"
               element={<FundMilestone />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute"
+              element={<DisputeFile />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute/result"
+              element={<DisputeResult />}
             />
           </Route>
         </Route>
@@ -164,6 +180,18 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId"
+              element={<ExpertMilestoneDetail />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute"
+              element={<DisputeFile />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId/dispute/result"
+              element={<DisputeResult />}
             />
           </Route>
         </Route>
@@ -199,6 +227,10 @@ const router = createBrowserRouter(
             <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
             <Route path="config/archetypes" element={<ArchetypeConfigPage />} />
             <Route path="disputes" element={<DisputeMonitor />} />
+            <Route path="disputes/:id" element={<DisputeDetail />} />
+            <Route path="disputes/:id/resolve" element={<ResolutionConfirm />} />
+            <Route path="users" element={<UserList />} />
+            <Route path="settings" element={<PlatformSettings />} />
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />
           </Route>

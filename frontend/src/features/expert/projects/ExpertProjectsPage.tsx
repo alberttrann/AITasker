@@ -79,6 +79,8 @@ export default function ExpertProjectsPage() {
           } else {
              status = 'BID_SENT';
           }
+        } else if (eng.state === 'DECLINED') {
+          status = 'DECLINED';
         }
 
         projectMap.set(eng.projectId, {
@@ -104,6 +106,11 @@ export default function ExpertProjectsPage() {
           existing.invitation = inv;
           existing.ceoName = inv.ceo.fullName; // richer info
           existing.companyName = (inv.ceo as any).companyName || (inv.ceo as any).activeRoleProfile?.companyName || null;
+          
+          // Re-enable Submit Bid if the previous engagement was declined but we have a new/pending invitation
+          if (existing.status === 'DECLINED' && inv.status === 'PENDING' && !inv.isExpired) {
+            existing.status = 'INVITED';
+          }
         } else {
           // No engagement yet, derive status from invitation
           let status: UnifiedProject['status'] = 'INVITED';
@@ -422,7 +429,6 @@ export default function ExpertProjectsPage() {
                         </Button>
                       </>
                     )}
-                    
                     {selectedProject.status === 'BID_SENT' && (
                       <Button variant="outline" onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
                         View Bid
@@ -436,7 +442,15 @@ export default function ExpertProjectsPage() {
                     )}
 
                     {selectedProject.status === 'IN_PROGRESS' && (
-                      <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement!.id}`)}>
+                      <Button onClick={() => {
+                        const milestones = selectedProject.engagement?.milestones || [];
+                        const activeMilestone = milestones.find(m => m.state !== 'RELEASED' && m.state !== 'APPROVED') || milestones[0];
+                        if (activeMilestone) {
+                          navigate(`/expert/engagements/${selectedProject.engagement!.id}/milestones/${activeMilestone.id}`);
+                        } else {
+                          alert("No milestones defined yet for this engagement.");
+                        }
+                      }}>
                         Open Workspace
                       </Button>
                     )}

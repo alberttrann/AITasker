@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -9,9 +10,7 @@ import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2, XCircle, ArrowLeft, DollarSign, MessageSquare } from 'lucide-react';
 import { cn, formatVND } from '@/lib/utils';
 import type { CapabilityBidDto } from '@/types/api.types';
-
 import { useBid, useCeoDecision } from '@/hooks/use-bids';
-import { apiClient } from '@/lib/api-client';
 /** PUT /bids/:id/counter-offer */
 function useCounterOfferBid() {
   const qc = useQueryClient();
