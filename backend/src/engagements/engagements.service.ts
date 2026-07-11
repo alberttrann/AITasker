@@ -27,7 +27,7 @@ export class EngagementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   // GET /engagements — list own engagements (or all for ADMIN).
   // Blueprint: docs/04-endpoints.md §0.11 L row 145.
@@ -74,6 +74,7 @@ export class EngagementsService {
         include: {
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
+          expert: { select: { fullName: true } },
         },
         orderBy: { id: 'desc' },
       });
@@ -358,7 +359,7 @@ export class EngagementsService {
     }
     return this.prisma.milestoneSubmission.findMany({
       where: { milestone: { engagementId } },
-      orderBy: { id: 'desc' }, 
+      orderBy: { id: 'desc' },
       include: { milestone: { select: { milestoneNumber: true, deliverableStatement: true } } },
     });
   }
@@ -371,7 +372,7 @@ export class EngagementsService {
     }
     const bid = await this.prisma.capabilityBid.findFirst({
       where: { engagementId },
-      orderBy: { id: 'asc' }, 
+      orderBy: { id: 'asc' },
     });
     if (!bid) throw new NotFoundException('No bid found for this engagement.');
     return bid;
@@ -385,7 +386,7 @@ export class EngagementsService {
     }
     return this.prisma.dispute.findMany({
       where: { milestone: { engagementId } },
-      orderBy: { filedAt: 'desc' }, 
+      orderBy: { filedAt: 'desc' },
       include: {
         milestone: { select: { milestoneNumber: true, deliverableStatement: true } },
       },
