@@ -22,7 +22,7 @@ import { LoginUserDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { VAStatus } from '@common/enums/va-status.enum';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import axios from 'axios';
 import { generateVaNumber } from '@shared/ledger/va-generator';
@@ -105,7 +105,7 @@ export class AuthService {
       });
 
       const access_token = await this.jwtGeneratePayload(user);
-      const refresh_token = await this.jwtGenerateRefreshPayload(user);
+      const refresh_token = await this.jwtGenerateRefreshPayload(user, tx);
 
       return {
         access_token,
@@ -223,7 +223,7 @@ export class AuthService {
     return accessToken;
   }
 
-  async jwtGenerateRefreshPayload(user: User) {
+  async jwtGenerateRefreshPayload(user: User, tx?: Prisma.TransactionClient) {
     const payload = {
       sub: user.id,
       type: 'refresh',
@@ -234,7 +234,8 @@ export class AuthService {
     // Hash and store the refresh token on the user record in the DB (for server-side logout support)
     const { createHash } = await import('crypto');
     const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
-    await this.prisma.user.update({
+    const db = tx || this.prisma;
+    await db.user.update({
       where: { id: user.id },
       data: { refreshTokenHash: tokenHash },
     });
@@ -327,7 +328,7 @@ export class AuthService {
       });
 
       const access_token = await this.jwtGeneratePayload(user);
-      const refresh_token = await this.jwtGenerateRefreshPayload(user);
+      const refresh_token = await this.jwtGenerateRefreshPayload(user, tx);
       return {
         access_token,
         refresh_token,
