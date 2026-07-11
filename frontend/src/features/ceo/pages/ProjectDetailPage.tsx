@@ -33,6 +33,15 @@ export default function ProjectDetailPage() {
         (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
     );
   }, [engagements, project]);
+
+  const activeEngagement = useMemo(() => {
+    if (!engagements || !project) return null;
+    return engagements.find(
+      (e: any) =>
+        (e.projectId === project.id || e.project_id === project.id) &&
+        !['CLOSED', 'CANCELLED', 'DECLINED'].includes(e.state)
+    );
+  }, [engagements, project]);
   
   const user = useAuthStore(s => s.user);
   const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
@@ -236,7 +245,25 @@ export default function ProjectDetailPage() {
         </div>
         
         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-          {isTechTeam ? (
+          {activeEngagement ? (
+            <div className="flex items-center gap-3">
+              {activeEngagement.state === 'PENDING' ? (
+                <Link
+                  to={`/ceo/engagements/${activeEngagement.id}/nda`}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
+                >
+                  Review & Sign NDA
+                </Link>
+              ) : (
+                <Link
+                  to={isTechTeam ? `/tech-team/engagements/${activeEngagement.id}/milestones` : `/ceo/engagements/${activeEngagement.id}/milestones`}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
+                >
+                  <Target size={18} /> Go to Workspace
+                </Link>
+              )}
+            </div>
+          ) : isTechTeam ? (
             <Link
               to={`/tech-team/bids`}
               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"

@@ -90,7 +90,7 @@ export default function DodItemRow({ item, milestoneId, onUpdateStatus, isUpdati
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <Checkbox
-            checked={isCompleted}
+            checked={isCompleted || pendingStatus === "COMPLETED"}
             onChange={handleCheckboxChange}
             disabled={isUpdating}
             className="mt-1"

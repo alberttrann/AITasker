@@ -70,7 +70,7 @@ export default function CeoDecision() {
         <p className="text-body-lg font-headline text-[#EF4444]">{msg}</p>
         <div className="flex justify-center gap-3">
           <Button variant="secondary" onClick={() => refetch()}>Retry</Button>
-          <Button variant="ghost" onClick={() => navigate(`/ceo/project/${projectId}/bids`)}>Back</Button>
+          <Button variant="ghost" onClick={() => navigate(`/ceo/projects/${projectId}/bids`)}>Back</Button>
         </div>
       </div>
     );
@@ -87,7 +87,7 @@ export default function CeoDecision() {
         onSuccess: (data: any) => {
           const engId = data?.engagement_id || data?.id || bidAny?.engagementId || bidAny?.engagement_id;
           if (engId) {
-            navigate(`/ceo/project/${projectId}/nda/${engId}`, { replace: true });
+            navigate(`/ceo/engagements/${engId}/nda`, { replace: true });
           }
         },
         onError: (err: any) => {
@@ -105,7 +105,7 @@ export default function CeoDecision() {
       { bidId, body: { decision: 'DECLINED' } },
       {
         onSuccess: () => {
-          navigate(`/ceo/project/${projectId}/bids`, { replace: true });
+          navigate(`/ceo/projects/${projectId}/bids`, { replace: true });
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || 'Failed to decline bid.';
@@ -138,7 +138,7 @@ export default function CeoDecision() {
     <div className="mx-auto max-w-[720px] space-y-6">
       {/* Back */}
       <button
-        onClick={() => navigate(`/ceo/project/${projectId}/bids`)}
+        onClick={() => navigate(`/ceo/projects/${projectId}/bids`)}
         className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
       >
         <ArrowLeft size={14} />

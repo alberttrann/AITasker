@@ -105,7 +105,7 @@ export async function submitStage4(
 ) {
   const latency_requirement = `Integration Method: ${integration_method}`;
 
-  const { data } = await apiClient.post(
+  const { data } = await apiClient.put(
     `/elicitation/sessions/${sessionId}/stage4`,
     { current_stack, data_available, latency_requirement, additional_requirement_1, technical_artifacts },
     { timeout: 120_000 },

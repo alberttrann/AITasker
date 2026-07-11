@@ -17,7 +17,7 @@ type UnifiedProject = {
   projectName: string;
   ceoName: string;
   companyName: string | null;
-  status: 'INVITED' | 'BID_SENT' | 'COUNTER_OFFER' | 'IN_PROGRESS' | 'DECLINED' | 'EXPIRED';
+  status: 'INVITED' | 'BID_SENT' | 'COUNTER_OFFER' | 'NDA_PENDING' | 'IN_PROGRESS' | 'DECLINED' | 'EXPIRED';
   updatedAt: number; // for sorting
   invitation?: InvitationDto;
   engagement?: EngagementDto;
@@ -74,11 +74,15 @@ export default function ExpertProjectsPage() {
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
         if (eng.state === 'PENDING') {
           // It's in bidding
-          if (eng.capabilityBid?.tech_status === 'REVISION_REQUESTED' || eng.capabilityBid?.ceo_status === 'NEGOTIATING') {
+          if (eng.capabilityBid?.tech_status === 'REVISION_REQUESTED' || eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' || eng.capabilityBid?.ceo_status === 'NEGOTIATING' || eng.capabilityBid?.ceoStatus === 'NEGOTIATING') {
              status = 'COUNTER_OFFER';
+          } else if (eng.capabilityBid?.ceo_status === 'APPROVED' || eng.capabilityBid?.ceoStatus === 'APPROVED' || (eng as any).clientNdaAcceptedAt) {
+             status = 'NDA_PENDING';
           } else {
              status = 'BID_SENT';
           }
+        } else if (eng.state === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
+          status = 'NDA_PENDING';
         } else if (eng.state === 'DECLINED') {
           status = 'DECLINED';
         }
@@ -438,6 +442,12 @@ export default function ExpertProjectsPage() {
                     {selectedProject.status === 'COUNTER_OFFER' && (
                       <Button onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
                         Review Offer
+                      </Button>
+                    )}
+
+                    {selectedProject.status === 'NDA_PENDING' && (
+                      <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/nda`)}>
+                        Sign NDA
                       </Button>
                     )}
 

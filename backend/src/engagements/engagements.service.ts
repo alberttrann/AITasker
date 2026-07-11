@@ -62,7 +62,7 @@ export class EngagementsService {
     if (user.activeRole === 'EXPERT') {
       return this.prisma.engagement.findMany({
         where: { expertId: user.id },
-        include: { project: PROJECT_SUMMARY_SELECT },
+        include: { project: PROJECT_SUMMARY_SELECT, capabilityBid: true },
         orderBy: { id: 'desc' }, // Sort by newest IDs first
       });
     }

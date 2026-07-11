@@ -140,13 +140,10 @@ export default function BidForm() {
         conditional_pricing_json: pricing,
       },
       {
-        onSuccess: (data: any) => {
-          const engId = data?.engagement?.id || matchedEngagement?.id;
-          if (engId) {
-            navigate(`/expert/bids/${actualProjectId}?engagementId=${engId}`, { replace: true });
-          } else {
+        onSuccess: () => {
+          setTimeout(() => {
             navigate(`/expert/service/projects`);
-          }
+          }, 1500);
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || 'Failed to submit bid.';
