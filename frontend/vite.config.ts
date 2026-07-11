@@ -16,6 +16,17 @@ export default defineConfig({
       '@t':          path.resolve(__dirname, './src/types'),   
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'query-vendor': ['@tanstack/react-query'],
+          'ui-vendor': ['lucide-react', 'motion', 'recharts'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

@@ -3,11 +3,11 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 
-type ActorUser = { id: string };  
+type ActorUser = { id: string };
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -15,7 +15,7 @@ type ActorUser = { id: string };
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Put('projects/:id/suspend-spec')
   @ApiOperation({ summary: 'Emergency pull-back of a published project spec' })
@@ -28,6 +28,7 @@ export class AdminController {
   async suspendUser(@Param('id') id: string) {
     return this.adminService.suspendUser(id);
   }
+
 
   @Get('disputes')
   @ApiOperation({ summary: 'Disputes queue, optionally filtered by state' })
@@ -120,9 +121,9 @@ export class AdminController {
       'Only succeeds if the package has zero purchase history. ' +
       'If it has been purchased before, use PUT with isActive: false to deactivate it instead.',
   })
-  @ApiResponse({ status: 200,  description: 'Package deleted.' })
-  @ApiResponse({ status: 422,  description: 'Package has purchase history — deactivate instead.' })
-  @ApiResponse({ status: 404,  description: 'Package not found.' })
+  @ApiResponse({ status: 200, description: 'Package deleted.' })
+  @ApiResponse({ status: 422, description: 'Package has purchase history — deactivate instead.' })
+  @ApiResponse({ status: 404, description: 'Package not found.' })
   deleteSubscriptionPackage(@Param('id') id: string) {
     return this.adminService.deleteSubscriptionPackage(id);
   }
@@ -146,11 +147,6 @@ export class AdminController {
     return this.adminService.getUser(id);
   }
 
-  @Put('users/:id/reactivate')
-  @ApiOperation({ summary: 'Reactivate a suspended user account' })
-  async reactivateUser(@Param('id') id: string) {
-    return this.adminService.reactivateUser(id);
-  }
 
   @Get('projects')
   @ApiOperation({ summary: 'List all projects (admin oversight)' })
@@ -171,7 +167,7 @@ export class AdminController {
 
   @Get('engagements')
   @ApiOperation({ summary: 'List all engagements (admin oversight)' })
-  @ApiQuery({ name: 'state',     required: false })
+  @ApiQuery({ name: 'state', required: false })
   @ApiQuery({ name: 'projectId', required: false })
   async listEngagements(
     @Query('state') state?: string,

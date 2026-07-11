@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { formatVND, formatSeamCode } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -28,9 +29,7 @@ const TECH_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   REVISION_REQUESTED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Revision Requested', icon: AlertCircle },
 };
 
-function formatVND(n: number) {
-  return n ? n.toLocaleString('vi-VN') + ' ₫' : '—';
-}
+
 
 export default function BidReviewDetail() {
   const { bidId } = useParams<{ bidId: string }>();
@@ -150,7 +149,7 @@ export default function BidReviewDetail() {
                       key={s.code}
                       className="inline-flex items-center gap-1.5 rounded-sm bg-tertiary/5 px-3 py-1 text-[13px] font-medium text-tertiary"
                     >
-                      {s.code}
+                      {formatSeamCode(s.code)}
                       <span className="text-[11px] opacity-70">
                         ({s.tier?.replace('_', ' ').toLowerCase()})
                       </span>
@@ -182,11 +181,16 @@ export default function BidReviewDetail() {
                   className="flex items-center justify-between rounded-[6px] bg-[#F8FAFC] px-4 py-3"
                 >
                   <div>
-                    <span className="text-[13px] font-medium text-primary">
+                    <span className="text-[13px] font-medium text-primary block">
                       M{m.milestone_number}: {m.condition}
                     </span>
+                    {m.estimated_duration_days && (
+                      <span className="text-[12px] text-secondary mt-0.5 block flex items-center gap-1">
+                        <Clock size={12} /> {m.estimated_duration_days} days
+                      </span>
+                    )}
                   </div>
-                  <span className="font-headline text-[14px] font-semibold text-primary">
+                  <span className="font-headline text-[14px] font-semibold text-primary shrink-0">
                     {formatVND(m.price_vnd)}
                   </span>
                 </div>

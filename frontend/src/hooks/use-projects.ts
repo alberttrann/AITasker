@@ -103,6 +103,19 @@ export function useUpdateProjectName() {
   });
 }
 
+export function useUpdateProjectMilestones() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, milestones }: { id: string; milestones: any[] }) => {
+      await apiClient.put(`/projects/${id}/milestones`, { milestones });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+}
+
 /**
  * useSlimProjects — lightweight project list for CEO dashboard cards.
  * Hits GET /projects?slim=true — no JSON blobs, just scalar metadata.
@@ -194,5 +207,86 @@ export function useSessionHistory() {
       return (Array.isArray(data) ? data : (data as any)?.data ?? []) as ElicitationSessionDto[];
     },
     staleTime: 30_000,
+  });
+}
+
+// ── Phase 5: Individual Milestone CRUD ────────────────────────────────────────
+
+export function useUpdateMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: any }) => {
+      const { data } = await apiClient.patch(`/milestones/${id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+}
+
+export function useDeleteMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete(`/milestones/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  });
+}
+
+export function useProjectMilestones(projectId: string) {
+  return useQuery({
+    queryKey: ['project', projectId, 'milestones'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/projects/${projectId}/milestones`);
+      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+    },
+    enabled: !!projectId,
+  });
+}
+
+// ── Phase 5: Milestone Chat Assistant ────────────────────────────────────────
+
+export function useMilestoneChatSessions(projectId: string) {
+  return useQuery({
+    queryKey: ['project', projectId, 'milestone-chat', 'sessions'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/projects/${projectId}/milestone-chat/sessions`);
+      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+    },
+    enabled: !!projectId,
+  });
+}
+
+export function useMilestoneChatHistory(projectId: string, sessionId: string | null) {
+  return useQuery({
+    queryKey: ['project', projectId, 'milestone-chat', 'session', sessionId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/projects/${projectId}/milestone-chat/sessions/${sessionId}`);
+      return data;
+    },
+    enabled: !!projectId && !!sessionId,
+  });
+}
+
+export function useSendMilestoneMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, message, chatSessionId }: { projectId: string; message: string; chatSessionId?: string }) => {
+      const payload: any = { message };
+      if (chatSessionId) payload.chatSessionId = chatSessionId;
+      const { data } = await apiClient.post(`/projects/${projectId}/milestone-chat`, payload);
+      return data;
+    },
+    onSuccess: (_, { projectId, chatSessionId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId, 'milestone-chat', 'sessions'] });
+      if (chatSessionId) {
+        queryClient.invalidateQueries({ queryKey: ['project', projectId, 'milestone-chat', 'session', chatSessionId] });
+      }
+    }
   });
 }

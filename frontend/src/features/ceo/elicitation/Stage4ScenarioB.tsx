@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Link as LinkIcon, AlertTriangle, KeyRound } from 'lucide-react';
+import { Loader2, Link as LinkIcon, AlertTriangle, KeyRound, CheckCircle2 } from 'lucide-react';
 import Stage4HandoffLink from "./Stage4HandoffLink";
 import { inviteTechTeam, getSession, revertSession, handleElicitationError, useElicitation } from "@/hooks/use-elicitation";
 import type { Stage4ScenarioBProps } from "@t/ui.types";
@@ -127,6 +127,26 @@ export default function Stage4ScenarioB({
             Delegate technical details to your team. We'll generate a secure invite link for them to complete this stage.
           </p>
         </div>
+        
+        {sessionData?.criticalArtifactsJson && sessionData.criticalArtifactsJson.length > 0 && (
+          <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+            <h3 className="text-body font-bold text-blue-900 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+              Critical Documents Required
+            </h3>
+            <p className="mt-1 text-body-sm text-blue-800">
+              Please remind your tech team to prepare links to the following documents when they fill out this stage:
+            </p>
+            <ul className="mt-3 space-y-2">
+              {sessionData.criticalArtifactsJson.map((artifact: any, idx: number) => (
+                <li key={idx} className="flex flex-col text-sm">
+                  <span className="font-semibold text-blue-900">• {artifact.label}</span>
+                  <span className="text-blue-700 ml-3 text-xs italic">{artifact.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="space-y-2">
           <label htmlFor="tech-team-email" className="text-body-sm font-semibold text-primary">

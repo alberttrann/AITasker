@@ -1,11 +1,11 @@
 // Regression lock for AuthService.register/login/switchRole
-import { Test, TestingModule }      from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { JwtService }               from '@nestjs/jwt';
-import { AuthService }              from '../../src/auth/auth.service';
-import { PrismaService }            from 'prisma/prisma.service';
-import { UserRoleItem }             from '@common/enums/user-role-item.enum';
-import { ActiveRole }               from '@common/enums/active-role.enum';
+import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../../src/auth/auth.service';
+import { PrismaService } from 'prisma/prisma.service';
+import { UserRoleItem } from '@common/enums/user-role-item.enum';
+import { ActiveRole } from '@common/enums/active-role.enum';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -19,13 +19,14 @@ describe('AuthService — regression', () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
-        update:     jest.fn(),
+        update: jest.fn(),
       },
       $transaction: jest.fn().mockImplementation((cb: Function) =>
         cb({
           user: {
             create: jest.fn().mockResolvedValue({
-              id: 'user-1', email: 'ceo@test.com',
+              id: 'user-1',
+              email: 'ceo@test.com',
             }),
           },
           wallet: {
@@ -46,7 +47,7 @@ describe('AuthService — regression', () => {
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prisma },
-        { provide: JwtService,    useValue: jwtService },
+        { provide: JwtService, useValue: jwtService },
       ],
     }).compile();
 
@@ -63,8 +64,11 @@ describe('AuthService — regression', () => {
 
       await expect(
         service.register({
-          email: 'taken@test.com', password: 'Str0ng!Pass', fullName: 'Test User',
-          phone: '', roles: UserRoleItem.CLIENT_CEO,
+          email: 'taken@test.com',
+          password: 'Str0ng!Pass',
+          fullName: 'Test User',
+          phone: '',
+          roles: UserRoleItem.CLIENT_CEO,
         } as any),
       ).rejects.toThrow(ConflictException);
     });
@@ -73,8 +77,11 @@ describe('AuthService — regression', () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       const result = await service.register({
-        email: 'new@test.com', password: 'Str0ng!Pass', fullName: 'New CEO',
-        phone: '', roles: UserRoleItem.CLIENT_CEO,
+        email: 'new@test.com',
+        password: 'Str0ng!Pass',
+        fullName: 'New CEO',
+        phone: '',
+        roles: UserRoleItem.CLIENT_CEO,
       } as any);
 
       expect(result).toHaveProperty('id');
@@ -96,20 +103,26 @@ describe('AuthService — regression', () => {
 
     it('throws UnauthorizedException on wrong password', async () => {
       prisma.user.findUnique.mockResolvedValue({
-        id: 'user-1', email: 'ceo@test.com', passwordHash: 'hashed',
+        id: 'user-1',
+        email: 'ceo@test.com',
+        passwordHash: 'hashed',
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      await expect(
-        service.login({ email: 'ceo@test.com', password: 'wrongpass' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({ email: 'ceo@test.com', password: 'wrongpass' })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('returns access_token on correct credentials', async () => {
       prisma.user.findUnique.mockResolvedValue({
-        id: 'user-1', email: 'ceo@test.com', passwordHash: 'hashed',
-        activeRole: ActiveRole.CLIENT, clientSubtype: 'CEO',
-        subscriptionClientTier: 'free', subscriptionExpertTier: 'free',
+        id: 'user-1',
+        email: 'ceo@test.com',
+        passwordHash: 'hashed',
+        activeRole: ActiveRole.CLIENT,
+        clientSubtype: 'CEO',
+        subscriptionClientTier: 'free',
+        subscriptionExpertTier: 'free',
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
@@ -135,22 +148,27 @@ describe('AuthService — regression', () => {
 
     it('throws UnauthorizedException when role is not in roles[]', async () => {
       prisma.user.findUnique.mockResolvedValue({
-        id: 'user-1', roles: [UserRoleItem.CLIENT_CEO], // no EXPERT role
+        id: 'user-1',
+        roles: [UserRoleItem.CLIENT_CEO], // no EXPERT role
       });
 
-      await expect(
-        service.switchRole('user-1', { activeRole: ActiveRole.EXPERT }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.switchRole('user-1', { activeRole: ActiveRole.EXPERT })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('switches role and returns a new token when role is valid', async () => {
       prisma.user.findUnique.mockResolvedValue({
-        id: 'user-1', roles: [UserRoleItem.CLIENT_CEO, UserRoleItem.EXPERT],
+        id: 'user-1',
+        roles: [UserRoleItem.CLIENT_CEO, UserRoleItem.EXPERT],
       });
       prisma.user.update.mockResolvedValue({
-        id: 'user-1', activeRole: ActiveRole.EXPERT,
-        email: 'ceo@test.com', clientSubtype: null,
-        subscriptionClientTier: 'free', subscriptionExpertTier: 'free',
+        id: 'user-1',
+        activeRole: ActiveRole.EXPERT,
+        email: 'ceo@test.com',
+        clientSubtype: null,
+        subscriptionClientTier: 'free',
+        subscriptionExpertTier: 'free',
       });
 
       const result = await service.switchRole('user-1', { activeRole: ActiveRole.EXPERT });
@@ -158,7 +176,7 @@ describe('AuthService — regression', () => {
       expect(result).toEqual({ access_token: 'signed.jwt.token' });
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data:  { activeRole: ActiveRole.EXPERT },
+        data: { activeRole: ActiveRole.EXPERT },
       });
     });
   });

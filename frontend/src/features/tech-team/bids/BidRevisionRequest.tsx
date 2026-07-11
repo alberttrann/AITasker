@@ -1,42 +1,18 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, ArrowLeft, MessageSquareWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ── Inline hook: PUT /bids/:id/tech-review (REVISION_REQUESTED) ──
-
-function useRequestRevision() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      bidId,
-      feedback,
-    }: {
-      bidId: string;
-      feedback: string;
-    }) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/tech-review`, {
-        action: 'REVISION_REQUESTED',
-        tech_feedback: feedback,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useTechReview } from '@/hooks/use-bids';
 
 export default function BidRevisionRequest() {
   const { bidId } = useParams<{ bidId: string }>();
   const navigate = useNavigate();
-  const requestRevision = useRequestRevision();
+  const requestRevision = useTechReview();
   const [feedback, setFeedback] = useState('');
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -60,7 +36,10 @@ export default function BidRevisionRequest() {
   const handleConfirm = () => {
     if (!bidId) return;
     requestRevision.mutate(
-      { bidId, feedback: feedback.trim() },
+      {
+        bidId,
+        body: { action: 'REVISION_REQUESTED', tech_feedback: feedback.trim() }
+      },
       {
         onSuccess: () => {
           navigate(`/tech-team/bids/${bidId}`, { replace: true });

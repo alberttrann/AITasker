@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException }   from '@nestjs/common';
-import { IpnHandlerService }   from '../src/payments/ipn-handler.service';
-import { PrismaService }       from 'prisma/prisma.service';
+import { ConflictException } from '@nestjs/common';
+import { IpnHandlerService } from '../src/payments/ipn-handler.service';
+import { PrismaService } from 'prisma/prisma.service';
 
 describe('T01: IPN idempotency (Minh Thức)', () => {
   let service: IpnHandlerService;
   let prisma: any;
 
-  const VA_NUMBER   = 'AITASKER123ABC';
-  const REFERENCE   = 'FT24061900001';
-  const WALLET_ID   = 'wallet-uuid-1';
+  const VA_NUMBER = 'AITASKER123ABC';
+  const REFERENCE = 'FT24061900001';
+  const WALLET_ID = 'wallet-uuid-1';
 
   beforeEach(async () => {
     prisma = {
@@ -20,10 +20,7 @@ describe('T01: IPN idempotency (Minh Thức)', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        IpnHandlerService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [IpnHandlerService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<IpnHandlerService>(IpnHandlerService);
@@ -34,11 +31,11 @@ describe('T01: IPN idempotency (Minh Thức)', () => {
   const makeTxMock = (existingTransaction: any = null) => ({
     wallet: {
       findUnique: jest.fn().mockResolvedValue({ id: WALLET_ID }),
-      update:     jest.fn().mockResolvedValue({ id: WALLET_ID }),
+      update: jest.fn().mockResolvedValue({ id: WALLET_ID }),
     },
     walletTransaction: {
       findFirst: jest.fn().mockResolvedValue(existingTransaction),
-      create:    jest.fn().mockResolvedValue({ id: 'tx-1' }),
+      create: jest.fn().mockResolvedValue({ id: 'tx-1' }),
     },
   });
 
@@ -56,7 +53,8 @@ describe('T01: IPN idempotency (Minh Thức)', () => {
 
   it('credits the wallet and creates a transaction on first IPN', async () => {
     prisma.virtualAccount.findUnique.mockResolvedValue({
-      vaNumber: VA_NUMBER, entityId: 'user-1',
+      vaNumber: VA_NUMBER,
+      entityId: 'user-1',
     });
 
     const tx = makeTxMock(null); // no existing transaction — first time
@@ -75,7 +73,8 @@ describe('T01: IPN idempotency (Minh Thức)', () => {
 
   it('does NOT credit the wallet twice for the same referenceCode (idempotency)', async () => {
     prisma.virtualAccount.findUnique.mockResolvedValue({
-      vaNumber: VA_NUMBER, entityId: 'user-1',
+      vaNumber: VA_NUMBER,
+      entityId: 'user-1',
     });
 
     // Simulate the SAME IPN arriving a second time — walletTransaction.findFirst
@@ -98,7 +97,8 @@ describe('T01: IPN idempotency (Minh Thức)', () => {
 
   it('throws ConflictException when wallet does not exist for the VA owner', async () => {
     prisma.virtualAccount.findUnique.mockResolvedValue({
-      vaNumber: VA_NUMBER, entityId: 'user-with-no-wallet',
+      vaNumber: VA_NUMBER,
+      entityId: 'user-with-no-wallet',
     });
 
     const tx = {

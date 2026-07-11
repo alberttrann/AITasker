@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@store/auth.store';
+import { formatSeamCode } from '@/lib/utils';
 import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
@@ -36,6 +37,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
   const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const user        = useAuthStore((s) => s.user);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
@@ -81,7 +83,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       if (!engagementId) return;
 
       // Ignore if the current user sent the message
-      if (data.senderId === currentUser?.id || data.sender?.id === currentUser?.id) return;
+      if (data.senderId === user?.id || data.sender?.id === user?.id) return;
 
       incrementUnread(engagementId);
       // Only show notification if user is not currently in that conversation
@@ -211,8 +213,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         type:  'portfolio_eval',
         title: 'Portfolio evaluation complete',
         body:  data.passed
-          ? `${data.seam_code} — Tier 2 verified ✓`
-          : `${data.seam_code} — did not meet the threshold`,
+          ? `${formatSeamCode(data.seam_code)} — Tier 2 verified ✓`
+          : `${formatSeamCode(data.seam_code)} — did not meet the threshold`,
         link:  '/profile/seams',
       });
     });

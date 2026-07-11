@@ -14,14 +14,14 @@ import { ProjectsModule } from './projects/projects.module';
 import { ExpertProfilesModule } from './expert-profiles/expert-profiles.module';
 import { LedgerModule } from '@shared/ledger/ledger.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ListingsModule } from './listings/listings.module';         
-import { EngagementsModule } from './engagements/engagements.module'; 
-import { BidsModule } from './bids/bids.module';                     
-import { SubmissionsModule } from './submissions/submissions.module'; 
+import { ListingsModule } from './listings/listings.module';
+import { EngagementsModule } from './engagements/engagements.module';
+import { BidsModule } from './bids/bids.module';
+import { SubmissionsModule } from './submissions/submissions.module';
 import { MessagesModule } from './messages/messages.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { DisputesModule } from './disputes/disputes.module';
-import { AdminModule }       from './admin/admin.module';
+import { AdminModule } from './admin/admin.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { AppConfigModule } from './config/config.module';
 import { InternalModule } from './internal/internal.module';
@@ -46,13 +46,13 @@ import { NotificationsModule } from './notifications/notifications.module'
     ElicitationModule,
     ProjectsModule,
     ExpertProfilesModule,
-    ListingsModule,      
-    EngagementsModule,   
-    BidsModule,          
-    DisputesModule,    
+    ListingsModule,
+    EngagementsModule,
+    BidsModule,
+    DisputesModule,
     // ─── M3 modules (Minh Thức) ───────────────────────────────────────────
     MilestonesModule,
-    SubmissionsModule,   
+    SubmissionsModule,
     MessagesModule,
     ReviewsModule,
     AdminModule,

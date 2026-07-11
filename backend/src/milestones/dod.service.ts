@@ -1,11 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { UpdateMilestoneDoDItemDto } from './dto/update-dod-item.dto';
-import { PrismaService } from '../database/prisma.service';
-import { CreateDodItemDto } from './dto/create-dod-item.dto';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
+import { PrismaService } from "../database/prisma.service";
+import { CreateDodItemDto } from "./dto/create-dod-item.dto";
 
 @Injectable()
 export class DodService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(milestoneId: string, dto: CreateDodItemDto) {
     const milestone = await this.prisma.milestone.findUnique({
@@ -27,23 +27,20 @@ export class DodService {
     });
   }
 
-  async updateDodStatus(itemId: string, dto: UpdateMilestoneDoDItemDto) {
+  async updateDodStatus(itemId: string, milestoneId: string, dto: UpdateMilestoneDoDItemDto) {
     const dodItem = await this.prisma.milestoneDodItem.findUnique({
-      where: { id: itemId },
+      where: { id: itemId }
     });
     if (!dodItem) {
       throw new NotFoundException(`DoD item with ID ${itemId} not found`);
     }
-
-    if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE') {
+    // Mục DoD bắt buộc thì không cho phép đặt là NOT_APPLICABLE
+    if (dodItem.isRequired && dto.status === 'NOT_APPLICABLE')
       throw new BadRequestException(`Cannot mark a required DoD item as NOT_APPLICABLE`);
-    }
 
-    if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note) {
-      throw new BadRequestException(
-        `Completion note is required for required DoD items when status is not COMPLETED`,
-      );
-    }
+    // Mục DoD bắt buộc và hoàn thành -> yêu cầu phải có Note 
+    if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note)
+      throw new BadRequestException(`Completion note is required for required DoD items when status is not COMPLETED`);
 
     return this.prisma.milestoneDodItem.update({
       where: { id: itemId },
@@ -52,14 +49,14 @@ export class DodService {
         completionNote: dto.status === 'COMPLETED' ? dto.completion_note : null,
         notApplicableNote: dto.status === 'NOT_APPLICABLE' ? dto.not_applicable_note : null,
         completedAt: dto.status === 'COMPLETED' ? new Date() : null,
-      },
+      }
     });
   }
 
   async list(milestoneId: string) {
     return this.prisma.milestoneDodItem.findMany({
       where: { milestoneId },
-      orderBy: { id: 'asc' }, 
+      orderBy: { id: 'asc' },
     });
   }
 
@@ -72,3 +69,4 @@ export class DodService {
     return this.prisma.milestoneDodItem.delete({ where: { id: itemId } });
   }
 }
+

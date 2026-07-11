@@ -35,7 +35,7 @@ export function useSubscriptionStatus() {
       const { data } = await apiClient.get<any>('/subscriptions/status');
       const tier = data?.subscriptionTier?.toLowerCase() || 'free';
       const expiresAt = data?.subscriptionExpires;
-      const isActive = tier === 'pro' && !!expiresAt && new Date(expiresAt) > new Date();
+      const isActive = tier === 'pro';
 
       return {
         tier,
@@ -68,30 +68,3 @@ export function useSubscriptionHistory() {
   });
 }
 
-export interface SubscriptionPackage {
-  id: string;
-  role: string;
-  name: string;
-  priceVnd: string | number;
-  durationMonths: number;
-  isActive: boolean;
-}
-
-export function useSubscriptionPackages() {
-  return useQuery({
-    queryKey: ['subscriptionPackages'],
-    queryFn: async () => {
-      try {
-        const { data } = await apiClient.get<SubscriptionPackage[]>('/config/subscription-packages');
-        return data;
-      } catch (err: any) {
-        // Fallback or ignore if endpoint doesn't exist yet (404)
-        if (err.response?.status === 404) {
-          return null;
-        }
-        throw err;
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-}

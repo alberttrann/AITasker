@@ -18,7 +18,10 @@ export class DisputesController {
 
   @Post()
   @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)' })
+  @ApiOperation({
+    summary:
+      'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)',
+  })
   async create(@CurrentUser() user: ActorUser, @Body() dto: CreateDisputeDto) {
     return this.disputesService.create(user.id, dto);
   }
@@ -37,24 +40,4 @@ export class DisputesController {
     return this.disputesService.findById(id, user);
   }
 
-  @Post(':id/evidence')
-  @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'Submit additional evidence for an open dispute' })
-  async submitEvidence(
-    @Param('id') id: string,
-    @CurrentUser() user: ActorUser,
-    @Body() dto: { evidence_description: string; file_urls?: string[] },
-  ) {
-    return this.disputesService.submitEvidence(id, user.id, dto);
-  }
-
-  @Put(':id/withdraw')
-  @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'Withdraw a dispute before it is resolved' })
-  async withdrawDispute(
-    @Param('id') id: string,
-    @CurrentUser() user: ActorUser,
-  ) {
-    return this.disputesService.withdrawDispute(id, user.id);
-  }
 }

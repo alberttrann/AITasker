@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
-import { submitStage2, handleElicitationError, ARCHETYPES, VOID_DESCRIPTIONS, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { submitStage2, handleElicitationError, revertSession, useElicitation } from '@/hooks/use-elicitation';
+import { useArchetypes, useVoidCodes } from '@/hooks/use-config';
 import { useQueryClient } from '@tanstack/react-query';
 import { Search, Target, FileText, MessageSquare, TrendingUp, Settings, AlertTriangle, Layers } from 'lucide-react';
 
@@ -33,6 +34,9 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
   const [initialized, setInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+
+  const { data: archetypesList, isLoading: loadingArchetypes } = useArchetypes();
+  const { data: voidCodesList, isLoading: loadingVoids } = useVoidCodes();
 
   useEffect(() => {
     if (session && !initialized) {
@@ -82,7 +86,11 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {ARCHETYPES.map((a) => {
+        {loadingArchetypes ? (
+          <div className="col-span-1 sm:col-span-2 flex justify-center py-10">
+            <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
+          </div>
+        ) : (archetypesList || []).map((a) => {
           const isSelected = selected === a.code;
           const isRecommended = recommended.length === 0 || recommended.includes(a.code);
           
@@ -105,23 +113,36 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
                   </span>
                 )}
               </div>
-              <h4 className="mt-2 font-headline font-semibold text-slate-900">{a.label}</h4>
-              <p className="mt-1 text-body-sm text-secondary">{a.desc}</p>
+              <h4 className="mt-2 font-headline font-semibold text-slate-900">{a.name}</h4>
+              <p className="mt-1 text-body-sm text-secondary">{a.description}</p>
             </button>
           );
         })}
       </div>
 
       {voidList.length > 0 && (
-        <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-          <p className="text-body-sm font-medium text-primary flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> Detected Gaps (from Stage 1)</p>
-          <div className="mt-3 space-y-2">
+        <div className="space-y-4">
+          <p className="text-body font-bold text-primary flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-warning" /> Detected Gaps (from Stage 1)</p>
+          <p className="text-body-sm text-secondary">You must acknowledge all of these gaps before continuing. They will shape the required scope of your project.</p>
+          
+          <div className="grid grid-cols-1 gap-3 mt-4">
             {voidList.map((v) => {
-              const fallbackDesc = v.void_code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              const voidDef = voidCodesList?.find(def => def.code === v.void_code);
+              const fallbackName = v.void_code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              const name = voidDef?.name || fallbackName;
+              const description = voidDef?.description || "This area needs more detail before your project can be matched.";
+              const isChecked = acknowledged.has(v.void_code);
+
               return (
-                <label key={v.void_code} className="flex cursor-pointer items-start gap-2">
-                  <Checkbox checked={acknowledged.has(v.void_code)} onChange={() => toggleAcknowledge(v.void_code)} className="mt-0.5" />
-                  <span className="text-body-sm text-secondary">I understand: &ldquo;{VOID_DESCRIPTIONS[v.void_code] ?? fallbackDesc}&rdquo;</span>
+                <label 
+                  key={v.void_code} 
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${isChecked ? 'border-primary bg-primary/5' : 'border-slate-200 bg-surface hover:border-slate-300'}`}
+                >
+                  <Checkbox checked={isChecked} onChange={() => toggleAcknowledge(v.void_code)} className="mt-1 flex-shrink-0" />
+                  <div>
+                    <span className={`block font-semibold ${isChecked ? 'text-primary' : 'text-slate-900'}`}>{name}</span>
+                    <span className="block mt-1 text-sm text-secondary leading-relaxed">{description}</span>
+                  </div>
                 </label>
               );
             })}

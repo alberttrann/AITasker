@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useWallet, useTopUpWallet } from '@/hooks/use-wallet';
 import { VietQRPanel } from '@/components/wallet/VietQRPanel';
 import { Button } from '@/components/ui/Button';
-import { Input, Label } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Input';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 
@@ -11,32 +12,21 @@ interface WalletTopUpProps {
 }
 
 export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
-  const [amountInput, setAmountInput] = useState<string>('');
+  const [amountInput, setAmountInput] = useState<number | undefined>(undefined);
   const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
   const { data: wallet } = useWallet();
   const topUpMutation = useTopUpWallet();
   const navigate = useNavigate();
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\D/g, '');
-    if (!rawValue) {
-      setAmountInput('');
-      return;
-    }
-    const formatted = rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    setAmountInput(formatted);
-  };
-
   const handleGenerate = () => {
-    const numericAmount = parseInt(amountInput.replace(/\./g, ''), 10);
-    if (!numericAmount || numericAmount < 1000) return;
+    if (!amountInput || amountInput < 1000) return;
     setIsPaymentConfirmed(false);
-    topUpMutation.mutate(numericAmount);
+    topUpMutation.mutate(amountInput);
   };
 
   const handleCancel = () => {
     topUpMutation.reset();
-    setAmountInput('');
+    setAmountInput(undefined);
     setIsPaymentConfirmed(false);
   };
 
@@ -56,21 +46,22 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
         <div className="space-y-5 flex flex-col items-center flex-1 justify-center min-w-0">
           <div className="w-full min-w-0">
             <Label htmlFor="topup-amount" className="text-sm font-semibold text-slate-700">Amount (VND)</Label>
-            <Input
-              id="topup-amount"
-              type="text"
-              placeholder="MIN: 1.000 VND"
-              value={amountInput}
-              onChange={handleAmountChange}
-              className="text-center mt-1.5 font-bold min-w-0 w-full text-lg py-2.5 placeholder:text-xs"
-            />
+            <div className="mt-1.5 flex items-center justify-center border border-slate-200 rounded-lg bg-white overflow-hidden px-4">
+              <CurrencyInput
+                id="topup-amount"
+                placeholder="MIN: 1.000 VND"
+                value={amountInput}
+                onChange={setAmountInput}
+                className="text-center font-bold min-w-0 w-full text-lg py-2.5 placeholder:text-xs"
+              />
+            </div>
           </div>
 
           <Button
             className="w-full font-semibold py-2.5"
             variant="primary"
             onClick={handleGenerate}
-            disabled={!amountInput || parseInt(amountInput.replace(/\./g, ''), 10) < 1000 || topUpMutation.isPending}
+            disabled={!amountInput || amountInput < 1000 || topUpMutation.isPending}
             isLoading={topUpMutation.isPending}
           >
             Generate QR Code
@@ -82,7 +73,7 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
             <VietQRPanel
               qrCodeUrl={topUpMutation.data.qrCodeUrl}
               paymentReference={topUpMutation.data.paymentReference}
-              amount={parseInt(amountInput.replace(/\./g, ''), 10)}
+              amount={amountInput || 0}
               onPaymentConfirmed={() => setIsPaymentConfirmed(true)}
             />
           </div>

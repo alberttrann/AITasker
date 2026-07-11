@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
@@ -7,9 +12,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly eventEmitter: EventEmitter2 
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  //Expert nộp sản phẩm bàn giao (DoD Gate)
   async submitMilestones(milestoneId: string, expertId: string, dto: CreateSubmissionDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
@@ -23,7 +29,7 @@ export class SubmissionsService {
       where: {
         milestoneId: milestoneId,
         isRequired: true,
-        status: { not: 'COMPLETED' },
+        status: { not: 'COMPLETED' }, 
       },
     });
 
@@ -44,7 +50,7 @@ export class SubmissionsService {
         statusCode: 422,
         error: 'REQUIRED_DOD_INCOMPLETE',
         message: 'You cannot submit deliverables while required DoD items are incomplete.',
-        missing_items: incompleteItems,
+        missing_items: incompleteItems, 
       });
     }
 
@@ -71,11 +77,11 @@ export class SubmissionsService {
         this.eventEmitter.emit('socket.broadcast', {
           userId: eng.clientId,
           event: 'milestone:updated',
-          payload: { 
-            engagement_id: eng.id, 
-            milestone_number: milestone.milestoneNumber, 
-            state: 'SUBMITTED' 
-          }
+          payload: {
+            engagement_id: eng.id,
+            milestone_number: milestone.milestoneNumber,
+            state: 'SUBMITTED',
+          },
         });
       }
 
@@ -83,23 +89,25 @@ export class SubmissionsService {
     });
   }
 
-  async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
-    const milestone = await this.prisma.milestone.findUnique({
-      where: { id: milestoneId },
+
+    //Expert tải lên tài liệu bị khóa bằng cổng thanh toán (Stage Pay-gated Document)
+    async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
+        const milestone = await this.prisma.milestone.findUnique({
+        where: { id: milestoneId },
     });
 
-    if (!milestone) {
-      throw new NotFoundException('Milestone cannot be found in database.');
-    }
+        if (!milestone) {
+        throw new NotFoundException('Milestone cannot be found in database.');
+        }
 
-    return this.prisma.paygatedDocument.create({
-      data: {
-        milestoneId: milestoneId,
-        documentUrl: dto.document_url,
-        releaseState: 'STAGED',
-        stagedAt: new Date(),
-      },
-    });
+        return this.prisma.paygatedDocument.create({
+        data: {
+            milestoneId: milestoneId,
+            documentUrl: dto.document_url,
+            releaseState: 'STAGED', 
+            stagedAt: new Date(),
+        },
+        });
   }
 
   async downloadDocument(
@@ -118,10 +126,16 @@ export class SubmissionsService {
     // Party-checks for highly sensitive artifact access
     const isExpertParty = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
     const isAdmin = user.activeRole === 'ADMIN';
-    
+
     let isLinkedTechTeam = false;
-    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && milestone.engagement.projectId) {
-      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId: user.id } });
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'TECH_TEAM' &&
+      milestone.engagement.projectId
+    ) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+      });
       isLinkedTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
     }
 
@@ -146,40 +160,18 @@ export class SubmissionsService {
         },
       });
 
+      // Nếu có tài liệu nhưng chưa được nạp tiền -> Trả về lỗi 403 Forbidden
       if (stagedCount > 0) {
         throw new ForbiddenException(
           'These documents are locked until payment is secured in escrow.',
         );
       }
 
+      // Nếu thực sự không tồn tại tệp nào -> Trả về lỗi 404 NotFound
       throw new NotFoundException('No released documents found for this milestone.');
     }
 
     return docs;
   }
 
-  async listSubmissions(milestoneId: string, user: { id: string; activeRole: string; clientSubtype?: string | null }) {
-    const milestone = await this.prisma.milestone.findUnique({
-      where: { id: milestoneId },
-      include: { engagement: { select: { clientId: true, expertId: true } } },
-    });
-    if (!milestone) throw new NotFoundException('Milestone not found.');
-
-    const isParty =
-      user.activeRole === 'ADMIN' ||
-      milestone.engagement.clientId === user.id ||
-      milestone.engagement.expertId === user.id;
-    if (!isParty) throw new ForbiddenException('Not a party to this engagement.');
-
-    return this.prisma.milestoneSubmission.findMany({
-      where: { milestoneId },
-      orderBy: { submittedAt: 'desc' }, 
-    });
-  }
-
-  async getLatestSubmission(milestoneId: string, user: { id: string; activeRole: string; clientSubtype?: string | null }) {
-    const submissions = await this.listSubmissions(milestoneId, user);
-    if (!submissions.length) throw new NotFoundException('No submissions found for this milestone.');
-    return submissions[0]; // already sorted desc
-  }
 }

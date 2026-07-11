@@ -14,14 +14,15 @@ export function useExpertProfile() {
   });
 
   const getPublicProfile = async (expertId: string) => {
+    // Left for backwards compatibility if needed, but we prefer the hook below
     const { data } = await apiClient.get(`/users/${expertId}/public-profile`);
     return data;
   };
 
   const saveDomains = useMutation({
     mutationFn: async (domains: { domainCode: string; depthLevel: string }[]) => {
-      await apiClient.put('/expert-profile/domains/sync', {
-        domains: domains.map(d => ({ domainCode: d.domainCode, depthLevel: d.depthLevel })),
+      await apiClient.post('/expert-profile/domains/sync', {
+        items: domains.map(d => ({ code: d.domainCode, depth: d.depthLevel })),
       });
     },
     onSuccess: () => {
@@ -31,8 +32,8 @@ export function useExpertProfile() {
 
   const saveSeams = useMutation({
     mutationFn: async (seams: { code: string }[]) => {
-      await apiClient.put('/expert-profile/seams/sync', {
-        seams: seams.map(s => s.code),
+      await apiClient.post('/expert-profile/seams/sync', {
+        items: seams.map(s => ({ code: s.code })),
       });
     },
     onSuccess: () => {
@@ -41,8 +42,8 @@ export function useExpertProfile() {
   });
 
   const saveStackAndModel = useMutation({
-    mutationFn: async (payload: { engagementModel: string; stackTagsJson: string[]; archetypeHistoryJson: any[]; bio: string }) => {
-      await apiClient.put('/expert-profile/me', payload);
+    mutationFn: async (payload: { engagementModel?: string; stackTagsJson?: string[]; archetypeHistoryJson?: any[]; bio?: string }) => {
+      await apiClient.patch('/expert-profile/me', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });
@@ -70,5 +71,28 @@ export function useUpdateDomainDepth() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });
     },
+  });
+}
+
+// ── Phase 6 Hooks: CEO Browsing Experts ────────────────────────────────────────
+
+export function useExpertSearch(queryParams?: Record<string, any>) {
+  return useQuery({
+    queryKey: ['expert-profile', 'search', queryParams],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/expert-profile/search', { params: queryParams });
+      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+    },
+  });
+}
+
+export function usePublicExpertProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['expert-profile', 'public', userId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/expert-profile/${userId}`);
+      return data;
+    },
+    enabled: !!userId,
   });
 }

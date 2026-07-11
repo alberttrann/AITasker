@@ -1,44 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2, XCircle, ArrowLeft, DollarSign, MessageSquare } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatVND } from '@/lib/utils';
 import type { CapabilityBidDto } from '@/types/api.types';
-
-// ── Inline hooks ─────────────────────────────────────────────────
-
-function useBidDetail(bidId: string | undefined) {
-  return useQuery({
-    queryKey: ['bids', bidId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<CapabilityBidDto>(`/bids/${bidId}`);
-      return data;
-    },
-    enabled: !!bidId,
-    refetchInterval: 5_000, // Polling
-  });
-}
-
-/** PUT /bids/:id/ceo-decision */
-function useCeoDecisionBid() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ bidId, decision }: { bidId: string; decision: 'APPROVED' | 'DECLINED' }) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/ceo-decision`, { decision });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
-
+import { useBid, useCeoDecision } from '@/hooks/use-bids';
 /** PUT /bids/:id/counter-offer */
 function useCounterOfferBid() {
   const qc = useQueryClient();
@@ -57,23 +29,19 @@ function useCounterOfferBid() {
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function formatVND(n: number) {
-  return n ? n.toLocaleString('vi-VN') + ' ₫' : '—';
-}
-
 export default function CeoDecision() {
   const { projectId, bidId } = useParams<{ projectId: string; bidId: string }>();
   const navigate = useNavigate();
 
-  const { data: bid, isLoading, error, refetch } = useBidDetail(bidId);
-  const ceoDecision = useCeoDecisionBid();
+  const { data: bid, isLoading, error, refetch } = useBid(bidId as string, { refetchInterval: 5_000 });
+  const ceoDecision = useCeoDecision();
   const counterOffer = useCounterOfferBid();
 
   // Modals state
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
   const [showCounterOffer, setShowCounterOffer] = useState(false);
-  const [counterPrice, setCounterPrice] = useState('');
+  const [counterPrice, setCounterPrice] = useState<number | undefined>(undefined);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const bidAny = bid as any;
@@ -114,7 +82,7 @@ export default function CeoDecision() {
     if (!bidId) return;
     setServerError(null);
     ceoDecision.mutate(
-      { bidId, decision: 'APPROVED' },
+      { bidId, body: { decision: 'APPROVED' } },
       {
         onSuccess: (data: any) => {
           const engId = data?.engagement_id || data?.id || bidAny?.engagementId || bidAny?.engagement_id;
@@ -134,7 +102,7 @@ export default function CeoDecision() {
     if (!bidId) return;
     setServerError(null);
     ceoDecision.mutate(
-      { bidId, decision: 'DECLINED' },
+      { bidId, body: { decision: 'DECLINED' } },
       {
         onSuccess: () => {
           navigate(`/ceo/project/${projectId}/bids`, { replace: true });
@@ -148,11 +116,10 @@ export default function CeoDecision() {
   };
 
   const handleCounterOffer = () => {
-    const price = parseInt(counterPrice);
-    if (!price || price <= 0 || !bidId) return;
+    if (!counterPrice || counterPrice <= 0 || !bidId) return;
     setServerError(null);
     counterOffer.mutate(
-      { bidId, price },
+      { bidId, price: counterPrice },
       {
         onSuccess: () => {
           setShowCounterOffer(false);
@@ -181,7 +148,7 @@ export default function CeoDecision() {
       {/* Header */}
       <div>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
-          Bid from {bidAny?.expert?.fullName || bidAny?.expertName || 'Expert'}
+          Bid from {bidAny?.engagement?.expert?.fullName || bidAny?.expert?.fullName || bidAny?.expertName || 'Expert'}
         </h1>
         {alreadyDecided && (
           <span
@@ -250,10 +217,17 @@ export default function CeoDecision() {
                   key={i}
                   className="flex items-center justify-between rounded-[6px] bg-[#F8FAFC] px-4 py-3"
                 >
-                  <span className="text-[13px] text-[#334155]">
-                    M{m.milestone_number}: {m.condition}
-                  </span>
-                  <span className="font-headline text-[14px] font-semibold text-[#0F172A]">
+                  <div>
+                    <span className="text-[13px] text-[#334155] block">
+                      M{m.milestone_number}: {m.condition}
+                    </span>
+                    {m.estimated_duration_days && (
+                      <span className="text-[12px] text-[#64748B] mt-0.5 block flex items-center gap-1">
+                        ⏱ {m.estimated_duration_days} days
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-headline text-[14px] font-semibold text-[#0F172A] shrink-0">
                     {formatVND(m.price_vnd)}
                   </span>
                 </div>
@@ -286,14 +260,11 @@ export default function CeoDecision() {
                 Proposed Price (VND)
               </label>
               <div className="flex gap-3">
-                <input
-                  type="number"
-                  min={0}
-                  step={10000}
+                <CurrencyInput
                   value={counterPrice}
-                  onChange={(e) => setCounterPrice(e.target.value)}
+                  onChange={(val) => setCounterPrice(val)}
                   disabled={counterOffer.isPending}
-                  placeholder="e.g. 65000000"
+                  placeholder="e.g. 65.000.000"
                   className={cn(
                     'flex-1 rounded-[8px] border border-[#E2E8F0] bg-white px-3 py-2 text-[14px] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10'
                   )}
@@ -301,7 +272,7 @@ export default function CeoDecision() {
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={counterOffer.isPending || !counterPrice || parseInt(counterPrice) <= 0}
+                  disabled={counterOffer.isPending || !counterPrice || counterPrice <= 0}
                   onClick={handleCounterOffer}
                 >
                   {counterOffer.isPending ? 'Sending…' : 'Send Offer'}

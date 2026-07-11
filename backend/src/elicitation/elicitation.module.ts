@@ -8,13 +8,7 @@ import { AuthModule } from '../auth/auth.module';
 import { MatchingHelperModule } from '../shared/matching/matching-helper.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    PrismaModule,
-    FastapiClientModule,     
-    AuthModule,               
-    MatchingHelperModule,     
-  ],
+  imports: [ConfigModule, PrismaModule, FastapiClientModule, AuthModule, MatchingHelperModule],
   controllers: [ElicitationController],
   providers: [ElicitationService],
   exports: [ElicitationService, FastapiClientModule],

@@ -5,12 +5,12 @@
 //     separate /confirm call (E4b). POST .../confirm no longer exists;
 //     replaced by POST .../retry-synthesis (retry-only, tested separately).
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication }    from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import supertest = require('supertest');
-import { AppModule }      from '../src/app.module';
-import { PrismaService }  from '../src/database/prisma.service';
-import { DbSeeder }       from './helpers/db.seeder';
-import { JwtFactory }     from './helpers/jwt.factory';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/database/prisma.service';
+import { DbSeeder } from './helpers/db.seeder';
+import { JwtFactory } from './helpers/jwt.factory';
 
 describe('T13: Full elicitation flow — NestJS <-> ai-service (Cao Minh)', () => {
   let app: INestApplication;
@@ -41,8 +41,10 @@ describe('T13: Full elicitation flow — NestJS <-> ai-service (Cao Minh)', () =
 
     await DbSeeder.seedDefaults(prisma as any);
     const { user } = await DbSeeder.seedUser(prisma as any, {
-      id: CEO_ID, email: 'flow-test-ceo@aitasker.test',
-      activeRole: 'CLIENT', clientSubtype: 'CEO',
+      id: CEO_ID,
+      email: 'flow-test-ceo@aitasker.test',
+      activeRole: 'CLIENT',
+      clientSubtype: 'CEO',
     });
     ceoToken = JwtFactory.ceoToken(user.id);
 
@@ -52,7 +54,7 @@ describe('T13: Full elicitation flow — NestJS <-> ai-service (Cao Minh)', () =
     // for a jest e2e setup step) then call the real activation endpoint.
     await (prisma as any).wallet.update({
       where: { userId: CEO_ID },
-      data:  { availableBalance: { increment: 1_000_000n } },
+      data: { availableBalance: { increment: 1_000_000n } },
     });
     const activateRes = await supertest(app.getHttpServer())
       .post('/subscriptions/activate')
@@ -141,8 +143,8 @@ describe('T13: Full elicitation flow — NestJS <-> ai-service (Cao Minh)', () =
       ARCHETYPE_1_QUESTIONS.map((q) => [
         q,
         'Around 2,000 questions per day; escalate to a human agent on a wrong answer; ' +
-        'pulls from our Zendesk knowledge base and PostgreSQL product catalogue; ' +
-        'needs to respond within 3 seconds.',
+          'pulls from our Zendesk knowledge base and PostgreSQL product catalogue; ' +
+          'needs to respond within 3 seconds.',
       ]),
     );
 
@@ -208,7 +210,8 @@ describe('T13: Full elicitation flow — NestJS <-> ai-service (Cao Minh)', () =
     const { user: otherUser } = await DbSeeder.seedUser(prisma as any, {
       id: '00000000-0000-0000-0000-000000000021',
       email: 'flow-test-other-ceo@aitasker.test',
-      activeRole: 'CLIENT', clientSubtype: 'CEO',
+      activeRole: 'CLIENT',
+      clientSubtype: 'CEO',
     });
     let otherToken = JwtFactory.ceoToken(otherUser.id);
 
@@ -218,7 +221,7 @@ describe('T13: Full elicitation flow — NestJS <-> ai-service (Cao Minh)', () =
     // would still produce a 403 but for the wrong reason entirely.
     await (prisma as any).wallet.update({
       where: { userId: otherUser.id },
-      data:  { availableBalance: { increment: 1_000_000n } },
+      data: { availableBalance: { increment: 1_000_000n } },
     });
     const otherActivateRes = await supertest(app.getHttpServer())
       .post('/subscriptions/activate')

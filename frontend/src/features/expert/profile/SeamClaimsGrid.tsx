@@ -3,6 +3,7 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { SeamClaim } from '@/types/ui.types';
 import { Spinner } from '@/components/ui/Spinner';
 import { CheckCircle, Lock, AlertTriangle } from 'lucide-react';
+import { formatSeamCode } from '@/lib/utils';
 import TooltipIcon from '@/components/ui/TooltipIcon';
 
 interface SeamClaimsGridProps {
@@ -113,7 +114,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
             const hasSubmissions = (existing?.submissionCount || 0) > 0;
             const cannotRemove = isVerified || hasSubmissions;
             
-            const requiredDomains = seam.code.split('↔');
+            const requiredDomains = seam.code.split('<->');
             const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
             
             const isInvalid = !hasRequiredDomains && !cannotRemove;
@@ -140,7 +141,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm flex items-center gap-2">
                     <span className="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs border">
-                      {seam.code}
+                      {formatSeamCode(seam.code)}
                     </span>
                     {seam.name}
                     <TooltipIcon text={seam.description} />

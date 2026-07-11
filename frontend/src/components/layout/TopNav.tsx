@@ -248,7 +248,11 @@ const RoleIcon =
                             onClick={() => {
                               markRead(notif.id);
                               if (notif.link) {
-                                navigate(notif.link);
+                                let targetLink = notif.link;
+                                if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
+                                  targetLink = '/expert/service/projects';
+                                }
+                                navigate(targetLink);
                                 setActiveDropdown(null);
                               }
                             }} 
@@ -355,11 +359,11 @@ const RoleIcon =
 
                     {rawRole === 'EXPERT' && (
                       <Link
-                        to={`/expert/service/expert-profile`} 
+                        to={`/expert/service`} 
                         onClick={() => setActiveDropdown(null)} 
                         className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
                       >
-                        Expert Profile
+                        Services
                       </Link>
                     )}
 
@@ -471,7 +475,7 @@ const RoleIcon =
               </Link>
               
               {rawRole === 'EXPERT' && (
-                <Link to="/expert/service/expert-profile" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <Link to="/expert/service" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Award size={20} className="text-slate-500" /> Expert Profile
                 </Link>
               )}
@@ -570,11 +574,11 @@ const RoleIcon =
             )}
             {rawRole === 'EXPERT' && (
               <Link 
-                to={`/expert/service/expert-profile`} 
-                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/expert-profile') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                to={`/expert/service`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname === '/expert/service' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               >
                 Services
-                {location.pathname.includes('/expert-profile') && (
+                {location.pathname === '/expert/service' && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>

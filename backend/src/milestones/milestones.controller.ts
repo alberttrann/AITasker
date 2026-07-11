@@ -2,7 +2,6 @@ import { Controller, Post, Get, Body, UseGuards, Put, Patch, Delete, Param, Quer
 import { MilestonesService }  from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
-
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard }   from '../common/guards/roles.guard';
 import { Roles }        from '../common/decorators/roles.decorator';
@@ -19,8 +18,9 @@ export class MilestonesController {
 
   @Post()
   @Roles('CLIENT')
-  @ApiOperation({ summary: 'Create a new milestone' })
-  @ApiResponse({ status: 201, description: 'Milestone created.' })
+  @ApiOperation({ summary: 'Create a new milestone' }) 
+  @ApiResponse({ status: 201, description: 'Milestone created successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid input data.' })
   async createMilestone(@Body() dto: CreateMilestoneDto) {
     return this.milestonesService.createMilestone(dto);
   }
@@ -28,13 +28,16 @@ export class MilestonesController {
   @Get(':id')
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiOperation({ summary: 'Get a milestone by id, including criteria' })
+  @ApiResponse({ status: 200, description: 'Milestone detail.' })
+  @ApiResponse({ status: 404, description: 'Milestone not found.' })
   async getMilestone(@Param('id') id: string) {
     return this.milestonesService.getMilestone(id);
   }
 
-  @Put(':id/fund')
+  @Put(':id/fund')    
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Initiate funding for a milestone' })
+  @ApiResponse({ status: 200, description: 'Milestone status updated to AWAITING_PAYMENT.' })
   async fundMilestone(@Param('id') id: string) {
     return this.milestonesService.initiateFunding(id);
   }
@@ -59,13 +62,9 @@ export class MilestonesController {
   @ApiOperation({ summary: 'Delete a milestone — only while state is DEFINED' })
   @ApiResponse({ status: 200, description: 'Milestone deleted.' })
   @ApiResponse({ status: 422, description: 'Milestone is not in DEFINED state.' })
-  async deleteMilestone(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async deleteMilestone(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.milestonesService.deleteMilestone(id, user.id);
   }
-
   // List milestones for an engagement
   @Get()
   @Roles('CLIENT', 'EXPERT', 'ADMIN')

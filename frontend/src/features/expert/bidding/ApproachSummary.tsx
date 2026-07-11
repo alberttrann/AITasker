@@ -5,6 +5,7 @@ interface ApproachSummaryProps {
   onChange: (v: string) => void;
   error?: string | null;
   disabled?: boolean;
+  readOnly?: boolean;
   maxLength?: number;
 }
 
@@ -17,6 +18,7 @@ export default function ApproachSummary({
   onChange,
   error,
   disabled = false,
+  readOnly = false,
   maxLength = 2000,
 }: ApproachSummaryProps) {
   const remaining = maxLength - value.length;
@@ -35,41 +37,49 @@ export default function ApproachSummary({
         Describe your technical approach to this project. Be specific about
         architecture, tools, and methodology.
       </p>
-      <textarea
-        id="approach-summary"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        rows={6}
-        maxLength={maxLength}
-        aria-describedby={error ? 'approach-error' : 'approach-helper'}
-        aria-invalid={!!error}
-        className={cn(
-          'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] leading-[1.6] text-[#0F172A] placeholder:text-[#94A3B8] transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10',
-          error
-            ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
-            : 'border-[#E2E8F0]',
-          disabled && 'cursor-not-allowed bg-[#F1F5F9] opacity-50'
-        )}
-        placeholder="e.g. We will build a RAG pipeline using LangChain and Pinecone..."
-      />
-      <div className="flex items-center justify-between">
-        {error && (
-          <p id="approach-error" className="text-[12px] text-[#EF4444]" role="alert">
-            {error}
-          </p>
-        )}
-        <p
-          id="approach-helper"
+      {readOnly ? (
+        <div className="w-full rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-4 font-body text-[14px] leading-relaxed text-[#0F172A] whitespace-pre-wrap shadow-inner min-h-[140px]">
+          {value || <span className="text-[#94A3B8] italic">No approach summary provided.</span>}
+        </div>
+      ) : (
+        <textarea
+          id="approach-summary"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          rows={6}
+          maxLength={maxLength}
+          aria-describedby={error ? 'approach-error' : 'approach-helper'}
+          aria-invalid={!!error}
           className={cn(
-            'ml-auto text-[12px]',
-            isOver ? 'text-[#EF4444] font-medium' : 'text-[#64748B]'
+            'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] leading-[1.6] text-[#0F172A] placeholder:text-[#94A3B8] transition-colors',
+            'focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10',
+            error
+              ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
+              : 'border-[#E2E8F0]',
+            disabled && 'cursor-not-allowed bg-[#F1F5F9] opacity-50'
           )}
-        >
-          {remaining}/{maxLength}
-        </p>
-      </div>
+          placeholder="e.g. We will build a RAG pipeline using LangChain and Pinecone..."
+        />
+      )}
+      {!readOnly && (
+        <div className="flex items-center justify-between">
+          {error && (
+            <p id="approach-error" className="text-[12px] text-[#EF4444]" role="alert">
+              {error}
+            </p>
+          )}
+          <p
+            id="approach-helper"
+            className={cn(
+              'ml-auto text-[12px]',
+              isOver ? 'text-[#EF4444] font-medium' : 'text-[#64748B]'
+            )}
+          >
+            {remaining}/{maxLength}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

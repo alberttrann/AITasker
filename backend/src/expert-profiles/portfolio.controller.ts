@@ -60,7 +60,10 @@ export class PortfolioController {
 
   @Get(':id')
   @Roles('EXPERT', 'ADMIN')
-  async getById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: { id: string; activeRole: string }) {
+  async getById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: { id: string; activeRole: string },
+  ) {
     const isAdmin = user.activeRole === 'ADMIN';
     return this.portfolioService.getById(user.id, id, isAdmin);
   }

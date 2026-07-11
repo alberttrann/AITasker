@@ -50,12 +50,29 @@ const login = useMutation({
 });
 
   // Logout 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout API failed:', e);
+    }
     store.logout();
     useNotificationsStore.getState().clear();
     queryClient.clear();
     navigate('/');
   };
+
+  // Change Password
+  const changePassword = useMutation({
+    mutationFn: async (payload: { currentPassword: string; newPassword: string }) => {
+      const { data } = await apiClient.put<{ message: string }>('/auth/me/password', payload);
+      return data;
+    },
+    onSuccess: () => {
+      // Side effect: All sessions invalidated. We should log out immediately.
+      logout();
+    }
+  });
 
   // Switch active role 
   const switchRole = useMutation({
@@ -64,7 +81,7 @@ const login = useMutation({
       return data;
     },
     onSuccess: async (data) => {
-      store.setTokens(data.access_token, null);
+      store.setTokens(data.access_token, store.refreshToken ?? '');
       const { data: userRes } = await apiClient.get<UserDto>('/users/me');
       store.setUser(userRes);
       queryClient.invalidateQueries({ queryKey: ['user'] });
@@ -112,6 +129,13 @@ const login = useMutation({
     },
   });
 
+  const refreshUser = async () => {
+    const { data: userRes } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(userRes);
+    queryClient.setQueryData(['user', 'me'], userRes);
+    queryClient.invalidateQueries({ queryKey: ['user'] });
+  };
+
   return {
     // State (read from store directly — reactive)
     user:            store.user,
@@ -126,8 +150,10 @@ const login = useMutation({
     switchRole,
     addRole,
     registerHandoff,
+    changePassword,
     forgotPassword,
     resetPassword,
+    refreshUser,
   };
 }
 
