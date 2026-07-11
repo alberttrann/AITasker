@@ -421,7 +421,6 @@ export default function ExpertProjectsPage() {
                         </Button>
                       </>
                     )}
-                    
                     {selectedProject.status === 'BID_SENT' && (
                       <Button variant="outline" onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
                         View Bid

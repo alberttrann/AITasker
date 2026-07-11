@@ -8,14 +8,14 @@ import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
-@ApiTags('Submissions')
+@ApiTags('submissions') 
 @ApiBearerAuth('JWT')
-@Controller('milestones')
+@Controller('submissions') 
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
-  @Post(':id/submit')
+  @Post('milestones/:id/submit') 
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Expert submits deliverable for a milestone (DoD gate enforced)' })
   async submitMilestone(
@@ -26,20 +26,17 @@ export class SubmissionsController {
     return this.submissionsService.submitMilestones(milestoneId, user.id, dto);
   }
 
-  @Post(':id/paygated-docs')
-  @Roles('EXPERT')
+  @Post('milestones/:id/paygated-docs')
+  @Roles('EXPERT') 
   @ApiOperation({ summary: 'Expert stages a detailed technical paygated document' })
   async uploadDocument(@Param('id') milestoneId: string, @Body() dto: StagePaygatedDocDto) {
     return this.submissionsService.uploadDocument(milestoneId, dto);
   }
 
-  @Get(':id/paygated-docs')
-  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @Get('milestones/:id/paygated-docs')
+  @Roles('TECH_TEAM', 'EXPERT') 
   @ApiOperation({ summary: 'TECH_TEAM or EXPERT downloads unlocked documents (CEO is excluded)' })
-  async downloadDocument(
-    @Param('id') milestoneId: string,
-    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
-  ) {
-    return this.submissionsService.downloadDocument(milestoneId, user);
+  async downloadDocument(@Param('id') milestoneId: string,) {
+    return this.submissionsService.downloadDocument(milestoneId);
   }
 }

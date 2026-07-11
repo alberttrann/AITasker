@@ -290,6 +290,78 @@ export class AdminService {
     });
   }
 
+  // ── User Management ───────────────────────────────────────────────
+  async getUsers(limit?: number, offset?: number) {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        roles: true,
+        activeRole: true,
+        clientSubtype: true,
+        subscriptionClientTier: true,
+        subscriptionExpertTier: true,
+        isActive: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit ?? 100,
+      skip: offset ?? 0,
+    });
+  }
+
+  async reactivateUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true },
+    });
+  }
+
+  // ── Platform Settings ──────────────────────────────────────────────
+  async getPlatformSettings() {
+    const settings = await this.prisma.platformSettings.findFirst();
+    if (!settings) {
+      // Return safe defaults if no row exists yet
+      return { platform_fee_pct: 0.05, platform_wallet_id: null };
+    }
+    return {
+      platform_fee_pct: settings.platformFeePct,
+      platform_wallet_id: settings.platformWalletId,
+    };
+  }
+
+  async updatePlatformSettings(dto: { platform_fee_pct?: number; platform_wallet_id?: string }) {
+    // Guard: platform_fee_pct must be in [0, 1] — values > 1 would produce negative expertAmount
+    // in ledger.service.ts, causing BigInt(negative) to corrupt the wallet.
+    if (dto.platform_fee_pct !== undefined && (dto.platform_fee_pct < 0 || dto.platform_fee_pct > 1)) {
+      throw new BadRequestException('platform_fee_pct must be between 0 and 1 (inclusive)');
+    }
+
+    const existing = await this.prisma.platformSettings.findFirst();
+    if (!existing) {
+      const created = await this.prisma.platformSettings.create({
+        data: {
+          platformFeePct: dto.platform_fee_pct ?? 0.05,
+          platformWalletId: dto.platform_wallet_id ?? null,
+        },
+      });
+      return { platform_fee_pct: created.platformFeePct, platform_wallet_id: created.platformWalletId };
+    }
+    const updated = await this.prisma.platformSettings.update({
+      where: { id: existing.id },
+      data: {
+        ...(dto.platform_fee_pct !== undefined && { platformFeePct: dto.platform_fee_pct }),
+        ...(dto.platform_wallet_id !== undefined && { platformWalletId: dto.platform_wallet_id }),
+      },
+    });
+    return { platform_fee_pct: updated.platformFeePct, platform_wallet_id: updated.platformWalletId };
+  }
+
   async deleteSubscriptionPackage(packageId: string) {
     const pkg = await this.prisma.subscriptionPackage.findUnique({
       where: { id: packageId },

@@ -1,9 +1,9 @@
-import { Controller, Get, Put, Body, Param, Query, UseGuards, Post, Delete } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query, UseGuards, Post, Delete, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 
@@ -27,6 +27,21 @@ export class AdminController {
   @ApiOperation({ summary: 'Suspend a fraudulent or abusive account' })
   async suspendUser(@Param('id') id: string) {
     return this.adminService.suspendUser(id);
+  }
+
+  @Get('users')
+  @ApiOperation({ summary: 'List all users with roles, tiers, and active status (paginated, default 100)' })
+  async getUsers(
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    return this.adminService.getUsers(limit, offset);
+  }
+
+  @Put('users/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivate a suspended user account' })
+  async reactivateUser(@Param('id') id: string) {
+    return this.adminService.reactivateUser(id);
   }
 
   @Get('disputes')
