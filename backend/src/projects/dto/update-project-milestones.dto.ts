@@ -23,6 +23,14 @@ export class ProjectMilestoneDto {
   @Min(0)
   payment_amount_vnd: number;
 
+  @IsNumber()
+  @IsOptional()
+  estimated_cost_vnd?: number;
+
+  @IsNumber()
+  @IsOptional()
+  estimated_duration_days?: number;
+
   @IsEnum(['CEO', 'TECH_TEAM', 'JOINT'])
   sign_off_authority: 'CEO' | 'TECH_TEAM' | 'JOINT';
 }

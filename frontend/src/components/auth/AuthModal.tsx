@@ -14,7 +14,7 @@ const passwordRules = [
   { id: 'lower', label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
   { id: 'upper', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
   { id: 'num', label: 'One number', test: (p: string) => /[0-9]/.test(p) },
-  { id: 'special', label: 'One special character', test: (p: string) => /[^a-zA-Z0-9]/.test(p) },
+  { id: 'special', label: 'One special character', test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
 ];
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
