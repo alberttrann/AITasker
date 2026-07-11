@@ -143,17 +143,21 @@ export class BidsService {
   // GET /bids/:id — view full bid detail.
   // CEO (project owner), EXPERT (bid owner), ADMIN. No state filter.
   async findById(bidId: string, user: ActorUser) {
-    // 1. fetch the bid row only 
-    const bid = await this.prisma.capabilityBid.findUnique({ where: { id: bidId } });
+    // 1. fetch the bid row with engagement and expert included
+    const bid = await this.prisma.capabilityBid.findUnique({ 
+      where: { id: bidId },
+      include: {
+        engagement: {
+          include: { expert: { select: { fullName: true } } }
+        }
+      }
+    });
     if (!bid) {
       throw new NotFoundException('Bid not found.');
     }
 
-    // 2. fetch the engagement separately for the party check
-    const engagement = await this.prisma.engagement.findUnique({
-      where: { id: bid.engagementId },
-      select: { id: true, expertId: true, projectId: true },
-    });
+    // 2. use the included engagement for the party check
+    const engagement = bid.engagement;
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
     }

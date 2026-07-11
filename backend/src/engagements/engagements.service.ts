@@ -74,7 +74,8 @@ export class EngagementsService {
         where:   { clientId: user.id },
         include: { 
           project: PROJECT_SUMMARY_SELECT,
-          capabilityBid: true, 
+          capabilityBid: true,
+          expert: { select: { fullName: true } }, 
         },
         orderBy: { id: 'desc' },
       });
