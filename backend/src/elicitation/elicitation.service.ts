@@ -16,7 +16,7 @@ import { AuthService }            from '../auth/auth.service';
 import { MatchingHelperService }  from '../shared/matching/matching-helper.service';
 import { Stage4Dto }              from './dto/stage4.dto';
 import { Stage4HandoffDto }       from './dto/stage4-handoff.dto';
-
+import { EmailValidatorService } from '../auth/email-validator.service';
 const COMPLETENESS_GATE = 0.70;
 
 const VOID_TO_STAGE: Record<string, number> = {
@@ -35,12 +35,13 @@ export interface ProjectPublishedEvent {
 @Injectable()
 export class ElicitationService {
   constructor(
-    private readonly prisma:         PrismaService,
-    private readonly fastapiClient:  FastapiClient,
-    private readonly jwtService:     JwtService,
-    private readonly authService:    AuthService,
-    private readonly matchingHelper: MatchingHelperService,
-    private readonly eventEmitter:   EventEmitter2,
+    private readonly prisma:                PrismaService,
+    private readonly fastapiClient:         FastapiClient,
+    private readonly jwtService:            JwtService,
+    private readonly authService:           AuthService,
+    private readonly matchingHelper:        MatchingHelperService,
+    private readonly eventEmitter:          EventEmitter2,
+    private readonly emailValidatorService: EmailValidatorService, 
   ) {}
 
   async createSession(userId: string) {
@@ -125,7 +126,13 @@ export class ElicitationService {
       session.stage1SymptomsJson &&
       session.stage1OriginalInput === symptomText.trim()
     ) {
-      return session; // return cached result without re-calling AI
+      if (session.currentStage === 1) {
+        return this.prisma.elicitationSession.update({
+          where: { id: sessionId },
+          data: { currentStage: 2 },
+        });
+      }
+      return session; 
     }
 
     // Fetch live config for prompt template rendering 
@@ -424,6 +431,9 @@ export class ElicitationService {
   async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, ceoUserId);
+
+    // Verify the email is legitimate (MX + disposable block) before generating link
+    await this.emailValidatorService.assertValidEmail(email);
 
     const jti = randomUUID();
 

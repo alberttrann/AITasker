@@ -17,7 +17,7 @@ import { EmailValidatorService } from './email-validator.service';
     EmailService, // sends password reset emails
     EmailValidatorService, // MX record + disposable domain check
   ],
-  exports: [JwtStrategy, PassportModule, AuthService],
+  exports: [JwtStrategy, PassportModule, AuthService, EmailValidatorService],
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({

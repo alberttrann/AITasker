@@ -1,95 +1,124 @@
-# AITasker — Unified FE↔BE Integration Guide (v2)
+# AITasker — Unified FE↔BE Integration Reference (Single Source of Truth)
 
-> **Single source of truth for every backend change in `current-backend-code-newest`.**
-> Consolidates: DTO de-hardcoding, arrow-format sync, CRUD gap patches, dynamic AI service, and all Group A–F patches.
+> **SCOPE:** 40 Prisma tables · 213 REST endpoints · 1 WebSocket namespace · 5 internal LLM routes
 >
 > **Base URL (dev):** `http://localhost:3001`
-> **Auth header:** `Authorization: Bearer <access_token>`
-> **BigInt serialization:** All `BigInt` fields (`priceVnd`, `availableBalance`, `estimatedTotalCostVnd`, etc.) are serialized as **strings** in JSON responses. Use `String(x)` / `Number(x)` in FE conversions.
-> **Error envelope:** `{ statusCode: number, message: string | string[], error: string }`
->   - DTO validation failures → `message` is an **array** of rule violations
->   - Service-layer failures → `message` is a **single string**
-> **AI Service URL:** `http://localhost:8000` — internal only, never called by FE directly.
+> **Auth header:** `Authorization: Bearer <access_token>` (JWT, 7-day expiry)
+> **BigInt rule:** ALL `*Vnd`, `*Amount`, `balance` fields are serialized as **strings** (`"50000000"`) — never as JSON numbers.
+> **Error envelope:** `{ statusCode: number, message: string | string[], error: string }` — DTO validation → `message` is array; service errors → `message` is single string.
+>
+> **NON-NEGOTIABLE RULE:** Every endpoint in this doc MUST be consumed by the FE. Any BE endpoint with no FE caller = **rot code = red flag**. The "Mandatory FE Consumption Checklist" (Section 14) is the gate.
 
 ---
 
 ## Table of Contents
 
-1. [Architecture & Roles](#1-architecture--roles)
-2. [Auth & Account](#2-auth--account)
-3. [Subscription Management](#3-subscription-management)
-4. [Public Config / Reference Data](#4-public-config--reference-data)
-5. [Elicitation Flow — CEO (Stages 1–5)](#5-elicitation-flow--ceo)
-6. [Elicitation Flow — Tech Team Handoff](#6-elicitation-flow--tech-team-handoff)
-7. [Project & Milestone Management](#7-project--milestone-management)
-8. [Milestone Chat Assistant](#8-milestone-chat-assistant)
-9. [Expert Profiles & Capability](#9-expert-profiles--capability)
-10. [Portfolio Evaluation](#10-portfolio-evaluation)
-11. [Listings (Services Marketplace)](#11-listings-services-marketplace)
-12. [Engagements, Bids, and Milestones](#12-engagements-bids-and-milestones)
-13. [Disputes & Escrow](#13-disputes--escrow)
-14. [Wallet & Withdrawals](#14-wallet--withdrawals)
-15. [Messages & Conversations](#15-messages--conversations)
-16. [Reviews](#16-reviews)
-17. [Invitations (CEO → Expert)](#17-invitations-ceo--expert)
-18. [Notifications (WebSocket + REST)](#18-notifications)
-19. [Admin Dashboard](#19-admin-dashboard)
-20. [AI Service Endpoints (Internal Reference)](#20-ai-service-endpoints-internal-reference)
-21. [DTO / Schema Conventions (Critical)](#21-dto--schema-conventions-critical)
-22. [WebSocket Event Catalog](#22-websocket-event-catalog)
-23. [Breaking Changes Cheatsheet](#23-breaking-changes-cheatsheet)
-24. [Complete Endpoint Index](#24-complete-endpoint-index)
-25. [DB Schema Quick Reference](#25-db-schema-quick-reference)
+1. Architecture & Cross-Cutting Conventions
+2. Auth & Account Module
+3. User & Profile Module
+4. Wallet & Withdrawals Module
+5. Bank Linking & SePay Webhooks
+6. Subscriptions Module
+7. Public Config Module (reference data)
+8. Elicitation Engine (CEO + Tech Team)
+9. Projects & Milestone Framework
+10. Milestone Chat Assistant
+11. Expert Profiles (Domains, Seams, Portfolio)
+12. Listings / Services Marketplace
+13. Engagements, Bids, Milestones, DoD, Criteria, Submissions
+14. Disputes
+15. Messaging (REST + WebSocket)
+16. Notifications (REST + WebSocket)
+17. Invitations
+18. Reviews
+19. Admin Module (Oversight)
+20. Admin Config CMS (Domains/Seams/Archetypes/Probes/Void Codes)
+21. Admin Subscriptions Packages
+22. Admin Prompt Templates
+23. Internal Endpoints (NestJS↔FastAPI)
+24. WebSocket Event Catalog
+25. Full 40-Table Data Model
+26. Breaking Changes Cheatsheet
+27. Mandatory FE Consumption Checklist (Anti-Rot Gate)
 
 ---
 
-## 1. Architecture & Roles
+## 1. Architecture & Cross-Cutting Conventions
 
-### 1.1 Three Services
+### 1.1 Two Backend Services
 
-| Service | Port | Tech | Responsibility |
-|---------|------|------|----------------|
-| NestJS backend | 3001 (host) / 3000 (container) | NestJS + Prisma + PostgreSQL | Auth, CRUD, ledger, websocket, orchestration |
-| FastAPI AI service | 8000 | FastAPI + OpenAI SDK | LLM calls, prompt rendering, scoring |
-| Frontend | 5173 (vite) / 80 (nginx) | React + Vite | SPA — calls NestJS only |
+| Service | Port | Stack | Role |
+|---|---|---|---|
+| **NestJS backend** | 3001 (host) → 3000 (container) | NestJS 10 + Prisma + PostgreSQL + Socket.IO | All FE-facing REST + WebSocket; orchestrator |
+| **FastAPI ai-service** | 8000 | FastAPI + OpenAI SDK + Jinja2 | Internal LLM microservice — **NEVER called by FE directly** |
 
-FE → NestJS only. NestJS ↔ FastAPI over HTTP with `X-Internal-Token` header. FastAPI is not directly callable from FE.
+FE talks **only** to NestJS. NestJS proxies all LLM calls to FastAPI via `FASTAPI_URL` with `X-Internal-Token` header.
 
-### 1.2 Active Roles & Subtypes
+### 1.2 Role System
 
-The `User` model has `roles: string[]` (all assigned roles) and `activeRole: string` (currently selected context).
+A `User` has `roles: string[]` (multi-role) and one `activeRole` (current session role). Roles:
+- `CLIENT` (with `clientSubtype`: `CEO` | `TECH_TEAM`)
+- `EXPERT`
+- `ADMIN`
 
-| activeRole | clientSubtype | Notes |
-|------------|---------------|-------|
-| `CLIENT` | `CEO` | Business owner, creates projects, signs NDAs, funds milestones |
-| `CLIENT` | `TECH_TEAM` | Technical reviewer assigned to a CEO's project (registered via handoff link) |
-| `EXPERT` | null | Practitioner, bids on projects, fulfills milestones |
-| `ADMIN` | null | Platform operator, CMS + dispute oversight |
+Switch active role: `PUT /auth/switch-role` (body: `{ "role": "EXPERT" }`).
+Add a new role to existing account: `POST /users/me/add-role`.
 
-### 1.3 JWT Payload
+### 1.3 Subscription Gates (Pro vs Free)
 
-```jsonc
-{
-  "sub": "user-uuid",
-  "email": "albert@gmail.com",
-  "activeRole": "CLIENT",
-  "clientSubtype": "CEO",
-  "roles": ["CLIENT"],
-  "subscriptionClientTier": "free",
-  "subscriptionExpertTier": "free",
-  "selfTechnical": false
-}
+| Action | Required Tier |
+|---|---|
+| Stage 1 elicitation submit | CLIENT pro |
+| Bid submission | EXPERT pro |
+| Listing publish | EXPERT pro |
+| Service purchase | CLIENT pro |
+
+Status comes from `GET /subscriptions/status` → `{ subscriptionTier, isExpired }`. Trust `subscriptionTier` directly — **no FE date math** (server auto-corrects expired → `free`).
+
+### 1.4 BigInt Serialization
+
+```typescript
+// CORRECT
+const price = Number(service.priceVnd);        // "50000000" → 50000000
+// WRONG — will silently truncate precision above 2^53
+const price = service.priceVnd as number;
 ```
 
-Tokens expire in 7d. Refresh tokens stored as `refreshTokenHash` (sha256) on the User row — `POST /auth/logout` invalidates them.
+### 1.5 Domain/Seam Code Format (DEHARDCODED — DTO Patch)
+
+- Seam codes use the **↔ arrow** character: `"A↔C"`, `"A↔D"`, `"B↔E"`.
+- The OLD `A<->C` ASCII format is **rejected** by DB unique constraint and by class-validator.
+- Domain codes are **any non-empty string** — admin can create new ones (e.g. `"G"`) via `/admin/config/domains`. FE must NOT hardcode the `A`–`F` set.
+- `DomainDepth` (SURFACE/OPERATIONAL/DEEP) and `VerifyTier` (CLAIMED/EVIDENCE_BACKED) remain strict enums — they are business-logic constants, not CMS-driven.
+
+### 1.6 Public Config Bootstrap (Anti-N+1)
+
+On FE app mount, call **one** endpoint:
+```
+GET /config/all   → { domains, seams, archetypes, voidCodes, subscriptionPackages }
+```
+This replaces 5 round trips. Cache in React context / Zustand store; refetch on admin-save events.
 
 ---
 
-## 2. Auth & Account
+## 2. Auth & Account Module
 
-### 2.1 Register (CEO) — `POST /auth/register` · No auth
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 2.1 | POST | `/auth/register` | – | – | CEO registration |
+| 2.2 | POST | `/auth/login` | – | – | Login |
+| 2.3 | PUT | `/auth/switch-role` | JWT | any | Switch active role |
+| 2.4 | POST | `/auth/refresh` | – | – | Refresh access token |
+| 2.5 | POST | `/auth/register/handoff` | – | – | Tech team register via invite link |
+| 2.6 | POST | `/auth/verify-tax-code` | JWT | CLIENT | Verify Vietnamese tax code |
+| 2.7 | POST | `/auth/claim-handoff` | JWT | any | Existing user claims tech team role |
+| 2.8 | POST | `/auth/forgot-password` | – | – | Request reset email |
+| 2.9 | POST | `/auth/reset-password` | – | – | Reset password (one-time token) |
+| 2.10 | GET | `/auth/verify-reset-token/:token` | – | – | Validate reset token BEFORE showing form |
+| 2.11 | POST | `/auth/logout` | JWT | any | Invalidate refresh token server-side |
+| 2.12 | PUT | `/auth/me/password` | JWT | any | Change password while authenticated |
 
-Email is **normalized to lowercase** before storage. Password validation returns **all failing rules simultaneously as an array**.
+### 2.1 Register (CEO)
 
 **Request:**
 ```json
@@ -117,166 +146,187 @@ Email is **normalized to lowercase** before storage. Password validation returns
 }
 ```
 
-**Errors:**
-- `400` with `message: string[]` — password rule violations (iterate, show as checklist)
-- `400` with `message: string` — `"Temporary or throwaway email addresses are not permitted."`
-- `400` with `message: string` — `"Email domain does not exist or cannot receive mail."`
-- `409` — `"Email already exist!"`
+**FE integration notes (CRITICAL):**
+- Email is **normalized to lowercase** server-side. Display `response.user.email`, not the raw input.
+- Password validation errors return as `message: string[]` (array) — **iterate** and render as a checklist. All failing rules returned simultaneously (not one at a time).
+- Email domain errors return as `message: string` (single). Patterns:
+  - `"Temporary or throwaway email addresses are not permitted."`
+  - `"Email domain does not exist or cannot receive mail."`
+- Login email is **NOT** normalized server-side — FE must always send lowercase.
 
-**FE Notes:**
-- Distinguish error type by `Array.isArray(message)` — if array, render as checklist
-- Show `user.email` from response (not raw input) to confirm normalization
-- Login email is NOT normalized server-side — always send lowercase from FE
+### 2.2 Login — Unchanged
 
-### 2.2 Login — `POST /auth/login` · No auth
+`POST /auth/login` `{ email, password }` → `{ access_token, refresh_token, user }`.
 
-**Request:** `{ "email": "albert@gmail.com", "password": "MyPass123!" }`
-**Response 201:** Same shape as register response (with `access_token`, `refresh_token`, `user`)
+### 2.3 Switch Role
 
-### 2.3 Register via Handoff Link (Tech Team) — `POST /auth/register/handoff` · No auth
+`PUT /auth/switch-role` `{ role: "EXPERT" }` → returns new `access_token` + `refresh_token` + updated `user` object.
 
-TechTeamProfile.linkedProjectId is set **immediately** if CEO has a published project — FE no longer needs a manual refresh after registration.
+### 2.5 Register via Handoff Link (Tech Team)
 
-**Request:** `{ "invite_token": "...", "email": "...", "password": "...", "fullName": "..." }`
-**Response 201:** Same as register — `{ access_token, refresh_token, user }`
+`POST /auth/register/handoff` `{ invite_token, email, password, fullName }`.
 
-### 2.4 Claim Handoff (Existing User) — `POST /auth/claim-handoff` · JWT
+**Patch applied:** `TechTeamProfile.linkedProjectId` is set **immediately** if the inviting CEO has a published project. FE: `GET /projects` returns the project on first call after registration — no manual refresh.
 
-For users who already have an account and are accepting a Tech Team invite.
+### 2.7 Claim Handoff (existing user adding tech team role)
 
-**Request:** `{ "invite_token": "..." }`
-**Response 201:** `{ "message": "...", "access_token": "eyJ..." }`
+`POST /auth/claim-handoff` `{ invite_token }` → `{ message, access_token }`. Same linkedProjectId fix.
 
-### 2.5 Refresh Token — `POST /auth/refresh` · No auth
+### 2.10 Verify Reset Token (NEW)
 
-**Request:** `{ "refresh_token": "eyJ..." }`
-**Response 201:** `{ "access_token": "eyJ...", "refresh_token": "eyJ..." }`
+Call this on **page load** of `/reset-password/:token` BEFORE rendering the form.
 
-Server validates `refreshTokenHash` against the supplied token. If hash is null (user logged out) → 401.
+`GET /auth/verify-reset-token/:token` → 200 `{ valid: true }` | 400 `"This password reset link is invalid or has expired."`.
 
-### 2.6 Logout — `POST /auth/logout` · JWT  *(NEW)*
+On 400 → show expired screen with CTA back to `/forgot-password`. Never show the form on 400.
 
-Server-side invalidation — clears `refreshTokenHash`. Next refresh call with this token returns 401.
+### 2.11 Logout (NEW)
 
-**Request:** Empty body
-**Response 200:** `{ "success": true }`
+`POST /auth/logout` → `{ success: true }`. Clears `refreshTokenHash` server-side so the refresh token cannot be replayed. FE must also clear localStorage tokens.
 
-### 2.7 Change Password — `PUT /auth/me/password` · JWT  *(NEW)*
+### 2.12 Change Password (NEW)
 
-Different from forgot-password — this is for authenticated users changing their own password.
-
-**Request:**
+`PUT /auth/me/password`:
 ```json
-{ "currentPassword": "MyPass123!", "newPassword": "NewPass456@" }
+{ "currentPassword": "OldPass123!", "newPassword": "NewPass456@" }
 ```
-
-Password rules (applied to `newPassword`):
-- ≥ 8 chars, ≥ 1 uppercase, ≥ 1 lowercase, ≥ 1 number, ≥ 1 special char
-
-**Response 200:** `{ "message": "Password changed successfully. Please log in again." }`
-
-**Side effect:** All sessions invalidated (`refreshTokenHash` cleared). FE must redirect to `/login`.
-
-**Errors:**
-- `401` — `"Current password is incorrect."`
-- `400` array — password rule violations
-
-### 2.8 Forgot Password — `POST /auth/forgot-password` · No auth
-
-**Request:** `{ "email": "albert@gmail.com" }`
-**Response 201 (always same regardless of email existence):**
-```json
-{ "message": "If an account with that email exists, a reset link has been sent." }
-```
-
-### 2.9 Verify Reset Token — `GET /auth/verify-reset-token/:token` · No auth  *(NEW)*
-
-**Call on PAGE LOAD of reset-password page before showing the form.**
-
-**Response 200:** `{ "valid": true }`
-**Error 400:** `"This password reset link is invalid or has expired."`
-
-**FE Notes:** If 400 → show expired error with CTA back to `/forgot-password`. Never show reset form before this returns 200.
-
-### 2.10 Reset Password — `POST /auth/reset-password` · No auth
-
-**Request:** `{ "token": "a3f8c2d1...", "newPassword": "NewPass456@" }`
-**Response 201:** `{ "message": "Password has been reset successfully. You can now log in." }`
-
-**Errors:**
-- `400` — `"This password reset link is invalid or has expired..."` (token already used or expired)
-- `400` array — password rule violations
-
-Token is **one-time use**. On success redirect to `/login` with a toast.
-
-### 2.11 Switch Active Role — `POST /auth/switch-role` · JWT
-
-For users with multiple roles (e.g. both CLIENT and EXPERT).
-
-**Request:** `{ "role": "EXPERT" }`
-**Response 200:** `{ "access_token": "eyJ...", "user": { ... } }`
-
-### 2.12 Deactivate Own Account — `DELETE /users/me` · JWT  *(NEW)*
-
-Soft-deletes the user (`isActive: false`). Blocked if user has active engagements.
-
-**Response 200:** `{ "message": "Account deactivated successfully." }`
-**Error 422:** `"Cannot deactivate account with N active engagement(s). Close them first."`
+Password rules (8+ chars, upper, lower, digit, special). On success, **all sessions invalidated** (refreshTokenHash nulled). FE must redirect to `/login`.
 
 ---
 
-## 3. Subscription Management
+## 3. User & Profile Module
 
-### 3.1 Get Status — `GET /subscriptions/status` · JWT
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 3.1 | POST | `/users/me/add-role` | JWT | any | Add a role to existing account |
+| 3.2 | GET | `/users/me` | JWT | any | Current user profile |
+| 3.3 | PUT | `/users/me` | JWT | any | Update profile |
+| 3.4 | GET | `/users/:userId/public-profile` | JWT | any | View another user's public profile |
+| 3.5 | PUT | `/users/me/tax-code` | JWT | CLIENT | Update tax code |
+| 3.6 | GET | `/users/experts` | JWT | CLIENT, ADMIN | Browse experts (CEO talent search) |
 
-Expired subscriptions auto-return `subscriptionTier: "free"`. FE **must not** do date math — trust the field directly.
+### 3.1 Add Role
 
-**Response 200:**
+`POST /users/me/add-role` `{ role: "EXPERT" }`. Triggers creation of empty `ExpertProfile` row. Returns updated user.
+
+### 3.6 Browse Experts (NEW)
+
+`GET /users/experts?stackTag=Python&archetype=1&limit=20`.
+
+Returns:
 ```json
-{
-  "subscriptionTier": "free",
-  "subscriptionExpires": "2026-01-01T00:00:00.000Z",
-  "isExpired": true
-}
+[{
+  "id": "uuid", "fullName": "Jane Doe", "bio": "...",
+  "engagementModel": "MILESTONE",
+  "stackTags": ["Python", "LangChain"],
+  "domainDepths": [{ "domainCode": "A", "depthLevel": "DEEP" }],
+  "verifiedSeams": [{ "seamCode": "A↔C", "verificationTier": "EVIDENCE_BACKED" }]
+}]
 ```
 
-### 3.2 Get Available Packages — `GET /config/subscription-packages?role=CLIENT|EXPERT` · No auth  *(NEW)*
+FE: use this on the CEO's "Find Talent" page. Map `domainCode`/`seamCode` to human-readable names via cached `/config/all`.
 
-Replaces hardcoded `500,000` / `300,000` VND constants in FE.
+---
 
-**Response 200:**
+## 4. Wallet & Withdrawals Module
+
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 4.1 | GET | `/wallets/me` | JWT | any | Wallet balance |
+| 4.2 | GET | `/wallets/me/transactions?type=&limit=&offset=` | JWT | any | Paginated/filtered tx history |
+| 4.3 | POST | `/wallets/virtual-accounts/topup` | JWT | any | Create topup VA |
+| 4.4 | POST | `/withdrawals` | JWT | EXPERT | Request cash-out |
+| 4.5 | GET | `/withdrawals` | JWT | EXPERT | Own withdrawal history |
+| 4.6 | DELETE | `/withdrawals/:id` | JWT | EXPERT | Cancel PENDING withdrawal |
+
+### 4.1 Get Wallet Balance
+
+`GET /wallets/me` → `{ availableBalance: "5000000", lockedBalance: "1000000" }` (both strings).
+
+### 4.2 Transactions (PATCHED — pagination/filter added)
+
+`GET /wallets/me/transactions?type=TOP_UP&limit=50&offset=0`.
+
+Response:
 ```json
-[{ "id": "uuid", "role": "CLIENT", "name": "Client Pro", "priceVnd": "500000", "durationMonths": 6 }]
+[{ "id": "uuid", "amount": 5000000, "transactionType": "TOP_UP", "createdAt": "2026-..." }]
 ```
+Note: `amount` is **Number** (not string) in this endpoint — historical quirk, but values fit safely within `Number.MAX_SAFE_INTEGER`.
 
-**FE Notes:** Store `id` as `packageId` for activation. Balance check: `Number(wallet.availableBalance) >= Number(pkg.priceVnd)`.
+Valid `transactionType` values: `TOP_UP`, `SUBSCRIPTION`, `ESCROW_LOCK`, `ESCROW_RELEASE`, `PLATFORM_FEE`, `ESCROW_REFUND`, `ESCROW_SPLIT`, `WITHDRAWAL`, `WITHDRAWAL_REFUND`.
 
-### 3.3 Activate — `POST /subscriptions/activate` · JWT  *(BREAKING)*
+### 4.3 Topup VA
 
-**`packageId` is now REQUIRED.** Previously the backend silently picked the newest package.
+`POST /wallets/virtual-accounts/topup` `{ amount: 500000 }` → returns VA number + QR payload. SePay IPN will credit the wallet async.
 
-**Request (CHANGED):**
+### 4.4 Withdraw
+
+`POST /withdrawals` `{ type: "EXPERT_MANUAL", amount: 1000000 }`. Requires linked bank account (`POST /bank-hub/initiate-link` first).
+
+### 4.6 Cancel Withdrawal (NEW)
+
+`DELETE /withdrawals/:id`. Only `PENDING` can be cancelled. Refunds wallet atomically. Returns `{ cancelled: true, refundedAmount: 1000000 }`.
+
+---
+
+## 5. Bank Linking & SePay Webhooks
+
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 5.1 | POST | `/bank-hub/initiate-link` | JWT | Start bank linking flow |
+| 5.2 | POST | `/webhooks/sepay/ipn` | HMAC | SePay incoming payment notification |
+| 5.3 | POST | `/webhooks/sepay/chi-ho-credit` | – | Chi Hò disbursement callback |
+| 5.4 | POST | `/webhooks/sepay/bank-linked` | – | Bank account link confirmation |
+
+### 5.1 Initiate Bank Link
+
+`POST /bank-hub/initiate-link` `{ bankCode, accountHolderName }` → returns SePay redirect URL. On callback, `User.sepayBankAccountXid` and `bankLinkedAt` are set.
+
+### 5.2–5.4 Webhooks
+
+**FE never calls these** — they are server-to-server. Documented for completeness. The IPN endpoint verifies `x-sepay-signature` HMAC against `SEPAY_SECRET_KEY`.
+
+---
+
+## 6. Subscriptions Module
+
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 6.1 | POST | `/subscriptions/activate` | JWT | Activate a package |
+| 6.2 | GET | `/subscriptions/status` | JWT | Current tier + expiry |
+| 6.3 | GET | `/subscriptions/history` | JWT | Purchase log |
+
+### 6.1 Activate (BREAKING — `packageId` required)
+
+`POST /subscriptions/activate`:
 ```json
-{ "activeRole": "CLIENT", "packageId": "uuid-of-chosen-package" }
+{ "activeRole": "CLIENT", "packageId": "uuid-from-/config/subscription-packages" }
 ```
-
-**Response 201:**
+Response 201:
 ```json
 {
   "access_token": "eyJ...",
   "activatedPackage": { "name": "Client Pro", "priceVnd": "500000", "durationMonths": 6 }
 }
 ```
+Errors: 422 `INSUFFICIENT_BALANCE` | 422 `"package unavailable"` | 422 `"role mismatch"` | 409 `"already active"`.
 
-**Errors:**
-- `422` — `INSUFFICIENT_BALANCE` (cannot afford)
-- `422` — `"package unavailable"` (deleted or inactive)
-- `422` — `"role mismatch"` (e.g. activating EXPERT package with CLIENT role)
-- `409` — `"already active"` (current sub not expired yet)
+**FE flow:**
+1. `GET /config/subscription-packages?role=CLIENT` → list packages.
+2. User picks one → save its `id`.
+3. Check `Number(wallet.availableBalance) >= Number(pkg.priceVnd)`. If false, redirect to topup.
+4. `POST /subscriptions/activate` with that `packageId`.
+5. Replace access token from response.
 
-### 3.4 History — `GET /subscriptions/history` · JWT  *(NEW)*
+### 6.2 Status (PATCHED — auto-corrects expired)
 
-**Response 200:**
+`GET /subscriptions/status` → `{ subscriptionTier: "free" | "pro", subscriptionExpires: ISO, isExpired: boolean }`.
+
+When subscription is expired, server returns `subscriptionTier: "free"` and `isExpired: true`. **Remove all FE date-math** — trust `subscriptionTier` directly.
+
+### 6.3 History (NEW)
+
+`GET /subscriptions/history` → array of:
 ```json
 [{
   "id": "uuid", "packageName": "Client Pro", "role": "CLIENT",
@@ -285,156 +335,77 @@ Replaces hardcoded `500,000` / `300,000` VND constants in FE.
   "isExpired": false
 }]
 ```
-
-**FE Notes:** Format dates UTC+7. `isExpired` is pre-computed — use directly for badges.
-
----
-
-## 4. Public Config / Reference Data
-
-All endpoints in this section are **unauthenticated**. Call on app mount or page mount as appropriate. These replace **every** previously-hardcoded array in FE.
-
-### 4.1 Domains — `GET /config/domains`
-
-```json
-[{ "id": "uuid", "code": "A", "name": "LLM App Engineering", "description": null, "sortOrder": 1, "isActive": true }]
-```
-
-Used on: Expert profile domain-depth form, Expert bid form, Service listing form.
-
-### 4.2 Seams — `GET /config/seams`
-
-```json
-[{ "id": "uuid", "code": "A↔C", "name": "LLM output quality", "description": null, "sortOrder": 1, "isActive": true }]
-```
-
-⚠️ **CRITICAL:** Seam codes use the **`↔` (U+2194) arrow character** — NOT `<->`, `->`, or `<=>`. The DB stores the arrow form. Submitting the old format causes 400 Bad Request.
-
-### 4.3 Archetypes — `GET /config/archetypes`
-
-```json
-[{
-  "id": "uuid", "code": "1", "name": "RAG/Search",
-  "description": "Chatbots, knowledge base Q&A, document retrieval",
-  "sortOrder": 1, "isActive": true
-}]
-```
-
-Used on: Stage 2 archetype selection grid (replaces hardcoded `['1'..'6']`).
-
-### 4.4 Probe Questions — `GET /config/archetypes/:code/probe-questions`
-
-Example: `GET /config/archetypes/1/probe-questions`
-
-```json
-[{
-  "id": "uuid", "archetypeCode": "1",
-  "questionText": "Roughly how many people will search or ask questions per day?",
-  "displayOrder": 1, "isActive": true
-}]
-```
-
-Used on: Stage 3 — `questionText` is **both** the display label AND the request body key (see §5.5).
-
-### 4.5 Void Codes — `GET /config/void-codes`  *(NEW — Dynamic AI)*
-
-```json
-[
-  {
-    "id": "uuid", "code": "NO_GROUND_TRUTH",
-    "name": "No Ground Truth",
-    "description": "No labelled data or benchmark mentioned. Risks building AI with no way to measure success.",
-    "severity": "HIGH", "sortOrder": 1, "isActive": true
-  },
-  {
-    "id": "uuid", "code": "MISSING_TECHNICAL_ARTIFACT",
-    "name": "Missing Technical Artifact",
-    "description": "A critical technical document mentioned but not submitted. Synthesis cannot be faithfully grounded.",
-    "severity": "HIGH", "sortOrder": 2, "isActive": true
-  }
-]
-```
-
-Used on: Stage 2 — display detected void names + descriptions to CEO during acknowledgement.
-
-**FE Notes:** Cross-reference `session.voidListJson[].void_code` with this endpoint's `code` field for display.
-
-### 4.6 Subscription Packages — `GET /config/subscription-packages?role=CLIENT|EXPERT`
-
-See §3.2.
-
-### 4.7 All Config in One Call — `GET /config/all`  *(NEW)*
-
-Returns domains + seams + archetypes + void codes + subscription packages in a single round trip.
-
-```json
-{
-  "domains": [...], "seams": [...], "archetypes": [...],
-  "voidCodes": [...], "subscriptionPackages": [...]
-}
-```
-
-**FE Notes:** Use on app mount to avoid 5 separate network calls on initial load.
+FE: `isExpired` is pre-computed — use directly for badges. Format dates in UTC+7.
 
 ---
 
-## 5. Elicitation Flow — CEO
+## 7. Public Config Module (reference data — no auth)
 
-All endpoints in this section require **JWT · Role: CLIENT (CEO subtype)** unless noted.
+| # | Method | Path | Purpose |
+|---|---|---|---|
+| 7.1 | GET | `/config/domains` | Active domain definitions |
+| 7.2 | GET | `/config/seams` | Active seam definitions |
+| 7.3 | GET | `/config/archetypes` | Active archetype definitions |
+| 7.4 | GET | `/config/archetypes/:code/probe-questions` | Probe questions for archetype |
+| 7.5 | GET | `/config/void-codes` | Active void code definitions |
+| 7.6 | GET | `/config/subscription-packages?role=CLIENT\|EXPERT` | Active packages only |
+| 7.7 | GET | `/config/all` | **ALL config in one call — use on app mount** |
 
-### 5.1 Start / Resume Session — `POST /elicitation/sessions/start`
+### 7.7 Single Bootstrap Endpoint (NEW)
 
-**Response 201:**
+`GET /config/all` →
 ```json
 {
-  "id": "session-uuid", "currentStage": 1, "state": "IN_PROGRESS",
-  "stage1OriginalInput": null, "criticalArtifactsJson": null,
-  "voidListJson": null, "recommendedArchetypesJson": null,
-  "archetype": null, "stage3ProbesJson": null,
-  "stage4TechInputsJson": null, "stage4DraftJson": null,
-  "estimatedBudgetVnd": null
+  "domains": [{ "id": "uuid", "code": "A", "name": "LLM App Engineering", "sortOrder": 1 }, ...],
+  "seams":   [{ "id": "uuid", "code": "A↔C", "name": "LLM output quality", "sortOrder": 1 }, ...],
+  "archetypes": [{ "id": "uuid", "code": "1", "name": "RAG/Search", "description": "...", "sortOrder": 1 }, ...],
+  "voidCodes": [{ "id": "uuid", "code": "NO_GROUND_TRUTH", "name": "No Ground Truth", "description": "...", "severity": "HIGH" }, ...],
+  "subscriptionPackages": [{ "id": "uuid", "role": "CLIENT", "name": "Client Pro", "priceVnd": "500000", "durationMonths": 6 }, ...]
 }
 ```
 
-### 5.2 Get Session — `GET /elicitation/sessions/:id`
+Cache in FE global store. Refetch after admin saves config changes (rare event).
 
-**Response 200 (key fields to act on):**
-```json
-{
-  "id": "session-uuid", "currentStage": 2, "state": "IN_PROGRESS",
-  "stage1OriginalInput": "We need an AdTech compliance pipeline based on our ruleset...",
-  "stage1SymptomsJson": ["No automated ad compliance checking", "Manual review delays"],
-  "criticalArtifactsJson": [
-    {
-      "artifact_key": "compliance_ruleset",
-      "label": "Compliance Ruleset",
-      "reason": "Ruleset content needed for milestone scope accuracy",
-      "placeholder_prompt": "Please paste your compliance rules here"
-    }
-  ],
-  "voidListJson": [{ "void_code": "MISSING_TECHNICAL_ARTIFACT", "severity": "HIGH" }],
-  "recommendedArchetypesJson": ["3", "1"],
-  "estimatedBudgetVnd": "200000000",
-  "stage4DraftJson": null
-}
-```
+### 7.4 Probe Questions — used in Stage 3
 
-**FE action items:**
-- `stage1OriginalInput`: show "What you wrote" vs "What AI understood" diff side-by-side with `stage1SymptomsJson`
-- `criticalArtifactsJson`: show persistent reminder in Stage 4 to submit documents
-- `stage4DraftJson`: pre-fill Stage 4 form on revisit
-- `estimatedBudgetVnd`: BigInt → string. `Number(x)` for display
+Response: `[{ "id": "uuid", "archetypeCode": "1", "questionText": "...", "displayOrder": 1 }]`.
 
-### 5.3 Stage 1 — Submit Symptoms — `POST /elicitation/sessions/:id/stage1`
+The `questionText` is BOTH the display label AND the request body key in Stage 3 submission (see §8.5).
 
-**Request:** `{ "symptomText": "We need an AdTech compliance pipeline based on our ruleset. Budget 200M VND." }`
+### 7.5 Void Codes (NEW — Dynamic AI)
 
-**Response 200 (NEW: `criticalArtifactsJson` field):**
+Used in Stage 2 to display human-readable descriptions of detected voids. FE looks up `stage1.voidListJson[].void_code` against this list to render name + description + severity badge.
+
+---
+
+## 8. Elicitation Engine (CEO + Tech Team)
+
+All `JWT`, role `CLIENT` (CEO) unless noted.
+
+### 8.1 Session Lifecycle Endpoints
+
+| # | Method | Path | Purpose |
+|---|---|---|---|
+| 8.1.1 | POST | `/elicitation/sessions` | Start new session |
+| 8.1.2 | GET | `/elicitation/sessions` | List my sessions |
+| 8.1.3 | GET | `/elicitation/sessions/active` | Get currently active session (if any) |
+| 8.1.4 | GET | `/elicitation/sessions/history` | Completed sessions only |
+| 8.1.5 | GET | `/elicitation/sessions/:id` | Full session detail |
+| 8.1.6 | DELETE | `/elicitation/sessions/:id` | Delete session |
+| 8.1.7 | PUT | `/elicitation/sessions/:id/abandon` | Mark ABANDONED |
+| 8.1.8 | PUT | `/elicitation/sessions/:id/revert` | Go back to previous stage |
+| 8.1.9 | PUT | `/elicitation/sessions/:id/continue` | Resume from RETURNED state |
+
+### 8.2 Stage 1 — Submit Symptoms
+
+`PUT /elicitation/sessions/:id/stage1` `{ symptomText: "..." }`.
+
+**Response 200 (key new fields):**
 ```json
 {
   "currentStage": 2,
-  "stage1OriginalInput": "We need an AdTech compliance pipeline...",
-  "stage1SymptomsJson": ["No automated ad compliance checking"],
+  "stage1OriginalInput": "We need an AdTech compliance pipeline based on our ruleset...",
+  "stage1SymptomsJson": ["No automated ad compliance checking", "Manual review delays"],
   "criticalArtifactsJson": [
     {
       "artifact_key": "compliance_ruleset",
@@ -449,31 +420,24 @@ All endpoints in this section require **JWT · Role: CLIENT (CEO subtype)** unle
 }
 ```
 
-**FE Notes:**
-- If `criticalArtifactsJson` is non-empty → display persistent banner: "Submit these documents in Stage 4"
-- Look up void descriptions via `GET /config/void-codes` using `void_code` as key
-- Show `stage1OriginalInput` vs `stage1SymptomsJson` side-by-side
+**FE integration (CRITICAL):**
+- Display `stage1OriginalInput` vs `stage1SymptomsJson` as a **side-by-side diff** ("What you wrote" vs "What AI understood").
+- If `criticalArtifactsJson` is non-empty → render a **persistent banner** in Stage 4 reminding the CEO to submit these documents.
+- Cross-reference `voidListJson[].void_code` against cached `/config/void-codes` to show name + description.
+- `estimatedBudgetVnd` is a string — `Number()` it for display.
 
-### 5.4 Stage 2 — Select Archetype — `POST /elicitation/sessions/:id/stage2`
+### 8.3 Stage 2 — Select Archetype
 
-**Request:**
+`PUT /elicitation/sessions/:id/stage2`:
 ```json
-{
-  "archetype": "3",
-  "acknowledgedVoidCodes": ["MISSING_TECHNICAL_ARTIFACT", "NO_GROUND_TRUTH"]
-}
+{ "archetype": "3", "acknowledgedVoidCodes": ["MISSING_TECHNICAL_ARTIFACT", "NO_GROUND_TRUTH"] }
 ```
 
-**FE Notes:**
-- Fetch archetype options from `GET /config/archetypes` — DO NOT hardcode `['1'..'6']`
-- Fetch void codes from `GET /config/void-codes` to render each void with name + description
-- CEO must acknowledge **ALL** detected voids (backend validates the list matches `voidListJson`)
+**FE:** fetch archetype grid from `/config/archetypes` (NOT hardcoded). CEO must acknowledge **all** detected voids — `acknowledgedVoidCodes` array length must match `voidListJson` length.
 
-### 5.5 Stage 3 — Probe Questions — `POST /elicitation/sessions/:id/stage3`
+### 8.4 Stage 3 — Probe Questions
 
-**Changed (Dynamic AI Issue 2):** Questions come from DB. Response now has separate `irrelevant_answers` array.
-
-**Request (keys are the question texts):**
+`PUT /elicitation/sessions/:id/stage3`:
 ```json
 {
   "probe_responses": {
@@ -485,40 +449,37 @@ All endpoints in this section require **JWT · Role: CLIENT (CEO subtype)** unle
 }
 ```
 
-**Response 200 (NEW: `irrelevant_answers` field):**
+**Key:** the object keys are **EXACT** `questionText` strings from `/config/archetypes/:code/probe-questions`. Do not mutate them.
+
+**Response 200 (NEW `irrelevant_answers` field):**
 ```json
 {
   "currentStage": 4,
   "vaguenessResult": {
     "vague_answers": [],
     "irrelevant_answers": [
-      {
-        "question": "Where does data come from today?",
-        "issue": "Answer is too generic — missing how AI will authenticate against the AdTech API"
-      }
+      { "question": "Where does data come from today?",
+        "issue": "Answer is too generic — missing how AI will authenticate against the AdTech API" }
     ]
   }
 }
 ```
 
-**FE Notes (CRITICAL UX CHANGE):**
-- Show `vague_answers` and `irrelevant_answers` as **separate warning sections** with different guidance copy
-- Vague: "Please be more specific"
-- Irrelevant: "This doesn't address the project context"
-- **Neither blocks submission** — both are warnings only
+**FE:** render `vague_answers` and `irrelevant_answers` as **two separate warning sections** with different copy:
+- Vague → "Please be more specific" 
+- Irrelevant → "This doesn't address the project context"
 
-### 5.6 Stage 4 — Auto-Save Draft — `PATCH /elicitation/sessions/:id/stage4-draft` · No LLM call  *(NEW)*
+**Neither blocks submission** — both are advisory only. Non-technical CEOs get a more forgiving prompt (server-side injection).
 
-Call every 30s or on field blur.
+### 8.5 Stage 4 — Auto-Save Draft (NEW)
 
-**Request:** `{ "draftJson": { ...form values... } }`
-**Response 200:** `{ "saved": true }`
+`PATCH /elicitation/sessions/:id/stage4-draft` `{ draftJson: { ...form values } }`.
 
-### 5.7 Stage 4 — Submit Technical Context — `POST /elicitation/sessions/:id/stage4`
+Call **every 30s** or on field `blur`. No LLM call, instant response `{ saved: true }`. On page mount, pre-fill the form from `session.stage4DraftJson`.
 
-**Changed (Dynamic AI Issue 4):** New fields `additional_requirement_1` and `technical_artifacts`.
+### 8.6 Stage 4 — Submit Technical Context
 
-**Request (CHANGED):**
+`PUT /elicitation/sessions/:id/stage4`:
 ```json
 {
   "current_stack": "Python FastAPI + PostgreSQL",
@@ -531,58 +492,66 @@ Call every 30s or on field blur.
 }
 ```
 
-**Response 200 (CHANGED SHAPE — now `{ session, missingArtifacts }`):**
+**Response 200 (CHANGED SHAPE):**
 ```json
 {
   "session": {
     "currentStage": 5,
-    "stage4TechInputsJson": {
-      "technical_artifacts": { "compliance_ruleset": "..." }
-    }
+    "stage4TechInputsJson": { "technical_artifacts": { "compliance_ruleset": "..." } }
   },
   "missingArtifacts": []
 }
 ```
 
-If artifacts not submitted:
+When artifacts missing:
 ```json
 {
   "session": { "currentStage": 5 },
   "missingArtifacts": [
-    {
-      "artifact_key": "compliance_ruleset",
-      "label": "Compliance Ruleset",
-      "reason": "...",
-      "placeholder_prompt": "..."
-    }
+    { "artifact_key": "compliance_ruleset", "label": "Compliance Ruleset",
+      "reason": "...", "placeholder_prompt": "..." }
   ]
 }
 ```
 
-**FE Notes (CRITICAL UX CHANGE):**
-- Build **dynamic form**: one `<textarea>` per `criticalArtifactsJson` item, keyed by `artifact_key`
-- `technical_artifacts` keys come from `session.criticalArtifactsJson[].artifact_key`
-- If `missingArtifacts` non-empty → show warning modal "Submit incomplete spec?" — **do NOT hard-block**
-- Submitted artifacts → AI uses actual content for milestone acceptance criteria
-- Missing artifacts → AI generates generic spec, `completeness_score` capped at 0.60
+**FE integration (CRITICAL UX):**
+- Build a **dynamic form**: one `<textarea>` per `session.criticalArtifactsJson[]` item, keyed by `artifact_key`.
+- The `technical_artifacts` object's keys come from `session.criticalArtifactsJson[].artifact_key`.
+- If `missingArtifacts` is non-empty → show **warning modal** "Submit incomplete spec?" with Continue / Go Back buttons. Do NOT hard-block.
+- Submitted artifacts → AI uses their **actual content** to write milestone acceptance criteria.
+- Missing artifacts → AI generates generic spec, `completeness_score` capped at 0.60 (project will be returned to CEO).
 
-### 5.8 Stage 5 — Publish Project — `POST /elicitation/sessions/:id/stage5` · No body
+### 8.7 Stage 4 AI Recommend (NEW)
 
-**Fixed (A-1):** TechTeam now linked immediately upon publish — they see project without manual refresh.
+`POST /elicitation/sessions/:id/stage4-recommend` → AI suggests `recommended_stack`, `recommended_integration`, `recommended_legacy_volume` based on symptoms/archetype/probes/budget. Use to pre-fill the form for non-technical CEOs.
 
-**Response 201 (NEW: `estimatedTotalCostVnd` / `estimatedTotalDurationDays` from E-2):**
+### 8.8 Stage 4 Handoff (Tech Team path)
+
+`PUT /elicitation/sessions/:id/stage4-handoff` — same body shape as 8.6, same response shape. Used when CEO handed off to a Tech Team member.
+
+### 8.9 Stage 4 — Self-Technical Toggle
+
+`PUT /elicitation/sessions/:id/self-technical` `{ isSelfTechnical: true }`. Switches AI prompt mode (technical vs forgiving).
+
+### 8.10 Stage 5 — Publish Project
+
+`POST /elicitation/sessions/:id/stage5` — no body. Triggers LLM synthesis.
+
+**Response 201 (NEW cost/duration fields):**
 ```json
 {
   "id": "project-uuid",
   "projectName": "AdTech Compliance Classifier",
-  "state": "PUBLISHED", "archetype": "3", "tier": "TIER_2",
+  "state": "PUBLISHED",
+  "archetype": "3",
+  "tier": "TIER_2",
   "artifact_a_json": {
     "project_name": "AdTech Compliance Classifier",
     "business_intent": "Automate ad asset review against the client compliance ruleset...",
     "sdlc_notices": ["Compliance ruleset received — milestone criteria grounded to actual rules"]
   },
-  "required_domains_json": [{ "domain_code": "A", "required_depth": "INTERMEDIATE" }],
-  "required_seams_json": [{ "seam_code": "A↔C", "criticality": "load_bearing" }],
+  "required_domains_json": [{ "domain_code": "A", "required_depth": "OPERATIONAL" }],
+  "required_seams_json":   [{ "seam_code": "A↔C", "criticality": "load_bearing" }],
   "milestone_framework_json": [
     {
       "milestone_number": 1,
@@ -598,225 +567,70 @@ If artifacts not submitted:
 }
 ```
 
-**FE Notes:**
-- `milestone_framework_json[].deliverable_statement` now references actual submitted artifact content
-- Show `estimatedTotalCostVnd` / `estimatedTotalDurationDays` as "AI estimates" badges on project dashboard
-- TechTeam linked to CEO sees project immediately in their dashboard
-- `payment_amount_vnd` is **always 0** from AI — CEO sets real amounts via `PATCH /milestones/:id` later
+**FE notes:**
+- `milestone_framework_json` deliverables reference **actual submitted artifact content** (e.g. "Rule 1: No misleading health claims").
+- Show `estimatedTotalCostVnd` and `estimatedTotalDurationDays` as "AI estimates" badges on the project dashboard.
+- TechTeam linked to CEO sees the project **immediately** in their `GET /projects` response.
+- If `completeness_score < 0.70` server-side, project state is `RETURNED_TO_CLIENT` (not PUBLISHED) — show the feedback and let CEO revise via Stage 4.
 
-### 5.9 Revert Session — `POST /elicitation/sessions/:id/revert`
+### 8.11 Stage 5 Retry / Handoff Link
 
-Allows CEO to go back to a prior stage for editing.
-
-**Request:** `{ "targetStage": 2 }`
-
-### 5.10 Set Self-Technical Flag — `POST /elicitation/sessions/:id/set-self-technical`
-
-When CEO declares themselves technical (skips tech team handoff).
-
-**Request:** `{ "selfTechnical": true }`
-
-### 5.11 Invite Tech Team — `POST /elicitation/sessions/:id/invite-tech-team`
-
-Sends a handoff invite link to a tech team member's email.
-
-**Request:** `{ "email": "cto@company.com", "roleTitle": "CTO" }`
+- `POST /elicitation/sessions/:id/retry-synthesis` — re-call LLM if previous synthesis failed (503 timeout).
+- `POST /elicitation/sessions/:id/generate-handoff-link` — returns a one-time invite token for a Tech Team member.
 
 ---
 
-## 6. Elicitation Flow — Tech Team Handoff
+## 9. Projects & Milestone Framework
 
-### 6.1 Stage 4 Handoff Submit — `POST /elicitation/sessions/:id/stage4-handoff` · JWT · Role: EXPERT (Tech Team subtype)
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 9.1 | GET | `/projects?slim=true` | JWT | any | List projects (slim version omits JSON blobs) |
+| 9.2 | GET | `/projects/:id` | JWT | CLIENT, EXPERT, ADMIN | Full project detail |
+| 9.3 | GET | `/projects/:id/artifact-a` | JWT | party | Just artifact_a_json |
+| 9.4 | GET | `/projects/:id/artifact-b` | JWT | party (gated) | Just artifact_b_json — see §9.7 |
+| 9.5 | PUT | `/projects/:id/name` | JWT | CLIENT | Rename project |
+| 9.6 | GET | `/projects/:id/milestones` | JWT | party | List milestones |
+| 9.7 | PUT | `/projects/:id/milestones` | JWT | CLIENT | Update entire milestone framework JSON |
+| 9.8 | PUT | `/projects/:id/cancel` | JWT | CLIENT | Cancel project (only PUBLISHED, no active engagements) |
+| 9.9 | GET | `/projects/:id/engagements` | JWT | CLIENT, EXPERT, ADMIN | List engagements on project |
+| 9.10 | GET | `/projects/:id/invitations` | JWT | CLIENT | List expert invitations sent |
+| 9.11 | GET | `/projects/:id/team` | JWT | CLIENT, ADMIN | Tech team assigned to project |
 
-Same shape changes as CEO Stage 4 — add `technical_artifacts` and `additional_requirement_1`. Response shape is `{ session, missingArtifacts }` — same as §5.7.
+### 9.2 Get Project Detail
 
-### 6.2 Save Draft (Tech Team) — `PATCH /elicitation/sessions/:id/stage4-draft` · JWT
+Includes `required_domains_json`, `required_seams_json`, `milestone_framework_json` (used by Expert BidForm). Expert accesses this to scope their bid.
 
-Same as §5.6 — both CEO and Tech Team can save drafts to the same session.
+### 9.4 Artifact B Access — 4-Condition Gate
 
----
+Artifact B (technical deep-dive: stack, integration method, schemas) is gated behind 4 conditions evaluated server-side via FastAPI `/projects/:id/artifact-b`:
 
-## 7. Project & Milestone Management
+1. `engagement.state ∈ { CONNECTED, ACTIVE }`
+2. `bid.state ∈ { TECH_APPROVED, CEO_REVIEW, SELECTED }`
+3. `expertNdaAccepted = true`
+4. `clientNdaAccepted = true`
 
-### 7.1 List Projects — `GET /projects` · JWT
+If any fails → NestJS returns project detail **without** `artifact_b_json` and adds a `artifactBAccessDenied: "<reason>"` field. FE shows the reason as a tooltip on a locked "Artifact B" card. No FE-side logic — trust the presence/absence of the field.
 
-Returns projects the user has access to:
-- CEO: their own projects
-- Tech Team: projects they're linked to (now visible immediately after registration — A-1 fix)
-- Expert: projects they have engagements on
-- Admin: all projects
+### 9.8 Cancel Project (NEW)
 
-**Response 200:** Array of project objects (see §7.2 shape)
-
-### 7.2 Get Project Detail — `GET /projects/:id` · JWT · Roles: CLIENT, EXPERT, ADMIN
-
-**Changed (A-1 expert flow fix):** Now includes `required_domains_json`, `required_seams_json`, `milestone_framework_json` so experts can build their bid.
-
-**Response 200:**
-```json
-{
-  "id": "project-uuid",
-  "state": "PUBLISHED", "archetype": "3", "tier": "TIER_2",
-  "projectName": "AdTech Compliance Classifier",
-  "artifact_a_json": { "project_name": "...", "business_intent": "...", "sdlc_notices": [...] },
-  "required_domains_json": [{ "domain_code": "A", "required_depth": "INTERMEDIATE" }],
-  "required_seams_json": [{ "seam_code": "A↔C", "criticality": "load_bearing" }],
-  "milestone_framework_json": [
-    {
-      "milestone_number": 1,
-      "deliverable_statement": "...",
-      "estimated_cost_vnd": 40000000,
-      "estimated_duration_days": 14
-    }
-  ],
-  "estimatedTotalCostVnd": "120000000",
-  "estimatedTotalDurationDays": 42
-}
-```
-
-**FE Notes:** Use `required_domains_json` + `required_seams_json` for Expert BidForm requirements display. Look up human-readable names via `GET /config/domains` and `GET /config/seams`.
-
-### 7.3 List Project Engagements — `GET /projects/:id/engagements` · JWT  *(NEW)*
-
-Access: CEO of project, linked Tech Team, or Admin.
-
-**Response 200:**
-```json
-[{
-  "id": "engagement-uuid", "state": "PENDING", "type": "PROJECT_BASED",
-  "expert": { "id": "uuid", "fullName": "Jane Expert", "email": "jane@..." },
-  "_count": { "milestones": 3 },
-  "createdAt": "2026-..."
-}]
-```
-
-### 7.4 List Project Invitations — `GET /projects/:id/invitations` · JWT · CLIENT only  *(NEW)*
-
-```json
-[{
-  "id": "invitation-uuid", "status": "PENDING",
-  "expert": { "id": "uuid", "fullName": "...", "email": "..." },
-  "invitedAt": "2026-07-09T..."
-}]
-```
-
-### 7.5 List Project Team — `GET /projects/:id/team` · JWT · CLIENT, ADMIN  *(NEW)*
-
-```json
-[{
-  "userId": "uuid", "linkedProjectId": "project-uuid", "roleTitle": "CTO",
-  "user": { "id": "uuid", "fullName": "...", "email": "..." }
-}]
-```
-
-### 7.6 List Project Milestones — `GET /projects/:id/milestones` · JWT  *(NEW)*
-
-Returns milestones across all engagements on this project.
-
-```json
-[{
-  "id": "uuid", "milestoneNumber": 1, "state": "DEFINED",
-  "deliverableStatement": "...",
-  "acceptanceCriteria": [...], "dodItems": [...]
-}]
-```
-
-### 7.7 Cancel Project — `PUT /projects/:id/cancel` · JWT · CLIENT  *(NEW)*
-
-Only allowed in `PUBLISHED` state with no active engagements.
-
-**Response 200:** Updated project with `state: "SUSPENDED"`
-**Error 422:** `"Cannot cancel project with N active engagement(s). Close them first."`
-
-### 7.8 Edit Milestone — `PATCH /milestones/:id` · JWT · CLIENT  *(NEW — E-1)*
-
-Only when `state: "DEFINED"`.
-
-**Request (all optional):**
-```json
-{
-  "title": "Phase 1",
-  "deliverable_statement": "...",
-  "sign_off_authority": "JOINT",
-  "payment_amount_vnd": 40000000,
-  "estimated_duration_days": 14,
-  "tech_stack": ["Python", "FastAPI"]
-}
-```
-
-**Response 200:** Updated milestone with all fields
-**Errors:** `403` (not CEO) | `422` (state not DEFINED) | `404`
-
-### 7.9 Delete Milestone — `DELETE /milestones/:id` · JWT · CLIENT  *(NEW — E-1)*
-
-Only when `state: "DEFINED"`.
-
-**Response 200:** `{ "id": "...", "milestoneNumber": 1 }`
-
-### 7.10 List Milestones by Engagement — `GET /milestones?engagementId=...` · JWT  *(NEW)*
-
-```json
-[{
-  "id": "uuid", "milestoneNumber": 1, "state": "DEFINED",
-  "deliverableStatement": "...",
-  "acceptanceCriteria": [...], "dodItems": [...]
-}]
-```
-
-### 7.11 Milestone Submissions History — `GET /milestones/:id/submissions` · JWT  *(NEW)*
-
-```json
-[{
-  "id": "uuid", "milestoneId": "...", "expertId": "...",
-  "description": "...", "filesJson": [...],
-  "submittedAt": "2026-..."
-}]
-```
-
-### 7.12 Latest Submission — `GET /milestones/:id/submissions/latest` · JWT  *(NEW)*
-
-Returns most recent submission object (same shape as §7.11 single item) or 404.
-
-### 7.13 Milestone Disputes — `GET /milestones/:id/disputes` · JWT  *(NEW)*
-
-Returns all disputes filed against this milestone.
-
-### 7.14 Acceptance Criteria CRUD — `/criteria/...` · JWT  *(NEW)*
-
-| Method | Path | Role | Notes |
-|--------|------|------|-------|
-| `GET` | `/criteria/:milestoneId` | CLIENT, EXPERT, ADMIN | List criteria for milestone |
-| `POST` | `/criteria/:milestoneId` | CLIENT | Add criterion. Body: `{ criterion_text, is_required? }` |
-| `DELETE` | `/criteria/:id` | CLIENT | Delete criterion |
-
-On `POST`, NestJS calls AI service `/llm/criterion-check` asynchronously to write an `advisory_note` to `platform_decisions` if the criterion is subjective. **Advisory only — non-blocking.**
-
-### 7.15 DoD Items List & Delete — `/milestones/:id/dod/...` · JWT  *(NEW)*
-
-| Method | Path | Role | Notes |
-|--------|------|------|-------|
-| `GET` | `/milestones/:id/dod` | CLIENT, EXPERT, ADMIN | List DoD items |
-| `DELETE` | `/milestones/:id/dod/:itemId` | EXPERT, CLIENT | Only if `status: "PENDING"` |
+`PUT /projects/:id/cancel`. Only allowed when `state === PUBLISHED` and no active engagements. Server moves state to `SUSPENDED`.
 
 ---
 
-## 8. Milestone Chat Assistant
+## 10. Milestone Chat Assistant (NEW — E-3)
 
-All: JWT · Roles: CLIENT, EXPERT
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 10.1 | POST | `/projects/:id/milestone-chat` | JWT | Send message to AI assistant |
+| 10.2 | GET | `/projects/:id/milestone-chat/sessions` | JWT | List chat sessions (sidebar) |
+| 10.3 | GET | `/projects/:id/milestone-chat/sessions/:sessionId` | JWT | Full message history |
 
-### 8.1 Send Message — `POST /projects/:id/milestone-chat`  *(NEW — E-3)*
+### 10.1 Send Message
 
-Omit `chatSessionId` to start a new conversation. History is server-side — FE only stores `chatSessionId`.
+**First message** (new session): `{ "message": "Why 3 milestones?" }`
+**Follow-up**: `{ "message": "Can we cut milestone 2 cost?", "chatSessionId": "uuid" }`
 
-**First message:**
-```json
-{ "message": "Why 3 milestones?" }
-```
-
-**Follow-up:**
-```json
-{ "message": "Can we cut milestone 2 cost?", "chatSessionId": "uuid" }
-```
+History is **server-side persisted** — FE stores only `chatSessionId` in state, never the full message array.
 
 **Response 200:**
 ```json
@@ -834,547 +648,401 @@ Omit `chatSessionId` to start a new conversation. History is server-side — FE 
 }
 ```
 
-`suggestedEdit` is `null` when no edit suggested. When present, show one-click **Apply** button → `PATCH /milestones/:id` with the suggested value.
+`suggestedEdit` is `null` when no edit suggested. When present, render a one-click **Apply** button → calls `PATCH /milestones/:id` with the suggested field/value.
 
-### 8.2 List Sessions — `GET /projects/:id/milestone-chat/sessions`
+### 10.2 / 10.3 List & History
 
-```json
-[{ "id": "uuid", "title": "Chat · 09/07/2026", "messageCount": 6, "updatedAt": "2026-..." }]
-```
+Sessions list: `[{ "id", "title", "messageCount", "updatedAt" }]`
+Session detail: `{ "id", "title", "messagesJson": [{ role, content }], "createdAt", "updatedAt" }`
 
-### 8.3 Get Session History — `GET /projects/:id/milestone-chat/sessions/:sessionId`
-
-```json
-{
-  "id": "uuid",
-  "title": "Chat · 09/07/2026",
-  "messagesJson": [
-    { "role": "user", "content": "Why 3 milestones?" },
-    { "role": "assistant", "content": "The AI split into..." }
-  ],
-  "createdAt": "2026-...", "updatedAt": "2026-..."
-}
-```
-
-**FE Notes:** Store only `chatSessionId` in FE state. On page mount fetch sessions list for sidebar; on session click fetch history.
+**FE:** fetch sessions list for sidebar on page mount. On session click, fetch full history. Do NOT send history back on subsequent messages — only `chatSessionId`.
 
 ---
 
-## 9. Expert Profiles & Capability
+## 11. Expert Profiles (Domains, Seams, Portfolio)
 
-### 9.1 Get My Expert Profile — `GET /expert-profile/me` · JWT · EXPERT
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 11.1 | GET | `/expert-profile/me` | JWT | EXPERT | My profile |
+| 11.2 | PUT | `/expert-profile/me` | JWT | EXPERT | Update profile |
+| 11.3 | GET | `/expert-profile/search?domain=&seam=&archetype=&limit=` | JWT | CLIENT, ADMIN | Search experts |
+| 11.4 | GET | `/expert-profile/:userId` | JWT | CLIENT, ADMIN | View another expert's public profile |
+| 11.5 | GET | `/expert-profile/me/domains` | JWT | EXPERT | My domain claims |
+| 11.6 | GET | `/expert-profile/me/seams` | JWT | EXPERT | My seam claims |
+| 11.7 | POST | `/expert-profile/domains` | JWT | EXPERT | Create domain depth |
+| 11.8 | PUT | `/expert-profile/domains/sync` | JWT | EXPERT | Bulk sync domains |
+| 11.9 | PUT | `/expert-profile/domains/:id` | JWT | EXPERT | Update domain depth |
+| 11.10 | DELETE | `/expert-profile/domains/:id` | JWT | EXPERT | Delete (only if no portfolio submissions) |
+| 11.11 | POST | `/expert-profile/seams` | JWT | EXPERT | Create seam claim |
+| 11.12 | PUT | `/expert-profile/seams/sync` | JWT | EXPERT | Bulk sync seams |
+| 11.13 | POST | `/portfolio-submissions` | JWT | EXPERT | Submit portfolio for LLM eval |
+| 11.14 | GET | `/portfolio-submissions` | JWT | EXPERT | My submissions |
+| 11.15 | GET | `/portfolio-submissions/:id` | JWT | EXPERT | Submission detail |
+| 11.16 | GET | `/portfolio-submissions/me/portfolio/:id` | JWT | EXPERT | Specific portfolio entry |
+| 11.17 | DELETE | `/portfolio-submissions/me/portfolio/:id` | JWT | EXPERT | Delete portfolio entry |
 
-### 9.2 Update My Expert Profile — `PATCH /expert-profile/me` · JWT · EXPERT
+### 11.7 / 11.9 Domain Depth — DTO Dehardcoded
 
-Body: `{ "bio": "...", "engagementModel": "MILESTONE", "stackTags": ["Python", "FastAPI"] }`
-
-### 9.3 Search Experts — `GET /expert-profile/search` · JWT · CLIENT, ADMIN  *(NEW)*
-
-Query params: `?domain=A&seam=A↔C&archetype=3&limit=20`
-
+`POST /expert-profile/domains`:
 ```json
-[{
-  "userId": "uuid",
-  "user": { "id": "uuid", "fullName": "..." },
-  "expertDomainDepths": [{ "domainCode": "A", "depthLevel": "DEEP" }],
-  "expertSeamClaims": [{ "seamCode": "A↔C", "verificationTier": "EVIDENCE_BACKED" }]
-}]
+{ "domainCode": "A", "depthLevel": "DEEP" }
 ```
+`domainCode` is **any non-empty string** — validated against `domain_definitions` table at service layer. `depthLevel` must be `SURFACE`, `OPERATIONAL`, or `DEEP`.
 
-### 9.4 View Public Expert Profile — `GET /expert-profile/:userId` · JWT · CLIENT, ADMIN  *(NEW)*
+### 11.11 Seam Claim — Arrow Format
 
+`POST /expert-profile/seams`:
+```json
+{ "seamCode": "A↔C" }
+```
+**MUST use ↔ arrow.** Old `A<->C` format → 400 Bad Request.
+
+### 11.13 Portfolio Submission → LLM Eval Flow
+
+`POST /portfolio-submissions`:
 ```json
 {
-  "profile": { "userId": "...", "bio": "...", "engagementModel": "MILESTONE", "stackTagsJson": [...] },
-  "user": { "id": "uuid", "fullName": "..." },
-  "domainDepths": [...],
-  "seamClaims": [...],
-  "avgRating": 4.7,
-  "reviewCount": 12
+  "seamCode": "A↔C",
+  "projectDescription": "Built an enterprise document QA system...",
+  "decisionPoints": "At the A↔C seam: evaluated BERTScore vs ROUGE-L — chose BERTScore because..."
 }
 ```
 
-### 9.5 Browse Experts (alt endpoint) — `GET /users/experts` · JWT · CLIENT, ADMIN  *(NEW)*
-
-Query params: `?stackTag=Python&archetype=1&limit=20`
-
-```json
-[{
-  "id": "uuid", "fullName": "...", "bio": "...",
-  "engagementModel": "MILESTONE",
-  "stackTags": ["Python", "FastAPI"],
-  "domainDepths": [{ "domainCode": "A", "depthLevel": "DEEP" }],
-  "verifiedSeams": [{ "seamCode": "A↔C", "verificationTier": "EVIDENCE_BACKED" }]
-}]
-```
-
-### 9.6 Domain Depths — Own
-
-| Method | Path | Notes |
-|--------|------|-------|
-| `GET` | `/expert-profile/me/domains` | List own domain depth claims |
-| `POST` | `/expert-profile/domains` | Upsert. Body: `{ domainCode, depthLevel }` |
-| `PUT` | `/expert-profile/domains/:id` | Update. Body: `{ depthLevel }` |
-| `DELETE` | `/expert-profile/domains/:id` | Delete (only if no portfolio submissions) |
-
-### 9.7 Seam Claims — Own
-
-| Method | Path | Notes |
-|--------|------|-------|
-| `GET` | `/expert-profile/me/seams` | List own seam claims with verification status |
-| `POST` | `/expert-profile/seams` | Upsert. Body: `{ seamCode }` |
-
-### 9.8 Sync Domains / Seams (Bulk)
-
-- `POST /expert-profile/domains/sync` — Body: `{ items: [{ code, depth }] }`
-- `POST /expert-profile/seams/sync` — Body: `{ items: [{ code }] }`
-
-Replaces entire set — use for "Save All" button on profile edit page.
-
----
-
-## 10. Portfolio Evaluation
-
-### 10.1 Submit Portfolio Entry — `POST /expert-profile/me/portfolio` · JWT · EXPERT
-
-**Request:**
-```json
-{
-  "seam_code": "A↔C",
-  "project_description": "Built an enterprise document QA system for a 500-lawyer legal firm...",
-  "decision_points": "At the A↔C seam: evaluated BERTScore vs ROUGE-L..."
-}
-```
+Server-side flow:
+1. Increments `expert_seam_claims.submission_count`.
+2. Fetches seam definition + all active seam definitions from DB.
+3. Calls FastAPI `/llm/portfolio-eval` with live seam context.
+4. If `passed_boolean = true` → upgrades `verification_tier` to `EVIDENCE_BACKED`.
+5. If false → increments failure count, may lockout.
+6. Writes a `platform_decisions` row with confidence + gap advisory.
 
 **Response 201:**
 ```json
 {
-  "id": "submission-uuid",
-  "status": "APPROVED",  // or "REJECTED"
+  "id": "uuid",
+  "status": "APPROVED",          // or "REJECTED"
   "llmConfidence": 0.92,
-  "evaluatedAt": "2026-..."
+  "seamClaim": { "verificationTier": "EVIDENCE_BACKED" }
 }
 ```
 
-**Behind the scenes:**
-1. NestJS increments `expert_seam_claims.submission_count`
-2. Calls FastAPI `/llm/portfolio-eval` with seam definitions from DB
-3. If `passed_boolean = true` → `verification_tier` upgraded to `EVIDENCE_BACKED`
-4. If `passed_boolean = false` → increment failure count, check lockout threshold
-5. Writes `platform_decisions` row with confidence + gap_advisory
-
-### 10.2 Get Portfolio Entry — `GET /expert-profile/me/portfolio/:id` · JWT · EXPERT  *(NEW)*
-
-### 10.3 List My Portfolio — `GET /expert-profile/me/portfolio` · JWT · EXPERT
-
-### 10.4 Delete Portfolio Entry — `DELETE /expert-profile/me/portfolio/:id` · JWT · EXPERT  *(NEW)*
+**FE:** show the `gap_advisory` text prominently on rejection — it names WHICH of the 4 signal types is missing.
 
 ---
 
-## 11. Listings (Services Marketplace)
+## 12. Listings / Services Marketplace
 
-### 11.1 Create Listing — `POST /services` · JWT · EXPERT
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 12.1 | GET | `/services` | JWT | any | Browse published listings |
+| 12.2 | POST | `/services` | JWT | EXPERT | Create listing (with optional AI assist) |
+| 12.3 | GET | `/services/:id` | JWT | any | Listing detail |
+| 12.4 | PUT | `/services/:id` | JWT | EXPERT | Update listing |
+| 12.5 | DELETE | `/services/:id` | JWT | EXPERT | Delete (only DRAFT state) |
+| 12.6 | POST | `/services/:id/purchase` | JWT | CLIENT | Buy a service → creates engagement |
+| 12.7 | GET | `/services/me` | JWT | EXPERT | My listings (all states) |
+| 12.8 | GET | `/services/me/purchases` | JWT | CLIENT | Services I bought |
+| 12.9 | PUT | `/services/:id/publish` | JWT | EXPERT | DRAFT → PUBLISHED |
+| 12.10 | PUT | `/services/:id/unpublish` | JWT | EXPERT | PUBLISHED → DRAFT |
 
-**Two modes:**
+### 12.2 Create Listing (with AI assist)
 
-**Mode A — Manual:**
+`POST /services`:
 ```json
 {
-  "serviceType": "AI_SERVICE",
-  "title": "Production RAG Pipeline Design",
-  "description": "...",
-  "scope": "...",
-  "timeline": "...",
-  "priceVnd": 45000000,
-  "domainsJson": ["A", "D"],
-  "seamsJson": ["A↔C", "A↔D"]
-}
-```
-
-**Mode B — AI-Assisted:**
-```json
-{
-  "serviceType": "AI_SERVICE",
+  "serviceType": "AI_SERVICE",      // or "TECH_DISCOVERY"
   "useAiGenerator": true,
-  "title": null,  // optional override
-  "priceVnd": null,
-  "capabilities": ["5 years building RAG systems", "..."],
-  "targetUseCases": ["Enterprise knowledge base search", "..."]
+  "capabilities": ["5 years building RAG pipelines", "Pinecone, Weaviate production deployments"],
+  "targetUseCases": ["Enterprise knowledge base search", "Legal document retrieval"],
+  "title": "...",                    // optional when useAiGenerator=true
+  "priceVnd": 0                      // optional when useAiGenerator=true
 }
 ```
 
-When `useAiGenerator: true`, NestJS calls FastAPI `/llm/service-generate` with the expert's claimed domains + seams + DB price guidance. Result pre-fills the form; expert edits and publishes.
-
-**Response 201 (AI-assisted returns extra fields):**
+When `useAiGenerator=true`, NestJS calls FastAPI `/llm/service-generate` with the expert's claimed domains + seams + price guidance from DB. Returns:
 ```json
 {
-  "id": "service-uuid", "state": "DRAFT",
+  "id": "uuid",
   "title": "Production RAG Pipeline Design & Implementation",
-  "description": "...", "scope": "...", "timeline": "...",
+  "description": "...",
+  "scope": "Included: ... Not included: ...",
+  "timeline": "4 weeks: Week 1 discovery...",
   "priceVnd": "45000000",
-  "suggestedDomains": ["A", "D"],       // AI mode only
-  "suggestedSeams": ["A↔C", "A↔D"],     // AI mode only
-  "pricingRationale": "Senior specialist work with vector DB expertise"  // AI mode only
+  "domainsJson": ["A", "D"],
+  "seamsJson": ["A↔D"]
 }
 ```
 
-### 11.2 List Published Services — `GET /services` · JWT · Optional auth
+**FE:** pre-fill the form with AI output. Expert reviews, edits, then calls `PUT /services/:id/publish`. The AI draft is **never auto-published**.
 
-Query filters (all optional):
-- `?serviceType=AI_SERVICE|TECH_DISCOVERY`
-- `?domains=A&domains=D` (array)
-- `?seams=A↔C&seams=A↔D` (array)
-- `?minPriceVnd=10000000&maxPriceVnd=50000000`
+### 12.6 Purchase Service
 
-### 11.3 Get Listing — `GET /services/:id` · JWT
-
-### 11.4 Update Listing — `PUT /services/:id` · JWT · EXPERT (owner)
-
-### 11.5 Delete Listing — `DELETE /services/:id` · JWT · EXPERT  *(NEW)*
-
-Only allowed on `DRAFT` state. To delete a published listing, call `PUT /services/:id/unpublish` first.
-
-### 11.6 Publish / Unpublish  *(NEW)*
-
-- `PUT /services/:id/publish` — `DRAFT` → `PUBLISHED`
-- `PUT /services/:id/unpublish` — `PUBLISHED` → `DRAFT`
-
-**Response:** Updated service object with `priceVnd` as string.
-
-### 11.7 My Listings — `GET /services/me` · JWT · EXPERT  *(NEW)*
-
-Returns all listings (including drafts) for the current expert. `priceVnd` is string.
-
-### 11.8 My Purchases — `GET /services/me/purchases` · JWT · CLIENT  *(NEW)*
-
-Returns engagements where the client purchased a service.
+`POST /services/:id/purchase` — no body. Creates an `Engagement` of type `SERVICE_PURCHASE`. If expert's wallet is set up, escrow is locked immediately.
 
 ---
 
-## 12. Engagements, Bids, and Milestones
+## 13. Engagements, Bids, Milestones, DoD, Criteria, Submissions
 
-### 12.1 List Engagements — `GET /engagements` · JWT
+### 13.A Engagements
 
-Returns engagements where the user is client, expert, or (admin) any.
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 13.A.1 | GET | `/engagements?state=&type=&connectedAt=` | JWT | List (filtered) |
+| 13.A.2 | GET | `/engagements/:id` | JWT | Detail |
+| 13.A.3 | PUT | `/engagements/:id/accept-nda` | JWT | Accept NDA |
+| 13.A.4 | POST | `/engagements/:id/connect` | JWT | Expert accepts connect (post-CEO-selection) |
+| 13.A.5 | PUT | `/engagements/:id/decline` | JWT | Decline |
+| 13.A.6 | GET | `/engagements/:id/milestones` | JWT | List milestones |
+| 13.A.7 | GET | `/engagements/:id/submissions` | JWT | All submissions across milestones |
+| 13.A.8 | GET | `/engagements/:id/bid` | JWT | The capability bid for this engagement |
+| 13.A.9 | GET | `/engagements/:id/disputes` | JWT | Disputes on this engagement |
+| 13.A.10 | PUT | `/engagements/:id/cancel` | JWT | Cancel (no active funded milestones) |
 
-### 12.2 Get Engagement — `GET /engagements/:id` · JWT
+### 13.B Bids
 
-### 12.3 Get Engagement Bid — `GET /engagements/:id/bid` · JWT  *(NEW)*
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 13.B.1 | POST | `/bids` | JWT | EXPERT | Submit bid (notifies CEO + TechTeam via WS) |
+| 13.B.2 | GET | `/bids?projectId=` | JWT | EXPERT (own), CLIENT (their projects), ADMIN (all) | List bids |
+| 13.B.3 | GET | `/bids/:id` | JWT | party | Bid detail |
+| 13.B.4 | PUT | `/bids/:id` | JWT | EXPERT | Update bid |
+| 13.B.5 | DELETE | `/bids/:id` | JWT | EXPERT | Withdraw (only SUBMITTED state) |
+| 13.B.6 | PUT | `/bids/:id/tech-review` | JWT | TECH_TEAM | Approve / request revision |
+| 13.B.7 | PUT | `/bids/:id/ceo-decision` | JWT | CLIENT | Select / decline |
+| 13.B.8 | PUT | `/bids/:id/counter-offer` | JWT | CLIENT | Counter-offer on price |
 
-Returns the capability bid for this engagement.
+### 13.B.1 Create Bid (DTO Dehardcoded)
 
-### 12.4 Get Engagement Disputes — `GET /engagements/:id/disputes` · JWT  *(NEW)*
-
-```json
-[{
-  "id": "uuid", "state": "MANUAL_REVIEW", "llmConfidence": 0.55,
-  "milestone": { "milestoneNumber": 2, "deliverableStatement": "..." },
-  "filedAt": "2026-..."
-}]
-```
-
-### 12.5 Get Engagement Milestones — `GET /engagements/:id/milestones` · JWT  *(NEW)*
-
-### 12.6 Get Engagement Submissions — `GET /engagements/:id/submissions` · JWT  *(NEW)*
-
-All milestone submissions across all milestones in this engagement.
-
-### 12.7 Cancel Engagement — `PUT /engagements/:id/cancel` · JWT  *(NEW)*
-
-Blocked if any milestone is `FUNDED`, `SUBMITTED`, or `IN_REVISION`. Resolve them first.
-
-### 12.8 Accept NDA — `POST /engagements/:id/nda-acceptance` · JWT
-
-Body: `{ }` (no payload). Marks `clientNdaAcceptedAt` or `expertNdaAcceptedAt` depending on role.
-
-### 12.9 List Bids — `GET /bids` · JWT  *(NEW)*
-
-Role-scoped:
-- **EXPERT** → all their own bids
-- **CLIENT (CEO)** → bids for their projects (filter with `?projectId=...`)
-- **ADMIN** → all bids
-
-```json
-[{
-  "id": "bid-uuid", "state": "SUBMITTED",
-  "engagement": {
-    "project": { "id": "...", "projectName": "...", "state": "PUBLISHED" }
-  },
-  "approachSummary": "...",
-  "negotiatedPriceVnd": "50000000",
-  "createdAt": "2026-..."
-}]
-```
-
-### 12.10 Submit Bid — `POST /bids` · JWT · EXPERT
-
-**Request:**
+`POST /bids`:
 ```json
 {
-  "projectId": "project-uuid",
+  "projectId": "uuid",
   "footprint_alignment_json": {
     "domains": [
       { "code": "A", "depth": "DEEP" },
       { "code": "D", "depth": "OPERATIONAL" }
     ],
     "seams": [
-      { "code": "A↔C", "tier": "EVIDENCE_BACKED" },
-      { "code": "A↔D", "tier": "CLAIMED" }
+      { "code": "A↔C", "tier": "CLAIMED" },
+      { "code": "A↔D", "tier": "EVIDENCE_BACKED" }
     ]
   },
-  "approach_summary": "Will deliver in 3 phases...",
+  "approach_summary": "I'll build a 3-stage pipeline...",
   "conditional_pricing_json": [
-    { "milestone_number": 1, "price_vnd": 15000000, "condition": "Standard scope" },
-    { "milestone_number": 2, "price_vnd": 25000000, "condition": "Includes reranker" }
+    { "milestone_number": 1, "price_vnd": 40000000, "condition": "Standard scope" }
   ]
 }
 ```
 
-**Changed (A-3):** CEO **and** all linked Tech Team members receive real-time `notification:generic` WebSocket event on bid submission.
+**Critical:**
+- `code` values are any non-empty string (validated against DB at service layer).
+- Seam codes **MUST use ↔ arrow**.
+- `depth` ∈ {SURFACE, OPERATIONAL, DEEP}.
+- `tier` ∈ {CLAIMED, EVIDENCE_BACKED}.
 
-**Critical DTO rules (from de-hardcoding patch):**
-- `domain.code` accepts any non-empty string — actual codes are validated against `domain_definitions` table at the service layer
-- `seam.code` accepts any non-empty string — actual codes are validated against `seam_definitions` table
-- Use the **`↔` arrow character**, never `<->`
-- `depth` MUST be one of: `SURFACE`, `OPERATIONAL`, `DEEP` (enum)
-- `tier` MUST be one of: `CLAIMED`, `EVIDENCE_BACKED` (enum)
+On submission, NestJS emits `notification:generic` WebSocket event to **both** CEO and all linked Tech Team members (see §24.1).
 
-### 12.11 Update Bid — `PUT /bids/:id` · JWT · EXPERT
+### 13.B.5 Withdraw Bid (NEW)
 
-Same body shape as §12.10 minus `projectId` (implicit in URL).
+`DELETE /bids/:id`. Only works when `state === SUBMITTED`. Returns `{ withdrawn: true, bidId }`.
 
-### 12.12 Withdraw Bid — `DELETE /bids/:id` · JWT · EXPERT  *(NEW)*
+### 13.C Milestones
 
-Only allowed when `state: "SUBMITTED"`. Sets state to `WITHDRAWN` and engagement back to `PENDING`.
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 13.C.1 | POST | `/milestones` | JWT | Create milestone (CEO only) |
+| 13.C.2 | GET | `/milestones?engagementId=` | JWT | List by engagement |
+| 13.C.3 | GET | `/milestones/:id` | JWT | Detail (includes criteria) |
+| 13.C.4 | PATCH | `/milestones/:id` | JWT | Edit (only state=DEFINED) |
+| 13.C.5 | DELETE | `/milestones/:id` | JWT | Delete (only state=DEFINED) |
+| 13.C.6 | PUT | `/milestones/:id/fund` | JWT | Initiate funding (locks escrow) |
+| 13.C.7 | GET | `/milestones/:id/disputes` | JWT | Disputes on this milestone |
 
-**Response:** `{ "withdrawn": true, "bidId": "..." }`
+### 13.D DoD Items
 
-### 12.13 Tech Review — `POST /bids/:id/tech-review` · JWT · TECH_TEAM
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 13.D.1 | POST | `/milestones/:id/dod/items` | JWT | Add DoD item |
+| 13.D.2 | PUT | `/milestones/:id/dod/:itemId` | JWT | Update status (PENDING/COMPLETED/NOT_APPLICABLE) |
+| 13.D.3 | DELETE | `/milestones/:id/dod/:itemId` | JWT | Delete (only PENDING) |
+| 13.D.4 | GET | `/milestones/:id/dod` | JWT | List DoD items |
 
-Body: `{ "techStatus": "APPROVED" | "REVISION_REQUESTED", "techFeedback": "..." }`
+**DoD gate:** expert cannot `POST /milestones/:id/submit` until all `is_required = true` DoD items are `COMPLETED`. A required item **cannot** be set to `NOT_APPLICABLE` (DB constraint).
 
-### 12.14 CEO Decision — `POST /bids/:id/ceo-decision` · JWT · CLIENT (CEO)
+### 13.E Acceptance Criteria
 
-Body: `{ "ceoStatus": "APPROVED" | "DECLINED" }`
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 13.E.1 | GET | `/criteria/:milestoneId` | JWT | List criteria for milestone |
+| 13.E.2 | POST | `/criteria/:milestoneId` | JWT | Add criterion |
+| 13.E.3 | DELETE | `/criteria/:id` | JWT | Delete criterion |
+| 13.E.4 | PUT | `/criteria/:id/verify` | JWT | Verify / sign off |
+| 13.E.5 | PUT | `/criteria/:id/revision` | JWT | Reject with revision note |
 
-When `APPROVED` → bid state becomes `SELECTED`, engagement state becomes `CONNECTED`, escrow accounts created for milestones.
+When a criterion is created (`POST /criteria/:milestoneId`), NestJS calls FastAPI `/llm/criterion-check` to detect subjective language. Result is stored as a `platform_decisions` row with `advisory_note`. The criterion is **always saved** (advisory only, non-blocking). FE should display the advisory inline.
 
-### 12.15 Counter Offer — `POST /bids/:id/counter-offer` · JWT
+### 13.F Submissions
 
-Body: `{ "negotiatedPriceVnd": 40000000 }`
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 13.F.1 | POST | `/milestones/:id/submit` | JWT | EXPERT | Submit deliverable (DoD gate enforced) |
+| 13.F.2 | POST | `/milestones/:id/paygated-docs` | JWT | EXPERT | Stage a paygated technical doc |
+| 13.F.3 | GET | `/milestones/:id/paygated-docs` | JWT | TECH_TEAM, EXPERT | Download unlocked docs (CEO excluded) |
+| 13.F.4 | GET | `/milestones/:id/submissions` | JWT | party | Submission/revision history |
+| 13.F.5 | GET | `/milestones/:id/submissions/latest` | JWT | party | Most recent submission |
 
-### 12.16 Shortlist Service — `POST /bids/:id/shortlist` · JWT · CLIENT
+### 13.F.1 Submit Milestone
 
-Toggles shortlist flag. Used for the CEO's shortlist view.
+`POST /milestones/:id/submit`:
+```json
+{
+  "description": "Implemented the rule parser with the 3-category ruleset. See attached test report.",
+  "filesJson": ["https://storage.example.com/rule-parser-v1.pdf"]
+}
+```
+
+Server enforces DoD gate before accepting. On success, milestone state → `SUBMITTED`. CEO is notified.
+
+### 13.F.2 / 13.F.3 Paygated Documents
+
+Expert stages detailed technical docs that are released only when milestone is `APPROVED`. Tech Team and Expert can download; **CEO is excluded** by role check.
 
 ---
 
-## 13. Disputes & Escrow
+## 14. Disputes
 
-### 13.1 File Dispute — `POST /disputes` · JWT · CLIENT, EXPERT
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 14.1 | POST | `/disputes` | JWT | File dispute (milestone must be SUBMITTED or IN_REVISION) |
+| 14.2 | GET | `/disputes?state=` | JWT | List (own or all for ADMIN) |
+| 14.3 | GET | `/disputes/:id` | JWT | Detail |
+| 14.4 | POST | `/disputes/:id/evidence` | JWT | Add evidence to open dispute |
+| 14.5 | PUT | `/disputes/:id/withdraw` | JWT | Withdraw (filer only, before resolution) |
 
-**Request:**
+### 14.1 File Dispute → LLM Arbitration Flow
+
+`POST /disputes`:
 ```json
 {
   "engagementId": "uuid",
   "milestoneId": "uuid",
   "criterionId": "uuid",
-  "escrowAccountId": "uuid",
-  "filedById": "uuid"  // = current user
+  "evidenceDescription": "Deliverable missing the API spec section required by criterion 3",
+  "fileUrls": ["https://storage.example.com/evidence.pdf"]
 }
 ```
 
-**Behind the scenes:**
-1. Create dispute row with `state: "LAYER_1_EVAL"`
-2. Call FastAPI `/llm/dispute-eval` with criterion text, deliverable description, files, project archetype, milestone context, prior revision count
-3. Write `llm_confidence` to dispute row
-4. If `confidence_score >= 0.80` → `state: "AUTO_RESOLVED"`, escrow released per `finding`
-5. If `confidence_score < 0.80` → `state: "MANUAL_REVIEW"`, admin sees in queue
+Server flow:
+1. Create dispute row, state = `LAYER_1_EVAL`.
+2. Call FastAPI `/llm/dispute-eval` with criterion text + deliverable description + project archetype + milestone context + prior revision count.
+3. Receive `{ confidence_score, finding, reasoning }`.
+4. If `confidence >= 0.80` → state = `AUTO_RESOLVED`, escrow released/refunded per `finding`.
+5. If `< 0.80` → state = `MANUAL_REVIEW`, surfaces in admin queue with `reasoning` text.
 
-### 13.2 List Disputes — `GET /disputes` · JWT · ADMIN
+**FE:** display `llm_confidence` and `reasoning` (for manual review queue) prominently.
 
-### 13.3 Get Dispute — `GET /disputes/:id` · JWT
+### 14.4 Submit Additional Evidence (NEW)
 
-### 13.4 Submit Evidence — `POST /disputes/:id/evidence` · JWT  *(NEW)*
+`POST /disputes/:id/evidence` `{ evidence_description, file_urls }`. Only works while dispute is in `LAYER_1_EVAL` or `MANUAL_REVIEW`. Stored as a `platform_decisions` row for audit trail.
 
-Only on `LAYER_1_EVAL` or `MANUAL_REVIEW` state.
+### 14.5 Withdraw Dispute (NEW)
 
-**Request:**
-```json
-{ "evidence_description": "...", "file_urls": ["https://..."] }
-```
-
-**Response:** `{ "submitted": true, "disputeId": "..." }`
-
-### 13.5 Withdraw Dispute — `PUT /disputes/:id/withdraw` · JWT  *(NEW)*
-
-Only the filer can withdraw, and only on open states.
-
-### 13.6 Resolve Dispute (Admin) — `POST /disputes/:id/resolve` · JWT · ADMIN
-
-Body: `{ "resolution": "expert_wins" | "client_wins" | "split", "note": "..." }`
-
-### 13.7 List Milestone Disputes — `GET /milestones/:id/disputes` · JWT
-
-See §7.13.
+`PUT /disputes/:id/withdraw`. Filer only, before resolution. Moves state to `WITHDRAWN`.
 
 ---
 
-## 14. Wallet & Withdrawals
+## 15. Messaging (REST + WebSocket)
 
-### 14.1 Get My Wallet — `GET /wallets/me` · JWT
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 15.1 | GET | `/engagements/:id/messages?limit=&cursorId=` | JWT | Engagement chat history (cursor pagination) |
+| 15.2 | GET | `/projects/:id/messages?limit=&cursorId=` | JWT | Pre-bid project Q&A thread |
+| 15.3 | POST | `/messages/:id/read` | JWT | Mark single message as read |
+| 15.4 | GET | `/engagements/:id/messages/unread-count` | JWT | Unread count for engagement |
+| 15.5 | GET | `/projects/:id/messages/unread-count` | JWT | Unread count for project thread |
+| 15.6 | GET | `/conversations` | JWT | List all active conversation threads |
 
-```json
-{
-  "id": "wallet-uuid",
-  "availableBalance": "500000",
-  "lockedBalance": "200000"
-}
-```
+### 15.1 Cursor Pagination
 
-⚠️ Both balances are BigInt → **strings** in JSON. Always `Number(x)` before arithmetic.
+Use `cursorId` (last message ID from previous page) for infinite scroll. `limit` defaults to 50. Response is `{ messages: [...], hasMore: boolean, nextCursorId: string | null }`.
 
-### 14.2 Get Wallet Transactions — `GET /wallets/me/transactions` · JWT  *(UPDATED)*
+### 15.6 Conversations List (NEW)
 
-Query params (all optional): `?type=TOP_UP&limit=50&offset=0`
-
-```json
-[{
-  "id": "uuid", "amount": "500000",
-  "transactionType": "TOP_UP",
-  "createdAt": "2026-..."
-}]
-```
-
-Transaction types: `TOP_UP`, `SUBSCRIPTION`, `ESCROW_LOCK`, `ESCROW_RELEASE`, `PLATFORM_FEE`, `ESCROW_REFUND`, `ESCROW_SPLIT`, `WITHDRAWAL`.
-
-### 14.3 Initiate Bank Link — `POST /wallets/bank-link/initiate` · JWT
-
-Body: `{ ...bank details... }`
-
-### 14.4 Top Up — `POST /wallets/topup` · JWT
-
-Body: `{ "amount": 500000 }` → returns a virtual account number to transfer to.
-
-### 14.5 List Withdrawals — `GET /withdrawals` · JWT · EXPERT
-
-### 14.6 Create Withdrawal — `POST /withdrawals` · JWT · EXPERT
-
-Body: `{ "amount": 200000, "bankAccountXid": "...", "type": "EXPERT_MANUAL" }`
-
-### 14.7 Cancel Withdrawal — `DELETE /withdrawals/:id` · JWT · EXPERT  *(NEW)*
-
-Only on `PENDING` status. Refunds wallet and writes `WITHDRAWAL_REFUND` transaction.
-
-**Response:** `{ "cancelled": true, "refundedAmount": 200000 }`
-
----
-
-## 15. Messages & Conversations
-
-### 15.1 List Conversations — `GET /conversations` · JWT  *(NEW)*
-
-Returns all chat threads for the current user (engagement-based + project-based pre-bid Q&A).
-
+`GET /conversations` →
 ```json
 [{
   "type": "engagement",
   "id": "engagement-uuid",
-  "projectName": "AdTech Compliance Classifier",
-  "otherParty": { "id": "uuid", "fullName": "..." },
-  "lastMessage": { "content": "...", "createdAt": "...", "senderId": "..." },
+  "projectName": "AdTech Pipeline",
+  "otherParty": { "id": "uuid", "fullName": "Jane Doe" },
+  "lastMessage": { "content": "Thanks!", "createdAt": "...", "senderId": "..." },
   "unreadCount": 3
 }]
 ```
 
-### 15.2 List Messages — `GET /messages?engagementId=...` or `GET /messages?projectId=...` · JWT
+FE: render as inbox sidebar. Sort by `lastMessage.createdAt` desc (server pre-sorts).
 
-### 15.3 Send Message — `POST /messages` · JWT
+### 15.7 Sending Messages — WebSocket Only
 
-Body: `{ "engagementId": "..." | "projectId": "...", "content": "..." }`
-
-### 15.4 Project Unread Count — `GET /projects/:id/messages/unread-count` · JWT  *(NEW)*
-
-For pre-bid project Q&A threads.
-
-**Response:** `{ "unread_count": 3 }`
-
-### 15.5 Invite Expert to Project Chat — `POST /messages/invite-expert` · JWT · CLIENT
-
-### 15.6 WebSocket Connection
-
-Connect to `http://localhost:3001` (or your backend URL) with `socket.io-client`:
-
-```typescript
-import { io } from 'socket.io-client';
-
-const socket = io('http://localhost:3001', {
-  auth: { token: accessToken }
-});
-```
-
-See §22 for the complete event catalog.
+Messages are sent via Socket.IO `message:send` event (see §24.2), NOT via REST. REST is read-only.
 
 ---
 
-## 16. Reviews
+## 16. Notifications (REST + WebSocket)
 
-### 16.1 Create Review — `POST /reviews` · JWT · CLIENT, EXPERT
+The `Notification` table is NEW. Notifications are **both** WebSocket-emitted (real-time) and DB-persisted (survive refresh).
 
-Only after engagement `CLOSED`. One review per party per engagement.
+| # | Method | Path | Auth | Purpose |
+|---|---|---|---|---|
+| 16.1 | GET | `/notifications/me?limit=&unreadOnly=` | JWT | List my notifications |
+| 16.2 | GET | `/notifications/me/unread-count` | JWT | Unread count (nav badge) |
+| 16.3 | PUT | `/notifications/:id/read` | JWT | Mark one as read |
+| 16.4 | PUT | `/notifications/read-all` | JWT | Mark all as read |
+| 16.5 | DELETE | `/notifications/:id` | JWT | Delete notification |
 
-**Request:**
-```json
-{
-  "engagementId": "uuid",
-  "targetId": "uuid",
-  "rating": 5,
-  "comment": "Excellent work",
-  "structuredSignalsJson": { ... },
-  "reviewerRole": "CEO"
-}
-```
-
-### 16.2 Get Reviews I Wrote — `GET /reviews/me` · JWT  *(NEW)*
-
-### 16.3 Get Reviews I Received — `GET /reviews/me/received` · JWT  *(NEW)*
-
-### 16.4 Get Reviews for a User — `GET /reviews/users/:userId` · JWT  *(NEW)*
-
-For public expert profile pages.
+### 16.1 List Response
 
 ```json
 [{
-  "id": "uuid", "rating": 5, "comment": "...",
-  "reviewer": { "id": "uuid", "fullName": "..." },
+  "id": "uuid",
+  "type": "bid_update",       // or "system", "milestone_update"
+  "title": "New Expert Bid!",
+  "body": "Jane Doe bid on your project",
+  "link": "/ceo/projects/uuid",
+  "isRead": false,
   "createdAt": "2026-..."
 }]
 ```
 
+### 16.2 Nav Badge
+
+`GET /notifications/me/unread-count` → `{ unread_count: 5 }`. Poll every 30s OR rely on WebSocket `notification:generic` event to trigger a refetch.
+
 ---
 
-## 17. Invitations (CEO → Expert)
+## 17. Invitations
 
-### 17.1 Send Invitation — `POST /invitations` · JWT · CLIENT
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 17.1 | GET | `/invitations` | JWT | EXPERT | All my invitations (PENDING/ACCEPTED/DECLINED) |
+| 17.2 | POST | `/invitations/:id/decline` | JWT | EXPERT | Decline |
+| 17.3 | GET | `/invitations/sent` | JWT | CLIENT | Invitations CEO sent (all projects) |
+| 17.4 | DELETE | `/invitations/:id` | JWT | CLIENT | Retract pending invitation |
 
-Body: `{ "projectId": "uuid", "expertId": "uuid", "message": "optional personal note" }`
+### 17.1 Expert Invitations — Company Name Patch
 
-### 17.2 List Received Invitations — `GET /invitations` · JWT · EXPERT
-
-**Response (with company name from de-hardcoding patch):**
+`GET /invitations` response:
 ```json
 [{
-  "id": "invitation-uuid",
+  "id": "uuid",
   "status": "PENDING",
-  "invitedAt": "2026-07-09T...",
-  "isExpired": false,
-  "project": { "id": "...", "projectName": "AdTech Pipeline" },
+  "invitedAt": "2026-...",
+  "isExpired": false,                // computed at query time
+  "project": { "id": "uuid", "projectName": "AdTech Pipeline" },
   "ceo": {
     "id": "ceo-uuid",
     "fullName": "Albert Tran",
-    "clientProfile": {
-      "companyName": "AITasker Corp"
-    }
+    "clientProfile": { "companyName": "AITasker Corp" }
   }
 }]
 ```
@@ -1383,931 +1051,705 @@ Body: `{ "projectId": "uuid", "expertId": "uuid", "message": "optional personal 
 ```typescript
 const companyName = invitation.ceo.clientProfile?.companyName ?? invitation.ceo.fullName;
 ```
+The optional chain is needed because a CEO who never set up `clientProfile` will have `clientProfile: null`. Fallback to `fullName`.
 
-The optional chain is needed because a CEO who registered but never updated their company profile will have `clientProfile: null`. Fallback to `fullName` is the intended UX.
+`isExpired` is computed at query time from `expiresAt` — no background job needed.
 
-### 17.3 List Sent Invitations — `GET /invitations/sent` · JWT · CLIENT  *(NEW)*
+### 17.4 Retract Invitation
 
-```json
-[{
-  "id": "uuid", "status": "PENDING",
-  "project": { "id": "...", "projectName": "..." },
-  "expert": { "id": "...", "fullName": "...", "email": "..." },
-  "invitedAt": "2026-..."
-}]
-```
-
-### 17.4 List Project Invitations — `GET /projects/:id/invitations` · JWT · CLIENT
-
-See §7.4.
-
-### 17.5 Retract Invitation — `DELETE /invitations/:id` · JWT · CLIENT  *(NEW)*
-
-Only on `PENDING` status. Sets to `DECLINED`.
-
-### 17.6 Accept / Decline Invitation — `POST /invitations/:id/respond` · JWT · EXPERT
-
-Body: `{ "action": "ACCEPT" | "DECLINE" }`
-
-On `ACCEPT` → creates an engagement in `PENDING` state, expert can then submit a bid.
+`DELETE /invitations/:id` — only works while `status === PENDING`. Accepted invitations cannot be retracted (expert already bid).
 
 ---
 
-## 18. Notifications
+## 18. Reviews
 
-### 18.1 List My Notifications — `GET /notifications/me` · JWT  *(NEW)*
+| # | Method | Path | Auth | Role | Purpose |
+|---|---|---|---|---|---|
+| 18.1 | POST | `/reviews` | JWT | party | Create review (post-engagement) |
+| 18.2 | GET | `/reviews/:engagementId` | JWT | any | All reviews for engagement |
+| 18.3 | GET | `/reviews/users/:userId` | JWT | any | Public profile reviews |
+| 18.4 | GET | `/reviews/me` | JWT | any | Reviews I wrote |
+| 18.5 | GET | `/reviews/me/received` | JWT | any | Reviews I received |
 
-Query: `?limit=50&unreadOnly=false`
+### 18.1 Create Review
 
-```json
-[{
-  "id": "uuid", "type": "bid_update",  // | "system" | "milestone_update"
-  "title": "New Expert Bid!",
-  "body": "Jane Expert submitted a bid on your project",
-  "link": "/ceo/projects/<id>",
-  "isRead": false,
-  "createdAt": "2026-..."
-}]
-```
-
-### 18.2 Unread Count — `GET /notifications/me/unread-count` · JWT  *(NEW)*
-
-```json
-{ "unread_count": 3 }
-```
-
-**FE Notes:** Use for nav bar badge. Poll on app mount + on each WebSocket `notification:generic` event.
-
-### 18.3 Mark Read — `PUT /notifications/:id/read` · JWT  *(NEW)*
-
-### 18.4 Mark All Read — `PUT /notifications/read-all` · JWT  *(NEW)*
-
-**Response:** `{ "marked_read": 12 }`
-
-### 18.5 Delete Notification — `DELETE /notifications/:id` · JWT  *(NEW)*
-
-### 18.6 Persistence Behavior
-
-**Critical:** Notifications are persisted to DB **in addition** to being emitted via WebSocket. The WebSocket `@OnEvent('socket.broadcast')` handler in `MessagesGateway`:
-1. Always emits the real-time WebSocket event
-2. If `event === 'notification:generic'` and payload has `title`, also creates a `Notification` DB row
-
-This means:
-- Page refresh → notifications survive (REST `/notifications/me`)
-- Real-time → WebSocket still delivers instantly
-- WebSocket delivery failure → DB persistence still succeeds (and vice versa)
-
----
-
-## 19. Admin Dashboard
-
-All: JWT · Role: ADMIN
-
-### 19.1 Config CMS — Domains, Seams, Archetypes, Probe Questions (C-2)
-
-Routes follow the same pattern for each entity:
-
-| Method | Path |
-|--------|------|
-| `GET` | `/admin/config/domains` |
-| `POST` | `/admin/config/domains` |
-| `PUT` | `/admin/config/domains/:id` |
-| `DELETE` | `/admin/config/domains/:id` |
-
-Same pattern for: `/admin/config/seams`, `/admin/config/archetypes`, `/admin/config/probe-questions`.
-
-**Create/Update body:**
-```json
-{ "code": "G", "name": "Agentic Systems", "description": "...", "sortOrder": 7, "isActive": true }
-```
-
-**Probe question create:**
-```json
-{ "archetypeCode": "3", "questionText": "How many items per day?", "displayOrder": 1 }
-```
-
-All deletes are **soft** (`isActive: false`). Public config endpoints filter to `isActive: true`.
-
-### 19.2 Void Code CRUD (Dynamic AI)  *(NEW)*
-
-Same pattern: `/admin/config/void-codes`
-
-**Create:**
+`POST /reviews`:
 ```json
 {
-  "code": "GDPR_COMPLIANCE_RISK",
-  "name": "GDPR Compliance Risk",
-  "description": "EU personal data involved. DPA registration and breach notification apply.",
-  "severity": "HIGH",
-  "sortOrder": 9
+  "engagementId": "uuid",
+  "rating": 5,                     // 1-5
+  "comment": "Excellent work, delivered ahead of schedule.",
+  "structuredSignalsJson": { "communication": 5, "quality": 5, "timeliness": 4 }
 }
 ```
 
-**Why this matters:** Adding a new void code here means Stage 1 AI **immediately** starts detecting it and Stage 2 displays it to CEO — no FE or AI service redeployment needed. The FastAPI `prompt_service` fetches void codes from DB (via NestJS `/internal/...`) with a 60-second TTL cache.
+Only allowed after engagement `state === CLOSED`. One review per party per engagement (unique constraint).
 
-### 19.3 Subscription Package Management (F-1)
+---
 
-Routes:
-- `GET /admin/subscriptions/packages` → ALL (active + inactive)
-- `POST /admin/subscriptions/packages` → Create
-- `PUT /admin/subscriptions/packages/:id` → Update (price change takes effect immediately for new subs)
-- `DELETE /admin/subscriptions/packages/:id` → Hard delete (blocked if purchase history exists)
+## 19. Admin Module (Oversight)
 
-**Create:**
+All `JWT` + role `ADMIN`.
+
+| # | Method | Path | Purpose |
+|---|---|---|---|
+| 19.1 | PUT | `/admin/projects/:id/suspend-spec` | Emergency pull-back of published spec |
+| 19.2 | PUT | `/admin/users/:id/suspend` | Suspend fraudulent account |
+| 19.3 | GET | `/admin/disputes?state=` | Disputes queue |
+| 19.4 | PUT | `/admin/disputes/:id/resolve` | Manually resolve escalated dispute |
+| 19.5 | GET | `/admin/decisions?decisionType=&entityType=` | LLM/AI decisions log |
+| 19.6 | GET | `/admin/transactions?type=&userId=` | Wallet tx ledger |
+| 19.7 | GET | `/admin/analytics` | Platform aggregates |
+| 19.8 | GET | `/admin/withdrawals?status=` | Withdrawal queue |
+| 19.9 | PUT | `/admin/withdrawals/:id/complete` | Manually confirm withdrawal sent |
+| 19.10 | PUT | `/admin/withdrawals/:id/fail` | Mark failed (refunds wallet) |
+| 19.11 | GET | `/admin/users?role=&isActive=&search=` | List users |
+| 19.12 | GET | `/admin/users/:id` | Full user detail (wallet + subs) |
+| 19.13 | PUT | `/admin/users/:id/reactivate` | Reactivate suspended account |
+| 19.14 | GET | `/admin/projects?state=&archetype=` | List all projects |
+| 19.15 | GET | `/admin/projects/:id` | Full project detail |
+| 19.16 | PUT | `/admin/projects/:id/reopen` | Reopen suspended project |
+| 19.17 | GET | `/admin/engagements?state=&projectId=` | List all engagements |
+| 19.18 | GET | `/admin/experts?limit=` | List experts with verification status |
+
+### 19.4 Resolve Dispute
+
+`PUT /admin/disputes/:id/resolve`:
+```json
+{ "resolution": "expert_wins", "note": "Reviewed evidence — deliverable meets criterion 3." }
+```
+Triggers escrow release or refund based on `resolution`.
+
+### 19.5 Platform Decisions Log
+
+Returns LLM confidence scores, advisory notes, entity references — useful for the admin "AI Decisions Monitor" dashboard. Filterable by `decisionType` (e.g. `ELICITATION_SYNTHESIS`, `PORTFOLIO_EVAL`, `DISPUTE_L1_EVAL`, `CRITERION_QUALITY_GATE`).
+
+---
+
+## 20. Admin Config CMS (Domains / Seams / Archetypes / Probes / Void Codes)
+
+All `JWT` + role `ADMIN`. Soft-delete pattern: `DELETE` sets `isActive: false`; public `/config/*` endpoints filter to `isActive: true`.
+
+| Resource | Endpoints |
+|---|---|
+| Domains | `GET/POST /admin/config/domains` · `PUT/DELETE /admin/config/domains/:id` |
+| Seams | `GET/POST /admin/config/seams` · `PUT/DELETE /admin/config/seams/:id` |
+| Archetypes | `GET/POST /admin/config/archetypes` · `PUT/DELETE /admin/config/archetypes/:id` |
+| Probe Questions | `GET /admin/config/probe-questions?archetypeCode=` · `POST` · `PUT/DELETE /admin/config/probe-questions/:id` |
+| Void Codes | `GET/POST /admin/config/void-codes` · `PUT/DELETE /admin/config/void-codes/:id` |
+
+### Create/Update Shapes
+
+```json
+// Domain / Seam / Archetype
+{ "code": "G", "name": "Agentic Systems", "description": "...", "sortOrder": 7, "isActive": true }
+
+// Probe Question
+{ "archetypeCode": "3", "questionText": "How many items per day?", "displayOrder": 1 }
+
+// Void Code
+{ "code": "GDPR_COMPLIANCE_RISK", "name": "GDPR Compliance Risk",
+  "description": "EU personal data involved. DPA registration and breach notification apply.",
+  "severity": "HIGH", "sortOrder": 9 }
+```
+
+**FE Admin UI:** after any create/update/delete, the change is **immediately visible** to all FE clients via `/config/*` (no AI service restart needed for void codes — they are read by the AI service from NestJS `/internal/prompts` endpoint, but void code definitions are read directly from DB by NestJS at elicitation time).
+
+---
+
+## 21. Admin Subscriptions Packages
+
+| # | Method | Path | Purpose |
+|---|---|---|---|
+| 21.1 | GET | `/admin/subscriptions/packages` | List ALL (active + inactive) |
+| 21.2 | POST | `/admin/subscriptions/packages` | Create |
+| 21.3 | PUT | `/admin/subscriptions/packages/:id` | Update price/duration (existing subs unaffected) |
+| 21.4 | DELETE | `/admin/subscriptions/packages/:id` | Hard delete (blocked if purchase history) |
+
+### 21.2 Create
+
+`POST /admin/subscriptions/packages`:
 ```json
 { "role": "CLIENT", "name": "Client Pro Monthly", "priceVnd": 100000, "durationMonths": 1 }
 ```
 
-**Delete error 422:** `"Cannot delete 'X' — it has N purchase record(s). Deactivate instead."`
+### 21.4 Delete — 422 Guard
 
-**FE Notes:** Admin list includes inactive packages. Public `GET /config/subscription-packages` shows only active.
-
-### 19.4 Prompt Template Management (Dynamic AI Issue 1)  *(NEW)*
-
-Routes:
-- `GET /admin/prompts` → list metadata (no full text)
-- `GET /admin/prompts/:stage` → full template text
-- `PUT /admin/prompts/:stage` → create or update
-- `DELETE /admin/prompts/:stage` → reset to default `.txt` file
-
-**Valid stages:** `stage1_extract`, `stage3_vagueness_check`, `stage4_recommend`, `stage5_synthesize`, `milestone_chat`, `criterion_check`, `dispute_eval`, `portfolio_eval`, `service_generate`
-
-**GET list:**
+If the package has been purchased before, DELETE returns 422:
 ```json
-[{ "id": "uuid", "stage": "stage1_extract", "description": "...", "version": 3, "updatedAt": "2026-..." }]
+{ "statusCode": 422, "message": "Cannot delete 'Client Pro' — it has 3 purchase record(s). Deactivate instead." }
 ```
+Admin must use `PUT /admin/subscriptions/packages/:id` with `{ "isActive": false }` to deactivate.
 
-**GET single:**
-```json
-{ "id": "uuid", "stage": "stage5_synthesize", "templateText": "...Jinja2 template...", "version": 3, "updatedAt": "..." }
-```
-
-**PUT request:**
-```json
-{ "templateText": "...", "description": "Updated to add GDPR detection" }
-```
-
-**PUT response:**
-```json
-{ "id": "uuid", "stage": "stage5_synthesize", "version": 4, "updatedAt": "..." }
-```
-
-**FE Admin Notes:**
-- Jinja2 `{{ variable }}` syntax. Available variables per stage:
-  - `stage1_extract`: `{{ archetypes }}`, `{{ void_codes }}`
-  - `stage5_synthesize`: `{{ domains }}`, `{{ seams }}`, `{{ archetypes }}`
-  - `criterion_check`: `{{ archetype_name }}`
-  - `portfolio_eval`: `{{ evaluated_seam_code }}`, `{{ evaluated_seam_name }}`, `{{ evaluated_seam_desc }}`, `{{ seam_definitions }}`
-  - `service_generate`: `{{ claimed_domains }}`, `{{ claimed_seams }}`, `{{ price_guidance }}`
-- Changes take effect within **60 seconds** (FastAPI cache TTL) — no restart needed.
-- `DELETE` resets to `.txt` file fallback, version counter resets.
-- Warn admin: malformed Jinja2 causes FastAPI to use raw template text (not a crash).
-
-### 19.5 User Management  *(NEW)*
-
-| Method | Path | Notes |
-|--------|------|-------|
-| `GET` | `/admin/users` | List with filters: `?role=CLIENT&isActive=true&search=albert` |
-| `GET` | `/admin/users/:id` | Full detail with wallet + profiles |
-| `PUT` | `/admin/users/:id/reactivate` | Reactivate suspended account |
-
-**List response:**
-```json
-[{
-  "id": "uuid", "email": "...", "fullName": "...", "roles": ["CLIENT", "EXPERT"],
-  "activeRole": "CLIENT", "isActive": true, "createdAt": "...",
-  "subscriptionClientTier": "pro", "subscriptionExpertTier": "free"
-}]
-```
-
-**Detail response:** Includes wallet balances (as numbers, not strings — admin-only convenience).
-
-### 19.6 Project Oversight  *(NEW)*
-
-| Method | Path | Notes |
-|--------|------|-------|
-| `GET` | `/admin/projects` | List with filters: `?state=PUBLISHED&archetype=3` |
-| `GET` | `/admin/projects/:id` | Full detail with client, tech team, invitation count |
-| `PUT` | `/admin/projects/:id/reopen` | Reopen a SUSPENDED project |
-
-### 19.7 Engagement Oversight  *(NEW)*
-
-`GET /admin/engagements?state=PENDING&projectId=...`
-
-```json
-[{
-  "id": "uuid", "state": "PENDING",
-  "project": { "id": "...", "projectName": "..." },
-  "expert": { "id": "...", "fullName": "...", "email": "..." },
-  "client": { "id": "...", "fullName": "...", "email": "..." },
-  "_count": { "milestones": 3 }
-}]
-```
-
-### 19.8 Expert Oversight  *(NEW)*
-
-`GET /admin/experts?limit=50`
-
-Returns all experts with seam claims and domain depths for verification audit.
-
-### 19.9 Dispute Resolution
-
-`POST /admin/disputes/:id/resolve` — see §13.6.
+**FE:** admin list shows inactive packages greyed out. Public `/config/subscription-packages` shows only active.
 
 ---
 
-## 20. AI Service Endpoints (Internal Reference)
+## 22. Admin Prompt Templates (NEW — Dynamic AI Issue 1)
 
-> **These are NOT called by FE.** FE calls NestJS, NestJS calls FastAPI. This section documents the contract so FE devs understand what data shapes the AI returns (which NestJS passes through or stores).
+| # | Method | Path | Purpose |
+|---|---|---|---|
+| 22.1 | GET | `/admin/prompts` | List metadata (no full text) |
+| 22.2 | GET | `/admin/prompts/:stage` | Full template text |
+| 22.3 | PUT | `/admin/prompts/:stage` | Create or update |
+| 22.4 | DELETE | `/admin/prompts/:stage` | Reset to default `.txt` file (removes DB override) |
 
-Base URL: `http://localhost:8000` · Header: `X-Internal-Token: <shared-secret>`
+**Valid stages:** `stage1_extract`, `stage3_vagueness_check`, `stage4_recommend`, `stage5_synthesize`, `milestone_chat`, `criterion_check`, `dispute_eval`, `portfolio_eval`, `service_generate`.
 
-### 20.1 Stage 1 Extract — `POST /llm/elicitation/stage1-extract`
+### 22.3 Upsert
 
-**NestJS sends:**
+`PUT /admin/prompts/:stage`:
 ```json
-{
-  "symptom_text": "...",
-  "archetypes": [{ "code": "1", "name": "RAG/Search", "description": "..." }],
-  "void_codes": [{ "code": "NO_GROUND_TRUTH", "description": "..." }]
+{ "templateText": "...Jinja2 template with {{ variables }}...", "description": "Updated to add GDPR detection" }
+```
+
+Response: `{ "id", "stage", "version": 4, "updatedAt": "..." }`
+
+**Jinja2 variables available per stage:**
+| Stage | Variables |
+|---|---|
+| `stage1_extract` | `{{ archetypes }}`, `{{ void_codes }}` |
+| `stage5_synthesize` | `{{ domains }}`, `{{ seams }}`, `{{ archetypes }}` |
+| `portfolio_eval` | `{{ seam_definitions }}`, `{{ evaluated_seam_code }}`, `{{ evaluated_seam_name }}`, `{{ evaluated_seam_desc }}` |
+| `service_generate` | `{{ price_guidance }}`, `{{ claimed_domains }}`, `{{ claimed_seams }}`, `{{ is_pro_expert }}` |
+| `criterion_check` | `{{ archetype_name }}` |
+
+**Changes take effect within 60 seconds** (FastAPI cache TTL) — no restart needed. `DELETE` resets to `.txt` file fallback and resets the version counter.
+
+**FE Admin warnings:**
+- Malformed Jinja2 → FastAPI catches the error and uses raw template text. Warn admin: "Test prompt changes in staging first."
+- Show a diff viewer between current DB template and the `.txt` default.
+
+---
+
+## 23. Internal Endpoints (NestJS ↔ FastAPI)
+
+These are NOT FE-facing. Documented to prevent accidental FE calls.
+
+| Method | Path | Caller | Purpose |
+|---|---|---|---|
+| GET | `/internal/prompts/:stage` | FastAPI → NestJS | Fetch DB-stored prompt template (60s TTL cache on FastAPI side) |
+
+Headers: `x-internal-token: <shared-secret>`.
+
+FastAPI endpoints (port 8000) — all called by NestJS, never by FE:
+- `POST /llm/elicitation/stage1-extract`
+- `POST /llm/elicitation/stage3-vagueness-check`
+- `POST /llm/elicitation/stage4-recommend`
+- `POST /llm/elicitation/stage5-synthesize`
+- `POST /llm/elicitation/milestone-chat`
+- `POST /llm/portfolio-eval`
+- `POST /llm/dispute-eval`
+- `POST /llm/criterion-check`
+- `POST /llm/service-generate`
+- `POST /llm/matching`
+- `GET /projects/:id/artifact-b` (4-condition gate check)
+
+---
+
+## 24. WebSocket Event Catalog
+
+**Namespace:** default (`/`) · **Transport:** Socket.IO with Redis adapter (for multi-instance scaling).
+
+**Auth:** `socket.handshake.auth.token` must be a valid JWT. On connect, server joins socket to room `user:<userId>`.
+
+### 24.1 Server → Client Events
+
+| Event | Payload | Trigger |
+|---|---|---|
+| `notification:generic` | `{ type, title, body, link }` | Bid submitted, milestone state change, system notice |
+| `message:received` | `{ id, engagementId, senderId, content, timestamp }` | New chat message in engagement |
+| `project:message` | `{ id, projectId, senderId, content, timestamp }` | New pre-bid Q&A message |
+| `bid:update` | `{ bidId, newState, engagementId }` | Bid state transition (TECH_APPROVED, SELECTED, etc.) |
+| `milestone:update` | `{ milestoneId, newState, engagementId }` | Milestone state transition |
+| `dispute:update` | `{ disputeId, newState, engagementId }` | Dispute state transition |
+
+### 24.1.1 `notification:generic` — Persisted
+
+When this event fires, NestJS **also writes a `Notification` row to DB**. So even if the user's WS is disconnected, `GET /notifications/me` will return it. FE should:
+1. Listen to `notification:generic` for real-time toast.
+2. On toast dismiss or page nav, refetch `GET /notifications/me/unread-count` for the badge.
+3. On page load, always fetch `GET /notifications/me` (don't rely solely on WS).
+
+### 24.2 Client → Server Events
+
+| Event | Payload | Purpose |
+|---|---|---|
+| `message:send` | `{ engagementId, content, attachmentUrl? }` | Send engagement chat message |
+| `project:message:send` | `{ projectId, content }` | Send pre-bid Q&A message |
+| `typing:start` | `{ engagementId }` | Typing indicator |
+| `typing:stop` | `{ engagementId }` | Typing indicator |
+
+### 24.2.1 `message:send` Flow
+
+1. FE emits `message:send` with `{ engagementId, content }`.
+2. Server validates parties, persists `Message` row.
+3. Server emits `message:received` to the other party's socket room.
+4. Server does NOT echo back to sender (sender optimistically adds to local state).
+
+**FE pattern:** optimistic update local message list on send; on `message:received` from the other party, append to list.
+
+---
+
+## 25. Full 40-Table Data Model
+
+This is the authoritative schema reference. For full Prisma definitions, see `backend/prisma/schema.prisma`.
+
+| # | Table | Purpose | Key Constraints |
+|---|---|---|---|
+| 1 | `users` | All accounts | Multi-role, `isActive`, `refreshTokenHash` for logout |
+| 2 | `client_profiles` | CEO company info | 1:1 with users |
+| 3 | `expert_profiles` | Expert bio + stack tags | 1:1 with users |
+| 4 | `tech_team_profiles` | Tech team linked to CEO + project | 1:1 with users |
+| 5 | `wallets` | User balances | 1:1 with users, BigInt balances |
+| 6 | `wallet_transactions` | Immutable ledger | `UNIQUE(wallet_id, reference_id)` for idempotency |
+| 7 | `virtual_accounts` | SePay VA for topup/milestone/service | `entity_type` ∈ {WALLET_TOPUP, MILESTONE, SERVICE} |
+| 8 | `withdrawal_requests` | Cash-out requests | `status` ∈ {PENDING, COMPLETED, FAILED, CANCELLED} |
+| 9 | `platform_settings` | Singleton — platform fee % | Read at every APPROVED tx, never hardcoded |
+| 10 | `elicitation_sessions` | 5-stage elicitation state machine | `state` ∈ {IN_PROGRESS, COMPLETED, ABANDONED, RETURNED} |
+| 11 | `projects` | Published project specs | `state` ∈ {DRAFT, PUBLISHED, RETURNED_TO_CLIENT, SUSPENDED} |
+| 12 | `project_shortlist_cache` | Matching results cache | `source` ∈ {AUTO, FORCE_REFRESH} |
+| 13 | `expert_domain_depths` | Expert → domain depth claims | `UNIQUE(expert_id, domain_code)` |
+| 14 | `expert_seam_claims` | Expert → seam verification | `UNIQUE(expert_id, seam_code)`, tier ∈ {CLAIMED, EVIDENCE_BACKED} |
+| 15 | `portfolio_submissions` | LLM-evaluated evidence | `status` ∈ {PENDING, APPROVED, REJECTED} |
+| 16 | `services` | Marketplace listings | `state` ∈ {DRAFT, PUBLISHED, SUSPENDED} |
+| 17 | `engagements` | Expert-client working relationship | `state` ∈ {PENDING, CONNECTED, ACTIVE, CLOSED, DISPUTED, CANCELLED} |
+| 18 | `capability_bids` | Bid state machine | `state` ∈ {DRAFT, SUBMITTED, TECH_REVIEW, REVISION_REQUESTED, TECH_APPROVED, CEO_REVIEW, SELECTED, DECLINED, WITHDRAWN} |
+| 19 | `milestones` | Project execution units | `state` ∈ {DEFINED, AWAITING_PAYMENT, FUNDED, IN_PROGRESS, SUBMITTED, IN_REVISION, APPROVED, RELEASED, DISPUTED} |
+| 20 | `acceptance_criteria` | Per-milestone sign-off items | `verified_by_role` ∈ {CEO, TECH_TEAM, JOINT} |
+| 21 | `milestone_dod_items` | Definition of Done checklist | `NOT (is_required = TRUE AND status = 'NOT_APPLICABLE')` |
+| 22 | `milestone_submissions` | Deliverable submissions | Revision history |
+| 23 | `paygated_documents` | Staged tech docs released on approval | `release_state` ∈ {STAGED, RELEASED} |
+| 24 | `escrow_accounts` | Locked funds | `status` ∈ {HELD, RELEASED, FROZEN, REFUNDED, SPLIT} |
+| 25 | `disputes` | Milestone disputes | `state` ∈ {PENDING, LAYER_1_EVAL, AUTO_RESOLVED, MANUAL_REVIEW, RESOLVED, WITHDRAWN} |
+| 26 | `messages` | Chat messages | `engagementId` OR `projectId` (one null, one set) |
+| 27 | `message_reads` | Read receipts | `UNIQUE(message_id, user_id)` |
+| 28 | `reviews` | Post-engagement reviews | `UNIQUE(engagement_id, reviewer_id)`, rating 1-5 |
+| 29 | `platform_decisions` | LLM decision audit log | `decision_type` enum |
+| 30 | `domain_definitions` | CMS: domain taxonomy | Soft-delete via `isActive` |
+| 31 | `seam_definitions` | CMS: seam taxonomy | Soft-delete via `isActive` |
+| 32 | `archetype_definitions` | CMS: project archetypes | Soft-delete via `isActive` |
+| 33 | `probe_questions` | CMS: Stage 3 questions | Per-archetype |
+| 34 | `void_code_definitions` | CMS: void taxonomy | `severity` ∈ {HIGH, MEDIUM, LOW} |
+| 35 | `prompt_templates` | CMS: LLM prompt overrides | DB priority over `.txt` files, 60s TTL |
+| 36 | `subscription_packages` | CMS: subscription products | Hard-delete blocked if purchase history |
+| 37 | `subscription_purchase_logs` | Purchase history | Immutable |
+| 38 | `milestone_chat_sessions` | E-3 chat assistant history | `messagesJson` array of `{role, content}` |
+| 39 | `invitations` | CEO → expert invites | `UNIQUE(project_id, expert_id)`, 7-day expiry |
+| 40 | `notifications` | Persisted notifications | `type` ∈ {bid_update, system, milestone_update} |
+
+---
+
+## 26. Breaking Changes Cheatsheet
+
+| # | What changed | Old FE behavior | New FE behavior |
+|---|---|---|---|
+| 1 | `POST /subscriptions/activate` | Body `{ activeRole }` | **REQUIRES `packageId`** from `GET /config/subscription-packages` |
+| 2 | `GET /subscriptions/status` | FE computed `isExpired` from date | Trust `subscriptionTier` directly — server auto-corrects |
+| 3 | `POST /auth/register` password errors | Single string message | `message` is **array** — iterate for checklist UI |
+| 4 | `POST /auth/register` email | Stored as-is | Normalized to lowercase; display `response.user.email` |
+| 5 | Stage 2 archetype list | Hardcoded `['1'..'6']` | Fetch `GET /config/archetypes` |
+| 6 | Stage 3 probe questions | Hardcoded strings | Fetch `GET /config/archetypes/:code/probe-questions` |
+| 7 | Stage 3 response | Only `vague_answers` | Now has `irrelevant_answers` — render as separate warning type |
+| 8 | Stage 4 request | `{ current_stack, data_available, latency_requirement }` | Add `technical_artifacts: {}` and `additional_requirement_1` |
+| 9 | Stage 4 response | Updated session object directly | Shape is now `{ session, missingArtifacts }` |
+| 10 | `GET /projects/:id` | No domains/seams/milestones | All three now present — use for BidForm |
+| 11 | Subscription price display | Hardcoded 500k/300k VND | Fetch `GET /config/subscription-packages?role=CLIENT\|EXPERT` |
+| 12 | Tech Team empty state | Always "Waiting for CEO" | Show only when `GET /projects` returns `[]` |
+| 13 | Password reset page | Only forgot+reset endpoints | Add `GET /auth/verify-reset-token/:token` check on page load |
+| 14 | Void code display (Stage 2) | Hardcoded descriptions in FE | Fetch `GET /config/void-codes`, look up by `void_code` |
+| 15 | Stage 1 response | No artifact requirements | Handle `criticalArtifactsJson` → show Stage 4 persistent reminder |
+| 16 | Seam code format | `A<->C` ASCII | **`A↔C` Unicode arrow** — old format rejected by DB |
+| 17 | Domain codes in DTOs | Strict enum `A`-`F` | Any non-empty string (validated against DB at service layer) |
+| 18 | `POST /auth/logout` | FE-only token clear | Call server endpoint to invalidate `refreshTokenHash` |
+| 19 | Wallet tx list | No pagination | Use `?type=&limit=&offset=` query params |
+| 20 | Withdrawal cancellation | Not possible | `DELETE /withdrawals/:id` (PENDING only) |
+| 21 | Notifications | WebSocket-only (lost on refresh) | Now persisted — `GET /notifications/me` survives refresh |
+| 22 | `GET /config/all` | 5 separate round trips | Single call on app mount |
+| 23 | Invitation `ceo` object | `{ id, fullName }` | Now includes `clientProfile.companyName` — use optional chain |
+| 24 | Bid submission notification | CEO only | CEO **+ all linked Tech Team members** |
+| 25 | `POST /bids` body `code` fields | Enum-validated | Any non-empty string — DB validates at service layer |
+
+---
+
+## 27. Mandatory FE Consumption Checklist (Anti-Rot Gate)
+
+**Every endpoint below MUST have a FE caller.** If any row has no FE consumer, that's rot code — file a ticket immediately.
+
+### Auth (12 endpoints)
+- [ ] `POST /auth/register` — Registration page
+- [ ] `POST /auth/login` — Login page
+- [ ] `PUT /auth/switch-role` — Role switcher dropdown
+- [ ] `POST /auth/refresh` — Axios interceptor on 401
+- [ ] `POST /auth/register/handoff` — Tech team invite landing page
+- [ ] `POST /auth/verify-tax-code` — CEO profile setup wizard
+- [ ] `POST /auth/claim-handoff` — Existing-user tech team claim page
+- [ ] `POST /auth/forgot-password` — Forgot password page
+- [ ] `POST /auth/reset-password` — Reset password page
+- [ ] `GET /auth/verify-reset-token/:token` — Reset password page mount guard
+- [ ] `POST /auth/logout` — Logout button
+- [ ] `PUT /auth/me/password` — Settings → Change password
+
+### Users (6 endpoints)
+- [ ] `POST /users/me/add-role` — Settings → Add role
+- [ ] `GET /users/me` — App shell (user context)
+- [ ] `PUT /users/me` — Settings → Profile
+- [ ] `GET /users/:userId/public-profile` — Public profile page
+- [ ] `PUT /users/me/tax-code` — CEO profile setup
+- [ ] `GET /users/experts` — CEO "Find Talent" page
+
+### Wallet & Withdrawals (6 endpoints)
+- [ ] `GET /wallets/me` — Wallet dashboard
+- [ ] `GET /wallets/me/transactions` — Wallet tx history (paginated)
+- [ ] `POST /wallets/virtual-accounts/topup` — Topup modal
+- [ ] `POST /withdrawals` — Withdraw modal
+- [ ] `GET /withdrawals` — Withdrawal history
+- [ ] `DELETE /withdrawals/:id` — Cancel pending withdrawal button
+
+### Bank Hub & Webhooks (4 endpoints — FE consumes 1)
+- [ ] `POST /bank-hub/initiate-link` — Settings → Link bank account
+- [ ] `POST /webhooks/sepay/ipn` — **No FE caller** (server-to-server) ✓
+- [ ] `POST /webhooks/sepay/chi-ho-credit` — **No FE caller** ✓
+- [ ] `POST /webhooks/sepay/bank-linked` — **No FE caller** ✓
+
+### Subscriptions (3 endpoints)
+- [ ] `POST /subscriptions/activate` — Subscription activation modal
+- [ ] `GET /subscriptions/status` — App shell (subscription context)
+- [ ] `GET /subscriptions/history` — Settings → Subscription history
+
+### Public Config (7 endpoints)
+- [ ] `GET /config/domains` — Used by `/config/all`
+- [ ] `GET /config/seams` — Used by `/config/all`
+- [ ] `GET /config/archetypes` — Used by `/config/all`
+- [ ] `GET /config/archetypes/:code/probe-questions` — Stage 3 form
+- [ ] `GET /config/void-codes` — Used by `/config/all`
+- [ ] `GET /config/subscription-packages` — Subscription modal
+- [ ] `GET /config/all` — **App mount bootstrap (call once, cache)**
+
+### Elicitation (19 endpoints)
+- [ ] `POST /elicitation/sessions` — Elicitation entry
+- [ ] `GET /elicitation/sessions` — Elicitation dashboard
+- [ ] `GET /elicitation/sessions/active` — App shell (resume active session)
+- [ ] `GET /elicitation/sessions/history` — History list
+- [ ] `GET /elicitation/sessions/:id` — Session detail
+- [ ] `DELETE /elicitation/sessions/:id` — Delete session button
+- [ ] `PUT /elicitation/sessions/:id/abandon` — Abandon button
+- [ ] `GET /elicitation/sessions/history` — History page
+- [ ] `PUT /elicitation/sessions/:id/stage1` — Stage 1 form submit
+- [ ] `PUT /elicitation/sessions/:id/stage2` — Stage 2 archetype select
+- [ ] `PUT /elicitation/sessions/:id/stage3` — Stage 3 probe form
+- [ ] `PUT /elicitation/sessions/:id/stage4` — Stage 4 tech context form
+- [ ] `PUT /elicitation/sessions/:id/stage4-handoff` — Tech team Stage 4 form
+- [ ] `POST /elicitation/sessions/:id/stage5` — Stage 5 publish button
+- [ ] `POST /elicitation/sessions/:id/generate-handoff-link` — Handoff link generator
+- [ ] `PUT /elicitation/sessions/:id/self-technical` — Self-technical toggle
+- [ ] `POST /elicitation/sessions/:id/retry-synthesis` — Retry button (on 503)
+- [ ] `PUT /elicitation/sessions/:id/revert` — Back button
+- [ ] `PUT /elicitation/sessions/:id/continue` — Resume button
+- [ ] `POST /elicitation/sessions/:id/stage4-recommend` — "AI suggest" button in Stage 4
+- [ ] `PATCH /elicitation/sessions/:id/draft` — Stage 1 draft autosave
+- [ ] `PATCH /elicitation/sessions/:id/stage4-draft` — Stage 4 draft autosave (every 30s)
+
+### Projects (11 endpoints)
+- [ ] `GET /projects` — Projects list page
+- [ ] `GET /projects/:id` — Project detail page
+- [ ] `GET /projects/:id/artifact-a` — Artifact A viewer (or use from project detail)
+- [ ] `GET /projects/:id/artifact-b` — Artifact B viewer (gated)
+- [ ] `PUT /projects/:id/name` — Rename project
+- [ ] `POST /projects/:id/milestone-chat` — Milestone chat input
+- [ ] `GET /projects/:id/milestone-chat/sessions` — Chat sidebar
+- [ ] `GET /projects/:id/milestone-chat/sessions/:sessionId` — Chat history click
+- [ ] `GET /projects/:id/milestones` — Milestone list tab
+- [ ] `PUT /projects/:id/milestones` — Milestone framework editor (CEO)
+- [ ] `PUT /projects/:id/cancel` — Cancel project button
+- [ ] `GET /projects/:id/engagements` — Project engagements tab (CEO/Admin)
+- [ ] `GET /projects/:id/invitations` — Project invitations tab (CEO)
+- [ ] `GET /projects/:id/team` — Project team tab
+
+### Matching (1 endpoint)
+- [ ] `GET /matching/:projectId/shortlist?refresh=` — CEO shortlist page
+
+### Expert Profiles (17 endpoints)
+- [ ] `GET /expert-profile/me` — Expert profile page
+- [ ] `PUT /expert-profile/me` — Edit profile form
+- [ ] `GET /expert-profile/search` — Expert search page (CEO)
+- [ ] `GET /expert-profile/:userId` — Expert public profile
+- [ ] `GET /expert-profile/me/domains` — My domains list
+- [ ] `GET /expert-profile/me/seams` — My seams list
+- [ ] `POST /expert-profile/domains` — Add domain form
+- [ ] `PUT /expert-profile/domains/sync` — Bulk sync domains
+- [ ] `PUT /expert-profile/domains/:id` — Edit domain
+- [ ] `DELETE /expert-profile/domains/:id` — Delete domain
+- [ ] `POST /expert-profile/seams` — Add seam claim
+- [ ] `PUT /expert-profile/seams/sync` — Bulk sync seams
+- [ ] `POST /portfolio-submissions` — Portfolio submit form
+- [ ] `GET /portfolio-submissions` — My portfolio list
+- [ ] `GET /portfolio-submissions/:id` — Submission detail
+- [ ] `GET /portfolio-submissions/me/portfolio/:id` — Portfolio entry detail
+- [ ] `DELETE /portfolio-submissions/me/portfolio/:id` — Delete portfolio entry
+
+### Listings (10 endpoints)
+- [ ] `GET /services` — Marketplace browse
+- [ ] `POST /services` — Create listing form (with AI assist)
+- [ ] `GET /services/:id` — Listing detail
+- [ ] `PUT /services/:id` — Edit listing
+- [ ] `DELETE /services/:id` — Delete listing (DRAFT only)
+- [ ] `POST /services/:id/purchase` — Purchase button
+- [ ] `GET /services/me` — My listings dashboard
+- [ ] `GET /services/me/purchases` — My purchases
+- [ ] `PUT /services/:id/publish` — Publish button
+- [ ] `PUT /services/:id/unpublish` — Unpublish button
+
+### Engagements (10 endpoints)
+- [ ] `GET /engagements` — Engagements list
+- [ ] `GET /engagements/:id` — Engagement detail
+- [ ] `PUT /engagements/:id/accept-nda` — NDA accept modal
+- [ ] `POST /engagements/:id/connect` — Connect button (expert)
+- [ ] `PUT /engagements/:id/decline` — Decline button
+- [ ] `GET /engagements/:id/milestones` — Engagement milestones tab
+- [ ] `GET /engagements/:id/submissions` — All submissions tab
+- [ ] `GET /engagements/:id/bid` — Bid detail tab
+- [ ] `GET /engagements/:id/disputes` — Disputes tab
+- [ ] `PUT /engagements/:id/cancel` — Cancel engagement button
+
+### Bids (8 endpoints)
+- [ ] `POST /bids` — Bid submission form
+- [ ] `GET /bids` — Bids list (role-scoped)
+- [ ] `GET /bids/:id` — Bid detail
+- [ ] `PUT /bids/:id` — Edit bid
+- [ ] `DELETE /bids/:id` — Withdraw bid button
+- [ ] `PUT /bids/:id/tech-review` — Tech review action (approve/revision)
+- [ ] `PUT /bids/:id/ceo-decision` — CEO decision (select/decline)
+- [ ] `PUT /bids/:id/counter-offer` — Counter-offer modal
+
+### Milestones (7 endpoints)
+- [ ] `POST /milestones` — Create milestone form
+- [ ] `GET /milestones` — List by engagement
+- [ ] `GET /milestones/:id` — Milestone detail
+- [ ] `PATCH /milestones/:id` — Edit milestone (DEFINED only)
+- [ ] `DELETE /milestones/:id` — Delete milestone (DEFINED only)
+- [ ] `PUT /milestones/:id/fund` — Fund milestone button
+- [ ] `GET /milestones/:id/disputes` — Milestone disputes tab
+
+### DoD (4 endpoints)
+- [ ] `POST /milestones/:id/dod/items` — Add DoD item
+- [ ] `PUT /milestones/:id/dod/:itemId` — Update DoD status
+- [ ] `DELETE /milestones/:id/dod/:itemId` — Delete DoD item
+- [ ] `GET /milestones/:id/dod` — DoD checklist display
+
+### Criteria (5 endpoints)
+- [ ] `GET /criteria/:milestoneId` — Criteria list
+- [ ] `POST /criteria/:milestoneId` — Add criterion
+- [ ] `DELETE /criteria/:id` — Delete criterion
+- [ ] `PUT /criteria/:id/verify` — Verify button
+- [ ] `PUT /criteria/:id/revision` — Reject with note
+
+### Submissions (5 endpoints)
+- [ ] `POST /milestones/:id/submit` — Submit deliverable form
+- [ ] `POST /milestones/:id/paygated-docs` — Stage paygated doc
+- [ ] `GET /milestones/:id/paygated-docs` — Download paygated doc
+- [ ] `GET /milestones/:id/submissions` — Submission history
+- [ ] `GET /milestones/:id/submissions/latest` — Latest submission
+
+### Messages (6 endpoints)
+- [ ] `GET /engagements/:id/messages` — Engagement chat
+- [ ] `GET /projects/:id/messages` — Pre-bid Q&A
+- [ ] `POST /messages/:id/read` — Mark as read (on scroll into view)
+- [ ] `GET /engagements/:id/messages/unread-count` — Unread badge
+- [ ] `GET /projects/:id/messages/unread-count` — Unread badge
+- [ ] `GET /conversations` — Inbox sidebar
+
+### Disputes (5 endpoints)
+- [ ] `POST /disputes` — File dispute form
+- [ ] `GET /disputes` — Disputes list
+- [ ] `GET /disputes/:id` — Dispute detail
+- [ ] `POST /disputes/:id/evidence` — Add evidence form
+- [ ] `PUT /disputes/:id/withdraw` — Withdraw button
+
+### Invitations (4 endpoints)
+- [ ] `GET /invitations` — Expert invitations inbox
+- [ ] `POST /invitations/:id/decline` — Decline button
+- [ ] `GET /invitations/sent` — CEO sent invitations
+- [ ] `DELETE /invitations/:id` — Retract button
+
+### Reviews (5 endpoints)
+- [ ] `POST /reviews` — Post-engagement review form
+- [ ] `GET /reviews/:engagementId` — Engagement reviews
+- [ ] `GET /reviews/users/:userId` — Public profile reviews
+- [ ] `GET /reviews/me` — Reviews I wrote
+- [ ] `GET /reviews/me/received` — Reviews I received
+
+### Notifications (5 endpoints)
+- [ ] `GET /notifications/me` — Notifications dropdown/page
+- [ ] `GET /notifications/me/unread-count` — Nav badge
+- [ ] `PUT /notifications/:id/read` — Mark one read
+- [ ] `PUT /notifications/read-all` — Mark all read button
+- [ ] `DELETE /notifications/:id` — Delete notification
+
+### Admin — Oversight (18 endpoints)
+- [ ] `PUT /admin/projects/:id/suspend-spec` — Admin suspend project
+- [ ] `PUT /admin/users/:id/suspend` — Admin suspend user
+- [ ] `GET /admin/disputes` — Admin disputes queue
+- [ ] `PUT /admin/disputes/:id/resolve` — Admin resolve dispute
+- [ ] `GET /admin/decisions` — Admin AI decisions log
+- [ ] `GET /admin/transactions` — Admin wallet ledger
+- [ ] `GET /admin/analytics` — Admin analytics dashboard
+- [ ] `GET /admin/withdrawals` — Admin withdrawal queue
+- [ ] `PUT /admin/withdrawals/:id/complete` — Admin confirm withdrawal
+- [ ] `PUT /admin/withdrawals/:id/fail` — Admin fail withdrawal
+- [ ] `GET /admin/users` — Admin user list
+- [ ] `GET /admin/users/:id` — Admin user detail
+- [ ] `PUT /admin/users/:id/reactivate` — Admin reactivate user
+- [ ] `GET /admin/projects` — Admin project list
+- [ ] `GET /admin/projects/:id` — Admin project detail
+- [ ] `PUT /admin/projects/:id/reopen` — Admin reopen project
+- [ ] `GET /admin/engagements` — Admin engagement list
+- [ ] `GET /admin/experts` — Admin expert list
+
+### Admin — Config CMS (5 resources × 4-5 endpoints = 22 endpoints)
+- [ ] Domains: `GET/POST /admin/config/domains` · `PUT/DELETE /admin/config/domains/:id`
+- [ ] Seams: `GET/POST /admin/config/seams` · `PUT/DELETE /admin/config/seams/:id`
+- [ ] Archetypes: `GET/POST /admin/config/archetypes` · `PUT/DELETE /admin/config/archetypes/:id`
+- [ ] Probe Questions: `GET/POST /admin/config/probe-questions` · `PUT/DELETE /admin/config/probe-questions/:id`
+- [ ] Void Codes: `GET/POST /admin/config/void-codes` · `PUT/DELETE /admin/config/void-codes/:id`
+
+### Admin — Subscription Packages (4 endpoints)
+- [ ] `GET /admin/subscriptions/packages` — Admin package list
+- [ ] `POST /admin/subscriptions/packages` — Create package form
+- [ ] `PUT /admin/subscriptions/packages/:id` — Edit package
+- [ ] `DELETE /admin/subscriptions/packages/:id` — Delete package
+
+### Admin — Prompt Templates (4 endpoints)
+- [ ] `GET /admin/prompts` — Prompt list
+- [ ] `GET /admin/prompts/:stage` — Prompt editor (load)
+- [ ] `PUT /admin/prompts/:stage` — Prompt editor (save)
+- [ ] `DELETE /admin/prompts/:stage` — Reset to default button
+
+### Internal (1 endpoint — no FE caller)
+- [ ] `GET /internal/prompts/:stage` — **No FE caller** (FastAPI → NestJS only) ✓
+
+---
+
+## 28. Final Integration Notes
+
+### 28.1 FE Tech Stack Assumptions
+- React + TypeScript + Vite (per `docker-compose.yml` build args).
+- State management: Zustand or Redux Toolkit (recommend Zustand for simplicity).
+- Data fetching: TanStack Query (React Query) for cache + invalidation.
+- WebSocket: `socket.io-client` v4.
+- Forms: React Hook Form + Zod (mirror BE DTOs).
+- BigInt handling: always `String()` → `Number()` explicitly.
+
+### 28.2 Recommended FE Global State Shape
+
+```typescript
+interface AppState {
+  // Auth
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  activeRole: string;
+
+  // Subscription
+  subscriptionTier: 'free' | 'pro';
+  subscriptionExpires: string | null;
+
+  // Config (from /config/all on mount)
+  domains: DomainDefinition[];
+  seams: SeamDefinition[];
+  archetypes: ArchetypeDefinition[];
+  voidCodes: VoidCodeDefinition[];
+  subscriptionPackages: SubscriptionPackage[];
+
+  // Realtime
+  notifications: Notification[];
+  unreadNotificationCount: number;
+  socket: Socket | null;
 }
 ```
 
-**AI returns:**
-```json
-{
-  "symptoms": ["...", "..."],
-  "scale_signals": { "user_count": null, "data_volume": null, ... },
-  "voids": [{ "void_code": "NO_GROUND_TRUTH", "severity": "HIGH" }],
-  "recommended_archetypes": ["3", "1"],
-  "critical_artifacts_required": [
-    { "artifact_key": "compliance_ruleset", "label": "Compliance Ruleset", "reason": "...", "placeholder_prompt": "..." }
-  ]
-}
-```
+### 28.3 Axios Interceptor Pattern
 
-### 20.2 Stage 3 Vagueness Check — `POST /llm/elicitation/stage3-vagueness-check`
+```typescript
+// Request interceptor: attach JWT
+apiClient.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-**NestJS sends:**
-```json
-{
-  "archetype": "3",
-  "probe_questions": ["How many items per day?", "..."],
-  "probe_responses": { "How many items per day?": "Around 50,000" },
-  "is_self_technical": false,
-  "stage1_symptoms": ["..."],
-  "stage1_voids": [{ "void_code": "...", "severity": "..." }]
-}
-```
-
-**AI returns:**
-```json
-{
-  "vague_answers": [{ "question": "...", "reason": "..." }],
-  "irrelevant_answers": [{ "question": "...", "issue": "..." }]
-}
-```
-
-Fails open — on any LLM error, returns empty arrays (does NOT block Stage 3 progression).
-
-### 20.3 Stage 4 Recommend — `POST /llm/elicitation/stage4-recommend`
-
-**AI returns:**
-```json
-{
-  "recommended_stack": "Python, FastAPI, PostgreSQL, Redis",
-  "recommended_integration": "REST API with existing systems",
-  "recommended_legacy_volume": "Standard operational database volume"
-}
-```
-
-### 20.4 Stage 5 Synthesize — `POST /llm/elicitation/stage5-synthesize`
-
-**NestJS sends:** All 4 stages of session data + void list + critical artifacts + domains + seams + archetypes from DB.
-
-**AI returns:**
-```json
-{
-  "required_seams_json": [{ "seam_code": "A↔C", "criticality": "load_bearing" }],
-  "required_domains_json": [{ "domain_code": "A", "required_depth": "OPERATIONAL" }],
-  "milestone_framework_json": [
-    {
-      "milestone_number": 1,
-      "deliverable_statement": "...",
-      "sign_off_authority": "JOINT",
-      "payment_amount_vnd": 0,
-      "estimated_cost_vnd": 40000000,
-      "estimated_duration_days": 14
+// Response interceptor: auto-refresh on 401
+apiClient.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status === 401 && !error.config._retry) {
+      error.config._retry = true;
+      const { refreshToken } = useAuthStore.getState();
+      const { data } = await axios.post('/auth/refresh', {}, {
+        headers: { Authorization: `Bearer ${refreshToken}` }
+      });
+      useAuthStore.getState().setTokens(data.access_token, data.refresh_token);
+      error.config.headers.Authorization = `Bearer ${data.access_token}`;
+      return apiClient(error.config);
     }
-  ],
-  "artifact_a_json": {
-    "project_name": "...", "business_intent": "...",
-    "archetype": "3", "stack_tags": [...],
-    "volume_tier": "TIER_2", "sdlc_notices": [...]
-  },
-  "artifact_b_json": {
-    "stack_tags": [...], "integration_method": "...",
-    "legacy_volume": "...", "schemas": [], "contracts": []
-  },
-  "completeness_score": 0.82,
-  "estimated_total_cost_vnd": 120000000,
-  "estimated_total_duration_days": 42
-}
-```
-
-**Code-enforced rules (not LLM):**
-- `payment_amount_vnd` is ALWAYS `0` on every milestone — CEO sets real amounts later
-- `completeness_score` clamped to `[0.0, 1.0]`
-- All enum values validated; invalid values filtered or defaulted
-
-### 20.5 Milestone Chat — `POST /llm/elicitation/milestone-chat`
-
-**AI returns:**
-```json
-{
-  "reply": "...",
-  "suggested_edit": { "milestone_number": 2, "field": "paymentAmountVnd", "suggested_value": 30000000, "reason": "..." }
-}
-```
-
-### 20.6 Criterion Check — `POST /llm/criterion-check`
-
-**AI returns:**
-```json
-{
-  "is_subjective": true,
-  "suggestions": ["Rewrite 1...", "Rewrite 2..."],
-  "severity": "HIGH",  // LOW | MEDIUM | HIGH
-  "context_note": "Why this is risky in this project context"
-}
-```
-
-Advisory only — the criterion is saved regardless. NestJS writes `advisory_note` to `platform_decisions` if `is_subjective: true`.
-
-### 20.7 Portfolio Eval — `POST /llm/portfolio-eval`
-
-**AI returns:**
-```json
-{
-  "confidence_score": 0.92,
-  "passed_boolean": true,  // = (confidence_score >= 0.85), computed in code
-  "gap_advisory": null  // null when passed, non-null string when failed
-}
-```
-
-### 20.8 Dispute Eval — `POST /llm/dispute-eval`
-
-**AI returns:**
-```json
-{
-  "confidence_score": 0.88,
-  "finding": "expert_wins",  // | "client_wins"
-  "reasoning": "1-2 sentence explanation shown to admin in manual review queue"
-}
-```
-
-NestJS applies the threshold: `>= 0.80` → `AUTO_RESOLVED`, `< 0.80` → `MANUAL_REVIEW`.
-
-### 20.9 Service Generate — `POST /llm/service-generate`
-
-**AI returns:**
-```json
-{
-  "title": "...",
-  "description": "...",
-  "scope": "...",
-  "timeline": "...",
-  "suggested_price_vnd": 45000000,  // clamped to [0, 2_000_000_000]
-  "suggested_domains": ["A", "D"],
-  "suggested_seams": ["A↔C", "A↔D"],
-  "pricing_rationale": "..."
-}
-```
-
-### 20.10 Matching — `POST /llm/matching`
-
-**AI returns** (sorted by `composite_score` descending):
-```json
-[
-  {
-    "expert_id": "uuid",
-    "composite_score": 0.9173,
-    "strength_label": "STRONG_MATCH",  // | GOOD_MATCH | POSSIBLE_MATCH | WEAK_MATCH
-    "gap_map": [
-      { "seam_code": "A↔D", "color": "green" },  // EVIDENCE_BACKED
-      { "seam_code": "D↔E", "color": "amber" },  // CLAIMED
-      { "seam_code": "C↔E", "color": "red" }     // missing
-    ]
+    return Promise.reject(error);
   }
-]
+);
 ```
 
-Pure arithmetic — **no LLM call**. Composite = `0.40 × seam + 0.25 × domain + 0.20 × portfolio + 0.10 × archetype + 0.05 × engagement`.
-
-### 20.11 Artifact B Guard — `GET /projects/:project_id/artifact-b`
-
-**Query params (all required):**
-```
-?engagement_state=CONNECTED
-&bid_state=TECH_APPROVED
-&expert_nda_accepted=true
-&ceo_nda_accepted=true
-```
-
-**Returns 200:** `{ "project_id": "...", "artifact_b_accessible": true }`
-**Returns 403:** `{ "detail": "Engagement is 'PENDING' — must be CONNECTED or ACTIVE to access technical specification" }`
-
-NestJS calls this before returning `artifact_b_json` to an expert. If 403, NestJS omits `artifact_b_json` from the response.
-
----
-
-## 21. DTO / Schema Conventions (Critical)
-
-### 21.1 Seam Code Format
-
-**ALWAYS use the `↔` (U+2194) character.** Examples: `A↔C`, `A↔D`, `B↔E`.
-
-The DB stores this exact form. The old `A<->C` format is rejected. All DTOs now accept any non-empty string for `code` fields — validation against `seam_definitions` / `domain_definitions` tables happens at the service layer.
-
-### 21.2 Domain Codes
-
-Any non-empty string (`"A"`, `"B"`, `"G"` if admin creates one). Validated against `domain_definitions` table.
-
-### 21.3 Enums Kept as Strict (Business Logic Constants)
-
-| Enum | Values | Why kept |
-|------|--------|----------|
-| `DomainDepth` | `SURFACE`, `OPERATIONAL`, `DEEP` | Hardwired into matching scoring formula |
-| `VerifyTier` | `CLAIMED`, `EVIDENCE_BACKED` | Maps to portfolio verification state machine |
-| `ServiceType` | `AI_SERVICE`, `TECH_DISCOVERY` | Fixed product types, not admin-configurable |
-| `ServiceState` | `DRAFT`, `PUBLISHED`, `SUSPENDED` | Fixed lifecycle states |
-
-### 21.4 BigInt Serialization
-
-Every `BigInt` column in Prisma is serialized as a **string** in JSON responses. Fields to watch for:
-- `priceVnd` (services, milestones, bids)
-- `availableBalance`, `lockedBalance` (wallets)
-- `amount` (wallet transactions, escrow accounts, withdrawal requests)
-- `estimatedTotalCostVnd` (projects)
-- `estimatedCostVnd`, `paymentAmountVnd` (milestones)
-- `negotiatedPriceVnd` (capability bids)
-- `amountPaidVnd` (subscription purchase logs)
-
-**FE pattern:** Always `Number(x)` before arithmetic, `String(x)` before sending.
-
-### 21.5 Error Envelope
-
-```typescript
-interface ErrorResponse {
-  statusCode: number;    // 400, 401, 403, 404, 409, 422, 500, 503
-  message: string | string[];  // array for DTO validation, string for service errors
-  error: string;         // HTTP reason phrase
-}
-```
-
-**FE pattern:**
-```typescript
-if (Array.isArray(error.message)) {
-  // Render as checklist (password rules, multi-field validation)
-  setErrorList(error.message);
-} else {
-  // Single toast
-  showToast(error.message);
-}
-```
-
----
-
-## 22. WebSocket Event Catalog
-
-### 22.1 Connection
+### 28.4 WebSocket Connection Pattern
 
 ```typescript
 const socket = io('http://localhost:3001', {
-  auth: { token: accessToken }
+  auth: { token: accessToken },
+  transports: ['websocket'],
 });
 
-socket.on('connect', () => { /* user joined their personal room */ });
-socket.on('disconnect', () => { /* show reconnecting indicator */ });
-```
-
-### 22.2 Events Emitted by Server → Client
-
-| Event | Payload | Trigger |
-|-------|---------|---------|
-| `notification:generic` | `{ type, title, body?, link? }` | Bid submitted, milestone update, system message |
-| `message:received` | `{ id, engagementId, senderId, content, timestamp }` | New chat message |
-| `bid:update` | `{ engagementId, bidId, state }` | Bid state changed (tech review, CEO decision) |
-| `milestone:update` | `{ engagementId, milestoneId, state }` | Milestone state transition |
-| `dispute:update` | `{ disputeId, state, finding? }` | Dispute filed or resolved |
-
-### 22.3 `notification:generic` Payloads
-
-**CEO on new bid (A-3):**
-```json
-{ "type": "bid_update", "title": "New Expert Bid!", "link": "/ceo/projects/<id>" }
-```
-
-**Tech Team on new bid (A-3 — NEW):**
-```json
-{
-  "type": "bid_update",
-  "title": "New Bid Awaiting Review",
-  "body": "Technical review required.",
-  "link": "/tech-team/projects/<id>"
-}
-```
-
-**Both are handled by the same FE listener** — navigate to `notification.link`.
-
-### 22.4 FE Listener Pattern
-
-```typescript
-socket.on('notification:generic', (payload) => {
-  // 1. Show toast with payload.title
-  showToast(payload.title, payload.body);
-  // 2. Increment unread count badge
-  refetchUnreadCount();
-  // 3. Navigate to payload.link on click
+socket.on('connect', () => console.log('WS connected'));
+socket.on('notification:generic', (notif) => {
+  toast.info(notif.title, { description: notif.body });
+  queryClient.invalidateQueries(['notifications', 'unread-count']);
+});
+socket.on('message:received', (msg) => {
+  queryClient.setQueryData(['messages', msg.engagementId], (old) => [...old, msg]);
+});
+socket.on('bid:update', ({ bidId, newState }) => {
+  queryClient.invalidateQueries(['bids']);
+});
+socket.on('milestone:update', ({ milestoneId }) => {
+  queryClient.invalidateQueries(['milestones']);
 });
 ```
 
----
+### 28.5 Anti-Rot Verification Command
 
-## 23. Breaking Changes Cheatsheet
+Before any PR merge, the FE lead must verify:
 
-| # | Endpoint | Old Behavior | Required FE Change |
-|---|----------|-------------|---------------------|
-| 1 | `POST /subscriptions/activate` | Body: `{ activeRole }` | **Add `packageId`** from `GET /config/subscription-packages` |
-| 2 | `GET /subscriptions/status` | FE computed `isExpired` from date | **Remove date math** — trust `subscriptionTier` directly |
-| 3 | `POST /auth/register` | Single error string | `message` is **array** — iterate for checklist |
-| 4 | Stage 2 archetype list | Hardcoded `['1'..'6']` | Fetch `GET /config/archetypes` |
-| 5 | Stage 3 probe questions | Hardcoded strings | Fetch `GET /config/archetypes/:code/probe-questions` |
-| 6 | Stage 3 response | Only `vague_answers` | Now has `irrelevant_answers` — show as different warning type |
-| 7 | Stage 4 request | `{ current_stack, data_available, latency_requirement }` | Add `technical_artifacts:{}` and `additional_requirement_1` |
-| 8 | Stage 4 response | Updated session object | Shape is now `{ session, missingArtifacts }` |
-| 9 | `GET /projects/:id` | No domains/seams/milestones | All three now present — use for BidForm |
-| 10 | Subscription price display | Hardcoded 500k/300k VND | Fetch `GET /config/subscription-packages?role=CLIENT/EXPERT` |
-| 11 | Tech Team empty state | Always "Waiting for CEO" | Show only when `GET /projects` returns `[]` |
-| 12 | Password reset page | Only forgot+reset endpoints | Add `verify-reset-token` check on page load |
-| 13 | Void code display (Stage 2) | Hardcoded descriptions in FE | Fetch `GET /config/void-codes`, look up by `void_code` |
-| 14 | Stage 1 response | No artifact requirements | Handle `criticalArtifactsJson` → show Stage 4 reminder |
-| 15 | Seam code format | `A<->C` (ASCII) | Use `A↔C` (U+2194 arrow) — DB rejects old format |
-| 16 | Domain/Seam code validation | Hardcoded enum in DTO | Any non-empty string — validated against DB at service layer |
-| 17 | Bid DTO `footprint_alignment_json` | Strict enum codes | `code` is now `string`, `depth`/`tier` still enum |
-| 18 | Listing DTO | Strict enum codes for domains/seams | `domainsJson`/`seamsJson` are now `string[]` |
-| 19 | Invitation response | `ceo.fullName` only | Now has `ceo.clientProfile.companyName` — use with optional chain |
-| 20 | Wallet transactions | No filtering | Now accepts `?type=&limit=&offset=` query params |
-| 21 | Notifications | WebSocket only (lost on refresh) | Now persisted — use `GET /notifications/me` REST endpoint |
+```bash
+# 1. Every BE endpoint in swagger.json has a FE API client function
+grep -r "apiClient\.\(get\|post\|put\|patch\|delete\)" src/ | wc -l
+# Should be >= 200 (213 endpoints - 4 webhooks - 1 internal - ~8 optional overlaps)
 
----
+# 2. No FE call references an endpoint NOT in swagger.json
+# (manual review of apiClient wrapper)
 
-## 24. Complete Endpoint Index
+# 3. No hardcoded domain/seam codes
+grep -rE "'[A-F]'" src/ --include="*.ts" --include="*.tsx"
+# Should only appear in test files, never in production code
 
-### Auth Module
-```
-POST   /auth/register
-POST   /auth/register/handoff
-POST   /auth/claim-handoff
-POST   /auth/login
-POST   /auth/refresh
-POST   /auth/logout                          ← NEW
-PUT    /auth/me/password                     ← NEW
-POST   /auth/forgot-password
-GET    /auth/verify-reset-token/:token       ← NEW
-POST   /auth/reset-password
-POST   /auth/switch-role
-```
+# 4. No hardcoded subscription prices
+grep -rE "500000|300000" src/ --include="*.ts" --include="*.tsx"
+# Should only appear in seed/test files
 
-### Users Module
-```
-GET    /users/me
-PATCH  /users/me
-PUT    /users/me/tax-code
-POST   /users/me/role
-GET    /users/experts                        ← NEW
-DELETE /users/me                             ← NEW
-```
-
-### Subscriptions Module
-```
-GET    /subscriptions/status
-POST   /subscriptions/activate
-GET    /subscriptions/history                ← NEW
-```
-
-### Public Config Module (no auth)
-```
-GET    /config/domains
-GET    /config/seams
-GET    /config/archetypes
-GET    /config/archetypes/:code/probe-questions
-GET    /config/void-codes                    ← NEW
-GET    /config/subscription-packages
-GET    /config/all                           ← NEW
-```
-
-### Elicitation Module
-```
-POST   /elicitation/sessions/start
-GET    /elicitation/sessions/:id
-POST   /elicitation/sessions/:id/stage1
-POST   /elicitation/sessions/:id/stage2
-POST   /elicitation/sessions/:id/stage3
-PATCH  /elicitation/sessions/:id/stage4-draft              ← NEW
-POST   /elicitation/sessions/:id/stage4
-POST   /elicitation/sessions/:id/stage4-handoff
-POST   /elicitation/sessions/:id/stage5
-POST   /elicitation/sessions/:id/revert
-POST   /elicitation/sessions/:id/set-self-technical
-POST   /elicitation/sessions/:id/invite-tech-team
-```
-
-### Projects Module
-```
-GET    /projects
-GET    /projects/:id
-GET    /projects/:id/engagements             ← NEW
-GET    /projects/:id/invitations             ← NEW
-GET    /projects/:id/team                    ← NEW
-GET    /projects/:id/milestones              ← NEW
-PUT    /projects/:id/cancel                  ← NEW
-POST   /projects/:id/milestone-chat          ← NEW
-GET    /projects/:id/milestone-chat/sessions ← NEW
-GET    /projects/:id/milestone-chat/sessions/:sessionId  ← NEW
-GET    /projects/:id/messages/unread-count   ← NEW
-```
-
-### Milestones Module
-```
-GET    /milestones?engagementId=...          ← NEW
-PATCH  /milestones/:id                       ← NEW
-DELETE /milestones/:id                       ← NEW
-GET    /milestones/:id/submissions           ← NEW
-GET    /milestones/:id/submissions/latest    ← NEW
-GET    /milestones/:id/disputes              ← NEW
-GET    /milestones/:id/dod                   ← NEW
-DELETE /milestones/:id/dod/:itemId           ← NEW
-POST   /milestones/:id/dod
-PATCH  /milestones/:id/dod/:itemId
-GET    /milestones/:id/criteria              ← NEW (alias for /criteria/:milestoneId)
-```
-
-### Criteria Sub-Module
-```
-GET    /criteria/:milestoneId                ← NEW
-POST   /criteria/:milestoneId                ← NEW
-DELETE /criteria/:id                         ← NEW
-POST   /criteria/:id/verify
-```
-
-### Expert Profiles Module
-```
-GET    /expert-profile/me
-PATCH  /expert-profile/me
-GET    /expert-profile/me/domains            ← NEW
-POST   /expert-profile/domains
-PUT    /expert-profile/domains/:id
-DELETE /expert-profile/domains/:id           ← NEW
-POST   /expert-profile/domains/sync
-GET    /expert-profile/me/seams              ← NEW
-POST   /expert-profile/seams
-POST   /expert-profile/seams/sync
-GET    /expert-profile/search                ← NEW
-GET    /expert-profile/:userId               ← NEW
-```
-
-### Portfolio Sub-Module
-```
-GET    /expert-profile/me/portfolio
-POST   /expert-profile/me/portfolio
-GET    /expert-profile/me/portfolio/:id      ← NEW
-DELETE /expert-profile/me/portfolio/:id      ← NEW
-```
-
-### Listings Module
-```
-GET    /services
-GET    /services/:id
-POST   /services
-PUT    /services/:id
-DELETE /services/:id                         ← NEW
-PUT    /services/:id/publish                 ← NEW
-PUT    /services/:id/unpublish               ← NEW
-GET    /services/me                          ← NEW
-GET    /services/me/purchases                ← NEW
-POST   /services/:id/purchase
-```
-
-### Engagements Module
-```
-GET    /engagements
-GET    /engagements/:id
-GET    /engagements/:id/bid                  ← NEW
-GET    /engagements/:id/disputes             ← NEW
-GET    /engagements/:id/milestones           ← NEW
-GET    /engagements/:id/submissions          ← NEW
-PUT    /engagements/:id/cancel               ← NEW
-POST   /engagements/:id/nda-acceptance
-```
-
-### Bids Module
-```
-GET    /bids                                 ← NEW (role-scoped)
-GET    /bids/:id
-POST   /bids
-PUT    /bids/:id
-DELETE /bids/:id                             ← NEW (withdraw)
-POST   /bids/:id/tech-review
-POST   /bids/:id/ceo-decision
-POST   /bids/:id/counter-offer
-POST   /bids/:id/shortlist
-```
-
-### Disputes Module
-```
-GET    /disputes
-GET    /disputes/:id
-POST   /disputes
-POST   /disputes/:id/evidence                ← NEW
-PUT    /disputes/:id/withdraw                ← NEW
-POST   /disputes/:id/resolve                 (admin)
-```
-
-### Wallet Module
-```
-GET    /wallets/me
-GET    /wallets/me/transactions              ← UPDATED (query params)
-POST   /wallets/topup
-POST   /wallets/bank-link/initiate
-GET    /withdrawals
-POST   /withdrawals
-DELETE /withdrawals/:id                      ← NEW
-```
-
-### Messages Module
-```
-GET    /conversations                        ← NEW
-GET    /messages?engagementId=...|projectId=...
-POST   /messages
-POST   /messages/invite-expert
-```
-
-### Reviews Module
-```
-GET    /reviews/me                           ← NEW
-GET    /reviews/me/received                  ← NEW
-GET    /reviews/users/:userId                ← NEW
-POST   /reviews
-```
-
-### Invitations Module
-```
-GET    /invitations                          (expert: received)
-GET    /invitations/sent                     ← NEW (client: sent)
-POST   /invitations
-DELETE /invitations/:id                      ← NEW (retract)
-POST   /invitations/:id/respond
-```
-
-### Notifications Module (ALL NEW)
-```
-GET    /notifications/me
-GET    /notifications/me/unread-count
-PUT    /notifications/:id/read
-PUT    /notifications/read-all
-DELETE /notifications/:id
-```
-
-### Admin Module
-```
-# Config CMS
-GET/POST/PUT/DELETE  /admin/config/domains
-GET/POST/PUT/DELETE  /admin/config/seams
-GET/POST/PUT/DELETE  /admin/config/archetypes
-GET/POST/PUT/DELETE  /admin/config/probe-questions
-GET/POST/PUT/DELETE  /admin/config/void-codes          ← NEW (Dynamic AI)
-
-# Prompt Templates (NEW — Dynamic AI)
-GET    /admin/prompts
-GET    /admin/prompts/:stage
-PUT    /admin/prompts/:stage
-DELETE /admin/prompts/:stage
-
-# Subscriptions
-GET/POST/PUT/DELETE  /admin/subscriptions/packages
-
-# Users
-GET    /admin/users                          ← NEW
-GET    /admin/users/:id                      ← NEW
-PUT    /admin/users/:id/reactivate           ← NEW
-
-# Projects
-GET    /admin/projects                       ← NEW
-GET    /admin/projects/:id                   ← NEW
-PUT    /admin/projects/:id/reopen            ← NEW
-
-# Engagements
-GET    /admin/engagements                    ← NEW
-
-# Experts
-GET    /admin/experts                        ← NEW
-
-# Disputes
-POST   /admin/disputes/:id/resolve
+# 5. All BigInt fields handled with Number() conversion
+grep -rE "priceVnd|amountVnd|balance" src/ --include="*.ts" --include="*.tsx" | grep -v "Number("
+# Manual review: each should either be displayed as string or wrapped in Number()
 ```
 
 ---
 
-## 25. DB Schema Quick Reference
+**END OF DOCUMENT.**
 
-### 25.1 Core Tables
+This is the single source of truth. If any discrepancy arises between this doc and the BE codebase, **the codebase wins** — file an issue to update this doc. If any discrepancy arises between this doc and the swagger.json, **swagger.json wins** — file an issue to update this doc.
 
-| Table | Purpose | Key Relations |
-|-------|---------|---------------|
-| `users` | All accounts | has `roles[]`, `activeRole`, `clientSubtype` |
-| `client_profiles` | CEO company info | 1:1 with user |
-| `expert_profiles` | Expert bio + stack | 1:1 with user |
-| `tech_team_profiles` | Tech team linked to CEO + project | N:1 with user (CEO), N:1 with project |
-| `wallets` | User balances | 1:1 with user |
-| `wallet_transactions` | Ledger entries | N:1 with wallet |
-| `virtual_accounts` | SePay VA for topup/milestone | polymorphic `entity_type` + `entity_id` |
-| `withdrawal_requests` | Expert cash-out | N:1 with user, N:1 with milestone |
-| `platform_settings` | Fee % singleton | 1:1 with platform wallet |
-| `subscription_packages` | Pro tier packages | has `role`, `priceVnd`, `durationMonths` |
-| `subscription_purchase_logs` | Purchase history | N:1 with user, N:1 with package |
-
-### 25.2 Elicitation Tables
-
-| Table | Purpose |
-|-------|---------|
-| `elicitation_sessions` | 5-stage flow state. Has `stage1SymptomsJson`, `stage3ProbesJson`, `stage4TechInputsJson`, `criticalArtifactsJson`, `voidListJson`, `recommendedArchetypesJson`, `estimatedBudgetVnd`, `stage4DraftJson` |
-| `projects` | Published project spec. Has `requiredSeamsJson`, `requiredDomainsJson`, `milestoneFrameworkJson`, `artifactAJson`, `artifactBJson`, `estimatedTotalCostVnd`, `estimatedTotalDurationDays` |
-| `project_shortlist_cache` | Cached matching results per project |
-
-### 25.3 Expert Capability Tables
-
-| Table | Purpose |
-|-------|---------|
-| `expert_domain_depths` | Expert's depth per domain code. `UNIQUE(expertId, domainCode)` |
-| `expert_seam_claims` | Expert's claim per seam code. Has `verificationTier`, `submissionCount`, `lockedUntil` |
-| `portfolio_submissions` | Evidence submitted for a seam claim. Has `llmConfidence`, `status` |
-
-### 25.4 Engagement Tables
-
-| Table | Purpose |
-|-------|---------|
-| `engagements` | Client-expert pairing. Has `state`, NDA timestamps |
-| `capability_bids` | Expert's bid on a project. Has `techStatus`, `ceoStatus`, `negotiatedPriceVnd` |
-| `milestones` | Milestone in engagement. Has `state` (DEFINED → AWAITING_PAYMENT → FUNDED → IN_PROGRESS → SUBMITTED → IN_REVISION → APPROVED → RELEASED → DISPUTED) |
-| `acceptance_criteria` | Measurable criteria per milestone |
-| `milestone_dod_items` | Definition-of-Done checklist items |
-| `milestone_submissions` | Expert's delivery for a milestone |
-| `paygated_documents` | Documents released only on milestone approval |
-
-### 25.5 Finance Tables
-
-| Table | Purpose |
-|-------|---------|
-| `escrow_accounts` | Held funds. `UNIQUE` on `milestoneId` or `engagementId` |
-| `disputes` | Dispute with `llmConfidence`, `state` (PENDING → LAYER_1_EVAL → AUTO_RESOLVED|MANUAL_REVIEW → RESOLVED) |
-
-### 25.6 Communication Tables
-
-| Table | Purpose |
-|-------|---------|
-| `messages` | Chat messages. Has `engagementId` OR `projectId` (for pre-bid Q&A) |
-| `message_reads` | Read receipts. `UNIQUE(messageId, userId)` |
-| `reviews` | Post-engagement reviews. `UNIQUE(engagementId, reviewerId)` |
-| `invitations` | CEO → Expert invitations. `UNIQUE(projectId, expertId)` — re-invite resets via upsert |
-| `notifications` | Persisted notifications. Indexed on `(userId, isRead)` and `(userId, createdAt DESC)` |
-| `milestone_chat_sessions` | Multi-turn AI chat about milestone framework |
-
-### 25.7 CMS Tables (Admin-Configurable)
-
-| Table | Purpose |
-|-------|---------|
-| `domain_definitions` | Domain codes + names (e.g. `A` = LLM App Engineering) |
-| `seam_definitions` | Seam codes + names (e.g. `A↔C` = LLM output quality) |
-| `archetype_definitions` | Project archetypes (1-6: RAG, Recommendation, Classification, Generation, Prediction, Multimodal) |
-| `probe_questions` | Stage 3 behavioral questions per archetype |
-| `void_code_definitions` | Risk taxonomy (NO_GROUND_TRUTH, MISSING_TECHNICAL_ARTIFACT, etc.) |
-| `prompt_templates` | Jinja2 templates for AI service — DB-backed hot-reload with 60s TTL |
-| `platform_decisions` | Audit log of all AI decisions (confidence, advisory notes) |
-
-### 25.8 Field Naming Convention
-
-- DB columns: `snake_case` (e.g. `created_at`, `client_nda_accepted_at`)
-- Prisma model fields: `camelCase` (e.g. `createdAt`, `clientNdaAcceptedAt`)
-- JSON response fields: `camelCase` (NestJS serializes Prisma fields directly)
-- JSON payload fields in DTOs: `snake_case` for legacy endpoints (elicitation stages, portfolio, disputes), `camelCase` for newer endpoints (subscriptions, listings, bids)
-
-**When in doubt about a field name, check the specific endpoint's response example in this doc.**
-
----
-
-## End of Document
-
-This guide covers **every** backend change in `current-backend-code-newest`. If the FE dev encounters an endpoint not documented here, it does not exist in the current branch — do not call it (that would be rot code). If an endpoint exists but returns a different shape than documented, the doc is wrong — ping the BE dev.
-
-**Last updated:** Consolidates all patches from Groups A–F + Dynamic AI Service + DTO de-hardcoding + CRUD gap patches.
+For the FE dev: read Sections 1, 26, 27 first. Then read the section for whatever feature you're building. Keep Section 27 as your PR checklist.
