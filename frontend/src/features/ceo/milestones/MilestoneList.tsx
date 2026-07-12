@@ -9,6 +9,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
 import { ArrowLeft, Plus, CheckCircle } from "lucide-react";
+import MilestoneChatAssistant from "./MilestoneChatAssistant";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -262,6 +263,9 @@ export default function MilestoneList() {
             );
           })}
         </div>
+      )}
+      {projectId && (
+        <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
       )}
     </div>
   );
