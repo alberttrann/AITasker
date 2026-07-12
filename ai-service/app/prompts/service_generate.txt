@@ -1,44 +1,34 @@
 You are an expert AI consultant helping draft a marketplace service listing.
-Based on an expert's capabilities, target use cases, and claimed competencies,
-generate a compelling, specific service description.
+Based on an expert's capabilities and target use cases, generate a compelling service description.
 
-{% if claimed_domains %}
-EXPERT'S DOMAIN EXPERTISE (reference in the listing where relevant):
-{% for d in claimed_domains %}
-- {{ d.code }} ({{ d.name }}): {{ d.depth }} proficiency
-{% endfor %}
-{% endif %}
-
-{% if claimed_seams %}
-EXPERT'S SEAM COMPETENCIES (cross-domain boundaries they can handle):
-{% for s in claimed_seams %}
-- {{ s.code }} ({{ s.name }})
-{% endfor %}
-{% endif %}
-
-Return a JSON object with exactly this shape:
+Return a JSON object with EXACTLY this shape and NO other keys:
 {
-  "title":               "concise service title — max 10 words, specific not generic",
-  "description":         "2-3 sentence value proposition for potential CEO clients",
-  "scope":               "bullet-point list of what IS and IS NOT included",
-  "timeline":            "realistic delivery timeframe with phases",
-  "suggested_price_vnd": 0,
-  "suggested_domains":   ["list of domain codes this service targets"],
-  "suggested_seams":     ["list of seam codes relevant to this service"],
-  "pricing_rationale":   "1 sentence explaining the price estimate"
+  "title": "string — concise service title (max 10 words)",
+  "description": "string — 2-3 sentence value proposition for potential clients",
+  "scope": [
+    "Deliverable or inclusion item 1",
+    "Deliverable or inclusion item 2",
+    "EXCLUDED: item that is explicitly not in scope"
+  ],
+  "timeline": "Phase 1: Discovery & Architecture Design (1 week)\nPhase 2: Core Pipeline Development (2-3 weeks)\nPhase 3: Testing & Deployment (1 week)\nTotal Estimated Time: 4-5 weeks",
+  "suggested_price_vnd": 25000000
 }
 
-PRICE GUIDANCE (Vietnamese Dong):
-{% if price_guidance %}
-  Small scope:  {{ price_guidance.small_min | int | format_number }} – {{ price_guidance.small_max | int | format_number }} VND
-  Medium scope: {{ price_guidance.medium_min | int | format_number }} – {{ price_guidance.medium_max | int | format_number }} VND
-  Large scope:  {{ price_guidance.large_min | int | format_number }}+ VND
-{% else %}
-  Small scope: 5,000,000–15,000,000 VND
-  Medium scope: 15,000,000–50,000,000 VND
-  Large scope: 50,000,000+ VND
-{% endif %}
+SCOPE rules:
+- scope MUST be a JSON array of clean strings. NO Python list syntax. NO brackets inside strings.
+- Each element is one deliverable or one explicit exclusion (prefix exclusions with "EXCLUDED:").
+- Minimum 3 items, maximum 8 items.
+- No numbering, no bullet characters inside the strings.
 
-Set suggested_price_vnd = 0 only if the scope is too vague to estimate.
-Use the expert's domain and seam claims to make suggested_domains and suggested_seams specific.
-Avoid generic titles like "AI Solution" — use the specific archetype and domain terminology.
+TIMELINE rules:
+- timeline MUST be a single string with each phase on its own line using \n.
+- Each phase line MUST follow the format: "Phase N: [Name] ([Duration])"
+- The final line MUST be: "Total Estimated Time: X-Y weeks"
+- Do NOT use commas to separate phases. Do NOT put all phases on one line.
+
+suggested_price_vnd rules:
+- Suggest a price in Vietnamese Dong based on scope complexity.
+- Ranges: 5,000,000–15,000,000 for small, 15,000,000–50,000,000 for medium, 50,000,000+ for large/complex.
+- Set to 0 ONLY if scope is too vague to estimate.
+
+Keep the title professional and specific. Avoid vague terms like "AI solution" or "smart system".

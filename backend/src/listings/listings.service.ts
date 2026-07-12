@@ -165,7 +165,10 @@ export class ListingsService {
 
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
-      scope = dto.scope ?? ai.scope;
+      const aiScopeStr = Array.isArray(ai.scope)
+        ? ai.scope.join('\n')
+        : (ai.scope ?? '');
+      scope = dto.scope ?? aiScopeStr;
       timeline = dto.timeline ?? ai.timeline;
 
       if (priceVnd === null) {
