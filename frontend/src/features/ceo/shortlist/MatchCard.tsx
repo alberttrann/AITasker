@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
 import { useSocket } from '@/hooks/use-socket';
+import { useDomains, useSeams } from '@/hooks/use-config';
+import { useProject } from '@/hooks/use-projects';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -30,6 +32,97 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
       return data;
     },
   });
+
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
+
+  const getDomainLabel = (code: string) => {
+    const staticMap: Record<string, string> = {
+      'A': 'Enterprise Applications',
+      'B': 'Applied AI / ML Systems',
+      'C': 'Prompt Engineering & Governance',
+      'D': 'Fine-Tuning & Custom Models',
+      'E': 'RAG & Knowledge Systems',
+      'F': 'LLM Infrastructure & Ops',
+    };
+    const domain = dynamicDomains?.find(d => d.code === code);
+    return domain ? domain.name : (staticMap[code] || code);
+  };
+
+  const getSeamLabel = (code: string) => {
+    const staticMap: Record<string, string> = {
+      'A↔B': 'Applied Agents',
+      'A↔C': 'Prompt Engineering Apps',
+      'A↔D': 'Fine-Tuned Apps',
+      'A↔F': 'Production LLMs',
+      'B↔E': 'Agents with Memory',
+      'C↔E': 'Retrieval Prompting',
+      'C↔F': 'PromptOps',
+      'D↔E': 'Fine-Tuned RAG',
+      'D↔F': 'MLOps for LLMs',
+      'E↔F': 'Scalable RAG',
+    };
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam ? seam.name : (staticMap[code] || code);
+  };
+
+  const { data: fullProject } = useProject(projectId);
+
+  const domainItems = useMemo(() => {
+    const expertDomains: Array<{ domainCode: string; depthLevel: string }> =
+      profile?.domainDepths || [];
+    const projectDomains: Array<any> =
+      fullProject?.requiredDomainsJson ||
+      fullProject?.required_domains_json ||
+      [];
+
+    const getDepthValue = (depth: string) => {
+      if (!depth) return 0;
+      const d = depth.toUpperCase();
+      if (d === 'AUTHORITY' || d === 'EXPERT' || d === 'DEEP') return 3;
+      if (d === 'PROFICIENT' || d === 'PRACTITIONER' || d === 'OPERATIONAL' || d === 'INTERMEDIATE') return 2;
+      if (d === 'WORKING' || d === 'AWARENESS' || d === 'SURFACE' || d === 'BEGINNER') return 1;
+      return 1;
+    };
+
+    const map = new Map<string, { code: string; matchLevel: 'green' | 'amber' | 'red' | 'blue'; depthLevel: string }>();
+
+    // First process required domains from the project
+    projectDomains.forEach((req: any) => {
+      const code = req.domainCode || req.domain_code;
+      if (!code) return;
+      const reqDepth = req.requiredDepth || req.required_depth || req.depth_level || 'ANY';
+      const expertMatch = expertDomains.find((ed) => ed.domainCode === code);
+
+      if (expertMatch) {
+        const meets = getDepthValue(expertMatch.depthLevel) >= getDepthValue(reqDepth);
+        map.set(code, {
+          code,
+          matchLevel: meets ? 'green' : 'amber',
+          depthLevel: expertMatch.depthLevel,
+        });
+      } else {
+        map.set(code, {
+          code,
+          matchLevel: 'red',
+          depthLevel: 'Missing',
+        });
+      }
+    });
+
+    // Then add any additional domains the expert has that weren't explicitly required
+    expertDomains.forEach((ed) => {
+      if (!map.has(ed.domainCode)) {
+        map.set(ed.domainCode, {
+          code: ed.domainCode,
+          matchLevel: projectDomains.length > 0 ? 'blue' : 'green',
+          depthLevel: ed.depthLevel,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [profile?.domainDepths, fullProject]);
 
   const socket = useSocket();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -79,27 +172,52 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
           </span>
         </div>
 
-        {/* Seam Coverage */}
-        {gaps.length > 0 && (
-          <div className="mb-3">
-            <span className="text-caption text-secondary">Seam Coverage</span>
-            <div className="mt-1 flex gap-1">
-              {gaps.map((g) => (
-                <span
-                  key={g.seam_code}
-                  className={`h-3 w-3 rounded-full ${
-                    g.color === 'green'
-                      ? 'bg-success'
-                      : g.color === 'amber'
+        {/* Domain Match & Seam Coverage */}
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          {domainItems.length > 0 && (
+            <div>
+              <span className="text-caption text-secondary block">Domain Match</span>
+              <div className="mt-1 flex gap-1.5 flex-wrap">
+                {domainItems.map((d) => (
+                  <span
+                    key={d.code}
+                    className={`h-3 w-3 rounded-full ${
+                      d.matchLevel === 'green'
+                        ? 'bg-success'
+                        : d.matchLevel === 'amber'
+                        ? 'bg-warning'
+                        : d.matchLevel === 'red'
+                        ? 'bg-error'
+                        : 'bg-blue-500'
+                    }`}
+                    title={`${d.code}: ${d.matchLevel === 'green' ? 'Full Match' : d.matchLevel === 'amber' ? 'Partial Match' : d.matchLevel === 'red' ? 'Gap' : 'Additional'}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {gaps.length > 0 && (
+            <div>
+              <span className="text-caption text-secondary block">Seam Coverage</span>
+              <div className="mt-1 flex gap-1.5 flex-wrap">
+                {gaps.map((g) => (
+                  <span
+                    key={g.seam_code}
+                    className={`h-3 w-3 rounded-full ${
+                      g.color === 'green'
+                        ? 'bg-success'
+                        : g.color === 'amber'
                         ? 'bg-warning'
                         : 'bg-error'
-                  }`}
-                  title={g.seam_code}
-                />
-              ))}
+                    }`}
+                    title={g.seam_code}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Stack Tags */}
         {stackTags.length > 0 && (
@@ -120,7 +238,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
         isOpen={isModalOpen} 
         onClose={() => { setIsModalOpen(false); setInviteError(null); setCountdown(null); }} 
         title="Invite Expert"
-        className="sm:w-[780px] sm:max-w-[780px]"
+        className="sm:w-[840px] sm:max-w-[840px]"
       >
         <div className="flex flex-col md:flex-row gap-8">
           {/* Left Side: Profile Information */}
@@ -149,14 +267,52 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             )}
 
             {/* Domains Section */}
-            {profile?.domainDepths && profile.domainDepths.length > 0 && (
+            {domainItems.length > 0 && (
               <div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Domain Expertise</h4>
-                <div className="flex flex-wrap gap-2">
-                  {profile.domainDepths.map((domain: any) => (
-                    <div key={domain.domainCode} className="inline-flex items-center rounded-[6px] bg-slate-50 border border-slate-200 px-2.5 py-1.5 text-[12px] text-slate-600">
-                      <span className="font-semibold text-slate-800 mr-1.5">{domain.domainCode}</span>
-                      <span className="opacity-60 text-[11px] uppercase tracking-wider">{domain.depthLevel}</span>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Domain Expertise & Match</h4>
+                <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-[8px] p-3">
+                  {domainItems.map((item) => (
+                    <div key={item.code} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full shadow-sm shrink-0 ${
+                            item.matchLevel === 'green'
+                              ? 'bg-emerald-500'
+                              : item.matchLevel === 'amber'
+                              ? 'bg-amber-500'
+                              : item.matchLevel === 'red'
+                              ? 'bg-rose-500'
+                              : 'bg-blue-500'
+                          }`}
+                        />
+                        <span className="text-[13px] font-semibold text-slate-800">
+                          {getDomainLabel(item.code)}
+                        </span>
+                        <span className="text-xs font-medium text-slate-500">
+                          ({item.code})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-medium text-slate-500">
+                          {item.matchLevel === 'green' && 'Full Match'}
+                          {item.matchLevel === 'amber' && 'Partial Match'}
+                          {item.matchLevel === 'red' && 'Gap'}
+                          {item.matchLevel === 'blue' && 'Additional'}
+                        </span>
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            item.matchLevel === 'green'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : item.matchLevel === 'amber'
+                              ? 'bg-amber-100 text-amber-800'
+                              : item.matchLevel === 'red'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {item.depthLevel || 'Missing'}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -181,8 +337,11 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                               g.color === 'green' ? 'bg-emerald-500' : g.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
                             }`}
                           />
-                          <span className="text-[13px] font-medium text-slate-700">
-                            {g.seam_code} 
+                          <span className="text-[13px] font-semibold text-slate-800">
+                            {getSeamLabel(g.seam_code)}
+                          </span>
+                          <span className="text-xs font-medium text-slate-500">
+                            ({g.seam_code})
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

@@ -1,6 +1,8 @@
 import { useMyPortfolioSubmissions } from '@/hooks/use-portfolio';
-import { CheckCircle2, XCircle, Clock, Lock } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Lock, ArrowLeft } from 'lucide-react';
 import { formatSeamCode } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 
 const SEAM_LABELS: Record<string, string> = {
   'A↔B': 'Applied Agents',
@@ -43,6 +45,7 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function VerificationHistoryPage() {
   const { data: submissions = [], isLoading } = useMyPortfolioSubmissions();
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -54,22 +57,30 @@ export default function VerificationHistoryPage() {
 
   if (submissions.length === 0) {
     return (
-      <div className="text-center py-16">
+      <div className="w-full max-w-[1440px] mx-auto px-4 py-16 text-center">
         <p className="text-lg font-bold text-slate-900">No submissions yet</p>
-        <p className="text-sm text-slate-500 mt-2">
+        <p className="text-sm text-slate-500 mt-2 mb-6">
           Submit portfolio evidence from your Expert Profile page to verify your seam claims.
         </p>
+        <Button variant="outline" onClick={() => navigate('/expert/service/expert-profile')} className="inline-flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Profile
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-8 px-4 py-8">
-      <div className="border-b border-slate-200 pb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Verification History</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          All your portfolio submissions and AI evaluation results.
-        </p>
+      <div className="border-b border-slate-200 pb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Verification History</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            All your portfolio submissions and AI evaluation results.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => navigate('/expert/service/expert-profile')} className="flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Profile
+        </Button>
       </div>
 
       <div className="space-y-4">
@@ -103,7 +114,7 @@ export default function VerificationHistoryPage() {
               {/* Confidence bar */}
               {sub.llmConfidence !== null && (
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500 w-28">LLM confidence</span>
+                  <span className="text-xs text-slate-500 w-32">AI Evaluation Score</span>
                   <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className={`h-2 rounded-full transition-all ${
@@ -112,8 +123,8 @@ export default function VerificationHistoryPage() {
                       style={{ width: `${Math.round((sub.llmConfidence ?? 0) * 100)}%` }}
                     />
                   </div>
-                  <span className="text-xs text-slate-500 w-10 text-right">
-                    {Math.round((sub.llmConfidence ?? 0) * 100)}%
+                  <span className="text-xs font-semibold text-slate-700 w-16 text-right">
+                    {Math.round((sub.llmConfidence ?? 0) * 100)} / 100
                   </span>
                 </div>
               )}
@@ -135,17 +146,9 @@ export default function VerificationHistoryPage() {
                 </div>
               )}
 
-              {/* Current tier + attempts */}
+              {/* Attempts */}
               <div className="text-xs text-slate-500">
-                Current tier:{' '}
-                <span className={
-                  sub.seamClaim.verificationTier === 'EVIDENCE_BACKED'
-                    ? 'text-green-700 font-medium'
-                    : 'text-slate-600'
-                }>
-                  {sub.seamClaim.verificationTier}
-                </span>
-                {' '}· Attempts: {sub.seamClaim.submissionCount} / 5
+                Attempts: {sub.seamClaim.submissionCount} / 5
               </div>
             </div>
           );

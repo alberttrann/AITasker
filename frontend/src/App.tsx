@@ -165,6 +165,10 @@ const router = createBrowserRouter(
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
             <Route
+              path="service/expert-profile/verification-history"
+              element={<VerificationHistoryPage />}
+            />
+            <Route
               path="verification-history"
               element={<VerificationHistoryPage />}
             />
