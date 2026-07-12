@@ -778,12 +778,27 @@ export class ElicitationService {
         session.voidListJson as Array<{ void_code: string; severity: string; injected?: boolean }>
       ) ?? [];
       const anyUnfixed = voids.find((v) => !v.injected);
-      flaggedVoid   = anyUnfixed?.void_code ?? null;
-      returnToStage = VOID_TO_STAGE[flaggedVoid ?? ''] ?? 1;
-      advisoryNote =
-        `Your project specification scored ${pct}% completeness (minimum 70% required). ` +
-        `Please revisit Stage ${returnToStage} and provide more detail` +
-        (flaggedVoid ? ` about ${flaggedVoid.replace(/_/g, ' ').toLowerCase()}.` : '.');
+      
+      // 1. Ưu tiên cái Void do AI ở Stage 5 vừa soi ra 
+      // 2. Nếu AI quên trả về, fallback xài cái Void chưa fix từ Stage 1
+      flaggedVoid = synthesis.flagged_void ?? anyUnfixed?.void_code ?? null;
+
+      if (flaggedVoid) {
+        // Tự động map cái Void đó về đúng Stage cần sửa
+        returnToStage = VOID_TO_STAGE[flaggedVoid] ?? 1;
+        advisoryNote =
+          `Your project specification scored ${pct}% completeness. ` +
+          `Please revisit Stage ${returnToStage} and provide more detail about ` +
+          `${flaggedVoid.replace(/_/g, ' ').toLowerCase()}.`;
+      } else {
+        // 3. Ultimate Fallback: Điểm bị trừ vì technical mỏng, chứ không vướng Void cụ thể nào.
+        // Đẩy về Stage 4 an toàn nhất.
+        returnToStage = 4;
+        advisoryNote = 
+          `Your project specification scored ${pct}% completeness. While your initial problem ` +
+          `description was clear, the technical context is currently too thin for experts ` +
+          `to accurately bid on. Please revisit Stage 4 and add more architectural details.`;
+      }
     } else {
       returnToStage = session.currentStage;
       advisoryNote =

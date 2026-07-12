@@ -371,25 +371,60 @@ export class ProjectsService {
   }
 
   async milestoneChatHandler(
-    projectId: string,
-    userId: string,
-    message: string,
+    projectId:     string,
+    userId:        string,
+    message:       string,
     chatSessionId?: string,
     currentMilestones?: any[],
   ) {
-    // Auth
+    // Auth & Data Fetching 
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      include: { techTeamProfiles: { select: { userId: true } } },
+      include: { 
+        techTeamProfiles: { select: { userId: true } },
+        // Lấy kèm hợp đồng đang Active để xem có Milestone thật dưới DB chưa
+        engagements: {
+          where: { state: { notIn: ['PENDING', 'DECLINED', 'CANCELLED'] } },
+          include: {
+            milestones: {
+              orderBy: { milestoneNumber: 'asc' },
+              include: { acceptanceCriteria: true }
+            }
+          },
+          take: 1
+        }
+      },
     });
+
     if (!project) throw new NotFoundException('Project not found.');
 
-    const isCeo = project.clientId === userId;
+    const isCeo      = project.clientId === userId;
     const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
     if (!isCeo && !isTechTeam) {
       throw new ForbiddenException(
         'Only the project CEO or assigned Tech Team can use the milestone assistant.',
       );
+    }
+
+    // Xác định nguồn dữ liệu Milestone cho Chatbot đọc 
+    let frameworkToUse: any = project.milestoneFrameworkJson;
+
+    // 1. Nếu dự án đã có hợp đồng và có Milestone thật dưới DB -> Ưu tiên dùng hàng thật
+    if (project.engagements && project.engagements.length > 0 && project.engagements[0].milestones.length > 0) {
+      // Map data từ DB về chuẩn JSON mà AI Model đang hiểu
+      frameworkToUse = project.engagements[0].milestones.map(m => ({
+        milestone_number: m.milestoneNumber,
+        deliverable_statement: m.deliverableStatement,
+        sign_off_authority: m.signOffAuthority,
+        payment_amount_vnd: Number(m.paymentAmountVnd),
+        state: m.state,
+        criteria: m.acceptanceCriteria.map(c => c.criterionText)
+      }));
+    }
+
+    // 2. Nếu Frontend có truyền lên mảng Local State (chỉnh sửa nháp chưa save) -> Ưu tiên cao nhất
+    if (currentMilestones && currentMilestones.length > 0) {
+      frameworkToUse = currentMilestones;
     }
 
     // Load or create session
@@ -403,15 +438,13 @@ export class ProjectsService {
       session = found;
     } else {
       const dateLabel = new Date().toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
+        day: '2-digit', month: '2-digit', year: 'numeric',
       });
       session = await this.prisma.milestoneChatSession.create({
         data: {
           projectId,
           userId,
-          title: `Chat · ${dateLabel}`,
+          title:       `Chat · ${dateLabel}`,
           messagesJson: [],
         },
       });
@@ -421,7 +454,10 @@ export class ProjectsService {
     const history = (session.messagesJson as ChatMessage[]) ?? [];
 
     // Append user turn, call AI, append assistant turn
-    const historyWithUserMsg: ChatMessage[] = [...history, { role: 'user', content: message }];
+    const historyWithUserMsg: ChatMessage[] = [
+      ...history,
+      { role: 'user', content: message },
+    ];
 
     const budgetContext = project.estimatedTotalCostVnd
       ? `Estimated total: ${project.estimatedTotalCostVnd.toString()} VND` +
@@ -430,16 +466,12 @@ export class ProjectsService {
           : '')
       : 'No budget estimate available';
 
-    const frameworkToUse = currentMilestones && currentMilestones.length > 0 
-      ? currentMilestones 
-      : project.milestoneFrameworkJson;
-
     const aiResponse = await this.fastapiClient.milestoneChatAssist({
-      artifact_a: (project.artifactAJson ?? {}) as Record<string, unknown>,
-      milestone_framework: (frameworkToUse ?? []) as Array<Record<string, unknown>>,
-      budget_context: budgetContext,
-      conversation_history: historyWithUserMsg, // FastAPI uses this as the full messages array
-      user_message: message, // redundant but kept for logging on FastAPI side
+      artifact_a:           (project.artifactAJson ?? {})          as Record<string, unknown>,
+      milestone_framework:  (frameworkToUse ?? [])                 as Array<Record<string, unknown>>,
+      budget_context:       budgetContext,
+      conversation_history: historyWithUserMsg,   
+      user_message:         message,              
     });
 
     const finalHistory: ChatMessage[] = [
@@ -450,15 +482,15 @@ export class ProjectsService {
     // Persist updated history
     await this.prisma.milestoneChatSession.update({
       where: { id: session.id },
-      data: { messagesJson: finalHistory as any, updatedAt: new Date() },
+      data:  { messagesJson: finalHistory as any, updatedAt: new Date() },
     });
 
     return {
-      reply: aiResponse.reply,
-      suggestedEdit: aiResponse.suggested_edit,
-      chatSessionId: session.id,
-      sessionTitle: session.title,
-      messageCount: finalHistory.length,
+      reply:          aiResponse.reply,
+      suggestedEdit:  aiResponse.suggested_edit,
+      chatSessionId:  session.id,
+      sessionTitle:   session.title,
+      messageCount:   finalHistory.length,
     };
   }
 

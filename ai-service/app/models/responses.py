@@ -49,8 +49,9 @@ class Stage5Response(BaseModel):
     artifact_a_json:                dict
     artifact_b_json:                dict
     completeness_score:             float
-    estimated_total_cost_vnd:       int | None = None    
-    estimated_total_duration_days:  int | None = None    
+    flagged_void:                   str | None = None  
+    estimated_total_cost_vnd:       int | None = None
+    estimated_total_duration_days:  int | None = None
 
 class PortfolioEvalResponse(BaseModel):
     confidence_score: float

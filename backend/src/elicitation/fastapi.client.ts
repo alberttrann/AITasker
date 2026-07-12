@@ -81,13 +81,14 @@ export interface Stage5Request {
 }
 
 export interface Stage5Response {
-  required_seams_json:            Array<Record<string, unknown>>;
-  required_domains_json:          Array<Record<string, unknown>>;
-  milestone_framework_json:       Array<Record<string, unknown>>;
-  artifact_a_json:                Record<string, unknown>;
-  artifact_b_json:                Record<string, unknown>;
-  completeness_score:             number;
-  estimated_total_cost_vnd?:      number | null;
+  required_seams_json:           Array<Record<string, unknown>>;
+  required_domains_json:         Array<Record<string, unknown>>;
+  milestone_framework_json:      Array<Record<string, unknown>>;
+  artifact_a_json:               Record<string, unknown>;
+  artifact_b_json:               Record<string, unknown>;
+  completeness_score:            number;
+  flagged_void?:                 string | null;  
+  estimated_total_cost_vnd?:     number | null;
   estimated_total_duration_days?: number | null;
 }
 
