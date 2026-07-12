@@ -242,8 +242,10 @@ export function useProjectMilestones(projectId: string) {
   return useQuery({
     queryKey: ['project', projectId, 'milestones'],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/projects/${projectId}/milestones`);
-      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+      // The backend does not currently have GET /projects/:id/milestones. 
+      // We return an empty array so the UI gracefully falls back to project.milestoneFrameworkJson
+      // without throwing a 404 console error.
+      return [];
     },
     enabled: !!projectId,
   });

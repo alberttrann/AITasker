@@ -117,3 +117,18 @@ export function useDecline() {
     },
   });
 }
+
+export function useEngagementMilestones(engagementId: string | undefined) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  return useQuery({
+    queryKey: ["engagements", engagementId, "milestones"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<any[]>(
+        `/engagements/${engagementId}/milestones`,
+      );
+      return data;
+    },
+    enabled: isAuthenticated && !!engagementId,
+  });
+}
