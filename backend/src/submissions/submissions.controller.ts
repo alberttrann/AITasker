@@ -7,7 +7,7 @@ import { SubmissionsService } from './submissions.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-
+import { BulkStagePaygatedDocsDto } from './dto/stage-paygated-doc.dto'; 
 @ApiTags('submissions') 
 @ApiBearerAuth('JWT')
 @Controller('submissions') 
@@ -41,6 +41,16 @@ export class SubmissionsController {
     @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string | null },
   ) {
     return this.submissionsService.downloadDocument(milestoneId, user);
+  }
+
+  @Post(':id/paygated-docs/bulk')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: 'Expert stages multiple technical paygated documents atomically' })
+  async uploadBulkDocuments(
+    @Param('id') milestoneId: string,
+    @Body() dto: BulkStagePaygatedDocsDto,
+  ) {
+    return this.submissionsService.uploadBulkDocuments(milestoneId, dto.documentUrls);
   }
 
 }

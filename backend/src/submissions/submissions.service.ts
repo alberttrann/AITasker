@@ -174,4 +174,25 @@ export class SubmissionsService {
     return docs;
   }
 
+  async uploadBulkDocuments(milestoneId: string, documentUrls: string[]) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    const result = await this.prisma.paygatedDocument.createMany({
+      data: documentUrls.map((url) => ({
+        milestoneId: milestoneId,
+        documentUrl: url,
+        releaseState: 'STAGED',
+        stagedAt: new Date(),
+      })),
+    });
+
+    return { success: true, count: result.count };
+  }
+
 }
