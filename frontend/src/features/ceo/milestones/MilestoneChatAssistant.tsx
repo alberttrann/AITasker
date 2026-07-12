@@ -116,6 +116,7 @@ export default function MilestoneChatAssistant({ projectId, engagementId }: Mile
     };
 
     const targetField = fieldMap[currentEdit.field] || currentEdit.field;
+    const isFullObject = targetField === 'milestone' && typeof currentEdit.suggested_value === 'object';
 
     // 1. If we have active instantiated engagement milestones, update the milestone row directly
     if (engagementMilestones && engagementMilestones.length > 0) {
@@ -124,11 +125,20 @@ export default function MilestoneChatAssistant({ projectId, engagementId }: Mile
       );
       if (!targetMilestone) return;
 
+      const payload = isFullObject 
+        ? currentEdit.suggested_value 
+        : { [targetField]: currentEdit.suggested_value };
+
+      // Map any camelCase keys inside payload to snake_case safely
+      const cleanPayload: Record<string, any> = {};
+      Object.keys(payload).forEach(k => {
+        const cleanKey = fieldMap[k] || k;
+        cleanPayload[cleanKey] = payload[k];
+      });
+
       updateMilestone.mutate({
         id: targetMilestone.id,
-        payload: {
-          [targetField]: currentEdit.suggested_value
-        }
+        payload: cleanPayload
       }, {
         onSuccess: () => {
           setCurrentEdit(null);
@@ -144,10 +154,25 @@ export default function MilestoneChatAssistant({ projectId, engagementId }: Mile
       );
 
       if (targetIndex !== -1) {
-        updatedFramework[targetIndex] = {
-          ...updatedFramework[targetIndex],
-          [targetField]: currentEdit.suggested_value
-        };
+        if (isFullObject) {
+          // Merge all fields from the suggested object
+          const suggestedObj = currentEdit.suggested_value;
+          const mappedObj: Record<string, any> = {};
+          Object.keys(suggestedObj).forEach(k => {
+            const cleanKey = fieldMap[k] || k;
+            mappedObj[cleanKey] = suggestedObj[k];
+          });
+          
+          updatedFramework[targetIndex] = {
+            ...updatedFramework[targetIndex],
+            ...mappedObj
+          };
+        } else {
+          updatedFramework[targetIndex] = {
+            ...updatedFramework[targetIndex],
+            [targetField]: currentEdit.suggested_value
+          };
+        }
 
         // Strip out non-whitelisted properties before saving to project blueprint (matching ProjectDetailPage logic)
         const cleanMilestones = updatedFramework.map((m: any) => ({
