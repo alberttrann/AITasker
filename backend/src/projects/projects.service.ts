@@ -375,6 +375,7 @@ export class ProjectsService {
     userId: string,
     message: string,
     chatSessionId?: string,
+    currentMilestones?: any[],
   ) {
     // Auth
     const project = await this.prisma.project.findUnique({
@@ -429,9 +430,13 @@ export class ProjectsService {
           : '')
       : 'No budget estimate available';
 
+    const frameworkToUse = currentMilestones && currentMilestones.length > 0 
+      ? currentMilestones 
+      : project.milestoneFrameworkJson;
+
     const aiResponse = await this.fastapiClient.milestoneChatAssist({
       artifact_a: (project.artifactAJson ?? {}) as Record<string, unknown>,
-      milestone_framework: (project.milestoneFrameworkJson ?? []) as Array<Record<string, unknown>>,
+      milestone_framework: (frameworkToUse ?? []) as Array<Record<string, unknown>>,
       budget_context: budgetContext,
       conversation_history: historyWithUserMsg, // FastAPI uses this as the full messages array
       user_message: message, // redundant but kept for logging on FastAPI side

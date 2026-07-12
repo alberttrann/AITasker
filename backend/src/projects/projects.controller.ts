@@ -110,6 +110,7 @@ export class ProjectsController {
       req.user.id,
       dto.message,
       dto.chatSessionId,
+      dto.currentMilestones,
     );
   }
 

@@ -4,7 +4,7 @@ import { Formik, Form, Field, FieldArray } from "formik";
 import * as Yup from "yup";
 import { useEngagement, useEngagementMilestones } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
-import { useCreateMilestone } from "@/hooks/use-milestones";
+import { useCreateMilestone, useBulkInitializeMilestones } from "@/hooks/use-milestones";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
@@ -63,6 +63,7 @@ export default function CreateMilestone() {
   } = useEngagementMilestones(engagementId);
 
   const createMilestoneMutation = useCreateMilestone();
+  const bulkInitializeMutation = useBulkInitializeMilestones();
 
   const isLoading = isLoadingEngagement || isLoadingProject || isLoadingMilestones;
   const error = engagementError || milestonesError;
@@ -151,10 +152,29 @@ export default function CreateMilestone() {
 
   const handleSubmit = async (values: typeof initialValues, { setSubmitting }: any) => {
     try {
-      // Create milestones sequentially to prevent database locks or sequencing violations
-      for (let i = 0; i < values.milestones.length; i++) {
-        setCreatingIndex(i);
-        await createMilestoneMutation.mutateAsync(values.milestones[i]);
+      const alreadyHasMilestones = instantiatedMilestones.length > 0;
+      if (!alreadyHasMilestones) {
+        // Use backend Bulk Initialize endpoint
+        const payload = {
+          engagementId: engagementId || "",
+          milestones: values.milestones.map((m: any) => ({
+            milestoneNumber: m.milestone_number,
+            deliverableStatement: m.deliverable_statement,
+            signOffAuthority: m.sign_off_authority,
+            paymentAmountVnd: m.payment_amount_vnd,
+            criteria: m.criteria.map((c: any) => ({
+              criterion_text: c.criterion_text,
+              is_required: c.is_required !== undefined ? c.is_required : true,
+            })),
+          })),
+        };
+        await bulkInitializeMutation.mutateAsync(payload);
+      } else {
+        // Fallback: Create milestones sequentially if the engagement already has instantiated milestones
+        for (let i = 0; i < values.milestones.length; i++) {
+          setCreatingIndex(i);
+          await createMilestoneMutation.mutateAsync(values.milestones[i]);
+        }
       }
       setCreatingIndex(null);
       setSubmitting(false);
@@ -452,24 +472,26 @@ export default function CreateMilestone() {
             </FieldArray>
 
             {/* Global API submission error banner */}
-            {createMilestoneMutation.isError && (
+            {(createMilestoneMutation.isError || bulkInitializeMutation.isError) && (
               <ErrorBanner
                 message={
-                  (createMilestoneMutation.error as any)?.response?.data?.message ||
+                  ((createMilestoneMutation.error || bulkInitializeMutation.error) as any)?.response?.data?.message ||
                   "Failed to create milestones. Check details and try again."
                 }
               />
             )}
 
             {/* Submitting Status Overlay */}
-            {creatingIndex !== null && (
+            {(creatingIndex !== null || bulkInitializeMutation.isPending) && (
               <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-100 flex flex-col items-center gap-4 max-w-sm text-center">
                   <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
                   <div>
                     <h3 className="font-bold text-slate-800">Creating Milestones</h3>
                     <p className="text-sm text-slate-500 mt-1">
-                      Instantiating milestone {creatingIndex + 1} of {values.milestones.length}...
+                      {bulkInitializeMutation.isPending
+                        ? "Initializing all milestones via contract transaction..."
+                        : `Instantiating milestone ${creatingIndex + 1} of ${values.milestones.length}...`}
                     </p>
                   </div>
                 </div>
@@ -492,10 +514,10 @@ export default function CreateMilestone() {
                 type="submit"
                 id="btn-submit-milestones"
                 variant="primary"
-                disabled={isSubmitting || createMilestoneMutation.isPending}
+                disabled={isSubmitting || createMilestoneMutation.isPending || bulkInitializeMutation.isPending}
                 className="inline-flex items-center gap-2 cursor-pointer"
               >
-                {createMilestoneMutation.isPending ? (
+                {createMilestoneMutation.isPending || bulkInitializeMutation.isPending ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
                     Instantiating...

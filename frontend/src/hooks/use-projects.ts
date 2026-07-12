@@ -278,9 +278,20 @@ export function useMilestoneChatHistory(projectId: string, sessionId: string | n
 export function useSendMilestoneMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ projectId, message, chatSessionId }: { projectId: string; message: string; chatSessionId?: string }) => {
+    mutationFn: async ({ 
+      projectId, 
+      message, 
+      chatSessionId, 
+      currentMilestones 
+    }: { 
+      projectId: string; 
+      message: string; 
+      chatSessionId?: string; 
+      currentMilestones?: any[] 
+    }) => {
       const payload: any = { message };
       if (chatSessionId) payload.chatSessionId = chatSessionId;
+      if (currentMilestones) payload.currentMilestones = currentMilestones;
       const { data } = await apiClient.post(`/projects/${projectId}/milestone-chat`, payload);
       return data;
     },

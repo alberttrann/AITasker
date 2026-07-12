@@ -592,7 +592,10 @@ export default function ProjectDetailPage() {
 
       </div>
 
-      <MilestoneChatAssistant projectId={project.id} />
+      <MilestoneChatAssistant 
+        projectId={project.id} 
+        currentMilestones={isEditingMilestones ? editedMilestones : undefined} 
+      />
     </div>
   );
 }

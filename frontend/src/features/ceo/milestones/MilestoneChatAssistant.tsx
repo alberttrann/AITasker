@@ -15,9 +15,10 @@ import { Loader2, Send, MessageSquare, Bot, User, CheckCircle2, AlertTriangle, C
 interface MilestoneChatAssistantProps {
   projectId: string;
   engagementId?: string;
+  currentMilestones?: any[];
 }
 
-export default function MilestoneChatAssistant({ projectId, engagementId }: MilestoneChatAssistantProps) {
+export default function MilestoneChatAssistant({ projectId, engagementId, currentMilestones }: MilestoneChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
@@ -78,7 +79,12 @@ export default function MilestoneChatAssistant({ projectId, engagementId }: Mile
     
     setPendingUserMessage(inputText);
     sendMessage.mutate(
-      { projectId, message: inputText, chatSessionId: activeSessionId || undefined },
+      { 
+        projectId, 
+        message: inputText, 
+        chatSessionId: activeSessionId || undefined, 
+        currentMilestones 
+      },
       {
         onSuccess: (data) => {
           if (!activeSessionId && data.chatSessionId) {
