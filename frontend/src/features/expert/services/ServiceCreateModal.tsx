@@ -7,11 +7,51 @@ import { Button } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Loader2, DollarSign, Clock, Tags, X, Send, Wand2, CheckCircle, ChevronDown } from 'lucide-react';
-import { DomainCode, SeamCode } from '@/types/api.types';
 
 export interface ServiceCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function parseArrayOrString(input: string): string[] {
+  if (!input) return [];
+  let clean = input.trim();
+  if (clean.startsWith('```')) {
+    clean = clean.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
+  }
+  
+  // Try standard JSON parse
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) {
+      return parsed.map(x => String(x).replace(/^- /, '').replace(/^• /, '').trim()).filter(Boolean);
+    }
+  } catch {}
+
+  // Try python style array ['a', 'b']
+  if (clean.startsWith("['") && clean.endsWith("']")) {
+    try {
+      const converted = clean.replace(/^\['/, '["').replace(/'\]$/, '"]').replace(/', \s*'/g, '", "').replace(/','/g, '","');
+      const parsed = JSON.parse(converted);
+      if (Array.isArray(parsed)) {
+        return parsed.map(x => String(x).replace(/^- /, '').replace(/^• /, '').trim()).filter(Boolean);
+      }
+    } catch {}
+  }
+
+  // Regex extract quoted array elements if it looks like a list [ ... ]
+  if (clean.startsWith('[') && clean.endsWith(']')) {
+    const items: string[] = [];
+    const regex = /(?:["'])(.*?)(?:["'])(?:,\s*|$)/g;
+    let m;
+    while ((m = regex.exec(clean)) !== null) {
+      if (m[1].trim()) items.push(m[1].replace(/^- /, '').replace(/^• /, '').trim());
+    }
+    if (items.length > 0) return items;
+  }
+
+  // Otherwise split by newlines
+  return clean.split('\n').map(s => s.replace(/^- /, '').replace(/^• /, '').trim()).filter(Boolean);
 }
 
 export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps) {
@@ -24,27 +64,32 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
   const [draftId, setDraftId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [scope, setScope] = useState('');
-  const [timeline, setTimeline] = useState('');
+  const [scopeItems, setScopeItems] = useState<string[]>(['']);
+  const [timelinePhases, setTimelinePhases] = useState<{name: string, duration: string}[]>([{ name: '', duration: '' }]);
+  const [timelineTotal, setTimelineTotal] = useState('');
   const [priceVnd, setPriceVnd] = useState<number | undefined>(undefined);
 
-  const { data: domainsList } = useDomains();
-  const { data: seamsList } = useSeams();
-  
-  const [showDomainsDropdown, setShowDomainsDropdown] = useState(false);
-  const [showSeamsDropdown, setShowSeamsDropdown] = useState(false);
   const [isAiMode, setIsAiMode] = useState(false);
   const [aiCapabilities, setAiCapabilities] = useState('');
   const [targetUseCases, setTargetUseCases] = useState('');
 
-  const [domainsJson, setDomainsJson] = useState<DomainCode[]>([]);
-  const [seamsJson, setSeamsJson] = useState<SeamCode[]>([]);
-
   // Warning Modal State
   const [showWarning, setShowWarning] = useState(false);
 
+  const getMergedScope = () => {
+    const items = scopeItems.filter(s => s.trim() !== '');
+    if (items.length === 0) return '';
+    return JSON.stringify(items);
+  };
+  
+  const getMergedTimeline = () => {
+    const phasesStr = timelinePhases.filter(p => p.name.trim() || p.duration.trim()).map((p, i) => `Phase ${i + 1}: ${p.name.trim()}${p.duration.trim() ? ` (${p.duration.trim()})` : ''}`).join('\n');
+    let totalStr = timelineTotal.trim() ? `\nTotal Estimated Time: ${timelineTotal.trim()}` : '';
+    return `${phasesStr}${totalStr}`.trim();
+  };
+
   const handleCloseAttempt = () => {
-    if (title.trim() || description.trim() || priceVnd || timeline) {
+    if (title.trim() || description.trim() || priceVnd || getMergedTimeline()) {
       setShowWarning(true);
     } else {
       resetAndClose();
@@ -54,19 +99,18 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
   const resetAndClose = () => {
     setTitle('');
     setDescription('');
-    setScope('');
-    setTimeline('');
+    setScopeItems(['']);
+    setTimelinePhases([{ name: '', duration: '' }]);
+    setTimelineTotal('');
     setPriceVnd(undefined);
     setAiCapabilities('');
     setTargetUseCases('');
-    setDomainsJson([]);
-    setSeamsJson([]);
+
     setIsAiMode(false);
     setShowWarning(false);
     setDraftId(null);
     onClose();
   };
-
 
   const handleCreate = () => {
     if (isAiMode) {
@@ -76,19 +120,40 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
         capabilities: aiCapabilities.split('\n').filter(s => s.trim() !== ''),
         targetUseCases: targetUseCases.split('\n').filter(s => s.trim() !== ''),
         priceVnd: priceVnd || undefined,
-        timeline: timeline || undefined
+        timeline: getMergedTimeline() || undefined
       }, {
         onSuccess: (data) => {
           if (data && data.id) {
             setDraftId(data.id);
             setTitle(data.title || '');
             setDescription(data.description || '');
-            setScope(data.scope || '');
-            setTimeline(data.timeline || '');
+            
+            // Parse scope robustly
+            const parsedScope = parseArrayOrString(data.scope || '');
+            setScopeItems(parsedScope.length > 0 ? parsedScope : ['']);
+
+            // Parse timeline robustly
+            const timelineLines = parseArrayOrString(data.timeline || '');
+            const phases: any[] = [];
+            let totalTime = '';
+            timelineLines.forEach(line => {
+              if (line.toLowerCase().includes('total')) {
+                totalTime = line.replace(/total( estimated time| time| duration)?:?/i, '').replace(/^- /, '').trim();
+              } else {
+                const phaseMatch = line.match(/Phase\s*\d+:\s*(.*?)(?:\s*\((.*?)\))?$/i) || line.match(/^(.*?)(?:\s*\((.*?)\))?$/i);
+                if (phaseMatch && phaseMatch[1]) {
+                  phases.push({ name: phaseMatch[1].trim(), duration: phaseMatch[2] ? phaseMatch[2].trim() : '' });
+                } else {
+                  phases.push({ name: line, duration: '' });
+                }
+              }
+            });
+            setTimelinePhases(phases.length > 0 ? phases : [{ name: '', duration: '' }]);
+            setTimelineTotal(totalTime);
+            
             // Price might come as string or number from backend, convert safely
             setPriceVnd(data.priceVnd ? Number(data.priceVnd) : undefined);
-            setDomainsJson(data.domainsJson || []);
-            setSeamsJson(data.seamsJson || []);
+
             setIsAiMode(false); // Switch to manual mode to review
           } else {
             resetAndClose();
@@ -96,20 +161,15 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
         }
       });
     } else {
-      const payload = {
-        serviceType: 'AI_SERVICE',
-        useAiGenerator: false,
-        title: title || 'Service Listing', // Fallback title
-        description,
-        scope,
-        timeline,
-        priceVnd: priceVnd || undefined,
-        domainsJson,
-        seamsJson
-      };
-
       if (draftId) {
-        updateService.mutate({ id: draftId, payload }, {
+        const updatePayload = {
+          title: title || 'Service Listing', // Fallback title
+          description,
+          scope: getMergedScope(),
+          timeline: getMergedTimeline(),
+          priceVnd: priceVnd || undefined
+        };
+        updateService.mutate({ id: draftId, payload: updatePayload }, {
           onSuccess: (data) => {
             resetAndClose();
             if (data && data.id) {
@@ -118,7 +178,16 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
           }
         });
       } else {
-        createService.mutate(payload, {
+        const createPayload = {
+          serviceType: 'AI_SERVICE',
+          useAiGenerator: false,
+          title: title || 'Service Listing', // Fallback title
+          description,
+          scope: getMergedScope(),
+          timeline: getMergedTimeline(),
+          priceVnd: priceVnd || undefined
+        };
+        createService.mutate(createPayload, {
           onSuccess: (data) => {
             resetAndClose();
             if (data && data.id) {
@@ -210,91 +279,32 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
                    onChange={e => setDescription(e.target.value)}
                 />
                 
-                <textarea 
-                   placeholder="Scope of work (What exactly is included?)"
-                   className="w-full min-h-[80px] text-[15px] text-[#334155] placeholder-[#94A3B8] outline-none resize-none bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6"
-                   value={scope} 
-                   onChange={e => setScope(e.target.value)}
-                />
-
                 <div className="mb-6 relative">
-                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Target Domains</h4>
-                  <div 
-                    className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 flex flex-wrap gap-2 items-center cursor-pointer min-h-[46px] hover:bg-slate-100 transition-colors"
-                    onClick={() => { setShowDomainsDropdown(!showDomainsDropdown); setShowSeamsDropdown(false); }}
-                  >
-                     {domainsJson.length === 0 ? <span className="text-slate-400 text-sm">Select Domains...</span> : null}
-                     {domainsJson.map(d => {
-                        const domain = domainsList?.find(x => x.code === d);
-                        return (
-                          <span key={d} className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded-md uppercase tracking-wider border border-slate-300 flex items-center gap-1">
-                            {domain ? `${domain.code} - ${domain.name}` : d}
-                            <button onClick={(e) => { e.stopPropagation(); setDomainsJson(prev => prev.filter(x => x !== d)); }} className="hover:text-slate-900"><X size={12} /></button>
-                          </span>
-                        )
-                     })}
-                     <ChevronDown size={16} className="text-slate-400 ml-auto" />
+                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Scope of Work</h4>
+                  <div className="flex flex-col gap-2">
+                    {scopeItems.map((item, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <span className="text-emerald-500 font-bold mt-1">•</span>
+                        <input 
+                          value={item} 
+                          onChange={e => { const newItems = [...scopeItems]; newItems[i] = e.target.value; setScopeItems(newItems); }} 
+                          placeholder={`Deliverable ${i + 1}`}
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[14px] text-slate-700 outline-none focus:bg-white transition-colors"
+                        />
+                        {scopeItems.length > 1 && (
+                           <button onClick={() => setScopeItems(scopeItems.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-rose-500"><X size={16}/></button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={() => setScopeItems([...scopeItems, ''])} className="text-sm text-emerald-600 font-semibold self-start hover:text-emerald-700 mt-1">+ Add Deliverable</button>
                   </div>
-                  {showDomainsDropdown && (
-                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-[200px] overflow-y-auto p-1.5">
-                       {(domainsList || []).map(d => {
-                         const isSelected = domainsJson.includes(d.code);
-                         return (
-                           <div 
-                             key={d.code} 
-                             onClick={() => setDomainsJson(prev => isSelected ? prev.filter(c => c !== d.code) : [...prev, d.code])}
-                             className={`p-2 rounded-md cursor-pointer text-sm flex items-center justify-between transition-colors ${isSelected ? 'bg-slate-100 text-slate-800 font-bold' : 'hover:bg-slate-50 text-slate-600 font-semibold'}`}
-                           >
-                              <span><span className="font-bold mr-2 text-slate-800">{d.code}</span> {d.name}</span>
-                              {isSelected && <CheckCircle size={16} className="text-slate-700" />}
-                           </div>
-                         )
-                       })}
-                    </div>
-                  )}
                 </div>
 
-                <div className="mb-4 relative">
-                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Technical Seams</h4>
-                  <div 
-                    className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 flex flex-wrap gap-2 items-center cursor-pointer min-h-[46px] hover:bg-slate-100 transition-colors"
-                    onClick={() => { setShowSeamsDropdown(!showSeamsDropdown); setShowDomainsDropdown(false); }}
-                  >
-                     {seamsJson.length === 0 ? <span className="text-slate-400 text-sm">Select Seams...</span> : null}
-                     {seamsJson.map(s => {
-                        const seam = seamsList?.find(x => x.code === s);
-                        return (
-                          <span key={s} className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded-md uppercase tracking-wider border border-slate-300 flex items-center gap-1">
-                            {seam ? `${seam.code} - ${seam.name}` : s}
-                            <button onClick={(e) => { e.stopPropagation(); setSeamsJson(prev => prev.filter(x => x !== s)); }} className="hover:text-slate-900"><X size={12} /></button>
-                          </span>
-                        )
-                     })}
-                     <ChevronDown size={16} className="text-slate-400 ml-auto" />
-                  </div>
-                  {showSeamsDropdown && (
-                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-[200px] overflow-y-auto p-1.5">
-                       {(seamsList || []).map(s => {
-                         const isSelected = seamsJson.includes(s.code);
-                         return (
-                           <div 
-                             key={s.code} 
-                             onClick={() => setSeamsJson(prev => isSelected ? prev.filter(c => c !== s.code) : [...prev, s.code])}
-                             className={`p-2 rounded-md cursor-pointer text-sm flex items-center justify-between transition-colors ${isSelected ? 'bg-slate-100 text-slate-800 font-bold' : 'hover:bg-slate-50 text-slate-600 font-semibold'}`}
-                           >
-                              <span><span className="font-bold mr-2 text-slate-800">{s.code}</span> {s.name}</span>
-                              {isSelected && <CheckCircle size={16} className="text-slate-700" />}
-                           </div>
-                         )
-                       })}
-                    </div>
-                  )}
-                </div>
                 
                 <div className="flex gap-4 mb-6">
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">Price (VND)</h4>
-                    <div className="px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200 focus-within:bg-white transition-colors">
+                    <div className="px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200 focus-within:bg-white transition-colors h-[46px] flex items-center">
                       <CurrencyInput 
                         placeholder="e.g. 5.000.000" 
                         className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
@@ -305,14 +315,38 @@ export function ServiceCreateModal({ isOpen, onClose }: ServiceCreateModalProps)
                   </div>
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">Estimated Timeline</h4>
-                    <div className="px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200 focus-within:bg-white transition-colors">
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 2-4 Weeks" 
-                        className="bg-transparent border-none outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-semibold w-full font-body text-[14px]"
-                        value={timeline}
-                        onChange={(e) => setTimeline(e.target.value)}
-                      />
+                    <div className="flex flex-col gap-2">
+                      {timelinePhases.map((phase, i) => (
+                        <div key={i} className="flex gap-2 items-center bg-slate-50 border border-slate-200 rounded-lg p-2 focus-within:bg-white transition-colors">
+                          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider w-14 shrink-0">Phase {i + 1}</div>
+                          <input 
+                            value={phase.name} 
+                            onChange={e => { const newPhases = [...timelinePhases]; newPhases[i].name = e.target.value; setTimelinePhases(newPhases); }} 
+                            placeholder="e.g. Discovery"
+                            className="flex-1 bg-transparent border-none text-[13px] text-slate-700 outline-none min-w-0"
+                          />
+                          <input 
+                            value={phase.duration} 
+                            onChange={e => { const newPhases = [...timelinePhases]; newPhases[i].duration = e.target.value; setTimelinePhases(newPhases); }} 
+                            placeholder="e.g. 1 week"
+                            className="w-20 shrink-0 bg-transparent border-l border-slate-200 pl-2 text-[13px] outline-none text-slate-600 placeholder:text-slate-400"
+                          />
+                          {timelinePhases.length > 1 && (
+                             <button onClick={() => setTimelinePhases(timelinePhases.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-rose-500 shrink-0"><X size={14}/></button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={() => setTimelinePhases([...timelinePhases, {name: '', duration: ''}])} className="text-sm text-emerald-600 font-semibold self-start hover:text-emerald-700">+ Add Phase</button>
+                      
+                      <div className="mt-1 flex gap-2 items-center bg-slate-50 border border-slate-200 rounded-lg p-2 focus-within:bg-white transition-colors">
+                        <div className="text-[12px] font-bold text-slate-700 w-16 shrink-0">Total Time:</div>
+                        <input 
+                          value={timelineTotal} 
+                          onChange={e => setTimelineTotal(e.target.value)} 
+                          placeholder="e.g. 3-4 Weeks"
+                          className="flex-1 bg-transparent border-none text-[13px] text-slate-700 outline-none min-w-0"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

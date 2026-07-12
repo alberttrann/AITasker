@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import ProfileBuilder from './ProfileBuilder';
 import PortfolioSubmitForm from '../verification/PortfolioSubmitForm';
-import { ArrowUpCircle, X, Lock, AlertTriangle, ArrowLeft, CheckCircle, Edit3 } from 'lucide-react';
+import { ArrowUpCircle, X, Lock, AlertTriangle, ArrowLeft, CheckCircle, Edit3, History } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import TooltipIcon from '@/components/ui/TooltipIcon';
@@ -147,16 +147,26 @@ export default function ExpertProfilePage() {
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4 border-b pb-2">
             <h4 className="font-extrabold text-lg text-gray-900">Seam Claims</h4>
-            {seams.length > 0 && (
+            <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="text-blue-600 border-blue-200 hover:bg-blue-50 flex items-center gap-1"
-                onClick={() => setIsVerifying(true)}
+                className="text-slate-600 border-slate-200 hover:bg-slate-50 flex items-center gap-1.5"
+                onClick={() => navigate('/expert/service/expert-profile/verification-history')}
               >
-                <ArrowUpCircle className="w-4 h-4" /> Verify a Seam
+                <History className="w-4 h-4" /> History
               </Button>
-            )}
+              {seams.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50 flex items-center gap-1"
+                  onClick={() => setIsVerifying(true)}
+                >
+                  <ArrowUpCircle className="w-4 h-4" /> Verify a Seam
+                </Button>
+              )}
+            </div>
           </div>
           {seams.length === 0 ? (
             <p className="text-sm text-gray-500 italic">No seams selected.</p>
