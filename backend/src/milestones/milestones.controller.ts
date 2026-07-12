@@ -8,7 +8,7 @@ import { Roles }        from '../common/decorators/roles.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
-
+import { BulkInitializeMilestonesDto } from './dto/bulk-initialize-milestones.dto';
 @ApiTags('Milestones')
 @ApiBearerAuth('JWT')
 @Controller('milestones')
@@ -81,5 +81,15 @@ export class MilestonesController {
   @ApiOperation({ summary: 'List disputes for a milestone' })
   async getMilestoneDisputes(@Param('id') milestoneId: string) {
     return this.milestonesService.getMilestoneDisputes(milestoneId);
+  }
+
+  @Post('bulk')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: 'Bulk initialize all contract milestones from the CEO final template' })
+  async bulkInitialize(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: BulkInitializeMilestonesDto,
+  ) {
+    return this.milestonesService.bulkInitialize(user.id, dto);
   }
 }
