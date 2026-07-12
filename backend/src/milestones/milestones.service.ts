@@ -6,8 +6,8 @@ import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { LedgerService } from '@shared/ledger/ledger.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { generateVaNumber } from '@shared/ledger/va-generator';
- import { UpdateMilestoneDto } from './dto/update-milestone.dto';
-
+import { UpdateMilestoneDto } from './dto/update-milestone.dto';
+import { BulkInitializeMilestonesDto } from './dto/bulk-initialize-milestones.dto';
 @Injectable()
 export class MilestonesService {
   constructor(
@@ -63,8 +63,8 @@ export class MilestonesService {
         const criterion = await tx.acceptanceCriterion.create({
           data: {
             milestoneId:    milestone.id,
-            criterionText:  c.criterion_text,
-            isRequired:     c.is_required ?? true,
+            criterionText:  c.criterion_text, 
+            isRequired:     c.is_required ?? true, 
             verifiedByRole: dto.sign_off_authority,
           },
         });
@@ -201,6 +201,61 @@ export class MilestonesService {
     return this.prisma.dispute.findMany({
       where: { milestoneId },
       orderBy: { filedAt: 'desc' }, 
+    });
+  }
+
+  async bulkInitialize(userId: string, dto: BulkInitializeMilestonesDto) {
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: dto.engagementId },
+    });
+
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    if (engagement.clientId !== userId) {
+      throw new ForbiddenException('Only the project CEO can initialize milestones.');
+    }
+
+    // Anti-Spam: Block if milestones have already been initialized
+    const existingCount = await this.prisma.milestone.count({
+      where: { engagementId: dto.engagementId },
+    });
+    if (existingCount > 0) {
+      throw new ConflictException('Milestones have already been initialized for this engagement.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const createdMilestones = [];
+
+      for (const item of dto.milestones) {
+        const milestone = await tx.milestone.create({
+          data: {
+            engagementId:         dto.engagementId,
+            milestoneNumber:      item.milestoneNumber,
+            deliverableStatement: item.deliverableStatement,
+            signOffAuthority:     item.signOffAuthority,
+            paymentAmountVnd:     item.paymentAmountVnd,
+            state:                'DEFINED',
+          },
+        });
+
+        for (const c of item.criteria) {
+          await tx.acceptanceCriterion.create({
+            data: {
+              milestone:      { connect: { id: milestone.id } },
+              criterionText:  c.criterion_text,
+              isRequired:     c.is_required ?? true,
+              verifiedByRole: item.signOffAuthority,
+            },
+          });
+        }
+
+        const populated = await tx.milestone.findUnique({
+          where: { id: milestone.id },
+          include: { acceptanceCriteria: true },
+        });
+        createdMilestones.push(populated);
+      }
+
+      return createdMilestones;
     });
   }
 }
