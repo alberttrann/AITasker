@@ -19,7 +19,7 @@ export class MilestonesService {
   async getMilestone(milestoneId: string) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
-      include: { acceptanceCriteria: true, dodItems: true },
+      include: { acceptanceCriteria: true, dodItems: true, submissions: true },
     });
     if (!milestone) {
       throw new NotFoundException('Milestone not found.');

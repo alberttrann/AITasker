@@ -148,7 +148,9 @@ export async function submitStage4Handoff(sessionId: string, payload: any) {
 /** Stage 4 — Let AI recommend tech context (non-technical CEO fallback) */
 export async function recommendStage4(sessionId: string) {
   const { data } = await apiClient.post(
-    `/elicitation/sessions/${sessionId}/stage4-recommend`
+    `/elicitation/sessions/${sessionId}/stage4-recommend`,
+    {},
+    { timeout: 90000 }
   );
   return data;
 }

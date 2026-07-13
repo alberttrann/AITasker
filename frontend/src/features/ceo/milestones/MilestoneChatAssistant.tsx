@@ -142,6 +142,16 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
         cleanPayload[cleanKey] = payload[k];
       });
 
+      // Handle criteria if the AI returns an array of strings
+      if (cleanPayload.criteria && Array.isArray(cleanPayload.criteria)) {
+        cleanPayload.criteria = cleanPayload.criteria.map((c: any) => {
+          if (typeof c === 'string') {
+            return { criterion_text: c, is_required: true };
+          }
+          return c;
+        });
+      }
+
       updateMilestone.mutate({
         id: targetMilestone.id,
         payload: cleanPayload

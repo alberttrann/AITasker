@@ -84,3 +84,23 @@ export function useDeleteDodItem() {
     },
   });
 }
+export function useCreateBulkDodItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ milestoneId, body }: any) => {
+      const { data } = await apiClient.post(
+        `/milestones/${milestoneId}/dod/items/bulk`,
+        body,
+      );
+      return data;
+    },
+
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["milestones", variables.milestoneId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["engagements"] });
+    },
+  });
+}
