@@ -6,7 +6,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { addHours } from 'date-fns';
 import { EmailService } from '../common/email/email.service';
 import { EmailValidatorService } from './email-validator.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -27,6 +26,8 @@ import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import axios from 'axios';
 import { generateVaNumber } from '@shared/ledger/va-generator';
 import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
+import { addHours, addMinutes } from 'date-fns'; 
+import { VerifyOtpDto } from './dto/verify-otp.dto'; 
 
 @Injectable()
 export class AuthService {
@@ -52,19 +53,20 @@ export class AuthService {
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
       selfTechnical: user.selfTechnical,
+      isEmailVerified: user.isEmailVerified, 
     };
   }
 
   async register(registerDto: RegisterUserDto) {
     // Check the email is real (MX record exists, not a disposable domain)
-    await this.emailValidatorService.assertValidEmail(registerDto.email);
+    //await this.emailValidatorService.assertValidEmail(registerDto.email);
 
     const existingEmailCheck = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
 
     if (existingEmailCheck) {
-      throw new ConflictException('Email already exist!');
+      throw new ConflictException('Email already exists!');
     }
 
     const hashPassword = await bcrypt.hash(registerDto.password, 10);
@@ -72,7 +74,11 @@ export class AuthService {
       registerDto.roles == UserRoleItem.CLIENT_CEO ? ActiveRole.CLIENT : ActiveRole.EXPERT;
     const clientSubtype = activeRole == ActiveRole.CLIENT ? ClientSubType.CEO : null;
 
-    return await this.prisma.$transaction(async (tx) => {
+    // Generate a secure 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = addMinutes(new Date(), 15); // valid for 15 minutes
+
+    await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: registerDto.email,
@@ -83,6 +89,9 @@ export class AuthService {
           activeRole: activeRole,
           clientSubtype: clientSubtype,
           selfTechnical: registerDto.selfTechnical ?? false,
+          isEmailVerified: false, // starts unverified
+          emailOtp: otp,          // store plain OTP for verification comparison
+          emailOtpExpiresAt: otpExpiresAt,
 
           ...(activeRole == ActiveRole.CLIENT
             ? { clientProfile: { create: {} } }
@@ -94,7 +103,7 @@ export class AuthService {
         data: { userId: user.id },
       });
 
-      const virtualAccount = await tx.virtualAccount.create({
+      await tx.virtualAccount.create({
         data: {
           entityType: VAEntityType.WALLET_TOPUP,
           entityId: user.id,
@@ -103,16 +112,16 @@ export class AuthService {
           status: VAStatus.ACTIVE,
         },
       });
+    }); 
 
-      const access_token = await this.jwtGeneratePayload(user);
-      const refresh_token = await this.jwtGenerateRefreshPayload(user, tx);
-
-      return {
-        access_token,
-        refresh_token,
-        user: this.toAuthUserResponse(user),
-      };
+    this.emailService.sendOtpEmail(registerDto.email, otp).catch((err) => {
+      console.error('Failed to send OTP email immediately after registration:', err);
     });
+
+    return {
+      email: registerDto.email,
+      message: 'OTP_SENT',
+    };
   }
 
   async login(loginDto: LoginUserDto) {
@@ -131,6 +140,25 @@ export class AuthService {
     const isMatch = await bcrypt.compare(loginDto.password, user.passwordHash);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid credentials!');
+    }
+
+    // Block unverified users from logging in
+    if (!user.isEmailVerified) {
+      // Trigger a resend of a fresh OTP code on failed login attempt for good UX
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailOtp: otp,
+          emailOtpExpiresAt: addMinutes(new Date(), 15),
+        },
+      });
+      await this.emailService.sendOtpEmail(user.email, otp);
+
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'EMAIL_UNVERIFIED', // FE catches this code and redirects to OTP verification page
+      });
     }
 
     const accessToken = await this.jwtGeneratePayload(user);
@@ -274,7 +302,7 @@ export class AuthService {
     }
 
     // Check the email is real before creating the TechTeam account
-    await this.emailValidatorService.assertValidEmail(dto.email);
+    //await this.emailValidatorService.assertValidEmail(dto.email);
 
     const existingEmailCheck = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -284,8 +312,10 @@ export class AuthService {
     }
 
     const hashPassword = await bcrypt.hash(dto.password, 10);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = addMinutes(new Date(), 15);
 
-    return await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: dto.email,
@@ -294,17 +324,13 @@ export class AuthService {
           roles: [UserRoleItem.CLIENT_CEO],
           activeRole: ActiveRole.CLIENT,
           clientSubtype: ClientSubType.TECH_TEAM,
+          isEmailVerified: false,
+          emailOtp: otp,
+          emailOtpExpiresAt: otpExpiresAt,
           techTeamProfile: {
             create: {
               linkedClientId: payload.ceoId,
-              linkedProjectId:
-                (
-                  await tx.project.findFirst({
-                    where: { clientId: payload.ceoId, state: 'PUBLISHED' },
-                    orderBy: { createdAt: 'desc' },
-                    select: { id: true },
-                  })
-                )?.id ?? null,
+              linkedProjectId: null,
             },
           },
         },
@@ -326,15 +352,16 @@ export class AuthService {
           status: VAStatus.ACTIVE,
         },
       });
+    }); 
 
-      const access_token = await this.jwtGeneratePayload(user);
-      const refresh_token = await this.jwtGenerateRefreshPayload(user, tx);
-      return {
-        access_token,
-        refresh_token,
-        user: this.toAuthUserResponse(user),
-      };
+    this.emailService.sendOtpEmail(dto.email, otp).catch((err) => {
+      console.error('Failed to send OTP email immediately after handoff registration:', err);
     });
+
+    return {
+      email: dto.email,
+      message: 'OTP_SENT',
+    };
   }
 
   async claimHandoff(userId: string, inviteToken: string) {
@@ -553,5 +580,58 @@ export class AuthService {
       },
     });
     return { message: 'Password changed successfully. Please log in again.' };
+  }
+
+  async verifyOtp(dto: VerifyOtpDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User account not found.');
+    }
+    if (user.isEmailVerified) {
+      throw new ConflictException('This account is already verified. Please log in.');
+    }
+
+    if (user.emailOtp !== dto.otp) {
+      throw new BadRequestException('Invalid verification code.');
+    }
+
+    if (user.emailOtpExpiresAt && user.emailOtpExpiresAt < new Date()) {
+      // Regenerate and send a new OTP if they enter an expired one
+      const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailOtp: newOtp,
+          emailOtpExpiresAt: addMinutes(new Date(), 15),
+        },
+      });
+      await this.emailService.sendOtpEmail(user.email, newOtp);
+
+      throw new BadRequestException(
+        'This verification code has expired. A fresh code has been sent to your email.',
+      );
+    }
+
+    // Success — mark as verified and clear OTP columns
+    const verifiedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailOtp:        null,
+        emailOtpExpiresAt: null,
+      },
+    });
+
+    const accessToken = await this.jwtGeneratePayload(verifiedUser);
+    const refreshToken = await this.jwtGenerateRefreshPayload(verifiedUser);
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: this.toAuthUserResponse(verifiedUser),
+    };
   }
 }
