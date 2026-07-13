@@ -203,7 +203,7 @@ export class ProjectsService {
     const shortlist = await this.matchingService.getShortlist(projectId);
     // strip composite_score before returning
     // numeric scores must never reach the frontend, labels/colors only.
-    return await this.matchingService.mapShortlistForFrontend(shortlist ?? []);
+    return await this.matchingService.mapShortlistForFrontend(shortlist ?? [], projectId);
   }
 
   private mapProjectResponse(project: any) {
@@ -539,4 +539,142 @@ export class ProjectsService {
     return session;
   }
 
+  async getMarketplaceProjects(filters: { archetype?: string; tier?: string; limit?: number }) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        state: 'PUBLISHED',
+        ...(filters.archetype ? { archetype: filters.archetype } : {}),
+        ...(filters.tier      ? { tier: filters.tier }           : {}),
+      },
+      select: {
+        id: true,
+        projectName: true,
+        state: true,
+        archetype: true,
+        tier: true,
+        createdAt: true,
+        requiredDomainsJson: true,
+        requiredSeamsJson: true,
+        artifactAJson: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 20, 50),
+    });
+
+    return projects.map((p) => this.mapProjectResponse(p));
+  }
+
+  async updateMilestoneFramework(projectId: string, userId: string, milestoneFramework: any[]) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        engagements: {
+          where: { state: { in: ['CONNECTED', 'ACTIVE', 'DISPUTED'] } },
+          include: {
+            milestones: {
+              include: { acceptanceCriteria: true },
+            },
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.clientId !== userId) {
+      throw new ForbiddenException('Only the project owner can update the milestone framework.');
+    }
+    if (project.state !== 'PUBLISHED' && project.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only edit milestone framework for active projects.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedProject = await tx.project.update({
+        where: { id: projectId },
+        data:  { milestoneFrameworkJson: milestoneFramework as any },
+        select: { id: true, milestoneFrameworkJson: true },
+      });
+
+      const activeEngagement = project.engagements?.[0];
+
+      if (activeEngagement) {
+        const incomingNumbers = milestoneFramework.map(m => intOrNull(m.milestone_number)).filter(Boolean);
+        const existingMilestones = activeEngagement.milestones;
+
+        const toDelete = existingMilestones.filter(
+          m => !incomingNumbers.includes(m.milestoneNumber) && m.state === 'DEFINED'
+        );
+        for (const m of toDelete) {
+          await tx.acceptanceCriterion.deleteMany({ where: { milestoneId: m.id } });
+          await tx.milestone.delete({ where: { id: m.id } });
+        }
+
+        for (const item of milestoneFramework) {
+          const mNum = intOrNull(item.milestone_number);
+          if (!mNum) continue;
+
+          const existing = existingMilestones.find(m => m.milestoneNumber === mNum);
+
+          if (existing) {
+            if (existing.state === 'DEFINED') {
+              await tx.milestone.update({
+                where: { id: existing.id },
+                data: {
+                  deliverableStatement: item.deliverable_statement,
+                  signOffAuthority:     item.sign_off_authority,
+                  paymentAmountVnd:     BigInt(item.payment_amount_vnd || 0),
+                  estimatedDurationDays: item.estimated_duration_days || null,
+                  estimatedCostVnd:     BigInt(item.estimated_cost_vnd || 0),
+                  updatedAt:            new Date(),
+                },
+              });
+
+              await tx.acceptanceCriterion.deleteMany({ where: { milestoneId: existing.id } });
+              for (const cText of (item.criteria ?? [])) {
+                await tx.acceptanceCriterion.create({
+                  data: {
+                    milestone:      { connect: { id: existing.id } },
+                    criterionText:  cText,
+                    isRequired:     true,
+                    verifiedByRole: item.sign_off_authority,
+                  },
+                });
+              }
+            }
+          } else {
+            const newMilestone = await tx.milestone.create({
+              data: {
+                engagementId:         activeEngagement.id,
+                milestoneNumber:      mNum,
+                deliverableStatement: item.deliverable_statement,
+                signOffAuthority:     item.sign_off_authority,
+                paymentAmountVnd:     BigInt(item.payment_amount_vnd || 0),
+                estimatedDurationDays: item.estimated_duration_days || null,
+                estimatedCostVnd:     BigInt(item.estimated_cost_vnd || 0),
+                state:                'DEFINED',
+              },
+            });
+
+            for (const cText of (item.criteria ?? [])) {
+              await tx.acceptanceCriterion.create({
+                data: {
+                  milestone:      { connect: { id: newMilestone.id } },
+                  criterionText:  cText,
+                  isRequired:     true,
+                  verifiedByRole: item.sign_off_authority,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      return updatedProject;
+    });
+  }
+}
+
+function intOrNull(val: any): number | null {
+  const parsed = parseInt(val, 10);
+  return isNaN(parsed) ? null : parsed;
 }

@@ -22,6 +22,21 @@ const PROJECT_SUMMARY_SELECT = {
   },
 } as const;
 
+
+const CURRENT_MILESTONE_INCLUDE = {
+  milestones: {
+    where: { state: { notIn: ['RELEASED', 'APPROVED'] } }, // Get the active/pending ones
+    orderBy: { milestoneNumber: 'asc' },
+    take: 1, // Only grab the very next actionable milestone
+    select: {
+      id: true,
+      milestoneNumber: true,
+      state: true,
+      deliverableStatement: true
+    }
+  }
+} as any;
+
 @Injectable()
 export class EngagementsService {
   constructor(
@@ -70,11 +85,12 @@ export class EngagementsService {
     // 3. CEO — engagements where they are the client.
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
       return this.prisma.engagement.findMany({
-        where: { clientId: user.id },
-        include: {
+        where:   { clientId: user.id },
+        include: { 
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
-          expert: true,
+          expert: { select: { fullName: true } },
+          ...CURRENT_MILESTONE_INCLUDE 
         },
         orderBy: { id: 'desc' },
       });
