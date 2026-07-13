@@ -71,23 +71,37 @@ export class MatchingService {
    * Numeric scores are never exposed — strength labels and gap colors only.
    * Also joins user contact info (fullName, email, phone) for each expert.
    */
-  async mapShortlistForFrontend(results: MatchResult[]) {
+  async mapShortlistForFrontend(results: MatchResult[], projectId: string) {
     if (!results || results.length === 0) return [];
 
     const expertIds = results.map((r) => r.expert_id);
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: expertIds } },
-      select: { id: true, fullName: true, email: true, phone: true },
-    });
+    
+    // Fetch users and existing invitations in parallel
+    const [users, invitations] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: expertIds } },
+        select: { id: true, fullName: true, email: true, phone: true },
+      }),
+      this.prisma.invitation.findMany({
+        where: { projectId, expertId: { in: expertIds } },
+        select: { expertId: true, status: true }
+      })
+    ]);
 
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const inviteMap = new Map(invitations.map((i) => [i.expertId, i.status]));
 
-    return results.map((r) => ({
-      expert_id: r.expert_id,
-      strength_label: r.strength_label,
-      gap_map: r.gap_map,
-      contact_info: userMap.get(r.expert_id) ?? null,
-    }));
+    return results.map((r) => {
+      const inviteStatus = inviteMap.get(r.expert_id);
+      return {
+        expert_id:      r.expert_id,
+        strength_label: r.strength_label,
+        gap_map:        r.gap_map,
+        contact_info:   userMap.get(r.expert_id) ?? null,
+        // Tell FE exactly what state the invite is in
+        invitation_status: inviteStatus ?? 'NONE', 
+      };
+    });
   }
 
   // Private helpers

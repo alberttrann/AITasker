@@ -152,13 +152,19 @@ export class UserService {
     }
 
     // Using aggreaget to perform mathematical operations such as sum, average, min, max...
-    const reputation = await this.prisma.review.aggregate({
-      where: {
-        targetId: user.id,
-      },
-      _avg: { rating: true },
-      _count: true,
-    });
+    const [reputation, activeListings] = await Promise.all([
+      this.prisma.review.aggregate({
+        where: { targetId: user.id },
+        _avg: { rating: true },
+        _count: true,
+      }),
+      // Fetch the expert's active marketplace listings
+      this.prisma.service.findMany({
+        where: { expertId: user.id, state: 'PUBLISHED' },
+        select: { id: true, title: true, priceVnd: true, serviceType: true },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
 
     return {
       fullName: user.fullName,
@@ -170,6 +176,7 @@ export class UserService {
       seamClaims: user.expertSeamClaims,
       avgRating: reputation._avg.rating,
       reviewCount: reputation._count,
+      activeListings: activeListings.map(s => ({ ...s, priceVnd: s.priceVnd.toString() })) 
     };
   }
 

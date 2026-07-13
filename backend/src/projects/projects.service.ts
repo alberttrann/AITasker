@@ -203,7 +203,7 @@ export class ProjectsService {
     const shortlist = await this.matchingService.getShortlist(projectId);
     // strip composite_score before returning
     // numeric scores must never reach the frontend, labels/colors only.
-    return await this.matchingService.mapShortlistForFrontend(shortlist ?? []);
+    return await this.matchingService.mapShortlistForFrontend(shortlist ?? [], projectId);
   }
 
   private mapProjectResponse(project: any) {
@@ -537,6 +537,31 @@ export class ProjectsService {
     });
     if (!session) throw new NotFoundException('Chat session not found.');
     return session;
+  }
+
+  async getMarketplaceProjects(filters: { archetype?: string; tier?: string; limit?: number }) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        state: 'PUBLISHED',
+        ...(filters.archetype ? { archetype: filters.archetype } : {}),
+        ...(filters.tier      ? { tier: filters.tier }           : {}),
+      },
+      select: {
+        id: true,
+        projectName: true,
+        state: true,
+        archetype: true,
+        tier: true,
+        createdAt: true,
+        requiredDomainsJson: true,
+        requiredSeamsJson: true,
+        artifactAJson: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 20, 50),
+    });
+
+    return projects.map((p) => this.mapProjectResponse(p));
   }
 
   async updateMilestoneFramework(projectId: string, userId: string, milestoneFramework: any[]) {
