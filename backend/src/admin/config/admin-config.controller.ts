@@ -21,6 +21,25 @@ class CreateDefinitionDto {
   @IsInt() @IsOptional() @Type(() => Number) sortOrder?: number;
 }
 
+// Specific DTO for Seams to enforce relation constraints
+class CreateSeamDto {
+  @IsString() @IsNotEmpty() code: string; // e.g. "A↔C"
+  @IsString() @IsNotEmpty() domainCode1: string; // "A"
+  @IsString() @IsNotEmpty() domainCode2: string; // "C"
+  @IsString() @IsNotEmpty() name: string;
+  @IsString() @IsOptional() description?: string;
+  @IsInt() @IsOptional() @Type(() => Number) sortOrder?: number;
+}
+
+class UpdateSeamDto {
+  @IsString() @IsOptional() name?: string;
+  @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() domainCode1?: string;
+  @IsString() @IsOptional() domainCode2?: string;
+  @IsBoolean() @IsOptional() isActive?: boolean;
+  @IsInt() @IsOptional() @Type(() => Number) sortOrder?: number;
+}
+
 class UpdateDefinitionDto {
   @IsString() @IsOptional() name?: string;
   @IsString() @IsOptional() description?: string;
@@ -65,8 +84,15 @@ export class AdminConfigController {
 
   // Seams
   @Get('seams')  listSeams()  { return this.svc.listSeams(); }
-  @Post('seams') createSeam(@Body() dto: CreateDefinitionDto) { return this.svc.createSeam(dto); }
-  @Put('seams/:id') updateSeam(@Param('id') id: string, @Body() dto: UpdateDefinitionDto) { return this.svc.updateSeam(id, dto); }
+  
+  @Post('seams') 
+  @ApiOperation({ summary: 'Create a relationally-linked seam definition' })
+  createSeam(@Body() dto: CreateSeamDto) { return this.svc.createSeam(dto); }
+  
+  @Put('seams/:id') 
+  @ApiOperation({ summary: 'Update a seam definition and its domain associations' })
+  updateSeam(@Param('id') id: string, @Body() dto: UpdateSeamDto) { return this.svc.updateSeam(id, dto); }
+  
   @Delete('seams/:id') deleteSeam(@Param('id') id: string) { return this.svc.deleteSeam(id); }
 
   // Archetypes

@@ -32,19 +32,20 @@ export class AdminConfigService {
     return this.prisma.domainDefinition.update({ where: { id }, data: { isActive: false } });
   }
 
-  // Seams
-  listSeams() {
-    return this.prisma.seamDefinition.findMany({ orderBy: { sortOrder: 'asc' } });
-  }
+  // Seams 
+  listSeams()  { return this.prisma.seamDefinition.findMany({ orderBy: { sortOrder: 'asc' } }); }
 
-  async createSeam(dto: { code: string; name: string; description?: string; sortOrder?: number }) {
+  async createSeam(dto: { 
+    code: string; name: string; domainCode1: string; domainCode2: string; 
+    description?: string; sortOrder?: number 
+  }) {
     return this.prisma.seamDefinition.create({ data: dto });
   }
 
-  async updateSeam(
-    id: string,
-    dto: { name?: string; description?: string; isActive?: boolean; sortOrder?: number },
-  ) {
+  async updateSeam(id: string, dto: { 
+    name?: string; description?: string; domainCode1?: string; domainCode2?: string;
+    isActive?: boolean; sortOrder?: number 
+  }) {
     await this._findOrThrow('seamDefinition', id);
     return this.prisma.seamDefinition.update({ where: { id }, data: dto });
   }

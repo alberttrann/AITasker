@@ -17,7 +17,15 @@ export class ConfigReadService {
     return this.prisma.seamDefinition.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      select: { id: true, code: true, name: true, description: true, sortOrder: true },
+      select: { 
+        id: true, 
+        code: true, 
+        name: true, 
+        description: true, 
+        sortOrder: true,
+        domainCode1: true,
+        domainCode2: true,
+      },
     });
   }
 
