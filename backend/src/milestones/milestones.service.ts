@@ -155,17 +155,46 @@ export class MilestonesService {
       );
     }
 
-    return this.prisma.milestone.update({
-      where: { id: milestoneId },
-      data: {
-        ...(dto.title                !== undefined && { title: dto.title }),
-        ...(dto.deliverable_statement !== undefined && { deliverableStatement: dto.deliverable_statement }),
-        ...(dto.sign_off_authority   !== undefined && { signOffAuthority: dto.sign_off_authority }),
-        ...(dto.payment_amount_vnd   !== undefined && { paymentAmountVnd: BigInt(dto.payment_amount_vnd) }),
-        ...(dto.estimated_duration_days !== undefined && { estimatedDurationDays: dto.estimated_duration_days }),
-        ...(dto.tech_stack           !== undefined && { techStackJson: dto.tech_stack }),
-        updatedAt: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Update the milestone record
+      const updated = await tx.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          ...(dto.title                !== undefined && { title: dto.title }),
+          ...(dto.deliverable_statement !== undefined && { deliverableStatement: dto.deliverable_statement }),
+          ...(dto.sign_off_authority   !== undefined && { signOffAuthority: dto.sign_off_authority }),
+          ...(dto.payment_amount_vnd   !== undefined && { paymentAmountVnd: BigInt(dto.payment_amount_vnd) }),
+          ...(dto.estimated_duration_days !== undefined && { estimatedDurationDays: dto.estimated_duration_days }),
+          ...(dto.tech_stack           !== undefined && { techStackJson: dto.tech_stack }),
+          updatedAt: new Date(),
+        },
+      });
+
+      // 2. If the criteria checklist was updated, replace it atomically (Issue fix)
+      if (dto.criteria && dto.criteria.length > 0) {
+        // Delete all old criteria for this milestone
+        await tx.acceptanceCriterion.deleteMany({
+          where: { milestoneId },
+        });
+
+        // Insert the newly provided ones
+        for (const c of dto.criteria) {
+          await tx.acceptanceCriterion.create({
+            data: {
+              milestone:      { connect: { id: milestoneId } },
+              criterionText:  c.criterion_text,
+              isRequired:     c.is_required ?? true,
+              verifiedByRole: dto.sign_off_authority ?? milestone.signOffAuthority,
+            },
+          });
+        }
+      }
+
+      // Return fully populated milestone with its updated criteria checklist included
+      return tx.milestone.findUnique({
+        where: { id: milestoneId },
+        include: { acceptanceCriteria: true, dodItems: true },
+      });
     });
   }
 
