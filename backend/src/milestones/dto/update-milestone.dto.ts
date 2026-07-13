@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsArray, IsBoolean, Min } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsEnum, IsArray, IsBoolean, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CreateCriterionDto } from './create-criterion.dto'; 
 
 export class UpdateMilestoneDto {
   @IsString()
@@ -30,4 +31,10 @@ export class UpdateMilestoneDto {
   @IsString({ each: true })
   @IsOptional()
   tech_stack?: string[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateCriterionDto)
+  @IsOptional()
+  criteria?: CreateCriterionDto[];
 }
