@@ -68,5 +68,27 @@ export class DodService {
     }
     return this.prisma.milestoneDodItem.delete({ where: { id: itemId } });
   }
+
+  async createBulk(milestoneId: string, dto: { items: CreateDodItemDto[] }) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    const result = await this.prisma.milestoneDodItem.createMany({
+      data: dto.items.map((item) => ({
+        milestoneId: milestoneId,
+        itemDescription: item.item_description,
+        isRequired: item.is_required ?? true,
+        status: 'PENDING',
+        mapsToCriterionId: item.maps_to_criterion_id || null,
+      })),
+    });
+
+    return { success: true, count: result.count };
+  }
 }
 

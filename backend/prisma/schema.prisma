@@ -591,20 +591,30 @@ model DomainDefinition {
   sortOrder   Int      @default(0)    @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
+  seamsAsDomain1 SeamDefinition[] @relation("SeamDomain1")
+  seamsAsDomain2 SeamDefinition[] @relation("SeamDomain2")
   @@map("domain_definitions")
 }
 
 model SeamDefinition {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code        String   @unique
+  domainCode1 String   @map("domain_code_1")        // Foreign Key to DomainDefinition.code
+  domainCode2 String   @map("domain_code_2")        // Foreign Key to DomainDefinition.code
   name        String
   description String?
   isActive    Boolean  @default(true) @map("is_active")
   sortOrder   Int      @default(0)    @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // Enforced relations at the DB level
+  domain1 DomainDefinition @relation("SeamDomain1", fields: [domainCode1], references: [code])
+  domain2 DomainDefinition @relation("SeamDomain2", fields: [domainCode2], references: [code])
 
+  // Composite unique constraint ensures no duplicate inverse seams (e.g. blocking "C↔A" if "A↔C" exists)
+  @@unique([domainCode1, domainCode2])
+  @@index([domainCode1])
+  @@index([domainCode2])
   @@map("seam_definitions")
 }
 

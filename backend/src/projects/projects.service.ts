@@ -203,7 +203,7 @@ export class ProjectsService {
     const shortlist = await this.matchingService.getShortlist(projectId);
     // strip composite_score before returning
     // numeric scores must never reach the frontend, labels/colors only.
-    return await this.matchingService.mapShortlistForFrontend(shortlist ?? []);
+    return await this.matchingService.mapShortlistForFrontend(shortlist ?? [], projectId);
   }
 
   private mapProjectResponse(project: any) {
@@ -371,24 +371,60 @@ export class ProjectsService {
   }
 
   async milestoneChatHandler(
-    projectId: string,
-    userId: string,
-    message: string,
+    projectId:     string,
+    userId:        string,
+    message:       string,
     chatSessionId?: string,
+    currentMilestones?: any[],
   ) {
-    // Auth
+    // Auth & Data Fetching 
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      include: { techTeamProfiles: { select: { userId: true } } },
+      include: { 
+        techTeamProfiles: { select: { userId: true } },
+        // Lấy kèm hợp đồng đang Active để xem có Milestone thật dưới DB chưa
+        engagements: {
+          where: { state: { notIn: ['PENDING', 'DECLINED', 'CANCELLED'] } },
+          include: {
+            milestones: {
+              orderBy: { milestoneNumber: 'asc' },
+              include: { acceptanceCriteria: true }
+            }
+          },
+          take: 1
+        }
+      },
     });
+
     if (!project) throw new NotFoundException('Project not found.');
 
-    const isCeo = project.clientId === userId;
+    const isCeo      = project.clientId === userId;
     const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
     if (!isCeo && !isTechTeam) {
       throw new ForbiddenException(
         'Only the project CEO or assigned Tech Team can use the milestone assistant.',
       );
+    }
+
+    // Xác định nguồn dữ liệu Milestone cho Chatbot đọc 
+    let frameworkToUse: any = project.milestoneFrameworkJson;
+
+    // 1. Nếu dự án đã có hợp đồng và có Milestone thật dưới DB -> Ưu tiên dùng hàng thật
+    if (project.engagements && project.engagements.length > 0 && project.engagements[0].milestones.length > 0) {
+      // Map data từ DB về chuẩn JSON mà AI Model đang hiểu
+      frameworkToUse = project.engagements[0].milestones.map(m => ({
+        milestone_number: m.milestoneNumber,
+        deliverable_statement: m.deliverableStatement,
+        sign_off_authority: m.signOffAuthority,
+        payment_amount_vnd: Number(m.paymentAmountVnd),
+        state: m.state,
+        criteria: m.acceptanceCriteria.map(c => c.criterionText)
+      }));
+    }
+
+    // 2. Nếu Frontend có truyền lên mảng Local State (chỉnh sửa nháp chưa save) -> Ưu tiên cao nhất
+    if (currentMilestones && currentMilestones.length > 0) {
+      frameworkToUse = currentMilestones;
     }
 
     // Load or create session
@@ -402,15 +438,13 @@ export class ProjectsService {
       session = found;
     } else {
       const dateLabel = new Date().toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
+        day: '2-digit', month: '2-digit', year: 'numeric',
       });
       session = await this.prisma.milestoneChatSession.create({
         data: {
           projectId,
           userId,
-          title: `Chat · ${dateLabel}`,
+          title:       `Chat · ${dateLabel}`,
           messagesJson: [],
         },
       });
@@ -420,7 +454,10 @@ export class ProjectsService {
     const history = (session.messagesJson as ChatMessage[]) ?? [];
 
     // Append user turn, call AI, append assistant turn
-    const historyWithUserMsg: ChatMessage[] = [...history, { role: 'user', content: message }];
+    const historyWithUserMsg: ChatMessage[] = [
+      ...history,
+      { role: 'user', content: message },
+    ];
 
     const budgetContext = project.estimatedTotalCostVnd
       ? `Estimated total: ${project.estimatedTotalCostVnd.toString()} VND` +
@@ -430,11 +467,11 @@ export class ProjectsService {
       : 'No budget estimate available';
 
     const aiResponse = await this.fastapiClient.milestoneChatAssist({
-      artifact_a: (project.artifactAJson ?? {}) as Record<string, unknown>,
-      milestone_framework: (project.milestoneFrameworkJson ?? []) as Array<Record<string, unknown>>,
-      budget_context: budgetContext,
-      conversation_history: historyWithUserMsg, // FastAPI uses this as the full messages array
-      user_message: message, // redundant but kept for logging on FastAPI side
+      artifact_a:           (project.artifactAJson ?? {})          as Record<string, unknown>,
+      milestone_framework:  (frameworkToUse ?? [])                 as Array<Record<string, unknown>>,
+      budget_context:       budgetContext,
+      conversation_history: historyWithUserMsg,   
+      user_message:         message,              
     });
 
     const finalHistory: ChatMessage[] = [
@@ -445,15 +482,15 @@ export class ProjectsService {
     // Persist updated history
     await this.prisma.milestoneChatSession.update({
       where: { id: session.id },
-      data: { messagesJson: finalHistory as any, updatedAt: new Date() },
+      data:  { messagesJson: finalHistory as any, updatedAt: new Date() },
     });
 
     return {
-      reply: aiResponse.reply,
-      suggestedEdit: aiResponse.suggested_edit,
-      chatSessionId: session.id,
-      sessionTitle: session.title,
-      messageCount: finalHistory.length,
+      reply:          aiResponse.reply,
+      suggestedEdit:  aiResponse.suggested_edit,
+      chatSessionId:  session.id,
+      sessionTitle:   session.title,
+      messageCount:   finalHistory.length,
     };
   }
 
@@ -502,4 +539,142 @@ export class ProjectsService {
     return session;
   }
 
+  async getMarketplaceProjects(filters: { archetype?: string; tier?: string; limit?: number }) {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        state: 'PUBLISHED',
+        ...(filters.archetype ? { archetype: filters.archetype } : {}),
+        ...(filters.tier      ? { tier: filters.tier }           : {}),
+      },
+      select: {
+        id: true,
+        projectName: true,
+        state: true,
+        archetype: true,
+        tier: true,
+        createdAt: true,
+        requiredDomainsJson: true,
+        requiredSeamsJson: true,
+        artifactAJson: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 20, 50),
+    });
+
+    return projects.map((p) => this.mapProjectResponse(p));
+  }
+
+  async updateMilestoneFramework(projectId: string, userId: string, milestoneFramework: any[]) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        engagements: {
+          where: { state: { in: ['CONNECTED', 'ACTIVE', 'DISPUTED'] } },
+          include: {
+            milestones: {
+              include: { acceptanceCriteria: true },
+            },
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.clientId !== userId) {
+      throw new ForbiddenException('Only the project owner can update the milestone framework.');
+    }
+    if (project.state !== 'PUBLISHED' && project.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only edit milestone framework for active projects.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedProject = await tx.project.update({
+        where: { id: projectId },
+        data:  { milestoneFrameworkJson: milestoneFramework as any },
+        select: { id: true, milestoneFrameworkJson: true },
+      });
+
+      const activeEngagement = project.engagements?.[0];
+
+      if (activeEngagement) {
+        const incomingNumbers = milestoneFramework.map(m => intOrNull(m.milestone_number)).filter(Boolean);
+        const existingMilestones = activeEngagement.milestones;
+
+        const toDelete = existingMilestones.filter(
+          m => !incomingNumbers.includes(m.milestoneNumber) && m.state === 'DEFINED'
+        );
+        for (const m of toDelete) {
+          await tx.acceptanceCriterion.deleteMany({ where: { milestoneId: m.id } });
+          await tx.milestone.delete({ where: { id: m.id } });
+        }
+
+        for (const item of milestoneFramework) {
+          const mNum = intOrNull(item.milestone_number);
+          if (!mNum) continue;
+
+          const existing = existingMilestones.find(m => m.milestoneNumber === mNum);
+
+          if (existing) {
+            if (existing.state === 'DEFINED') {
+              await tx.milestone.update({
+                where: { id: existing.id },
+                data: {
+                  deliverableStatement: item.deliverable_statement,
+                  signOffAuthority:     item.sign_off_authority,
+                  paymentAmountVnd:     BigInt(item.payment_amount_vnd || 0),
+                  estimatedDurationDays: item.estimated_duration_days || null,
+                  estimatedCostVnd:     BigInt(item.estimated_cost_vnd || 0),
+                  updatedAt:            new Date(),
+                },
+              });
+
+              await tx.acceptanceCriterion.deleteMany({ where: { milestoneId: existing.id } });
+              for (const cText of (item.criteria ?? [])) {
+                await tx.acceptanceCriterion.create({
+                  data: {
+                    milestone:      { connect: { id: existing.id } },
+                    criterionText:  cText,
+                    isRequired:     true,
+                    verifiedByRole: item.sign_off_authority,
+                  },
+                });
+              }
+            }
+          } else {
+            const newMilestone = await tx.milestone.create({
+              data: {
+                engagementId:         activeEngagement.id,
+                milestoneNumber:      mNum,
+                deliverableStatement: item.deliverable_statement,
+                signOffAuthority:     item.sign_off_authority,
+                paymentAmountVnd:     BigInt(item.payment_amount_vnd || 0),
+                estimatedDurationDays: item.estimated_duration_days || null,
+                estimatedCostVnd:     BigInt(item.estimated_cost_vnd || 0),
+                state:                'DEFINED',
+              },
+            });
+
+            for (const cText of (item.criteria ?? [])) {
+              await tx.acceptanceCriterion.create({
+                data: {
+                  milestone:      { connect: { id: newMilestone.id } },
+                  criterionText:  cText,
+                  isRequired:     true,
+                  verifiedByRole: item.sign_off_authority,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      return updatedProject;
+    });
+  }
+}
+
+function intOrNull(val: any): number | null {
+  const parsed = parseInt(val, 10);
+  return isNaN(parsed) ? null : parsed;
 }

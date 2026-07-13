@@ -100,13 +100,11 @@ export default function Stage4ScenarioB({
   const { data: sessionData, isError: isPollError } = useQuery({
     queryKey: ['elicitation-session', sessionId],
     queryFn: () => getSession(sessionId),
-    /*
-    refetchInterval: (query) => {
+    refetchInterval: () => {
       if (!inviteSent || timedOut) return false;
-      const currentStage = query.state?.data?.currentStage || query.state?.data?.current_stage || 1;
+      const currentStage = sessionData?.currentStage || sessionData?.current_stage || 1;
       return currentStage >= 5 ? false : POLL_INTERVAL_MS;
     },
-    */
     enabled: inviteSent && !timedOut,
   });
 

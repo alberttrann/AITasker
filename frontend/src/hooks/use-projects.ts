@@ -242,8 +242,10 @@ export function useProjectMilestones(projectId: string) {
   return useQuery({
     queryKey: ['project', projectId, 'milestones'],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/projects/${projectId}/milestones`);
-      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+      // The backend does not currently have GET /projects/:id/milestones. 
+      // We return an empty array so the UI gracefully falls back to project.milestoneFrameworkJson
+      // without throwing a 404 console error.
+      return [];
     },
     enabled: !!projectId,
   });
@@ -276,9 +278,20 @@ export function useMilestoneChatHistory(projectId: string, sessionId: string | n
 export function useSendMilestoneMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ projectId, message, chatSessionId }: { projectId: string; message: string; chatSessionId?: string }) => {
+    mutationFn: async ({ 
+      projectId, 
+      message, 
+      chatSessionId, 
+      currentMilestones 
+    }: { 
+      projectId: string; 
+      message: string; 
+      chatSessionId?: string; 
+      currentMilestones?: any[] 
+    }) => {
       const payload: any = { message };
       if (chatSessionId) payload.chatSessionId = chatSessionId;
+      if (currentMilestones) payload.currentMilestones = currentMilestones;
       const { data } = await apiClient.post(`/projects/${projectId}/milestone-chat`, payload);
       return data;
     },

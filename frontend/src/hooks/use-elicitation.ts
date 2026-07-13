@@ -105,7 +105,7 @@ export async function submitStage4(
 ) {
   const latency_requirement = `Integration Method: ${integration_method}`;
 
-  const { data } = await apiClient.post(
+  const { data } = await apiClient.put(
     `/elicitation/sessions/${sessionId}/stage4`,
     { current_stack, data_available, latency_requirement, additional_requirement_1, technical_artifacts },
     { timeout: 120_000 },
@@ -148,7 +148,9 @@ export async function submitStage4Handoff(sessionId: string, payload: any) {
 /** Stage 4 — Let AI recommend tech context (non-technical CEO fallback) */
 export async function recommendStage4(sessionId: string) {
   const { data } = await apiClient.post(
-    `/elicitation/sessions/${sessionId}/stage4-recommend`
+    `/elicitation/sessions/${sessionId}/stage4-recommend`,
+    {},
+    { timeout: 90000 }
   );
   return data;
 }

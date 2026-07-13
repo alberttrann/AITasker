@@ -997,3 +997,18 @@ export interface MilestoneDodItemDto {
   status: string; // e.g. "PENDING", "COMPLETED"
   mapsToCriterionId?: string | null;
 }
+
+export interface BulkCreateDodItemsDto {
+  items: CreateDodItemDto[];
+}
+export interface BulkCreateDodItemsVariable {
+  milestoneId: string;
+  body: BulkCreateDodItemsDto;
+}
+export interface BulkStagePaygatedDocsDto {
+  documentUrls: string[];
+}
+export interface BulkStagePaygatedDocsVariable {
+  milestoneId: string;
+  body: BulkStagePaygatedDocsDto;
+}

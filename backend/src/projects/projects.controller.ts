@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Query, UseGuards, Request, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Query, UseGuards, Request, Body, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -12,6 +12,22 @@ import { UpdateProjectMilestonesDto } from './dto/update-project-milestones.dto'
 @UseGuards(JwtAuthGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
+
+  @Get('marketplace')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Expert: browse open, published projects on the marketplace' })
+  @ApiQuery({ name: 'archetype', required: false })
+  @ApiQuery({ name: 'tier', required: false })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getMarketplace(
+    @Query('archetype') archetype?: string,
+    @Query('tier') tier?: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
+    return this.projectsService.getMarketplaceProjects({ archetype, tier, limit });
+  }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -110,6 +126,7 @@ export class ProjectsController {
       req.user.id,
       dto.message,
       dto.chatSessionId,
+      dto.currentMilestones,
     );
   }
 
@@ -133,6 +150,19 @@ export class ProjectsController {
     @Request() req: any,
   ) {
     return this.projectsService.getMilestoneChatSession(projectId, sessionId, req.user.id);
+  }
+
+  @Put(':id/milestones')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: "Update the project's milestone framework JSON array (CEO only)" })
+  async updateMilestoneFramework(
+    @Param('id') projectId: string,
+    @Body('milestoneFramework') milestoneFramework: any[],
+    @Request() req: any,
+  ) {
+    return this.projectsService.updateMilestoneFramework(projectId, req.user.id, milestoneFramework);
   }
 
 }

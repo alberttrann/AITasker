@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEngagement } from "@/hooks/use-engagements";
+import { useEngagement, useEngagementMilestones } from "@/hooks/use-engagements";
+import { useProject } from "@/hooks/use-projects";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -7,7 +8,8 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle } from "lucide-react";
+import MilestoneChatAssistant from "./MilestoneChatAssistant";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -16,10 +18,27 @@ export default function MilestoneList() {
   // Fetch the engagement data which contains the milestones array
   const {
     data: engagement,
-    isLoading,
-    error,
-    refetch,
+    isLoading: isLoadingEngagement,
+    error: engagementError,
+    refetch: refetchEngagement,
   } = useEngagement(engagementId);
+
+  const {
+    data: milestonesData,
+    isLoading: isLoadingMilestones,
+    error: milestonesError,
+    refetch: refetchMilestones,
+  } = useEngagementMilestones(engagementId);
+
+  const projectId = engagement?.projectId || (engagement as any)?.project_id;
+  const { data: project, isLoading: isLoadingProject } = useProject(projectId);
+
+  const isLoading = isLoadingEngagement || isLoadingMilestones || isLoadingProject;
+  const error = engagementError || milestonesError;
+  const refetch = () => {
+    refetchEngagement();
+    refetchMilestones();
+  };
 
   if (isLoading) {
     return (
@@ -46,8 +65,9 @@ export default function MilestoneList() {
     );
   }
 
-  const milestones = engagement.milestones ?? [];
-  const projectId = engagement.projectId;
+  const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const instantiatedMilestones = milestonesData ?? engagement.milestones ?? [];
+  const milestones = instantiatedMilestones.length > 0 ? instantiatedMilestones : jsonMilestones;
 
   // Decide button labels and styling depending on current milestone status
   const getActionTextAndVariant = (state: string) => {
@@ -135,11 +155,12 @@ export default function MilestoneList() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {milestones.map((m) => {
-            const action = getActionTextAndVariant(m.state);
+          {milestones.map((m: any, idx: number) => {
+            const state = m.state || "DEFINED";
+            const action = getActionTextAndVariant(state);
             return (
               <Card
-                key={m.id}
+                key={m.id || idx}
                 className="hover:border-blue-300 transition-all duration-200"
               >
                 <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
@@ -147,22 +168,22 @@ export default function MilestoneList() {
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-sm font-bold text-slate-400 tracking-wider">
-                        MILESTONE #{m.milestoneNumber}
+                        MILESTONE #{m.milestoneNumber || m.milestone_number}
                       </span>
                       <StatusBadge
-                        label={m.state.replace(/_/g, " ")}
-                        variant={variantFromStatus(m.state)}
+                        label={state.replace(/_/g, " ")}
+                        variant={variantFromStatus(state)}
                       />
                     </div>
                     <h3 className="text-lg font-bold text-slate-800">
-                      {m.deliverableStatement ||
+                      {m.deliverableStatement || m.deliverable_statement ||
                         "No deliverable statement provided."}
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span>
                         Sign-off:{" "}
                         <strong className="text-slate-700">
-                          {m.signOffAuthority}
+                          {m.signOffAuthority || m.sign_off_authority}
                         </strong>
                       </span>
                       {m.fundedAt && (
@@ -183,24 +204,68 @@ export default function MilestoneList() {
                         Payment Amount
                       </p>
                       <p className="text-lg font-bold text-emerald-600">
-                        {formatVND(m.paymentAmountVnd)}
+                        {formatVND(m.paymentAmountVnd !== undefined ? m.paymentAmountVnd : m.payment_amount_vnd)}
                       </p>
                     </div>
 
-                    <Button
-                      variant={action.variant}
-                      size="sm"
-                      onClick={() => handleActionClick(m.id, m.state)}
-                      className="whitespace-nowrap w-full md:w-auto"
-                    >
-                      {action.text}
-                    </Button>
+                    {m.id ? (
+                      <Button
+                        variant={action.variant}
+                        size="sm"
+                        onClick={() => handleActionClick(m.id, state)}
+                        className="whitespace-nowrap w-full md:w-auto"
+                      >
+                        {action.text}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="whitespace-nowrap w-full md:w-auto"
+                      >
+                        Pending Creation
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
+                {(m.acceptanceCriteria?.length > 0 || m.dodItems?.length > 0) && (
+                  <div className="px-6 pb-6 pt-4 bg-slate-50 border-t border-slate-100 rounded-b-xl space-y-4">
+                    {m.acceptanceCriteria?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-700 mb-2">Acceptance Criteria</h4>
+                        <div className="space-y-2">
+                          {m.acceptanceCriteria.map((c: any) => (
+                            <div key={c.id} className="flex items-start gap-2 p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                              <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-slate-700 leading-snug">{c.criterionText || c.criterion_text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {m.dodItems?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-700 mb-2">Definition of Done (DoD)</h4>
+                        <div className="space-y-2">
+                          {m.dodItems.map((dod: any) => (
+                            <div key={dod.id} className="flex items-start gap-2 p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                              <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-slate-700 leading-snug">{dod.itemDescription || dod.item_description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             );
           })}
         </div>
+      )}
+      {projectId && (
+        <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
       )}
     </div>
   );

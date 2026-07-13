@@ -28,8 +28,8 @@ export default function DeliverableSubmit({ milestoneId, dodItems = [], onSucces
   );
   const hasIncompleteRequired = incompleteRequiredDod.length > 0;
 
-  const handleAddFile = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleAddFile = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
     if (!fileUrlInput.trim()) return;
 
     // Simple URL validation
@@ -47,6 +47,28 @@ export default function DeliverableSubmit({ milestoneId, dodItems = [], onSucces
     setFileUrls([...fileUrls, fileUrlInput.trim()]);
     setFileUrlInput("");
     setErrorMsg("");
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (submitMutation.isPending || hasIncompleteRequired) return;
+
+    // Get dragged text/URL
+    const data = e.dataTransfer.getData("text") || e.dataTransfer.getData("URL");
+    if (data && data.trim()) {
+      // Split by whitespace in case multiple URLs are dropped
+      const urls = data.split(/\s+/).filter(Boolean);
+      const newUrls = urls.filter(url => !fileUrls.includes(url));
+      
+      if (newUrls.length > 0) {
+        setFileUrls(prev => [...prev, ...newUrls]);
+        setErrorMsg("");
+      }
+    }
   };
 
   const handleRemoveFile = (index: number) => {
@@ -156,30 +178,60 @@ export default function DeliverableSubmit({ milestoneId, dodItems = [], onSucces
           />
         </div>
 
-        {/* Files JSON Links list */}
+        {/* Files JSON Links list (Dropzone) */}
         <div className="space-y-3">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Attach Files & Links (e.g. GitHub PRs, Staging sites, Figma files)
+            Attach Files & Links (e.g. GitHub PRs, Staging sites)
           </label>
           
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder="e.g. https://github.com/my-project/pull/123"
-              value={fileUrlInput}
-              onChange={(e) => setFileUrlInput(e.target.value)}
-              disabled={submitMutation.isPending || hasIncompleteRequired}
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleAddFile}
-              disabled={submitMutation.isPending || hasIncompleteRequired}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
-            >
-              <Plus size={16} /> Add Link
-            </Button>
+          <div 
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className={cn(
+              "border-2 border-dashed rounded-xl p-6 transition-colors flex flex-col items-center justify-center gap-4 text-center group",
+              submitMutation.isPending || hasIncompleteRequired 
+                ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed" 
+                : "border-slate-300 hover:border-primary/50 hover:bg-primary/5 bg-slate-50/50 cursor-text"
+            )}
+            onClick={() => {
+              if (!submitMutation.isPending && !hasIncompleteRequired) {
+                document.getElementById('url-dropzone-input')?.focus();
+              }
+            }}
+          >
+            <div className="p-3 bg-white shadow-sm rounded-full border border-slate-100 group-hover:bg-primary/10 transition-colors">
+              <Plus className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Drag & drop links here</p>
+              <p className="text-xs text-slate-500 mt-1">Or paste them in the input below</p>
+            </div>
+            <div className="flex gap-2 w-full max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
+              <Input
+                id="url-dropzone-input"
+                type="url"
+                placeholder="https://..."
+                value={fileUrlInput}
+                onChange={(e) => setFileUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddFile(e);
+                  }
+                }}
+                disabled={submitMutation.isPending || hasIncompleteRequired}
+                className="flex-1 bg-white"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={(e) => handleAddFile(e)}
+                disabled={submitMutation.isPending || hasIncompleteRequired || !fileUrlInput.trim()}
+                className="shrink-0"
+              >
+                Add Link
+              </Button>
+            </div>
           </div>
 
           {/* List of added files */}

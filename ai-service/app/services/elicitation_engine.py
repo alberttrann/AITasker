@@ -408,6 +408,7 @@ def _validate_stage5_response(raw: dict, request: Stage5Request) -> Stage5Respon
         artifact_a_json=artifact_a,
         artifact_b_json=artifact_b,
         completeness_score=round(completeness, 4),
+        flagged_void=str(raw.get("flagged_void")) if raw.get("flagged_void") else None, 
         estimated_total_cost_vnd=total_cost if total_cost > 0 else None,
         estimated_total_duration_days=total_days if total_days > 0 else None,
     )

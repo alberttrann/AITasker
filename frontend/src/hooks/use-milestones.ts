@@ -25,6 +25,41 @@ export function useCreateMilestone() {
   });
 }
 
+export interface BulkInitializeMilestonesPayload {
+  engagementId: string;
+  milestones: {
+    milestoneNumber: number;
+    deliverableStatement: string;
+    signOffAuthority: "CEO" | "TECH_TEAM" | "JOINT";
+    paymentAmountVnd: number;
+    criteria: {
+      criterion_text: string;
+      is_required?: boolean;
+    }[];
+  }[];
+}
+
+export function useBulkInitializeMilestones() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: BulkInitializeMilestonesPayload) => {
+      const { data } = await apiClient.post<any>(
+        `/milestones/bulk`,
+        payload
+      );
+      return data;
+    },
+
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["milestones"] });
+      queryClient.invalidateQueries({
+        queryKey: ["engagements", variables.engagementId],
+      });
+    },
+  });
+}
+
 // Adjust later for the MilestoneDTO
 export function useMilestone(milestoneId: string | undefined) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

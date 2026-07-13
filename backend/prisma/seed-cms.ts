@@ -28,24 +28,29 @@ async function main() {
   }
   console.log('Domain definitions seeded');
 
-  // ── Seam Definitions (from stage5_synthesize.txt SEAM CODES) ─────────────
+  // ── Seam Definitions (Now relationally linked to DomainDefinition.code) ──
   const seams = [
-    { code: 'A↔C', name: 'LLM output quality',          sortOrder: 1 },
-    { code: 'A↔F', name: 'Fine-tuned model integration', sortOrder: 2 },
-    { code: 'A↔D', name: 'Retrieval-generation',         sortOrder: 3 },
-    { code: 'D↔E', name: 'Embedding pipeline',           sortOrder: 4 },
-    { code: 'D↔F', name: 'Model-vector alignment',       sortOrder: 5 },
-    { code: 'C↔F', name: 'Eval-model feedback',          sortOrder: 6 },
-    { code: 'E↔F', name: 'Training data',                sortOrder: 7 },
-    { code: 'A↔B', name: 'Deployment-inference',         sortOrder: 8 },
-    { code: 'B↔E', name: 'Monitoring-pipeline',          sortOrder: 9 },
-    { code: 'C↔E', name: 'Ground-truth pipeline',        sortOrder: 10 },
+    { code: 'A↔C', domainCode1: 'A', domainCode2: 'C', name: 'LLM output quality',          sortOrder: 1 },
+    { code: 'A↔F', domainCode1: 'A', domainCode2: 'F', name: 'Fine-tuned model integration', sortOrder: 2 },
+    { code: 'A↔D', domainCode1: 'A', domainCode2: 'D', name: 'Retrieval-generation',         sortOrder: 3 },
+    { code: 'D↔E', domainCode1: 'D', domainCode2: 'E', name: 'Embedding pipeline',           sortOrder: 4 },
+    { code: 'D↔F', domainCode1: 'D', domainCode2: 'F', name: 'Model-vector alignment',       sortOrder: 5 },
+    { code: 'C↔F', domainCode1: 'C', domainCode2: 'F', name: 'Eval-model feedback',          sortOrder: 6 },
+    { code: 'E↔F', domainCode1: 'E', domainCode2: 'F', name: 'Training data',                sortOrder: 7 },
+    { code: 'A↔B', domainCode1: 'A', domainCode2: 'B', name: 'Deployment-inference',         sortOrder: 8 },
+    { code: 'B↔E', domainCode1: 'B', domainCode2: 'E', name: 'Monitoring-pipeline',          sortOrder: 9 },
+    { code: 'C↔E', domainCode1: 'C', domainCode2: 'E', name: 'Ground-truth pipeline',        sortOrder: 10 },
   ];
   for (const s of seams) {
     await prisma.seamDefinition.upsert({
       where: { code: s.code },
       create: s,
-      update: { name: s.name, sortOrder: s.sortOrder },
+      update: { 
+        name: s.name, 
+        sortOrder: s.sortOrder,
+        domainCode1: s.domainCode1,
+        domainCode2: s.domainCode2
+      },
     });
   }
   console.log('Seam definitions seeded');
@@ -128,5 +133,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    throw e; 
+  })
   .finally(() => prisma.$disconnect());

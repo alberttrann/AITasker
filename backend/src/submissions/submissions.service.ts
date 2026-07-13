@@ -174,4 +174,119 @@ export class SubmissionsService {
     return docs;
   }
 
+  async uploadBulkDocuments(milestoneId: string, documentUrls: string[]) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
+
+    const result = await this.prisma.paygatedDocument.createMany({
+      data: documentUrls.map((url) => ({
+        milestoneId: milestoneId,
+        documentUrl: url,
+        releaseState: 'STAGED',
+        stagedAt: new Date(),
+      })),
+    });
+
+    return { success: true, count: result.count };
+  }
+
+  async retractSubmission(milestoneId: string, expertUserId: string) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: true },
+    });
+
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    if (milestone.engagement.expertId !== expertUserId) {
+      throw new ForbiddenException('Only the assigned expert can retract submitted deliverables.');
+    }
+    if (milestone.state !== 'SUBMITTED') {
+      throw new UnprocessableEntityException(
+        `Cannot retract submission: milestone is in state '${milestone.state}' (requires SUBMITTED).`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Delete the latest submission record
+      const latest = await tx.milestoneSubmission.findFirst({
+        where: { milestoneId },
+        orderBy: { submittedAt: 'desc' },
+      });
+      if (latest) {
+        await tx.milestoneSubmission.delete({ where: { id: latest.id } });
+      }
+
+      // 2. Revert the milestone state back to IN_PROGRESS
+      await tx.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          state: 'IN_PROGRESS',
+          submittedAt: null,
+        },
+      });
+
+      // 3. Fire real-time update event so the CEO's UI updates instantly
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: milestone.engagement.clientId,
+        event: 'milestone:updated',
+        payload: {
+          engagement_id: milestone.engagementId,
+          milestone_number: milestone.milestoneNumber,
+          state: 'IN_PROGRESS',
+        },
+      });
+
+      return { success: true, message: 'Submission successfully retracted.' };
+    });
+  }
+  async listSubmissions(
+    milestoneId: string,
+    user: { id: string; activeRole: string; clientSubtype?: string | null }
+  ) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: { select: { clientId: true, expertId: true, projectId: true } } },
+    });
+
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+
+    // Party-check validation
+    const isAdmin = user.activeRole === 'ADMIN';
+    const isClient = user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO' && milestone.engagement.clientId === user.id;
+    const isExpert = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
+    
+    let isTechTeam = false;
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && milestone.engagement.projectId) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId: user.id } });
+      isTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
+    }
+
+    if (!isAdmin && !isClient && !isExpert && !isTechTeam) {
+      throw new ForbiddenException('Not a party to this engagement.');
+    }
+
+    return this.prisma.milestoneSubmission.findMany({
+      where: { milestoneId },
+      orderBy: { submittedAt: 'desc' }, // Order by newest first
+    });
+  }
+
+  async getLatestSubmission(
+    milestoneId: string,
+    user: { id: string; activeRole: string; clientSubtype?: string | null }
+  ) {
+    // Re-use the list method to handle security and sorting
+    const submissions = await this.listSubmissions(milestoneId, user);
+    
+    if (!submissions.length) {
+      throw new NotFoundException('No submissions found for this milestone.');
+    }
+    
+    return submissions[0]; // Return the first one (most recent)
+  }
 }

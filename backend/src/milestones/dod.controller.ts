@@ -6,6 +6,7 @@ import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
 import { Roles } from "@common/decorators/roles.decorator";
 import { CreateDodItemDto } from "./dto/create-dod-item.dto";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { BulkCreateDodItemsDto } from './dto/create-dod-item.dto'; 
 
 
 @ApiTags('DoD Checklist')
@@ -30,6 +31,17 @@ export class DodController {
   // async updateDodStatus(@Param('itemId') itemId: string, @Body() dto: UpdateMilestoneDoDItemDto) {
   //   return this.dodService.updateDodStatus(itemId, dto);
   // }
+
+  
+  @Post('items/bulk')
+  @Roles('EXPERT', 'CLIENT')
+  @ApiOperation({ summary: 'Bulk add multiple items to the DoD checklist atomically' })
+  async createBulkDodItems(
+    @Param('id') milestoneId: string,
+    @Body() dto: BulkCreateDodItemsDto,
+  ) {
+    return this.dodService.createBulk(milestoneId, dto);
+  }
 
   @Get()
   @Roles('CLIENT', 'EXPERT', 'ADMIN')

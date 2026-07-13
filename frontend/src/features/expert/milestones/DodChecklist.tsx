@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { MilestoneDodItemDto, AcceptanceCriterionDto } from "@/types/api.types";
-import { useCreateDodItem, useUpdateDodStatus } from "@/hooks/use-dod";
+import { useCreateDodItem, useUpdateDodStatus, useCreateBulkDodItems } from "@/hooks/use-dod";
 import DodItemRow from "./DodItemRow";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/input";
-import { Plus, ListTodo, ClipboardCheck, AlertCircle } from "lucide-react";
+import { Plus, ListTodo, ClipboardCheck, AlertCircle, FileText, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DodChecklistProps {
@@ -16,10 +16,13 @@ interface DodChecklistProps {
 
 export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCriteria = [] }: DodChecklistProps) {
   const createDodMutation = useCreateDodItem();
+  const createBulkDodMutation = useCreateBulkDodItems();
   const updateDodMutation = useUpdateDodStatus();
 
   // State for new DoD item form
+  const [isBulkMode, setIsBulkMode] = useState(false);
   const [description, setDescription] = useState("");
+  const [bulkDescription, setBulkDescription] = useState("");
   const [isRequired, setIsRequired] = useState(true);
   const [linkedCriterionId, setLinkedCriterionId] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -44,27 +47,56 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
     e.preventDefault();
     setErrorMsg("");
 
-    if (!description.trim()) {
-      setErrorMsg("Checklist item description cannot be empty.");
-      return;
-    }
-
-    try {
-      await createDodMutation.mutateAsync({
-        milestoneId,
-        body: {
-          item_description: description.trim(),
-          is_required: isRequired,
-          ...(linkedCriterionId && { maps_to_criterion_id: linkedCriterionId }),
-        }
-      });
+    if (isBulkMode) {
+      if (!bulkDescription.trim()) {
+        setErrorMsg("Please enter at least one task.");
+        return;
+      }
       
-      // Reset form
-      setDescription("");
-      setIsRequired(true);
-      setLinkedCriterionId("");
-    } catch (err: any) {
-      setErrorMsg(err?.response?.data?.message || "Failed to add checklist item.");
+      const tasks = bulkDescription.split('\n').map(t => t.trim()).filter(Boolean);
+      if (tasks.length === 0) return;
+
+      try {
+        await createBulkDodMutation.mutateAsync({
+          milestoneId,
+          body: {
+            items: tasks.map(t => ({
+              item_description: t,
+              is_required: isRequired,
+              ...(linkedCriterionId && { maps_to_criterion_id: linkedCriterionId }),
+            }))
+          }
+        });
+        setBulkDescription("");
+        setIsRequired(true);
+        setLinkedCriterionId("");
+        setIsBulkMode(false);
+      } catch (err: any) {
+        setErrorMsg(err?.response?.data?.message || "Failed to add bulk checklist items.");
+      }
+    } else {
+      if (!description.trim()) {
+        setErrorMsg("Checklist item description cannot be empty.");
+        return;
+      }
+
+      try {
+        await createDodMutation.mutateAsync({
+          milestoneId,
+          body: {
+            item_description: description.trim(),
+            is_required: isRequired,
+            ...(linkedCriterionId && { maps_to_criterion_id: linkedCriterionId }),
+          }
+        });
+        
+        // Reset form
+        setDescription("");
+        setIsRequired(true);
+        setLinkedCriterionId("");
+      } catch (err: any) {
+        setErrorMsg(err?.response?.data?.message || "Failed to add checklist item.");
+      }
     }
   };
 
@@ -166,23 +198,57 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
 
       {/* Add Checklist Item Form Card */}
       <div className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 shadow-sm">
-        <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-1.5">
-          <Plus size={16} className="text-slate-500" /> Add Custom DoD Item
-        </h4>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+            <Plus size={16} className="text-slate-500" /> Add Custom DoD Item
+          </h4>
+          <div className="flex items-center p-1 bg-slate-200/50 rounded-lg w-fit">
+            <button
+              type="button"
+              onClick={() => setIsBulkMode(false)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5",
+                !isBulkMode ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <List size={14} /> Single Item
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBulkMode(true)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5",
+                isBulkMode ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <FileText size={14} /> Bulk Paste
+            </button>
+          </div>
+        </div>
 
         <form onSubmit={handleAddItem} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Item Description *
+              {isBulkMode ? "Paste Checklist Items (One per line) *" : "Item Description *"}
             </label>
-            <Input
-              type="text"
-              placeholder="e.g., Run lint and formatting scripts, verify API response types"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={createDodMutation.isPending}
-              className="w-full"
-            />
+            {isBulkMode ? (
+              <textarea
+                placeholder="Task 1&#10;Task 2&#10;Task 3..."
+                value={bulkDescription}
+                onChange={(e) => setBulkDescription(e.target.value)}
+                disabled={createBulkDodMutation.isPending}
+                className="w-full min-h-[120px] p-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y"
+              />
+            ) : (
+              <Input
+                type="text"
+                placeholder="e.g., Run lint and formatting scripts, verify API response types"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={createDodMutation.isPending}
+                className="w-full"
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -194,7 +260,7 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
               <select
                 value={linkedCriterionId}
                 onChange={(e) => setLinkedCriterionId(e.target.value)}
-                disabled={createDodMutation.isPending}
+                disabled={isBulkMode ? createBulkDodMutation.isPending : createDodMutation.isPending}
                 className="w-full h-[42px] px-3 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700"
               >
                 <option value="">-- No mapping --</option>
@@ -212,13 +278,13 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
                 id="is-required-check"
                 checked={isRequired}
                 onChange={(e) => setIsRequired(e.target.checked)}
-                disabled={createDodMutation.isPending}
+                disabled={isBulkMode ? createBulkDodMutation.isPending : createDodMutation.isPending}
               />
               <label
                 htmlFor="is-required-check"
                 className="text-sm font-semibold text-slate-700 cursor-pointer select-none"
               >
-                Is this item required to submit deliverables?
+                {isBulkMode ? "Are these items required to submit deliverables?" : "Is this item required to submit deliverables?"}
               </label>
             </div>
           </div>
@@ -234,10 +300,13 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
             <Button
               type="submit"
               variant="primary"
-              disabled={createDodMutation.isPending}
+              disabled={isBulkMode ? createBulkDodMutation.isPending : createDodMutation.isPending}
               className="inline-flex items-center gap-2"
             >
-              {createDodMutation.isPending ? "Adding..." : "Add to Checklist"}
+              {isBulkMode 
+                ? (createBulkDodMutation.isPending ? "Adding Bulk..." : "Add All Items")
+                : (createDodMutation.isPending ? "Adding..." : "Add to Checklist")
+              }
             </Button>
           </div>
         </form>

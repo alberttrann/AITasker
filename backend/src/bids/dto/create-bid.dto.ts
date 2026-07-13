@@ -9,6 +9,7 @@ import {
   IsString,
   IsUUID,
   ValidateNested,
+  IsOptional,
 } from 'class-validator';
 
 enum DomainDepth {
@@ -70,6 +71,11 @@ class ConditionalPrice {
   @IsString()
   @IsNotEmpty()
   condition: string;
+
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
+  estimated_duration_days?: number;
 }
 
 export class CreateBidDto {

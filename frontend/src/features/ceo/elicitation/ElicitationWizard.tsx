@@ -343,12 +343,16 @@ export default function ElicitationWizard() {
   }
 
   if (state.sessionState === "RETURNED" && state.gateResult && !state.gateResult.gate_passed) {
+    console.log("=== QUALITY GATE FAILED DATA FROM BACKEND ===");
+    console.log(JSON.stringify(state.gateResult, null, 2));
+
     return (
       <div className="mx-auto max-w-[1440px] py-8">
         <QualityGateFailed
           advisoryNote={state.gateResult.advisory_note}
           flaggedVoid={state.gateResult.flagged_void ?? ""}
           returnToStage={state.gateResult.return_to_stage}
+          completenessScore={state.gateResult.completeness_score}
           onReturnToStage={handleReturnToStage}
           onStartOver={handleStartOver}
         />

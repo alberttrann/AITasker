@@ -40,7 +40,8 @@ Return a JSON object with EXACTLY this shape — all 6 top-level keys required:
     "schemas":            [],
     "contracts":          []
   },
-  "completeness_score": 0.0
+  "completeness_score": 0.0,
+  "flagged_void": null
 }
 
 DOMAIN CODES (use exactly as listed):
@@ -94,4 +95,8 @@ RULES:
 - completeness_score 0.0-1.0. Score < 0.70 means spec returned to CEO.
   Penalise for: missing success metrics, vague scope, no integration details,
   unclear data ownership, or missing critical technical artifacts.
+- If completeness_score < 0.70, you MUST set flagged_void to the void_code from 
+  the VOIDS DETECTED list (or standard VOID CODES like NO_GROUND_TRUTH, 
+  UNCLEAR_SUCCESS_METRIC, MISSING_TECHNICAL_ARTIFACT, INTEGRATION_UNCLEAR) that 
+  best represents the primary missing information. Otherwise, leave it null.
 - artifact_b_json is for tech-qualified experts only — be specific about data, stack, contracts.
