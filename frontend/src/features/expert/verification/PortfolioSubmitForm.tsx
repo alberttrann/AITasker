@@ -91,9 +91,9 @@ export default function PortfolioSubmitForm() {
         };
       } else {
         data = await submitPortfolio.mutateAsync({
-          seam_code: selectedSeamId,
-          project_description: description,
-          decision_points: decisions,
+          seamClaimId: selectedSeamId,
+          projectDescription: description,
+          decisionPoints: decisions,
         });
       }
 
@@ -134,11 +134,14 @@ export default function PortfolioSubmitForm() {
   };
 
   const selectedSeamData = profile?.seamClaims?.find((s: any) => s.id === selectedSeamId) || eligibleSeams.find(s => s.id === selectedSeamId);
+  const rawSeamCode = selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown';
+  const displaySeamName = getSeamLabel(rawSeamCode);
 
   if (resultView === 'success') {
     return (
       <Tier2Success 
-        seamCode={formatSeamCode(selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown')} 
+        seamCode={formatSeamCode(rawSeamCode)} 
+        seamName={displaySeamName}
         llmConfidence={resultData?.llmConfidence || 0} 
         onClose={handleReset} 
         onSubmitAnother={handleReset} 
@@ -149,7 +152,8 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'rejected') {
     return (
       <Tier2Rejected 
-        seamCode={formatSeamCode(selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown')} 
+        seamCode={formatSeamCode(rawSeamCode)} 
+        seamName={displaySeamName}
         llmConfidence={resultData?.llmConfidence || 0} 
         advisoryNote={resultData?.advisoryNote}
         attemptsRemaining={5 - (resultData?.submissionCount ?? (selectedSeamData?.submissionCount || 0))}
@@ -162,7 +166,8 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'lockout') {
     return (
       <VerificationLockout 
-        seamCode={formatSeamCode(selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown')} 
+        seamCode={formatSeamCode(rawSeamCode)} 
+        seamName={displaySeamName}
         lockedUntil={resultData?.lockedUntil || new Date(Date.now() + 86400000).toISOString()}
         onClose={handleReset}
       />

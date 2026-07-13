@@ -52,7 +52,7 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
                 placeholder="MIN: 1.000 VND"
                 value={amountInput}
                 onChange={setAmountInput}
-                className="text-center font-bold min-w-0 w-full text-lg py-2.5 placeholder:text-xs"
+                className="text-center font-bold min-w-0 w-full text-lg py-2.5 placeholder:text-xs bg-transparent border-none"
               />
             </div>
           </div>

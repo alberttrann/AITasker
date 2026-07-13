@@ -43,7 +43,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className={cn("bg-transparent border-none outline-none font-semibold w-full font-body placeholder:text-slate-400 focus:ring-0", className)}
+        className={cn("w-full font-semibold font-body placeholder:text-slate-400 outline-none", className)}
         {...props}
       />
     );

@@ -25,11 +25,11 @@ export class ListingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fastapiClient: FastapiClient,
-  ) {}
+  ) { }
 
   async list(filter: ListServicesFilterDto) {
     const where: any = {
-      state: 'PUBLISHED', 
+      state: 'PUBLISHED',
     };
 
     if (filter.serviceType) {
@@ -150,22 +150,22 @@ export class ListingsService {
       // 3. Call AI with rich context
       const ai = await this.fastapiClient.serviceGenerate({
         expert_capabilities: dto.capabilities,
-        target_use_cases:    dto.targetUseCases,
-        claimed_domains:     domainDepths.map(d => ({
+        target_use_cases: dto.targetUseCases,
+        claimed_domains: domainDepths.map(d => ({
           code: d.domainCode,
           depth: d.depthLevel,
         })),
-        claimed_seams:       seamClaims.map(s => ({
+        claimed_seams: seamClaims.map(s => ({
           code: s.seamCode,
         })),
-        is_pro_expert:       expert.subscriptionExpertTier === 'pro',
+        is_pro_expert: expert.subscriptionExpertTier === 'pro',
       });
 
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
       scope = dto.scope ?? ai.scope;
       timeline = dto.timeline ?? ai.timeline;
-      
+
       // Auto-tag domains and seams if not explicitly set in the request
       if (domainsJson.length === 0 && ai.suggested_domains) {
         domainsJson = ai.suggested_domains as any;
@@ -294,7 +294,7 @@ export class ListingsService {
       const engagement = await tx.engagement.create({
         data: {
           expertId: service.expertId,
-          clientId: buyer.id, 
+          clientId: buyer.id,
           serviceId: id,
           type: engagementType,
           state: 'PENDING',
@@ -364,7 +364,7 @@ export class ListingsService {
       include: {
         service: { select: { id: true, title: true, serviceType: true, priceVnd: true } },
       },
-      orderBy: { id: 'desc' }, 
+      orderBy: { id: 'desc' },
     });
   }
 
