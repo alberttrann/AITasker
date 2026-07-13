@@ -148,7 +148,11 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
           if (typeof c === 'string') {
             return { criterion_text: c, is_required: true };
           }
-          return c;
+          // Strip id and other DB-only fields, mapping safely to the DTO requirements
+          return { 
+            criterion_text: c.criterion_text || c.criterionText || '', 
+            is_required: c.is_required !== undefined ? c.is_required : (c.isRequired ?? true)
+          };
         });
       }
 
