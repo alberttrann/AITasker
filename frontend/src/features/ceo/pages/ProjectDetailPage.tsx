@@ -406,7 +406,7 @@ export default function ProjectDetailPage() {
                 <h3 className="text-lg font-bold text-slate-900">Project Milestones</h3>
               </div>
               
-              {isCeo && !isEditingMilestones && (
+              {isCeo && !isEditingMilestones && !activeEngagement && (
                 <button 
                   onClick={handleEditMilestones}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"

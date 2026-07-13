@@ -94,7 +94,7 @@ export default function ExpertProjectsPage() {
           ceoName: eng.client_id || 'Client', // Normally we'd join user, but we'll fallback
           companyName: null,
           status,
-          updatedAt: getSafeTime(eng.updatedAt || eng.connected_at || Date.now()),
+          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || Date.now()),
           engagement: eng
         });
       });
