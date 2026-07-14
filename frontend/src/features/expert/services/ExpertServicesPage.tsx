@@ -12,15 +12,15 @@ export default function ExpertServicesPage() {
   const { data: services, isLoading: isLoadingServices } = useMyServices();
 
   return (
-    <div className="w-full max-w-[1440px] px-6 mx-auto mb-12">
-      <div className="mb-8">
+    <div className="w-full space-y-8 mb-12">
+      <div>
         <h1 className="text-2xl font-bold text-slate-900 mb-2">My Services</h1>
         <p className="text-slate-500">Manage your profile, projects, and active engagements.</p>
       </div>
 
-      <div className="flex flex-wrap gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Projects Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center text-center p-8 transition-all hover:border-slate-300 hover:shadow-md w-full max-w-[260px]">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center text-center p-8 transition-all hover:border-slate-300 hover:shadow-md w-full">
           <div className="w-16 h-16 flex items-center justify-center mb-4 text-blue-600">
             <FolderKanban className="w-8 h-8" strokeWidth={2} />
           </div>
@@ -39,7 +39,7 @@ export default function ExpertServicesPage() {
         </div>
 
         {/* Expert Profile Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center text-center p-8 transition-all hover:border-slate-300 hover:shadow-md w-full max-w-[260px]">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center text-center p-8 transition-all hover:border-slate-300 hover:shadow-md w-full">
           <div className="w-16 h-16 flex items-center justify-center mb-4 text-emerald-600">
             <User className="w-8 h-8" strokeWidth={2} />
           </div>

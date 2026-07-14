@@ -78,9 +78,13 @@ export default function VerificationHistoryPage() {
             All your portfolio submissions and AI evaluation results.
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/expert/service/expert-profile')} className="flex items-center gap-2">
-          <ArrowLeft className="w-4 h-4" /> Back to Profile
-        </Button>
+        <button
+          onClick={() => navigate('/expert/service/expert-profile')}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Profile</span>
+        </button>
       </div>
 
       <div className="space-y-4">

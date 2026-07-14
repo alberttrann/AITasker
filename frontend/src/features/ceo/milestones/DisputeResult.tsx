@@ -69,15 +69,14 @@ export default function DisputeResult() {
     <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="p-2 rounded-lg text-slate-600 hover:text-slate-900"
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           aria-label="Go Back"
         >
           <ArrowLeft size={20} />
-        </Button>
+        </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 font-headline">Dispute Resolution Status</h1>
           <p className="text-sm text-slate-500">Track AI evaluations and manual admin resolution updates.</p>
