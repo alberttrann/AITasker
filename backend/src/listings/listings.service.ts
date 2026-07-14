@@ -357,7 +357,7 @@ export class ListingsService {
 
   async myPurchases(clientUserId: string) {
     return this.prisma.engagement.findMany({
-      where: { clientId: clientUserId, type: 'SERVICE_BASED' },
+      where: { clientId: clientUserId, type: {in: ['SERVICE_PURCHASE', 'TECH_DISCOVERY']} },
       include: {
         service: { select: { id: true, title: true, serviceType: true, priceVnd: true } },
       },

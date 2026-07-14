@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuthStore } from '@store/auth.store';
 
 export function useCreateService() {
   const queryClient = useQueryClient();
@@ -104,23 +104,19 @@ export function useDeleteService() {
   });
 }
 
-
-// Hooks for listing services
 export function usePurchaseService() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (serviceId: string) => {
-      const {data} = await apiClient.post(`/services/${serviceId}/purchase`);
-
+      const { data } = await apiClient.post(`/services/${serviceId}/purchase`);
       return data;
     },
-
-    onSuccess: (_data) => {
-      queryClient.invalidateQueries({queryKey: ['services']}),
-      queryClient.invalidateQueries({queryKey: ['engagements']})
-    }
-  })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+    },
+  });
 }
 
 export function useMyPurchase(userId: string) {
@@ -129,9 +125,9 @@ export function useMyPurchase(userId: string) {
   return useQuery({
     queryKey: ['purchases', userId],
     queryFn: async () => {
-      const {data} = await apiClient.get(`/services/me/purchases`);
+      const { data } = await apiClient.get('/services/me/purchases');
       return data;
     },
-    enabled: isAuthenticated
-  })
+    enabled: isAuthenticated && !!userId,
+  });
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
@@ -13,6 +13,7 @@ import SpotlightSearch from '@/components/layout/SpotlightSearch';
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // ── Dropdown State ──
   type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | 'mobile' | null;
@@ -468,6 +469,11 @@ const RoleIcon =
                   <Briefcase size={20} className="text-slate-500" /> Projects
                 </Link>
               )}
+              {rawRole === 'CEO' && (
+                <Link to={`${dashboardRoute}/marketplace`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                  <Briefcase size={20} className="text-slate-500" /> Marketplace
+                </Link>
+              )}
 
               
               <div className="h-[1px] bg-primary/10 my-2" />
@@ -537,6 +543,17 @@ const RoleIcon =
               >
                 Projects
                 {location.pathname.includes('/projects') && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                )}
+              </Link>
+            )}
+            {rawRole === 'CEO' && (
+              <Link 
+                to={`${dashboardRoute}/marketplace`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/marketplace') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+              >
+                Marketplace
+                {location.pathname.includes('/marketplace') && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>

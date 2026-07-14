@@ -5,6 +5,7 @@ import { SocketProvider } from '@lib/socket-provider';
 
 // Guards
 import { GuestRoute, ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
+import ServicePurchase from "./features/ceo/marketplace/ServicePurchase";
 
 // Public pages
 const LandingPage = lazy(() => import("@/components/pages/landingPage"));
@@ -50,6 +51,9 @@ const ServiceDetail = lazy(() => import("./features/expert/services/ServiceDetai
 const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
 const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/SubscriptionPlans"));
 const MarketplaceBrowse = lazy(() => import("@features/ceo/marketplace/MarketplaceBrowse"));
+const CeoServiceDetail = lazy(() => import("@features/ceo/marketplace/ServiceDetail"));
+const CeoServicePurchase = lazy(() => import("@features/ceo/marketplace/ServicePurchase"));
+const MessageThread = lazy(() => import("@/components/messaging/MessageThread"));
 const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
 const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
 const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
@@ -116,7 +120,9 @@ const router = createBrowserRouter(
             <Route path="subscriptions" element={<SubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
-            <Route path="marketplace" element={<MarketplaceBrowse />} />
+             <Route path="marketplace" element={<MarketplaceBrowse />} />
+            <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
+            <Route path="marketplace/service/:id/purchase" element={<CeoServicePurchase />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
             <Route path="projects/:projectId/bids" element={<CeoBidList />} />
             <Route path="project/:projectId/bids/:bidId" element={<CeoDecision />} />
@@ -128,6 +134,10 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/milestones"
               element={<MilestoneList />}
+            />
+            <Route
+              path="engagements/:engagementId/messages"
+              element={<MessageThread />}
             />
             <Route
               path="engagements/:engagementId/milestones/create"
@@ -184,6 +194,10 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
+            />
+            <Route
+              path="engagements/:engagementId/messages"
+              element={<MessageThread />}
             />
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
