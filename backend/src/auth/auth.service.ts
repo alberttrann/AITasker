@@ -26,8 +26,8 @@ import { SwitchRoleUserDto } from './dto/switch-role.dto';
 import axios from 'axios';
 import { generateVaNumber } from '@shared/ledger/va-generator';
 import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
-import { addHours, addMinutes } from 'date-fns'; 
-import { VerifyOtpDto } from './dto/verify-otp.dto'; 
+import { addHours, addMinutes } from 'date-fns';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @Injectable()
 export class AuthService {
@@ -53,7 +53,7 @@ export class AuthService {
       subscriptionClientTier: user.subscriptionClientTier,
       subscriptionExpertTier: user.subscriptionExpertTier,
       selfTechnical: user.selfTechnical,
-      isEmailVerified: user.isEmailVerified, 
+      isEmailVerified: user.isEmailVerified,
     };
   }
 
@@ -90,7 +90,7 @@ export class AuthService {
           clientSubtype: clientSubtype,
           selfTechnical: registerDto.selfTechnical ?? false,
           isEmailVerified: false, // starts unverified
-          emailOtp: otp,          // store plain OTP for verification comparison
+          emailOtp: otp, // store plain OTP for verification comparison
           emailOtpExpiresAt: otpExpiresAt,
 
           ...(activeRole == ActiveRole.CLIENT
@@ -112,7 +112,7 @@ export class AuthService {
           status: VAStatus.ACTIVE,
         },
       });
-    }); 
+    });
 
     this.emailService.sendOtpEmail(registerDto.email, otp).catch((err) => {
       console.error('Failed to send OTP email immediately after registration:', err);
@@ -352,7 +352,7 @@ export class AuthService {
           status: VAStatus.ACTIVE,
         },
       });
-    }); 
+    });
 
     this.emailService.sendOtpEmail(dto.email, otp).catch((err) => {
       console.error('Failed to send OTP email immediately after handoff registration:', err);
@@ -575,8 +575,8 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        passwordHash:    newHash,
-        refreshTokenHash: null,  // invalidate all sessions after password change
+        passwordHash: newHash,
+        refreshTokenHash: null, // invalidate all sessions after password change
       },
     });
     return { message: 'Password changed successfully. Please log in again.' };
@@ -620,7 +620,7 @@ export class AuthService {
       where: { id: user.id },
       data: {
         isEmailVerified: true,
-        emailOtp:        null,
+        emailOtp: null,
         emailOtpExpiresAt: null,
       },
     });
@@ -633,5 +633,36 @@ export class AuthService {
       refresh_token: refreshToken,
       user: this.toAuthUserResponse(verifiedUser),
     };
+  }
+
+  async resendOtp(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User account not found.');
+    }
+
+    if (user.isEmailVerified) {
+      throw new ConflictException('This account is already verified.');
+    }
+
+    // Generate a secure 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = addMinutes(new Date(), 15); // valid for 15 minutes
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailOtp: otp,
+        emailOtpExpiresAt: otpExpiresAt,
+      },
+    });
+
+    await this.emailService.sendOtpEmail(email, otp);
+    return { message: 'OTP_SENT' };
   }
 }

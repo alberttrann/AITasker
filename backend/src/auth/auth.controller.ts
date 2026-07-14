@@ -15,6 +15,7 @@ import { Roles } from '@common/decorators/roles.decorator';
 import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResendOtp } from './dto/resend-otp.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -111,5 +112,13 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  @Post('resend-otp')
+  @ApiOperation({summary: 'Resend otp for verify email'})
+  resendOtp(
+    @Body() dto: ResendOtp
+  ) {
+    return this.authService.resendOtp(dto.email);
   }
 }
