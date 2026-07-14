@@ -124,16 +124,15 @@ export default function CeoNdaClickThrough() {
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-[640px] space-y-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button>
-
-      <div>
+    <div className="mx-auto max-w-[768px] flex flex-col h-[calc(100vh-120px)] gap-4 pb-4">
+      <div className="shrink-0">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer mb-2"
+        >
+          <ArrowLeft size={16} />
+          <span>Back</span>
+        </button>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
           Non-Disclosure Agreement
         </h1>
@@ -144,7 +143,7 @@ export default function CeoNdaClickThrough() {
 
       {/* Already signed by CEO */}
       {alreadySigned && (
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3 shrink-0">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
           <div>
             <p className="text-[14px] font-medium text-[#16A34A]">
@@ -166,19 +165,19 @@ export default function CeoNdaClickThrough() {
 
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3 shrink-0">
           <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
 
       {/* NDA text */}
-      <Card>
-        <CardContent className="p-0">
+      <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="max-h-[360px] overflow-y-auto p-6"
+            className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
           >
             <div className="flex items-center gap-2 mb-4">
               <Shield className="h-5 w-5 text-[#0F172A]" />
@@ -191,7 +190,7 @@ export default function CeoNdaClickThrough() {
             </pre>
           </div>
           {!hasScrolledToBottom && !alreadySigned && (
-            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3">
+            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3 shrink-0">
               <p className="text-[12px] text-[#94A3B8] text-center">
                 Scroll to the bottom to enable signing
               </p>
@@ -202,7 +201,7 @@ export default function CeoNdaClickThrough() {
 
       {/* Sign button / Waiting state */}
       {!alreadySigned ? (
-        <div className="space-y-3">
+        <div className="space-y-3 shrink-0">
           <Button
             variant="primary"
             className="w-full"
@@ -225,7 +224,7 @@ export default function CeoNdaClickThrough() {
         </div>
       ) : expertSigned ? (
         /* Both signed — connected */
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center">
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center shrink-0">
           <CheckCircle2 className="mx-auto h-6 w-6 text-[#22C55E]" />
           <p className="mt-2 text-[14px] font-medium text-[#16A34A]">
             Both parties have signed! You are now connected.
@@ -242,7 +241,7 @@ export default function CeoNdaClickThrough() {
         </div>
       ) : (
         /* CEO signed, waiting for expert */
-        <div className="rounded-[8px] border border-[#BFDBFE] bg-[#EFF6FF] p-4 text-center">
+        <div className="rounded-[8px] border border-[#BFDBFE] bg-[#EFF6FF] p-4 text-center shrink-0">
           <Clock className="mx-auto h-6 w-6 text-[#0EA5E9] animate-pulse" />
           <p className="mt-2 text-[14px] font-medium text-[#1E40AF]">
             Waiting for expert to sign…

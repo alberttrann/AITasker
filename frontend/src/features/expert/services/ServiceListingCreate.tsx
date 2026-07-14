@@ -44,9 +44,13 @@ export default function ServiceListingCreate() {
   return (
     <div className="w-full max-w-2xl px-6 mx-auto py-12">
       <div className="flex items-center gap-3 mb-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-2 hover:bg-slate-200 rounded-full">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+          aria-label="Go back"
+        >
           <ArrowLeft size={20} />
-        </Button>
+        </button>
         <h1 className="text-2xl font-bold text-slate-900">Create Service</h1>
       </div>
 

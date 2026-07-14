@@ -44,7 +44,7 @@ export default function ExpertWallet() {
       <div className="mb-6 flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           aria-label="Go back"
         >
           <ArrowLeft size={20} />

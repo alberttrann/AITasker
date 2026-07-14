@@ -190,9 +190,10 @@ export default function CreateMilestone() {
       {/* Back button */}
       <button
         onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
       >
-        <ArrowLeft size={16} /> Back to Milestones
+        <ArrowLeft size={16} />
+        <span>Back to Milestones</span>
       </button>
 
       {/* Header */}

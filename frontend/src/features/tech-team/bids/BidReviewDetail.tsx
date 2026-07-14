@@ -80,10 +80,10 @@ export default function BidReviewDetail() {
       <div>
         <button
           onClick={() => navigate('/tech-team/bids')}
-          className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-secondary hover:text-primary transition-colors"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
-          <ArrowLeft size={14} />
-          Back to Bid List
+          <ArrowLeft size={16} />
+          <span>Back to Bid List</span>
         </button>
         <div className="flex items-start justify-between gap-4">
           <h1 className="font-headline text-[24px] font-semibold text-primary">

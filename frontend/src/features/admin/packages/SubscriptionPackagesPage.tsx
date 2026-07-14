@@ -250,7 +250,7 @@ export default function SubscriptionPackagesPage() {
     <div className="w-full space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <Link to="/admin/config" className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors">
+          <Link to="/admin/config" className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer" aria-label="Go back">
             <ArrowLeft size={20} />
           </Link>
           <div>

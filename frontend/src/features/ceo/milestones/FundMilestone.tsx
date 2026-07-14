@@ -52,15 +52,14 @@ export default function FundMilestone() {
     <div className="w-full max-w-3xl mx-auto px-4 py-8 space-y-6">
       {/* Header and navigation */}
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
           onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)}
-          className="p-2 rounded-lg text-slate-600 hover:text-slate-900"
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           aria-label="Back to milestones list"
         >
           <ArrowLeft size={20} />
-        </Button>
+        </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 font-headline">Fund Milestone</h1>
           <p className="text-sm text-slate-500">Secure the technical team's deliverables by funding this milestone into escrow.</p>

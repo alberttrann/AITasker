@@ -139,10 +139,10 @@ export default function CeoDecision() {
       {/* Back */}
       <button
         onClick={() => navigate(`/ceo/projects/${projectId}/bids`)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
       >
-        <ArrowLeft size={14} />
-        Back to Bids
+        <ArrowLeft size={16} />
+        <span>Back to Bids</span>
       </button>
 
       {/* Header */}

@@ -67,15 +67,14 @@ export default function ExpertMilestoneDetail() {
       {/* Back to Project button & Header */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={() => navigate(`/expert/service/projects`)}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900"
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Back to projects"
           >
             <ArrowLeft size={20} />
-          </Button>
+          </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 font-headline">Milestone Workspace</h1>
             <p className="text-sm text-slate-500">Track DoD checklist requirements, submit deliverables, and review sign-offs.</p>
