@@ -304,7 +304,7 @@ export default function UserList() {
                               : activeRole === "EXPERT"
                               ? "bg-emerald-100 text-emerald-700"
                               : activeRole === "ADMIN"
-                              ? "bg-purple-100 text-purple-700"
+                              ? "bg-blue-100 text-blue-700"
                               : "bg-slate-100 text-slate-600"
                           )}
                         >

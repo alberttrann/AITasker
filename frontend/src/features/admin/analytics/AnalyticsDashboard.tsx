@@ -105,10 +105,10 @@ export default function AnalyticsDashboard() {
           title="Elicitation Completion Rate"
           value={formatPct(data.elicitation_completion_rate_pct)}
           subtitle="CEOs who successfully finished the AI scoping wizard."
-          icon={<Target className="h-6 w-6 text-indigo-600" />}
+          icon={<Target className="h-6 w-6 text-sky-600" />}
           trend="neutral"
-          bg="bg-indigo-50"
-          border="border-indigo-100"
+          bg="bg-sky-50"
+          border="border-sky-100"
         />
 
         {/* Portfolio Auto-Upgrade Rate */}
@@ -143,20 +143,20 @@ export default function AnalyticsDashboard() {
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-xl border border-indigo-900 shadow-sm relative overflow-hidden text-white">
+        <div className="bg-gradient-to-br from-slate-900 to-blue-950 p-6 rounded-xl border border-blue-900 shadow-sm relative overflow-hidden text-white">
           <div className="absolute top-0 right-0 p-6 opacity-10">
             <BrainCircuit className="h-32 w-32" />
           </div>
-          <h3 className="text-sm font-semibold text-indigo-300 uppercase tracking-wider mb-2">AI Auto-Resolution Efficiency</h3>
+          <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wider mb-2">AI Auto-Resolution Efficiency</h3>
           <div className="flex items-end gap-4">
             <span className="text-5xl font-black text-white tracking-tighter">
               {formatPct(data.dispute_auto_resolve_rate_pct)}
             </span>
-            <span className="text-sm text-indigo-200 pb-2 mb-1">
+            <span className="text-sm text-blue-200 pb-2 mb-1">
               of all disputes
             </span>
           </div>
-          <p className="mt-4 text-indigo-200 text-sm max-w-sm">
+          <p className="mt-4 text-blue-200 text-sm max-w-sm">
             Percentage of disputes successfully resolved by the Layer 1 AI Eval without requiring human Admin escalation.
           </p>
         </div>

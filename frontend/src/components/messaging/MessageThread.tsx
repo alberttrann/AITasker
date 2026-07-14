@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMessages, useSendMessage } from '@/hooks/use-messages';
+import { useMessages, useSendMessage, useConversations } from '@/hooks/use-messages';
 import { useSocket } from '@/hooks/use-socket';
 import { useAuth } from '@/hooks/use-auth';
 import { useEngagement } from '@/hooks/use-engagements';
 import { useEngagementStore } from '@store/engagement.store';
 import ChatSidebar from '@/components/messaging/ChatSidebar';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { ArrowLeft, Send, ShieldCheck, Clock, User, Info, MessageSquare } from 'lucide-react';
-import { formatVND } from '@/lib/utils';
+import { Send, MessageSquare } from 'lucide-react';
 
 export default function MessageThread() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -23,6 +21,7 @@ export default function MessageThread() {
 
   const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
   const { data: historyResponse, isLoading: isLoadingMessages } = useMessages(engagementId);
+  const { data: conversationsResponse } = useConversations();
   const sendMessage = useSendMessage();
 
   const [text, setText] = useState('');
@@ -151,57 +150,72 @@ export default function MessageThread() {
     );
   }
 
-  // Determine participant labels
-  const isClient = user?.activeRole === 'CLIENT';
-  const peerName = isClient
-    ? (engagement as any).expert?.fullName || 'Expert Partner'
-    : (engagement as any).client?.fullName || 'Client Partner';
+  // Determine participant labels and route
+  const isClient = user?.activeRole === 'CLIENT' || user?.activeRole?.startsWith('CLIENT');
+  const dashboardRoute = isClient ? '/ceo' : '/expert';
+  const allConversations = conversationsResponse?.data || [];
+  const currentConv = allConversations.find((c: any) => c.id === engagementId);
+
+  const currentPartnerId =
+    currentConv?.otherParty?.id ||
+    currentConv?.partnerId ||
+    (isClient ? (engagement as any).expert?.id : (engagement as any).client?.id) ||
+    (engagement as any).otherParty?.id;
+
+  const peerName =
+    currentConv?.otherParty?.fullName ||
+    currentConv?.partnerName ||
+    (isClient
+      ? (engagement as any).expert?.fullName || (engagement as any).otherParty?.fullName || 'Expert'
+      : (engagement as any).client?.fullName || (engagement as any).otherParty?.fullName || 'Client');
+
+  // Find all available threads between current user and this partner
+  const partnerEngagements = allConversations.filter((c: any) =>
+    (currentPartnerId && (c.otherParty?.id === currentPartnerId || c.partnerId === currentPartnerId)) ||
+    (peerName && peerName !== 'Expert' && peerName !== 'Client' && (c.otherParty?.fullName === peerName || c.partnerName === peerName)) ||
+    c.id === engagementId
+  );
 
   return (
-    <div className="w-full max-w-[1024px] px-4 sm:px-6 mx-auto py-6 flex h-[calc(100vh-140px)] min-h-[500px] border border-slate-200 bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div className="w-full max-w-[1440px] px-6 mx-auto py-6 flex h-[calc(100vh-140px)] min-h-[600px] bg-transparent border-0 gap-6 overflow-hidden">
       {/* Left panel: Conversations List */}
       <ChatSidebar activeEngagementId={engagementId} />
 
       {/* Right panel: Active chat window */}
-      <div className="flex-1 bg-slate-50/10 flex flex-col min-w-0 h-full">
+      <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex flex-col min-w-0 h-full p-4 sm:p-6 overflow-hidden">
         {/* 1. Header Toolbar */}
-        <div className="flex flex-row items-center justify-between border-b border-slate-100 bg-white p-4 shrink-0">
+        <div className="flex flex-row items-center justify-between pb-4 border-b border-slate-200/80 shrink-0 gap-4">
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900"
-              aria-label="Go back"
-            >
-              <ArrowLeft size={20} />
-            </Button>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 leading-none mb-1">{peerName}</h2>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Online workspace chat</span>
-              </div>
+              <h2 className="text-base font-bold text-slate-900 leading-none">{peerName}</h2>
             </div>
           </div>
 
-          {/* Small Order Details Panel */}
-          <div className="hidden sm:flex flex-row items-center gap-4 text-xs border-l border-slate-100 pl-4">
-            <div>
-              <span className="text-slate-400 font-medium">Agreement Type:</span>
-              <span className="ml-1 font-semibold text-slate-700 uppercase tracking-wide">
-                {engagement.type === 'SERVICE_PURCHASE' ? 'Service Order' : 'Project Connection'}
-              </span>
+          {/* Thread Dropdown */}
+          {partnerEngagements.length > 0 && (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Thread:</span>
+              <select
+                value={engagementId || ''}
+                onChange={(e) => {
+                  if (e.target.value && e.target.value !== engagementId) {
+                    navigate(`${dashboardRoute}/engagements/${e.target.value}/messages`);
+                  }
+                }}
+                className="px-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all cursor-pointer max-w-[280px] truncate shadow-sm"
+              >
+                {partnerEngagements.map((eng: any) => (
+                  <option key={eng.id} value={eng.id}>
+                    {eng.projectName || 'Direct Chat'}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-100 font-medium">
-              <ShieldCheck size={12} />
-              <span>Escrow Protected</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* 2. Message Thread Body */}
-        <div className="flex-grow overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/40">
+        <div className="flex-grow overflow-y-auto py-4 pr-2 space-y-3 bg-transparent">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-3">
               <MessageSquare size={36} className="text-slate-300" />
@@ -218,30 +232,28 @@ export default function MessageThread() {
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-3 max-w-[80%] ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+                  className={`flex items-end gap-2.5 max-w-[75%] w-fit ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
                 >
-                  {/* Avatar bubble */}
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 shadow-sm ${
-                      isMe ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    {senderInitial}
-                  </div>
+                  {/* Incoming Avatar bubble - hide for outcoming messages */}
+                  {!isMe && (
+                    <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm mb-1">
+                      {senderInitial}
+                    </div>
+                  )}
 
                   {/* Message Bubble wrapper */}
-                  <div className="space-y-1">
+                  <div className={`space-y-1 min-w-0 max-w-full ${isMe ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
                     <div
-                      className={`p-3 rounded-2xl text-sm leading-relaxed ${
+                      className={`w-fit max-w-full p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
                         isMe
-                          ? 'bg-slate-900 text-white rounded-tr-none'
-                          : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
+                          ? 'bg-emerald-600 text-white rounded-br-none'
+                          : 'bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60'
                       }`}
                     >
                       <p className="break-words whitespace-pre-wrap">{msg.content}</p>
                     </div>
                     {/* Timestamp */}
-                    <p className={`text-[10px] text-slate-400 ${isMe ? 'text-right' : 'text-left'}`}>
+                    <p className={`text-[10px] text-slate-400 font-medium ${isMe ? 'text-right' : 'text-left'}`}>
                       {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     </p>
                   </div>
@@ -255,14 +267,14 @@ export default function MessageThread() {
         {/* 3. Send Input Form */}
         <form
           onSubmit={handleSend}
-          className="flex items-center gap-2 p-3 bg-white border-t border-slate-100 shrink-0"
+          className="flex items-center gap-2 pt-3 border-t border-slate-200/80 shrink-0"
         >
           <input
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Message ${peerName}...`}
-            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all text-slate-800"
+            className="flex-1 px-4 py-2.5 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all text-slate-800 shadow-sm"
           />
           <Button
             type="submit"
@@ -278,3 +290,4 @@ export default function MessageThread() {
     </div>
   );
 }
+

@@ -161,7 +161,7 @@ export default function ServiceListingCreate() {
                <Clock size={18} strokeWidth={2.5} />
             </button>
             <button 
-              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-purple-500 bg-white shadow-sm border border-slate-200 cursor-not-allowed opacity-50"
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-blue-500 bg-white shadow-sm border border-slate-200 cursor-not-allowed opacity-50"
               title="Add Tags (Coming soon)"
             >
                <Tags size={18} strokeWidth={2.5} />
