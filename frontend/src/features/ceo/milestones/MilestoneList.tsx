@@ -101,9 +101,8 @@ export default function MilestoneList() {
       {/* Header and navigation bar */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={() => {
               if (projectId) {
                 navigate(`/ceo/projects/${projectId}`);
@@ -111,11 +110,11 @@ export default function MilestoneList() {
                 navigate("/ceo/projects");
               }
             }}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900"
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Back to project details"
           >
             <ArrowLeft size={20} />
-          </Button>
+          </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Milestones</h1>
             <p className="text-sm text-slate-500">

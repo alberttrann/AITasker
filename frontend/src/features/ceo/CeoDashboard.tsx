@@ -10,7 +10,6 @@ import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscriptionStatus } from "@/hooks/use-subscription";
-//import { getActiveSession } from "@/hooks/use-elicitation"; // <-- Import cai nay de cap nhat ne
 
 export function CeoOverview() {
   const { user } = useAuth();
@@ -31,18 +30,6 @@ export function CeoOverview() {
   };
 
   const allProjects = projects.sort((a, b) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
-/*
-  useEffect(() => {
-      // DO NOT USE LOCAL STORAGE. Check the actual database.
-      if (hasSubscription) {
-        getActiveSession()
-          .then((session) => {
-            setHasActiveSession(!!session);
-          })
-//        .catch(() => setHasActiveSession(false));
-//      }
-//    }, [hasSubscription]);
-//*/
   const { data: subStatus, isLoading: isLoadingSub } = useSubscriptionStatus();
   const hasSubscription = subStatus?.tier === "pro";
 

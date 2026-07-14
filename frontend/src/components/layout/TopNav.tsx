@@ -8,6 +8,7 @@ import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
+import SpotlightSearch from '@/components/layout/SpotlightSearch';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -140,16 +141,7 @@ const RoleIcon =
 
         {/* Middle: Search Bar */}
         <div className="flex flex-1 mx-4 md:mx-8 lg:mx-12 min-w-0">
-          <div className="w-full flex items-stretch group border-[1.5px] border-primary-dark/30 rounded overflow-hidden transition-colors duration-150 hover:border-primary-dark/50 focus-within:border-primary-dark min-w-0">
-            <input 
-              type="text" 
-              placeholder="Search..." 
-              className="flex-1 min-w-0 w-full bg-transparent pl-4 pr-3 py-3 text-sm font-medium text-primary-dark placeholder:text-primary-dark/50 focus:outline-none"
-            />
-            <button className="flex items-center justify-center shrink-0 aspect-square bg-primary-dark text-white hover:bg-primary-dark/90 transition-colors duration-150">
-              <Search size={20} strokeWidth={1.5} />
-            </button>
-          </div>
+          <SpotlightSearch user={user} isAuthenticated={isAuthenticated} />
         </div>
 
 
@@ -377,15 +369,7 @@ const RoleIcon =
                       </Link>
                     )}
                     
-                    {rawRole === 'ADMIN' && (
-                      <Link
-                        to={`${dashboardRoute}/analytics`} 
-                        onClick={() => setActiveDropdown(null)} 
-                        className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
-                      >
-                        Analytics Console
-                      </Link>
-                    )}
+
 
                     {/* Divider for Promoted Actions */}
                     {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
@@ -484,22 +468,7 @@ const RoleIcon =
                   <Briefcase size={20} className="text-slate-500" /> Projects
                 </Link>
               )}
-              {rawRole === 'ADMIN' && (
-                <>
-                  <Link to={`${dashboardRoute}/analytics`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Sparkles size={20} className="text-slate-500" /> Analytics
-                  </Link>
-                  <Link to={`${dashboardRoute}/config`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Briefcase size={20} className="text-slate-500" /> Configuration
-                  </Link>
-                  <Link to={`${dashboardRoute}/disputes`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Shield size={20} className="text-slate-500" /> Disputes
-                  </Link>
-                  <Link to={`${dashboardRoute}/withdrawals`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Wallet size={20} className="text-slate-500" /> Withdrawals
-                  </Link>
-                </>
-              )}
+
               
               <div className="h-[1px] bg-primary/10 my-2" />
 
@@ -549,7 +518,7 @@ const RoleIcon =
       )}
 
       {/* Bottom Navigation Row */}
-      {isAuthenticated && (
+      {isAuthenticated && rawRole !== 'ADMIN' && (
         <div className="hidden md:block w-full bg-transparent border-t border-primary/20 relative z-40">
           <div className="flex flex-row items-center justify-start gap-8 px-6 max-w-[1440px] mx-auto">
             <Link 
@@ -583,55 +552,7 @@ const RoleIcon =
                 )}
               </Link>
             )}
-            {rawRole === 'ADMIN' && (
-              <>
-                <Link 
-                  to={`${dashboardRoute}/analytics`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/analytics') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Analytics
-                  {location.pathname.includes('/analytics') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/config`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/config') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Configuration
-                  {location.pathname.includes('/config') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/disputes`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/disputes') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Disputes
-                  {location.pathname.includes('/disputes') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/withdrawals`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/withdrawals') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Withdrawals
-                  {location.pathname.includes('/withdrawals') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/ledger`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/ledger') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Ledger
-                  {location.pathname.includes('/ledger') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-              </>
-            )}
+
             {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <Link 
                 to={`${dashboardRoute}/subscriptions`} 

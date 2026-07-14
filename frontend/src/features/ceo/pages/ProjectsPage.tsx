@@ -80,7 +80,7 @@ export default function ProjectsPage() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/ceo')}
-            className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Go back"
           >
             <ArrowLeft size={20} />

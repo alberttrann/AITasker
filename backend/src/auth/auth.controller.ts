@@ -14,6 +14,8 @@ import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -50,6 +52,12 @@ export class AuthController {
     return this.authService.registerHandoff(dto);
   }
 
+  @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify registration OTP code and issue login tokens' })
+  verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
+  }
+
   @ApiBearerAuth('JWT')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT')
@@ -61,10 +69,7 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @UseGuards(JwtAuthGuard)
   @Post('claim-handoff')
-  claimHandoff(
-    @CurrentUser() user: AuthUser,
-    @Body('invite_token') inviteToken: string,
-  ) {
+  claimHandoff(@CurrentUser() user: AuthUser, @Body('invite_token') inviteToken: string) {
     return this.authService.claimHandoff(user.id, inviteToken);
   }
 
@@ -99,10 +104,13 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Change password while authenticated' })
-  changePassword(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: ChangePasswordDto,
-  ) {
+  changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Resend otp for verify email' })
+  resendOtp(@Body() dto: ResendOtpDto) {
+    return this.authService.resendOtp(dto.email);
   }
 }

@@ -241,10 +241,13 @@ export default function ServiceDetail() {
     <div className="w-full max-w-[1440px] px-6 mx-auto py-12 font-body animate-in fade-in duration-500">
       {/* Back Button & Top Bar */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-          <ArrowLeft size={20} className="text-slate-600" />
-        </Button>
-        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Back to Services</span>
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer uppercase tracking-wider"
+        >
+          <ArrowLeft size={18} />
+          <span>Back to Services</span>
+        </button>
         
         <div className="ml-auto flex items-center gap-3">
           {isDraft && (

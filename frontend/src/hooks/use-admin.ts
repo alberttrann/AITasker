@@ -45,12 +45,24 @@ export function useResolveDispute() {
 
 // ── Users ──────────────────────────────────────────────────────────────
 // GET /admin/users
-export function useAdminUsers(page = 1, limit = 20) {
+export function useAdminUsers(
+  page = 1,
+  limit = 20,
+  filters?: { role?: string; isActive?: boolean; search?: string }
+) {
   return useQuery({
-    queryKey: ["admin", "users", page, limit],
+    queryKey: ["admin", "users", page, limit, filters],
     queryFn: () =>
       apiClient
-        .get("/admin/users", { params: { page, limit } })
+        .get("/admin/users", {
+          params: {
+            page,
+            limit,
+            role: filters?.role || undefined,
+            isActive: filters?.isActive !== undefined ? filters.isActive : undefined,
+            search: filters?.search || undefined,
+          },
+        })
         .then((r) => r.data),
   });
 }
