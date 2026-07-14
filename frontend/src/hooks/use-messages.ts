@@ -46,3 +46,11 @@ export function useUnreadCount(engagementId: string | undefined) {
     enabled: !!engagementId,
   });
 }
+
+export function useConversations() {
+  return useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => apiClient.get("/conversations"),
+  });
+}
+

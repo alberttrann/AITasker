@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
+import { Bell, BellOff, MessageSquare, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
@@ -9,6 +9,8 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
 import SpotlightSearch from '@/components/layout/SpotlightSearch';
+import { useEngagementStore } from '@store/engagement.store';
+import { useConversations } from '@/hooks/use-messages';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -75,7 +77,9 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
-  const unreadMessages = 0;
+  const unreadMessages = useEngagementStore((s) => s.totalUnread);
+  const { data: conversationsResponse } = useConversations();
+  const conversations = conversationsResponse?.data || [];
 
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
@@ -264,14 +268,14 @@ const RoleIcon =
                 )}
               </div>
 
-              {/* Mailbox */}
+              {/* Chat messages */}
               <div className="relative">
                 <button 
                   aria-label="Messages" 
                   onClick={() => setActiveDropdown(activeDropdown === 'messages' ? null : 'messages')}
                   className={`relative p-2.5 rounded-full transition-all duration-150 active:scale-95 ${activeDropdown === 'messages' ? 'bg-primary-dark/10 text-primary-dark' : 'text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10'}`}
                 >
-                  <Mail size={24} strokeWidth={1.5} />
+                  <MessageSquare size={24} strokeWidth={1.5} />
                   {unreadMessages > 0 && (
                     <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
                   )}
@@ -280,15 +284,70 @@ const RoleIcon =
                 {activeDropdown === 'messages' && (
                   <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                      <span className="font-semibold text-primary">Inbox {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
+                      <span className="font-semibold text-primary">Messages {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
                     </div>
                     <div className="max-h-80 overflow-y-auto bg-white">
-                      <div className="p-8 flex flex-col items-center justify-center text-slate-400">
-                        <Inbox size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
-                        <p className="text-sm font-medium">No new messages</p>
-                        <p className="text-xs text-center mt-1">Your inbox is empty.</p>
-                      </div>
+                      {conversations.length === 0 ? (
+                        <div className="p-8 flex flex-col items-center justify-center text-slate-400">
+                          <Inbox size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
+                          <p className="text-sm font-medium">No new messages</p>
+                          <p className="text-xs text-center mt-1">Your inbox is empty.</p>
+                        </div>
+                      ) : (
+                        conversations.map((conv: any) => {
+                          const hasUnread = conv.unreadCount > 0;
+                          const otherPartyName = conv.otherParty?.fullName || 'Partner';
+                          const lastMsgContent = conv.lastMessage?.content 
+                            ? (conv.lastMessage.content.length > 60 
+                                ? conv.lastMessage.content.substring(0, 60) + '...' 
+                                : conv.lastMessage.content)
+                            : 'No messages yet';
+                          const timeStr = conv.lastMessage?.timestamp 
+                            ? new Date(conv.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                            : '';
+
+                          return (
+                            <div
+                              key={conv.id}
+                              onClick={() => {
+                                navigate(`${dashboardRoute}/engagements/${conv.id}/messages`);
+                                setActiveDropdown(null);
+                              }}
+                              className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors flex gap-3 ${hasUnread ? 'bg-primary/5' : ''}`}
+                            >
+                              {/* Avatar Bubble */}
+                              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0 border border-slate-200">
+                                {otherPartyName.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-baseline mb-0.5">
+                                  <span className={`text-sm truncate ${hasUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                                    {otherPartyName}
+                                  </span>
+                                  {timeStr && <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-2">{timeStr}</span>}
+                                </div>
+                                <p className="text-xs text-slate-400 font-medium truncate mb-1">{conv.projectName}</p>
+                                <p className={`text-xs truncate ${hasUnread ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                                  {lastMsgContent}
+                                </p>
+                              </div>
+                              {hasUnread && (
+                                <span className="w-2.5 h-2.5 bg-error rounded-full shrink-0 self-center" />
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
+                    {conversations.length > 0 && (
+                      <Link
+                        to={`${dashboardRoute}/messages`}
+                        onClick={() => setActiveDropdown(null)}
+                        className="p-3 text-center text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100/80 border-t border-slate-100 block transition-all"
+                      >
+                        See All in Messenger
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -578,6 +637,18 @@ const RoleIcon =
                 <Sparkles size={16} />
                 Plans
                 {location.pathname.includes('/subscriptions') && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                )}
+              </Link>
+            )}
+
+            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+              <Link 
+                to={`${dashboardRoute}/messages`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/messages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+              >
+                Messages
+                {location.pathname.includes('/messages') && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>

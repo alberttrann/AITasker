@@ -54,6 +54,7 @@ const MarketplaceBrowse = lazy(() => import("@features/ceo/marketplace/Marketpla
 const CeoServiceDetail = lazy(() => import("@features/ceo/marketplace/ServiceDetail"));
 const CeoServicePurchase = lazy(() => import("@features/ceo/marketplace/ServicePurchase"));
 const MessageThread = lazy(() => import("@/components/messaging/MessageThread"));
+const ConversationsList = lazy(() => import("@/components/messaging/ConversationsList"));
 const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
 const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
 const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
@@ -140,6 +141,10 @@ const router = createBrowserRouter(
               element={<MessageThread />}
             />
             <Route
+              path="messages"
+              element={<ConversationsList />}
+            />
+            <Route
               path="engagements/:engagementId/milestones/create"
               element={<CreateMilestone />}
             />
@@ -198,6 +203,10 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/messages"
               element={<MessageThread />}
+            />
+            <Route
+              path="messages"
+              element={<ConversationsList />}
             />
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
