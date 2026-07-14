@@ -387,13 +387,22 @@ export class AdminService {
 
   async listUsers(filters: { role?: string; isActive?: boolean; search?: string }) {
     const where: any = {};
+    
+    // Exact boolean match (if provided)
     if (filters.isActive !== undefined) where.isActive = filters.isActive;
+    
+    // JSON Array match for role (e.g. 'CLIENT_CEO', 'EXPERT', 'ADMIN')
+    if (filters.role) {
+      where.roles = { array_contains: filters.role }; // ← FIXED
+    }
+
     if (filters.search) {
       where.OR = [
         { email: { contains: filters.search, mode: 'insensitive' } },
         { fullName: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
+    
     return this.prisma.user.findMany({
       where,
       take: 100,

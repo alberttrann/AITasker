@@ -14,6 +14,7 @@ import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { VerifyTaxCodeDto } from './dto/verify-tax-code.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -48,6 +49,12 @@ export class AuthController {
   @Post('register/handoff')
   registerHandoff(@Body() dto: RegisterHandoffDto) {
     return this.authService.registerHandoff(dto);
+  }
+
+  @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify registration OTP code and issue login tokens' })
+  verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
   }
 
   @ApiBearerAuth('JWT')
