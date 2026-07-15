@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { useProject } from '@/hooks/use-projects';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
-import { useBid } from '@/hooks/use-bids';
+import { useEngagement, useEngagements } from '@/hooks/use-engagements';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
-import FootprintAlignment, {
-  toWireFootprint,
-  type FootprintAlignmentData,
-} from './FootprintAlignment';
+import FootprintAlignment, { type FootprintAlignmentData } from './FootprintAlignment';
 import ConditionalPricing, { type PricingItem } from './ConditionalPricing';
 
 // ── Inline hooks ─────────────────────────────────────────────────
@@ -32,7 +29,7 @@ function useArtifactA(projectId: string | undefined) {
   });
 }
 
-/** POST /bids — expert-only bid creation with SeamCode conversion */
+/** POST /bids — expert-only bid creation */
 function useCreateBid() {
   const qc = useQueryClient();
   return useMutation({
@@ -42,13 +39,7 @@ function useCreateBid() {
       approach_summary: string;
       conditional_pricing_json: PricingItem[];
     }) => {
-      const wirePayload = {
-        ...payload,
-        footprint_alignment_json: payload.footprint_alignment_json
-          ? toWireFootprint(payload.footprint_alignment_json)
-          : null,
-      };
-      const { data } = await apiClient.post('/bids', wirePayload);
+      const { data } = await apiClient.post('/bids', payload);
       return data; // { engagement, bid }
     },
     onSuccess: () => {
@@ -62,14 +53,21 @@ function useCreateBid() {
 
 export default function BidForm() {
   const { projectId: routeId } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  // Try to fetch as a bid (if the routeId is actually a bidId)
-  const { data: bid, isLoading: isLoadingBid } = useBid(routeId || '');
-  
-  // If we found a bid, use its projectId. Otherwise assume routeId IS the projectId.
-  const actualProjectId = bid?.projectId || bid?.project_id || routeId;
+  const actualProjectId = routeId;
+
+  // Find if we have an existing engagement for this project
+  const { data: engagements } = useEngagements();
+  const matchedEngagement = engagements?.find((e: any) => e.projectId === actualProjectId || e.project_id === actualProjectId);
+  const engagementId = searchParams.get('engagementId') || matchedEngagement?.id;
+
+  // Fetch full engagement to get the capabilityBid
+  const { data: fullEngagement, isLoading: isLoadingEngagement } = useEngagement(engagementId || undefined);
+  const bid = fullEngagement?.capabilityBid;
+  const isLoadingBid = isLoadingEngagement;
 
   const { project, isLoadingProject, error: specError } = useProject(actualProjectId);
   const { profile: expertProfile, isLoadingProfile } = useExpertProfile();
@@ -82,8 +80,8 @@ export default function BidForm() {
   // Sync state when bid loads
   useEffect(() => {
     if (bid) {
-      if (bid.approachSummary) setApproach(bid.approachSummary);
-      if (bid.conditionalPricingJson) setPricing(bid.conditionalPricingJson);
+      if ((bid as any).approachSummary || (bid as any).approach_summary) setApproach((bid as any).approachSummary || (bid as any).approach_summary);
+      if ((bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json) setPricing((bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json);
     }
   }, [bid]);
 
@@ -92,8 +90,9 @@ export default function BidForm() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const isDirty = approach.length > 0 || pricing.length > 0;
+  const isReadOnly = !!bid && (bid as any).techStatus !== 'REVISION_REQUESTED' && (bid as any).tech_status !== 'REVISION_REQUESTED';
 
-  // Auto-calculate footprint alignment
+  // Auto-calculate footprint alignment, submitting raw dynamic data for the backend to process
   const footprint: FootprintAlignmentData = {
     domains: expertProfile?.domainDepths?.map((d: any) => ({
       code: d.domainCode,
@@ -110,15 +109,17 @@ export default function BidForm() {
   const validate = (): boolean => {
     const errs: Record<string, any> = {};
     if (!approach.trim()) errs.approach = 'Approach summary is required.';
-    if (pricing.length === 0) errs.pricing = { items: 'At least one pricing milestone is required.' };
-    else {
-      pricing.forEach((p, i) => {
-        const itemErrs: any = {};
-        if (!p.price_vnd || p.price_vnd <= 0) itemErrs.price = 'Price must be a positive integer.';
-        if (!p.condition.trim()) itemErrs.condition = 'Describe the milestone condition.';
-        if (Object.keys(itemErrs).length) errs[`pricing_${i}`] = itemErrs;
-      });
-    }
+    // Removed requirement for at least one pricing milestone
+    pricing.forEach((p, idx) => {
+      const itemErrs: any = {};
+      if (!p.price_vnd || p.price_vnd <= 0) itemErrs.price = 'Price must be a positive integer.';
+      if (!p.condition.trim()) itemErrs.condition = 'Describe the milestone condition.';
+      if (Object.keys(itemErrs).length) {
+        // Find original index in pricing array to map error correctly
+        const originalIndex = pricing.findIndex(it => it.milestone_number === p.milestone_number);
+        errs[originalIndex] = itemErrs;
+      }
+    });
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -139,9 +140,10 @@ export default function BidForm() {
         conditional_pricing_json: pricing,
       },
       {
-        onSuccess: (data: any) => {
-          const bidId = data?.bid?.id;
-          if (bidId) navigate(`/expert/bids/${bidId}`, { replace: true });
+        onSuccess: () => {
+          setTimeout(() => {
+            navigate(`/expert/service/projects`);
+          }, 1500);
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || 'Failed to submit bid.';
@@ -191,8 +193,8 @@ export default function BidForm() {
     <div className="mx-auto max-w-[720px] space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
-          Submit Bid
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          {isReadOnly ? 'View Sent Bid' : 'Submit Bid'}
         </h1>
         <p className="mt-1 text-body text-[#64748B]">
           {project?.projectName || `Project ${actualProjectId}`}
@@ -216,15 +218,7 @@ export default function BidForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Footprint Alignment */}
-        <Card>
-          <CardContent className="pt-6">
-            <FootprintAlignment
-              expertProfile={expertProfile}
-              project={project}
-            />
-          </CardContent>
-        </Card>
+
 
         {/* Approach Summary */}
         <Card>
@@ -233,7 +227,8 @@ export default function BidForm() {
               value={approach}
               onChange={setApproach}
               error={fieldErrors.approach}
-              disabled={createBid.isPending}
+              disabled={createBid.isPending || isReadOnly}
+              readOnly={isReadOnly}
             />
           </CardContent>
         </Card>
@@ -242,38 +237,52 @@ export default function BidForm() {
         <Card>
           <CardContent className="pt-6">
             <ConditionalPricing
+              frameworkItems={project?.milestone_framework_json || []}
               items={pricing}
               onChange={setPricing}
               errors={fieldErrors}
-              disabled={createBid.isPending}
+              disabled={createBid.isPending || isReadOnly}
+              readOnly={isReadOnly}
             />
           </CardContent>
         </Card>
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={createBid.isPending}
-            onClick={handleCancel}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={createBid.isPending}
-            className="min-w-[140px]"
-          >
-            {createBid.isPending ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" /> Submitting…
-              </span>
-            ) : (
-              'Submit Bid'
-            )}
-          </Button>
+          {isReadOnly ? (
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => navigate('/expert/service/projects')}
+            >
+              Back to Projects
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={createBid.isPending}
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={createBid.isPending}
+                className="min-w-[140px]"
+              >
+                {createBid.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" /> Submitting…
+                  </span>
+                ) : (
+                  'Submit Bid'
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </form>
 

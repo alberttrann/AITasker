@@ -88,7 +88,7 @@ export default function ProfileSettingPage() {
     setErrorMsg(null);
     try {
       if (field === 'companyName') {
-        await updateProfile.mutateAsync({ companyName: newValue, taxCode: '' });
+        await updateProfile.mutateAsync({ companyName: newValue });
         setOriginalValues((prev) => ({ ...prev, companyName: newValue }));
         setFormValues((prev) => ({ ...prev, companyName: newValue }));
       } else if (field === 'bio') {
@@ -222,7 +222,7 @@ export default function ProfileSettingPage() {
     
     setErrorMsg(null);
     try {
-      await updateProfile.mutateAsync({ companyName: taxStatus.companyName, taxCode: taxStatus.taxCodeValue });
+      await updateProfile.mutateAsync({ companyName: taxStatus.companyName });
       setOriginalValues((prev) => ({ ...prev, companyName: taxStatus.companyName! }));
       setFormValues((prev) => ({ ...prev, companyName: taxStatus.companyName! }));
       setTaxStatus({ verified: false, companyName: null, taxCodeValue: null, loading: false, error: false });
@@ -234,7 +234,7 @@ export default function ProfileSettingPage() {
   };
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -267,7 +267,7 @@ export default function ProfileSettingPage() {
             {renderEditableRow("Phone Number", "phone", "tel")}
           </div>
 
-          {user?.activeRole === 'CLIENT' && (
+          {user?.activeRole === 'CLIENT' && user?.clientSubtype !== 'TECH_TEAM' && (
             <>
               <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
                 <h2 className="text-sm font-semibold text-slate-900">Company Information</h2>
@@ -293,7 +293,7 @@ export default function ProfileSettingPage() {
             </>
           )}
 
-          {user?.activeRole === 'CLIENT' && (
+          {user?.activeRole === 'CLIENT' && user?.clientSubtype !== 'TECH_TEAM' && (
             <>
               <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
                 <h2 className="text-sm font-semibold text-slate-900">Tax Verification</h2>

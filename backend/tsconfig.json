@@ -12,7 +12,6 @@
     "sourceMap":                    true,
     "outDir":                       "./dist",
     "baseUrl":                      ".",
-    "rootDir":                      "src",
     "incremental":                  true,
     "skipLibCheck":                 true,
     "strictNullChecks":             false,
@@ -28,5 +27,5 @@
       "prisma/prisma.service": ["src/database/prisma.service"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*"]
 }

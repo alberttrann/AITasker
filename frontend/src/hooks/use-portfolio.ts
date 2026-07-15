@@ -47,11 +47,23 @@ export function usePortfolio() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolio-submissions'] });
-      // Might want to invalidate profile too since submission counts change
       queryClient.invalidateQueries({ queryKey: ['expert-profile'] });
     },
   });
 
   return { submitPortfolio };
 }
- 
+
+export function useDeletePortfolioEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/portfolio-submissions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio-submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['expert-profile'] });
+    },
+  });
+}

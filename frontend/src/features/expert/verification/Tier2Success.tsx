@@ -3,6 +3,7 @@ import { Award, CheckCircle, RefreshCcw, ArrowLeft } from "lucide-react";
 
 interface Tier2SuccessProps {
   seamCode: string;
+  seamName?: string;
   llmConfidence: number;
   onClose: () => void;
   onSubmitAnother: () => void;
@@ -10,6 +11,7 @@ interface Tier2SuccessProps {
 
 export default function Tier2Success({
   seamCode,
+  seamName,
   llmConfidence,
   onClose,
   onSubmitAnother,
@@ -17,7 +19,7 @@ export default function Tier2Success({
   const percentage = Math.round(llmConfidence * 100);
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-12 px-6 bg-white rounded-2xl shadow-sm border border-emerald-100 text-center animate-in zoom-in-95 duration-300">
+    <div className="w-full max-w-3xl mx-auto py-12 px-6 bg-white rounded-2xl shadow-sm border border-emerald-100 text-center animate-in zoom-in-95 duration-300">
       <div className="flex justify-center mb-6">
         <div className="relative">
           <Award className="w-24 h-24 text-emerald-500" strokeWidth={1.5} />
@@ -32,19 +34,19 @@ export default function Tier2Success({
       </h2>
       <p className="text-gray-600 text-lg mb-6">
         Your portfolio for seam{" "}
-        <span className="font-bold text-gray-900">{seamCode}</span> has been
+        <span className="font-bold text-gray-900">{seamName || seamCode}</span> has been
         approved.
       </p>
 
       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-6 mb-8 max-w-2sm mx-auto">
         <p className="text-sm text-emerald-800 font-semibold uppercase tracking-wider mb-2">
-          AI Evaluation Confidence
+          AI Evaluation Score
         </p>
         <div className="text-4xl font-black text-emerald-600">
-          {percentage}%
+          {percentage} <span className="text-xl font-bold text-emerald-700">/ 100</span>
         </div>
-        <p className="text-emerald-700 text-xs mt-2">
-          Exceeds the 85% threshold for Tier 2.
+        <p className="text-emerald-700 text-xs mt-2 font-medium">
+          Exceeds the 85-point threshold required for Tier 2.
         </p>
       </div>
 

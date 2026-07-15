@@ -1,6 +1,5 @@
 import { useReducer, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { apiClient } from "@/lib/api-client";
+import { useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -12,6 +11,7 @@ import {
   getActiveSession,
   handleElicitationError,
   revertSession,
+  abandonSession,
   STAGE_LABELS,
   setSelfTechnical,
   type GateResult,
@@ -129,6 +129,15 @@ export default function ElicitationWizard() {
     symptomTextDraft: null,
   });
 
+  const isConfirmingRef = useRef(false);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      state.sessionState === "IN_PROGRESS" && 
+      currentLocation.pathname !== nextLocation.pathname &&
+      !isConfirmingRef.current
+  );
+
   useEffect(() => {
     let cancelled = false;
     const resumeSessionId = location.state?.resumeSessionId;
@@ -186,7 +195,7 @@ export default function ElicitationWizard() {
           type: "INIT_SUCCESS",
           payload: {
             sessionId: data.id,
-            currentStage: data.currentStage ?? 1,
+            currentStage: data.currentStage ?? data.current_stage ?? 1,
             sessionState: finalSessionState,
             gateResult: initGateResult as GateResult | null,
             archetype: data.archetype || null,
@@ -198,7 +207,7 @@ export default function ElicitationWizard() {
         if (cancelled) return;
         const { message, isSubscriptionError } = handleElicitationError(err);
         if (isSubscriptionError) {
-          navigate("/ceo/subscription", { replace: true });
+          navigate("/ceo/subscriptions/plans", { replace: true });
           return;
         }
         dispatch({ type: "SET_ERROR", payload: message });
@@ -243,7 +252,7 @@ export default function ElicitationWizard() {
     dispatch({ type: "START_OVER_START" });
     try {
       if (state.sessionId && state.sessionState !== "COMPLETED") {
-        await apiClient.put(`/elicitation/sessions/${state.sessionId}/abandon`);
+        await abandonSession(state.sessionId);
       }
       const data = await createSession();
       dispatch({ type: "START_OVER_SUCCESS", payload: { sessionId: data.id } });
@@ -324,7 +333,7 @@ export default function ElicitationWizard() {
 
   if (state.sessionState === "COMPLETED" && state.gateResult?.gate_passed) {
     return (
-      <div className="mx-auto max-w-6xl py-8">
+      <div className="mx-auto max-w-[1440px] py-8">
         <QualityGatePassed
           projectId={state.gateResult.project_id}
           onStartNew={handleStartOver}
@@ -334,12 +343,16 @@ export default function ElicitationWizard() {
   }
 
   if (state.sessionState === "RETURNED" && state.gateResult && !state.gateResult.gate_passed) {
+    console.log("=== QUALITY GATE FAILED DATA FROM BACKEND ===");
+    console.log(JSON.stringify(state.gateResult, null, 2));
+
     return (
-      <div className="mx-auto max-w-6xl py-8">
+      <div className="mx-auto max-w-[1440px] py-8">
         <QualityGateFailed
           advisoryNote={state.gateResult.advisory_note}
           flaggedVoid={state.gateResult.flagged_void ?? ""}
           returnToStage={state.gateResult.return_to_stage}
+          completenessScore={state.gateResult.completeness_score}
           onReturnToStage={handleReturnToStage}
           onStartOver={handleStartOver}
         />
@@ -348,7 +361,7 @@ export default function ElicitationWizard() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl relative pt-4">
+    <div className="mx-auto max-w-[1440px] relative pt-4">
       <div className="absolute top-0 right-0 z-10">
         <Button variant="ghost" size="sm" onClick={handleCancelSession} className="text-slate-500 hover:text-slate-700 hover:bg-slate-50">
           Exit Session
@@ -454,9 +467,21 @@ export default function ElicitationWizard() {
       </Card>
 
       <ConfirmModal
-        isOpen={state.isCancelModalOpen}
-        onClose={() => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false })}
-        onConfirm={confirmCancelSession}
+        isOpen={state.isCancelModalOpen || blocker.state === "blocked"}
+        onClose={() => {
+          dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false });
+          if (blocker.state === "blocked" && !isConfirmingRef.current) {
+            blocker.reset();
+          }
+        }}
+        onConfirm={() => {
+          isConfirmingRef.current = true;
+          if (blocker.state === "blocked") {
+            blocker.proceed();
+          } else {
+            confirmCancelSession();
+          }
+        }}
         title="Exit Session"
         confirmText="Exit Session"
         cancelText="Cancel"

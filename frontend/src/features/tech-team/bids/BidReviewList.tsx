@@ -1,6 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -8,25 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { AlertTriangle, FileText, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements — TECH_TEAM role-scoped to linked project */
-function useBidsForTechTeam() {
-  const user = useAuthStore((s) => s.user);
-  const techTeamId = user?.id;
-
-  return useQuery({
-    queryKey: ['bids', 'tech-team'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto[]>('/engagements');
-      return data;
-    },
-    enabled: !!techTeamId,
-    staleTime: 10_000,
-    // ⚠️ Polling fallback — BE doesn't emit bid:updated yet
-    refetchInterval: 5_000,
-  });
-}
+import { useTechTeamEngagements } from '@/hooks/use-engagements';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -50,7 +30,7 @@ type BidWithEngagement = CapabilityBidDto & { engagementId: string; expertName?:
 
 export default function BidReviewList() {
   const navigate = useNavigate();
-  const { data: engagements, isLoading, error, refetch } = useBidsForTechTeam();
+  const { data: engagements, isLoading, error, refetch } = useTechTeamEngagements();
 
   // Extract bids from engagements
   const bids: BidWithEngagement[] = (engagements || [])
@@ -66,12 +46,12 @@ export default function BidReviewList() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">Bid Reviews</h1>
+        <h1 className="font-headline text-[24px] font-semibold text-primary">Bid Reviews</h1>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse rounded-[8px] border border-[#E2E8F0] bg-white p-6">
-              <div className="h-5 w-48 rounded bg-[#F1F5F9]" />
-              <div className="mt-3 h-4 w-32 rounded bg-[#F1F5F9]" />
+            <div key={i} className="animate-pulse rounded-DEFAULT border border-[#E2E8F0] bg-white p-6">
+              <div className="h-5 w-48 rounded bg-primary-bg" />
+              <div className="mt-3 h-4 w-32 rounded bg-primary-bg" />
             </div>
           ))}
         </div>
@@ -85,8 +65,8 @@ export default function BidReviewList() {
     const msg = (error as any)?.response?.data?.message || 'Failed to load bids.';
     return (
       <div className="py-24 text-center space-y-4">
-        <AlertTriangle className="mx-auto h-8 w-8 text-[#EAB308]" />
-        <p className="text-body-lg font-headline text-[#EF4444]">{msg}</p>
+        <AlertTriangle className="mx-auto h-8 w-8 text-warning" />
+        <p className="text-body-lg font-headline text-error">{msg}</p>
         <Button variant="secondary" onClick={() => refetch()}>Retry</Button>
       </div>
     );
@@ -97,13 +77,13 @@ export default function BidReviewList() {
   if (bids.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">Bid Reviews</h1>
-        <div className="rounded-[8px] border border-dashed border-[#E2E8F0] bg-[#F8FAFC] p-12 text-center">
-          <FileText className="mx-auto h-10 w-10 text-[#94A3B8]" />
-          <p className="mt-4 text-body text-[#64748B]">
+        <h1 className="font-headline text-[24px] font-semibold text-primary">Bid Reviews</h1>
+        <div className="rounded-DEFAULT border border-dashed border-[#E2E8F0] bg-[#F8FAFC] p-12 text-center">
+          <FileText className="mx-auto h-10 w-10 text-primary-light" />
+          <p className="mt-4 text-body text-secondary">
             No bids have been submitted yet.
           </p>
-          <p className="mt-1 text-[14px] text-[#94A3B8]">
+          <p className="mt-1 text-[14px] text-primary-light">
             Experts are preparing their proposals.
           </p>
         </div>
@@ -114,13 +94,13 @@ export default function BidReviewList() {
   // ── List ───────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-[1440px] mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+          <h1 className="font-headline text-[24px] font-semibold text-primary">
             Bid Reviews
           </h1>
-          <p className="mt-1 text-body text-[#64748B]">
+          <p className="mt-1 text-body text-secondary">
             {bids.length} bid{bids.length !== 1 ? 's' : ''} submitted
           </p>
         </div>
@@ -128,12 +108,12 @@ export default function BidReviewList() {
 
       <div className="space-y-3">
         {bids.map((bid) => {
-          const techStatus = bid.techStatus || 'PENDING';
+          const techStatus = (bid as any).tech_status || 'PENDING';
           const style = TECH_STATUS_STYLES[techStatus] || TECH_STATUS_STYLES.PENDING;
           const StatusIcon = style.icon;
           const totalPrice =
-            bid.conditionalPricingJson || (bid as any).conditional_pricing_json
-              ? ((bid.conditionalPricingJson || (bid as any).conditional_pricing_json) as any[])
+            (bid as any).conditional_pricing_json
+              ? ((bid as any).conditional_pricing_json as any[])
                   ?.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0) || 0
               : 0;
 
@@ -146,23 +126,23 @@ export default function BidReviewList() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-headline text-[16px] font-semibold text-[#0F172A] truncate">
+                    <h3 className="font-headline text-[16px] font-semibold text-primary truncate">
                       {bid.expertName}
                     </h3>
-                    <p className="mt-1 text-[13px] text-[#64748B] line-clamp-2">
-                      {(bid as any).approach_summary || bid.approachSummary || 'No summary provided'}
+                    <p className="mt-1 text-[13px] text-secondary line-clamp-2">
+                      {(bid as any).approach_summary || 'No summary provided'}
                     </p>
-                    <div className="mt-3 flex items-center gap-3 text-[12px] text-[#94A3B8]">
+                    <div className="mt-3 flex items-center gap-3 text-[12px] text-primary-light">
                       <span>Submitted {formatDate((bid as any).createdAt || (bid as any).submitted_at)}</span>
                       <span>·</span>
-                      <span className="font-headline font-semibold text-[#0F172A]">
+                      <span className="font-headline font-semibold text-primary">
                         {formatVND(totalPrice)}
                       </span>
                     </div>
                   </div>
                   <div className="shrink-0">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-[4px] px-[12px] py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${style.bg} ${style.text}`}
+                      className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${style.bg} ${style.text}`}
                     >
                       <StatusIcon size={12} />
                       {style.label}

@@ -1,42 +1,18 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, ArrowLeft, MessageSquareWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ── Inline hook: PUT /bids/:id/tech-review (REVISION_REQUESTED) ──
-
-function useRequestRevision() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      bidId,
-      feedback,
-    }: {
-      bidId: string;
-      feedback: string;
-    }) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/tech-review`, {
-        action: 'REVISION_REQUESTED',
-        tech_feedback: feedback,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useTechReview } from '@/hooks/use-bids';
 
 export default function BidRevisionRequest() {
   const { bidId } = useParams<{ bidId: string }>();
   const navigate = useNavigate();
-  const requestRevision = useRequestRevision();
+  const requestRevision = useTechReview();
   const [feedback, setFeedback] = useState('');
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -60,7 +36,10 @@ export default function BidRevisionRequest() {
   const handleConfirm = () => {
     if (!bidId) return;
     requestRevision.mutate(
-      { bidId, feedback: feedback.trim() },
+      {
+        bidId,
+        body: { action: 'REVISION_REQUESTED', tech_feedback: feedback.trim() }
+      },
       {
         onSuccess: () => {
           navigate(`/tech-team/bids/${bidId}`, { replace: true });
@@ -74,23 +53,23 @@ export default function BidRevisionRequest() {
   };
 
   return (
-    <div className="mx-auto max-w-[560px] space-y-6">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6">
       <button
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
+        className="inline-flex items-center gap-1.5 text-[13px] text-secondary hover:text-primary transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Bid
       </button>
 
-      <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+      <h1 className="font-headline text-[24px] font-semibold text-primary">
         Request Revision
       </h1>
 
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
+        <div className="rounded-DEFAULT border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-error mt-0.5" />
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
@@ -99,12 +78,12 @@ export default function BidRevisionRequest() {
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <MessageSquareWarning className="h-5 w-5 shrink-0 text-[#EAB308] mt-0.5" />
+              <MessageSquareWarning className="h-5 w-5 shrink-0 text-warning mt-0.5" />
               <div>
-                <h3 className="font-headline text-[14px] font-semibold text-[#0F172A]">
+                <h3 className="font-headline text-[14px] font-semibold text-primary">
                   Provide Feedback
                 </h3>
-                <p className="mt-0.5 text-[13px] text-[#64748B]">
+                <p className="mt-0.5 text-[13px] text-secondary">
                   Explain what needs to be revised. The expert will see this
                   feedback and can update their bid.
                 </p>
@@ -115,10 +94,10 @@ export default function BidRevisionRequest() {
             <div>
               <label
                 htmlFor="tech-feedback"
-                className="block text-[12px] font-medium text-[#64748B] mb-1"
+                className="block text-[12px] font-medium text-secondary mb-1"
               >
                 Revision Feedback
-                <span className="ml-1 text-[#EF4444]">*</span>
+                <span className="ml-1 text-error">*</span>
               </label>
               <textarea
                 id="tech-feedback"
@@ -132,24 +111,24 @@ export default function BidRevisionRequest() {
                 aria-describedby={feedbackError ? 'feedback-error' : undefined}
                 aria-invalid={!!feedbackError}
                 className={cn(
-                  'w-full rounded-[8px] border bg-white px-[14px] py-[10px] font-body text-[14px] leading-[1.6] text-[#0F172A] placeholder:text-[#94A3B8] transition-colors',
-                  'focus:outline-none focus:ring-2 focus:ring-[#EAB308]/20',
+                  'w-full rounded-DEFAULT border bg-white px-3.5 py-2.5 font-body text-[14px] leading-[1.6] text-primary placeholder:text-primary-light transition-colors',
+                  'focus:outline-none focus:ring-2 focus:ring-warning/20',
                   feedbackError
-                    ? 'border-[#EF4444] ring-1 ring-[#EF4444]/10'
+                    ? 'border-error ring-1 ring-error/10'
                     : 'border-[#E2E8F0]'
                 )}
                 placeholder="e.g. The footprint alignment for seam A↔C is insufficient. Please provide more evidence..."
               />
               <div className="mt-1 flex items-center justify-between">
                 {feedbackError && (
-                  <p id="feedback-error" className="text-[12px] text-[#EF4444]" role="alert">
+                  <p id="feedback-error" className="text-[12px] text-error" role="alert">
                     {feedbackError}
                   </p>
                 )}
                 <span
                   className={cn(
                     'ml-auto text-[12px]',
-                    remaining < minLen ? 'text-[#EF4444]' : 'text-[#94A3B8]'
+                    remaining < minLen ? 'text-error' : 'text-primary-light'
                   )}
                 >
                   {remaining}/{minLen} min

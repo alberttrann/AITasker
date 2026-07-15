@@ -39,7 +39,7 @@ export default function ExpertWallet() {
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <button

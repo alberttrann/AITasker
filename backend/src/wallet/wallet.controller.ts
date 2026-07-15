@@ -1,7 +1,7 @@
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
@@ -22,8 +22,16 @@ export class WalletController {
 
   @ApiBearerAuth('JWT')
   @Get('me/transactions')
-  getWalletTransaction(@Req() req: any) {
-    return this.walletService.getWalletTransaction(req.user.id);
+  @ApiQuery({ name: 'type', required: false })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  getWalletTransaction(
+    @Req() req: any,
+    @Query('type') type?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
+  ) {
+    return this.walletService.getWalletTransaction(req.user.id, { type, limit, offset });
   }
 
   @ApiBearerAuth('JWT')

@@ -16,6 +16,37 @@ export function useEngagements() {
   });
 }
 
+export function useTechTeamEngagements() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const techTeamId = useAuthStore((s) => s.user?.id);
+
+  return useQuery({
+    queryKey: ["engagements", "tech-team"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<EngagementDto[]>("/engagements");
+      return data;
+    },
+    enabled: isAuthenticated && !!techTeamId,
+    staleTime: 10_000,
+    refetchInterval: 5_000, // Polling fallback
+  });
+}
+
+export function useCeoEngagements(projectId: string | undefined) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  
+  return useQuery({
+    queryKey: ["engagements", "ceo", projectId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<EngagementDto[]>("/engagements");
+      return data;
+    },
+    enabled: isAuthenticated && !!projectId,
+    staleTime: 10_000,
+    refetchInterval: 5_000, // Polling fallback
+  });
+}
+
 export function useEngagement(engagementId: string | undefined) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -84,5 +115,20 @@ export function useDecline() {
       queryClient.invalidateQueries({ queryKey: ["engagements", id] });
       queryClient.invalidateQueries({ queryKey: ["engagements"] });
     },
+  });
+}
+
+export function useEngagementMilestones(engagementId: string | undefined) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  return useQuery({
+    queryKey: ["engagements", engagementId, "milestones"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<any[]>(
+        `/engagements/${engagementId}/milestones`,
+      );
+      return data;
+    },
+    enabled: isAuthenticated && !!engagementId,
   });
 }

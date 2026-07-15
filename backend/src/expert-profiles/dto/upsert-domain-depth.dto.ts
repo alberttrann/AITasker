@@ -3,10 +3,8 @@ import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 export class UpsertDomainDepthDto {
   @IsString()
   @IsNotEmpty()
-  @IsEnum(['A', 'B', 'C', 'D', 'E', 'F'], {
-    message: 'domainCode must be one of the 6 capability domains: A, B, C, D, E, F',
-  })
   domainCode: string;
+  // Domain code validated dynamically against DB in ExpertProfileService
 
   @IsString()
   @IsNotEmpty()

@@ -3,6 +3,7 @@ import { useAuth } from '@hooks/use-auth';
 import { Eye, EyeOff, Calendar, Shield, Wallet, LogOut, Sparkles, Building2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '@components/ui/Modal';
+import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
 import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [isSwitchRoleOpen, setIsSwitchRoleOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [showProExpiry, setShowProExpiry] = useState(false);
 
   // Wallet data
@@ -51,22 +53,24 @@ export default function ProfilePage() {
   };
 
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
-  const rolesArray = user?.roles || (user?.activeRole ? [user.activeRole] : ['USER']);
+  
+  // ── Role Profile Helpers ──
+  const isClient = user?.activeRole === 'CLIENT';
+  const isExpert = user?.activeRole === 'EXPERT';
+  const rawRole = isClient && user?.clientSubtype ? user.clientSubtype : user?.activeRole;
+  const displayRole = rawRole ? rawRole.replace('_', ' ').toUpperCase() : '';
+
+  const rolesArray = (rawRole === 'TECH_TEAM' || rawRole === 'ADMIN')
+    ? [rawRole] 
+    : (user?.roles || (user?.activeRole ? [user.activeRole] : ['USER']));
   
   const joinDate = user?.createdAt 
     ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // ── Role Profile Helpers ──
   const profile = user?.activeRoleProfile ?? null;
-  const isClient = user?.activeRole === 'CLIENT';
-  const isExpert = user?.activeRole === 'EXPERT';
-
   const clientProfile = isClient ? (profile as ClientProfileDto | null) : null;
   const expertProfile = isExpert ? (profile as ExpertProfileDto | null) : null;
-
-  const rawRole = isClient && user?.clientSubtype ? user.clientSubtype : user?.activeRole;
-  const displayRole = rawRole ? rawRole.replace('_', ' ').toUpperCase() : '';
 
   const isVerifiedBusiness = isClient && clientProfile?.isTaxVerified === true;
 
@@ -91,7 +95,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         {/* Page Header */}
         <div className="mb-6 flex items-center gap-3">
           <button 
@@ -130,27 +134,29 @@ export default function ProfilePage() {
                 
                 {/* Badges */}
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {isPro ? (
-                    <div className="relative flex items-center">
-                      <button 
-                        onClick={() => setShowProExpiry(!showProExpiry)}
-                        onBlur={() => setShowProExpiry(false)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm hover:opacity-90 transition-opacity"
-                      >
+                  {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+                    isPro ? (
+                      <div className="relative flex items-center">
+                        <button 
+                          onClick={() => setShowProExpiry(!showProExpiry)}
+                          onBlur={() => setShowProExpiry(false)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm hover:opacity-90 transition-opacity"
+                        >
+                          <Sparkles size={12} strokeWidth={2.5} />
+                          Pro Tier
+                        </button>
+                        {showProExpiry && (subStatus?.expiresAt || user?.subscriptionExpires) && (
+                          <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
+                            Expires on: {new Date(subStatus?.expiresAt || user?.subscriptionExpires || '').toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-[4px]">
                         <Sparkles size={12} strokeWidth={2.5} />
-                        Pro Tier
-                      </button>
-                      {showProExpiry && (subStatus?.expiresAt || user?.subscriptionExpires) && (
-                        <div className="absolute top-full left-0 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[11px] font-medium rounded-md shadow-lg z-10 animate-in fade-in slide-in-from-top-1">
-                          Expires on: {new Date(subStatus?.expiresAt || user?.subscriptionExpires || '').toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-[4px]">
-                      <Sparkles size={12} strokeWidth={2.5} />
-                      Free Tier
-                    </span>
+                        Free Tier
+                      </span>
+                    )
                   )}
                   {isVerifiedBusiness && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded-[4px] shadow-sm">
@@ -183,7 +189,7 @@ export default function ProfilePage() {
               )}
               {isExpert && (
                 <Link 
-                  to="/expert/expert-profile"
+                  to="/expert/service/expert-profile"
                   className="text-sm font-medium text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap text-center shadow-sm"
                 >
                   Expert Profile
@@ -240,7 +246,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Join Date Row */}
-            <div className="flex items-center justify-between py-4 border-b border-slate-100">
+            <div className={`flex items-center justify-between py-4 ${rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' ? 'border-b border-slate-100' : ''}`}>
               <span className="text-sm font-medium text-slate-500">Member Since</span>
               <div className="flex items-center gap-2 text-sm text-slate-900 font-medium">
                 <Calendar size={16} className="text-slate-400" />
@@ -251,7 +257,7 @@ export default function ProfilePage() {
             {/* ── Role-Specific Details ── */}
 
             {/* CLIENT: Company Name */}
-            {isClient && (
+            {isClient && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <div className="flex items-center justify-between py-4 border-b border-slate-100">
                 <span className="text-sm font-medium text-slate-500">Company Name</span>
                 <span className="text-sm text-slate-900 font-medium">
@@ -261,7 +267,7 @@ export default function ProfilePage() {
             )}
 
             {/* CLIENT: Industry */}
-            {isClient && (
+            {isClient && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <div className="flex items-center justify-between py-4 border-b border-slate-100">
                 <span className="text-sm font-medium text-slate-500">Industry</span>
                 <span className="text-sm text-slate-900 font-medium">
@@ -271,7 +277,7 @@ export default function ProfilePage() {
             )}
 
             {/* CLIENT: CEO Name */}
-            {isClient && (
+            {isClient && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <div className="flex items-center justify-between py-4 border-b border-slate-100">
                 <span className="text-sm font-medium text-slate-500">CEO Name</span>
                 <span className="text-sm text-slate-900 font-medium">
@@ -324,29 +330,31 @@ export default function ProfilePage() {
           </div>
 
           {/* ── 3. Wallet & Stats ── */}
-          <div className="border-t border-slate-200 bg-slate-50 p-6">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <Wallet size={18} className="text-slate-500" />
-              Wallet & Balances
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Available</p>
-                <p className="text-lg font-bold text-slate-900">{formatVND(availableBalance)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Locked</p>
-                <p className="text-lg font-bold text-slate-600">{formatVND(lockedBalance)}</p>
+          {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+            <div className="border-t border-slate-200 bg-slate-50 p-6">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <Wallet size={18} className="text-slate-500" />
+                Wallet & Balances
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Available</p>
+                  <p className="text-lg font-bold text-slate-900">{formatVND(availableBalance)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Locked</p>
+                  <p className="text-lg font-bold text-slate-600">{formatVND(lockedBalance)}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── 4. Actions Footer ── */}
           <div className="border-t border-slate-200 p-2">
             
             {/* Add Second Role Button */}
-            {(canAddExpert || canAddClient) && (
+            {(canAddExpert || canAddClient) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <button 
                 onClick={handleAddRole}
                 disabled={addRole.isPending}
@@ -359,20 +367,32 @@ export default function ProfilePage() {
               </button>
             )}
 
+            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+              <button 
+                onClick={() => {
+                  if (isClient) navigate('/ceo/subscriptions');
+                  else if (isExpert) navigate('/expert/subscriptions');
+                  else navigate('/subscriptions');
+                }}
+                disabled={!isFree}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors group ${
+                  !isFree ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50 text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3 text-sm font-medium">
+                  <Sparkles size={18} className="text-emerald-600 group-hover:animate-pulse" />
+                  Upgrade to Pro
+                </div>
+              </button>
+            )}
+
             <button 
-              onClick={() => {
-                if (isClient) navigate('/ceo/subscription');
-                else if (isExpert) navigate('/expert/subscription');
-                else navigate('/subscription');
-              }}
-              disabled={!isFree}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors group ${
-                !isFree ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50 text-slate-900'
-              }`}
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-slate-50 text-slate-900 transition-colors mt-1"
             >
               <div className="flex items-center gap-3 text-sm font-medium">
-                <Sparkles size={18} className="text-emerald-600 group-hover:animate-pulse" />
-                Upgrade to Pro
+                <Shield size={18} className="text-slate-600" />
+                Change Password
               </div>
             </button>
             
@@ -431,6 +451,11 @@ export default function ProfilePage() {
       >
         Are you sure you want to switch your role to {isClient ? 'Expert' : 'Client'}? You can always switch back.
       </ConfirmModal>
+
+      <ChangePasswordModal 
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 }

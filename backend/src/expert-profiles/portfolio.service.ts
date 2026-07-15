@@ -88,13 +88,28 @@ export class PortfolioService {
       },
     });
 
-    // 8. Call FastAPI /llm/portfolio-eval.
+    // 8. Call FastAPI /llm/portfolio-eval with dynamic DB-fetched seam definitions.
+    // This allows the AI to evaluate based on live, admin-configured seams.
+    const [seamDef, allSeams] = await Promise.all([
+      this.prisma.seamDefinition.findUnique({
+        where: { code: claim.seamCode, isActive: true },
+      }),
+      this.prisma.seamDefinition.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        select: { code: true, name: true, description: true },
+      }),
+    ]);
+
     let evalResult;
     try {
       evalResult = await this.fastapi.portfolioEval({
-        seam_code: claim.seamCode,
-        project_description: dto.projectDescription,
-        decision_points: dto.decisionPoints,
+        seam_code:            claim.seamCode,
+        project_description:  dto.projectDescription,
+        decision_points:      dto.decisionPoints,
+        seam_name:            seamDef?.name ?? claim.seamCode,
+        seam_description:     seamDef?.description ?? null,
+        all_seam_definitions: allSeams,
       });
     } catch (err) {
       // FastAPI returned 5xx. Submission stays PENDING; client can retry.
@@ -255,12 +270,26 @@ export class PortfolioService {
         });
         return {
           ...sub,
-          createdAt: sub.submittedAt,   
+          createdAt: sub.submittedAt,
           advisoryNote: decision?.advisoryNote ?? null,
         };
       }),
     );
 
     return withNotes;
+  }
+
+  async delete(userId: string, submissionId: string) {
+    const sub = await this.prisma.portfolioSubmission.findUnique({ where: { id: submissionId } });
+    if (!sub) throw new NotFoundException('Portfolio entry not found.');
+    if (sub.expertId !== userId) throw new ForbiddenException('Not your portfolio entry.');
+    return this.prisma.portfolioSubmission.delete({ where: { id: submissionId } });
+  }
+
+  async getEntry(userId: string, id: string) {
+    const sub = await this.prisma.portfolioSubmission.findUnique({ where: { id } });
+    if (!sub) throw new NotFoundException('Portfolio entry not found.');
+    if (sub.expertId !== userId) throw new ForbiddenException('Not your portfolio entry.');
+    return sub;
   }
 }

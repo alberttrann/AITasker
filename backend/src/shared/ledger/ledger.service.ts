@@ -5,7 +5,7 @@ import { PayGatedDocumentReleaseState } from '@common/enums/paygated-document-re
 import { VAStatus } from '@common/enums/va-status.enum';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -28,11 +28,15 @@ export class LedgerService {
       throw new NotFoundException('Milestone not found.');
     }
 
-    if (!(mileStone.state === MilestoneState.SUBMITTED || mileStone.state === MilestoneState.APPROVED)) {
+    if (
+      !(mileStone.state === MilestoneState.SUBMITTED || mileStone.state === MilestoneState.APPROVED)
+    ) {
       throw new ConflictException('This milestone is not submitted or approved!');
     }
 
-    const escrowAccount = await tx.escrowAccount.findFirst({ where: { milestoneId: mileStone.id } });
+    const escrowAccount = await tx.escrowAccount.findFirst({
+      where: { milestoneId: mileStone.id },
+    });
 
     if (!escrowAccount) {
       throw new NotFoundException('No escrow account found for this milestone.');
@@ -51,9 +55,26 @@ export class LedgerService {
     }
 
     const platformFeePct = platformSettings.platformFeePct;
+
+    // Critical guard: fee > 1 would produce negative expertAmount → BigInt(negative) corrupts wallet
+    if (typeof platformFeePct !== 'number' || platformFeePct < 0 || platformFeePct > 1) {
+      throw new BadRequestException(
+        `Invalid platform_fee_pct: ${platformFeePct}. Must be between 0 and 1. ` +
+        'Fix via PUT /admin/platform-settings.'
+      );
+    }
+
     const escrowTotalAmount = Number(escrowAccount.amount);
     const platformAmount = Math.round(escrowTotalAmount * platformFeePct);
     const expertAmount = escrowTotalAmount - platformAmount;
+
+    // Safety net: should never happen after the gate above, but prevents runtime corruption
+    if (expertAmount < 0) {
+      throw new BadRequestException(
+        `Computed expertAmount (${expertAmount}) is negative. ` +
+        `Escrow=${escrowTotalAmount}, fee=${platformFeePct}. Fix platform_fee_pct.`
+      );
+    }
 
     await tx.wallet.update({
       where: { id: platformSettings.platformWalletId },
@@ -108,22 +129,22 @@ export class LedgerService {
       where: { id: escrowAccount.expertWalletId },
       select: { userId: true },
     });
- 
+
     if (expertWallet) {
       const expertUser = await tx.user.findUnique({
         where: { id: expertWallet.userId },
         select: { sepayBankAccountXid: true },
       });
- 
+
       if (expertUser?.sepayBankAccountXid) {
         await tx.withdrawalRequest.create({
           data: {
-            expertId:       expertWallet.userId,
-            milestoneId:    mileStone.id,
-            type:           'MILESTONE_RELEASE',
-            amount:         expertAmount,
+            expertId: expertWallet.userId,
+            milestoneId: mileStone.id,
+            type: 'MILESTONE_RELEASE',
+            amount: expertAmount,
             bankAccountXid: expertUser.sepayBankAccountXid,
-            status:         'PENDING',
+            status: 'PENDING',
           },
         });
       }
@@ -303,12 +324,12 @@ export class LedgerService {
     referenceCode: string,
   ): Promise<void> {
     const amountValue = typeof amount === 'bigint' ? amount : BigInt(amount);
- 
+
     await tx.wallet.update({
       where: { id: clientWalletId },
       data: { availableBalance: { increment: amountValue } },
     });
- 
+
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
@@ -317,7 +338,7 @@ export class LedgerService {
         referenceId: referenceCode,
       },
     });
- 
+
     await tx.wallet.update({
       where: { id: clientWalletId },
       data: {
@@ -325,7 +346,7 @@ export class LedgerService {
         lockedBalance: { increment: amountValue },
       },
     });
- 
+
     await tx.walletTransaction.create({
       data: {
         walletId: clientWalletId,
@@ -334,7 +355,7 @@ export class LedgerService {
         referenceId: `LOCK-${milestoneId}`,
       },
     });
- 
+
     await tx.escrowAccount.create({
       data: {
         milestoneId,

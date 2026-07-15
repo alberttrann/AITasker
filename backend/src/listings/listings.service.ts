@@ -107,9 +107,24 @@ export class ListingsService {
     let description = dto.description;
     let scope = dto.scope;
     let timeline = dto.timeline;
+    
+    // Unconditionally fetch expert's verified competencies from DB
+    const [domainDepths, seamClaims] = await Promise.all([
+      this.prisma.expertDomainDepth.findMany({
+        where: { expertId: expertUserId },
+      }),
+      this.prisma.expertSeamClaim.findMany({
+        where: { expertId: expertUserId },
+      }),
+    ]);
+
+    // Unconditionally use expert profile data for domains and seams
+    let domainsJson = domainDepths.map(d => d.domainCode);
+    let seamsJson = seamClaims.map(s => s.seamCode);
     let priceVnd: bigint | null = dto.priceVnd !== undefined ? BigInt(dto.priceVnd) : null;
 
     if (dto.useAiGenerator) {
+      // 1. Fetch expert and verify Pro status (E5 / C-4)
       const expert = await this.prisma.user.findUnique({
         where: { id: expertUserId },
         select: {
@@ -133,14 +148,29 @@ export class ListingsService {
       if (!dto.targetUseCases || dto.targetUseCases.length === 0) {
         throw new BadRequestException('targetUseCases is required when useAiGenerator=true.');
       }
+
+      // 3. Call AI with rich context
       const ai = await this.fastapiClient.serviceGenerate({
         expert_capabilities: dto.capabilities,
-        target_use_cases: dto.targetUseCases,
+        target_use_cases:    dto.targetUseCases,
+        claimed_domains:     domainDepths.map(d => ({
+          code: d.domainCode,
+          depth: d.depthLevel,
+        })),
+        claimed_seams:       seamClaims.map(s => ({
+          code: s.seamCode,
+        })),
+        is_pro_expert:       expert.subscriptionExpertTier === 'pro',
       });
+
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
-      scope = dto.scope ?? ai.scope;
+      const aiScopeStr = Array.isArray(ai.scope)
+        ? ai.scope.join('\n')
+        : (ai.scope ?? '');
+      scope = dto.scope ?? aiScopeStr;
       timeline = dto.timeline ?? ai.timeline;
+
       if (priceVnd === null) {
         priceVnd = BigInt(ai.suggested_price_vnd);
       }
@@ -160,8 +190,8 @@ export class ListingsService {
         description: description ?? null,
         scope: scope ?? null,
         timeline: timeline ?? null,
-        domainsJson: dto.domainsJson ?? [],
-        seamsJson: dto.seamsJson ?? [],
+        domainsJson: domainsJson as any,
+        seamsJson: seamsJson as any,
         priceVnd,
         serviceType: dto.serviceType,
         state: 'DRAFT',
@@ -305,5 +335,49 @@ export class ListingsService {
       },
       vietqrUrl,
     };
+  }
+
+  async delete(id: string, expertUserId: string) {
+    const svc = await this.prisma.service.findUnique({ where: { id } });
+    if (!svc) throw new NotFoundException('Service not found.');
+    if (svc.expertId !== expertUserId) throw new ForbiddenException('Not your listing.');
+    if (svc.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only delete DRAFT listings. Unpublish first.');
+    }
+    return this.prisma.service.delete({ where: { id } });
+  }
+
+  async myListings(expertUserId: string) {
+    const services = await this.prisma.service.findMany({
+      where: { expertId: expertUserId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return services.map(s => ({ ...s, priceVnd: s.priceVnd.toString() }));
+  }
+
+  async myPurchases(clientUserId: string) {
+    return this.prisma.engagement.findMany({
+      where: { clientId: clientUserId, type: 'SERVICE_BASED' },
+      include: {
+        service: { select: { id: true, title: true, serviceType: true, priceVnd: true } },
+      },
+      orderBy: { id: 'desc' }, 
+    });
+  }
+
+  async setPublishState(id: string, expertUserId: string, newState: 'PUBLISHED' | 'DRAFT') {
+    const svc = await this.prisma.service.findUnique({ where: { id } });
+    if (!svc) throw new NotFoundException('Service not found.');
+    if (svc.expertId !== expertUserId) throw new ForbiddenException('Not your listing.');
+    if (newState === 'PUBLISHED' && svc.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only publish listings in DRAFT state.');
+    }
+    if (newState === 'DRAFT' && svc.state !== 'PUBLISHED') {
+      throw new UnprocessableEntityException('Can only unpublish listings in PUBLISHED state.');
+    }
+    const updated = await this.prisma.service.update({
+      where: { id }, data: { state: newState },
+    });
+    return { ...updated, priceVnd: updated.priceVnd.toString() };
   }
 }

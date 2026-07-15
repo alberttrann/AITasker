@@ -1,55 +1,50 @@
-import { useReducer, useEffect, useState } from 'react';
+import { useReducer, useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Input';
-import { submitStage4, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
+import { submitStage4, saveStage4Draft, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Server, X } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface Stage4AProps {
   sessionId: string;
-  onComplete: (data: { gateResult: GateResult }) => void;
+  onComplete: (data: { gateResult?: GateResult }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
   isForced?: boolean;
 }
 
 type FormState = {
-  scaleAndInfrastructure: string;
+  currentStack: string;
   integrationMethod: string;
   legacyVolume: string;
-  schemas: string[];
-  schemaInput: string;
-  contracts: string[];
-  contractInput: string;
+  additionalRequirement: string;
+  technicalArtifacts: Record<string, string>;
   isSubmitting: boolean;
   isReverting: boolean;
   initialized: boolean;
+  missingArtifactsWarning: any[] | null;
 };
 
 type FormAction =
   | { type: 'SET_FIELD'; field: keyof FormState; value: any }
-  | { type: 'ADD_URL'; listField: 'schemas' | 'contracts'; inputField: 'schemaInput' | 'contractInput' }
-  | { type: 'REMOVE_URL'; listField: 'schemas' | 'contracts'; index: number }
+  | { type: 'SET_ARTIFACT'; key: string; value: string }
   | { type: 'SUBMIT_START' }
   | { type: 'SUBMIT_END' }
   | { type: 'REVERT_START' }
   | { type: 'REVERT_END' }
-  | { type: 'INIT_STATE'; payload: any }
+  | { type: 'SET_MISSING_WARNING'; missing: any[] | null }
+  | { type: 'INIT_STATE'; payload: any; artifactsJson: any[] }
   | { type: 'AUTOFILL_AI'; payload: any };
 
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
     case 'SET_FIELD':
       return { ...state, [action.field]: action.value };
-    case 'ADD_URL': {
-      const trimmed = state[action.inputField].trim();
-      if (!trimmed) return state;
-      const list = state[action.listField] as string[];
-      if (list.includes(trimmed)) return { ...state, [action.inputField]: '' };
-      return { ...state, [action.listField]: [...list, trimmed], [action.inputField]: '' };
-    }
-    case 'REMOVE_URL':
-      return { ...state, [action.listField]: (state[action.listField] as string[]).filter((_, i) => i !== action.index) };
+    case 'SET_ARTIFACT':
+      return { 
+        ...state, 
+        technicalArtifacts: { ...state.technicalArtifacts, [action.key]: action.value } 
+      };
     case 'SUBMIT_START':
       return { ...state, isSubmitting: true };
     case 'SUBMIT_END':
@@ -58,28 +53,36 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, isReverting: true };
     case 'REVERT_END':
       return { ...state, isReverting: false };
-    case 'INIT_STATE':
-      const currentStackStr = action.payload.current_stack || '';
-      const scaleAndInfrastructure = currentStackStr.split('\nSchemas: ')[0]?.replace('Scale & Infra: ', '') || '';
-      const schemasStr = currentStackStr.split('\nSchemas: ')[1] || '';
-      const schemas = schemasStr === 'None' ? [] : schemasStr.split(', ').filter(Boolean);
+    case 'SET_MISSING_WARNING':
+      return { ...state, missingArtifactsWarning: action.missing, isSubmitting: false };
+    case 'INIT_STATE': {
+      const draft = action.payload || {};
+      const currentStack = draft.current_stack || '';
+      const integrationMethod = draft.latency_requirement?.replace('Integration Method: ', '') || '';
+      const legacyVolume = draft.data_available?.replace('Legacy Volume: ', '') || '';
+      const additionalReq = draft.additional_requirement_1 || '';
+      const techArtifacts = draft.technical_artifacts || {};
 
-      const legacyVolume = (action.payload.data_available || '').replace('Legacy Volume: ', '');
-
-      const latencyReqStr = action.payload.latency_requirement || '';
-      const integrationMethod = latencyReqStr.split('\nContracts: ')[0]?.replace('Integration Method: ', '') || '';
-      const contractsStr = latencyReqStr.split('\nContracts: ')[1] || '';
-      const contracts = contractsStr === 'None' ? [] : contractsStr.split(', ').filter(Boolean);
+      // Ensure all critical artifacts have at least an empty string entry
+      const updatedArtifacts = { ...techArtifacts };
+      if (action.artifactsJson) {
+        action.artifactsJson.forEach((a: any) => {
+          if (updatedArtifacts[a.artifact_key] === undefined) {
+            updatedArtifacts[a.artifact_key] = '';
+          }
+        });
+      }
 
       return {
         ...state,
-        scaleAndInfrastructure,
+        currentStack,
         legacyVolume,
         integrationMethod,
-        schemas,
-        contracts,
+        additionalRequirement: additionalReq,
+        technicalArtifacts: updatedArtifacts,
         initialized: true
       };
+    }
     case 'AUTOFILL_AI': {
       const aiScale = action.payload.recommended_stack || '';
       const aiVolume = action.payload.recommended_legacy_volume || '';
@@ -87,7 +90,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
       
       return {
         ...state,
-        scaleAndInfrastructure: aiScale,
+        currentStack: aiScale,
         legacyVolume: aiVolume,
         integrationMethod: aiIntegration,
       };
@@ -99,23 +102,25 @@ function formReducer(state: FormState, action: FormAction): FormState {
 
 export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack, isForced }: Stage4AProps) {
   const queryClient = useQueryClient();
-  const { session, isLoadingSession } = useElicitation(sessionId);
+  const { session } = useElicitation(sessionId);
+  
   const [state, dispatch] = useReducer(formReducer, {
-    scaleAndInfrastructure: '',
+    currentStack: '',
     integrationMethod: '',
     legacyVolume: '',
-    schemas: [],
-    schemaInput: '',
-    contracts: [],
-    contractInput: '',
+    additionalRequirement: '',
+    technicalArtifacts: {},
     isSubmitting: false,
     isReverting: false,
     initialized: false,
+    missingArtifactsWarning: null
   });
 
   const [isRecommending, setIsRecommending] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  
+  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -129,7 +134,6 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
     setAiError(null);
     try {
       const res = await recommendStage4(sessionId);
-      console.log(res);
       dispatch({ type: 'AUTOFILL_AI', payload: res });
     } catch (err: any) {
       setAiError(handleElicitationError(err).message || 'Failed to generate AI recommendations.');
@@ -139,43 +143,117 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
   };
 
   useEffect(() => {
-    if (session?.stage4TechInputsJson && !state.initialized) {
-       dispatch({ type: 'INIT_STATE', payload: session.stage4TechInputsJson });
-    } else if (session && !session.stage4TechInputsJson && !state.initialized) {
-       dispatch({ type: 'INIT_STATE', payload: {} });
+    if (session && !state.initialized) {
+      const payload = session.stage4TechInputsJson || session.stage4DraftJson || {};
+      dispatch({ type: 'INIT_STATE', payload, artifactsJson: session.criticalArtifactsJson || [] });
     }
   }, [session, state.initialized]);
 
-  const canSubmit = state.scaleAndInfrastructure.trim().length > 0 && state.integrationMethod.trim().length > 0 && state.legacyVolume.trim().length > 0;
+  // Auto-Save Effect
+  useEffect(() => {
+    if (!state.initialized) return;
+
+    if (autoSaveTimeout.current) {
+      clearTimeout(autoSaveTimeout.current);
+    }
+
+    autoSaveTimeout.current = setTimeout(() => {
+      saveStage4Draft(sessionId, {
+        current_stack: state.currentStack,
+        data_available: state.legacyVolume,
+        latency_requirement: `Integration Method: ${state.integrationMethod}`,
+        additional_requirement_1: state.additionalRequirement,
+        technical_artifacts: state.technicalArtifacts
+      }).catch(console.error);
+    }, 1500);
+
+    return () => {
+      if (autoSaveTimeout.current) clearTimeout(autoSaveTimeout.current);
+    };
+  }, [state.currentStack, state.legacyVolume, state.integrationMethod, state.additionalRequirement, state.technicalArtifacts, state.initialized, sessionId]);
+
+
+  const canSubmit = state.currentStack.trim().length > 0 && state.integrationMethod.trim().length > 0 && state.legacyVolume.trim().length > 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     dispatch({ type: 'SUBMIT_START' });
     
-    submitStage4(sessionId, state.scaleAndInfrastructure.trim(), state.integrationMethod.trim(), state.legacyVolume.trim(), state.schemas, state.contracts)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
-        onComplete({});
+    submitStage4(
+      sessionId, 
+      state.currentStack.trim(), 
+      state.integrationMethod.trim(), 
+      state.legacyVolume.trim(), 
+      state.additionalRequirement.trim(), 
+      state.technicalArtifacts
+    )
+      .then((res) => {
+        if (res.missingArtifacts && res.missingArtifacts.length > 0) {
+          dispatch({ type: 'SET_MISSING_WARNING', missing: res.missingArtifacts });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+          onComplete({});
+        }
       })
       .catch((err: any) => {
         onError(handleElicitationError(err).message || 'Failed to submit technical context.');
-        dispatch({ type: 'SUBMIT_ERROR', payload: handleElicitationError(err).message });
+        dispatch({ type: 'SUBMIT_END' });
         setCooldown(10);
       });
   };
 
-  const addUrl = (type: 'schema' | 'contract') => {
-    if (type === 'schema') {
-      dispatch({ type: 'ADD_URL', listField: 'schemas', inputField: 'schemaInput' });
-    } else {
-      dispatch({ type: 'ADD_URL', listField: 'contracts', inputField: 'contractInput' });
+  const handleConfirmMissing = () => {
+    queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
+    onComplete({});
+  };
+
+  const handleRevertMissing = async () => {
+    dispatch({ type: 'REVERT_START' });
+    try {
+      await revertSession(sessionId, 4); // Push back to Stage 4 to allow editing
+      dispatch({ type: 'SET_MISSING_WARNING', missing: null });
+      dispatch({ type: 'REVERT_END' });
+    } catch (err: any) {
+      onError(handleElicitationError(err).message || 'Failed to revert session.');
+      dispatch({ type: 'REVERT_END' });
     }
   };
+
 
   const ta = "w-full rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary placeholder:text-secondary transition-shadow hover:border-primary focus:border-2 focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {state.missingArtifactsWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+          <div className="bg-white p-6 rounded-xl max-w-lg w-full shadow-xl">
+            <div className="flex items-center gap-3 text-amber-600 mb-4">
+              <AlertTriangle className="w-8 h-8" />
+              <h3 className="text-xl font-bold">Submit incomplete spec?</h3>
+            </div>
+            <p className="text-slate-600 mb-4 text-sm">
+              You haven't provided the following critical artifacts. Without these, the AI will generate generic specifications which might lower the quality of your milestone plan.
+            </p>
+            <ul className="mb-6 space-y-2 max-h-[40vh] overflow-y-auto">
+              {state.missingArtifactsWarning.map((m: any, i: number) => (
+                <li key={i} className="text-sm bg-amber-50 text-amber-900 p-3 rounded-lg border border-amber-200">
+                  <span className="font-semibold block mb-1">{m.label}</span> 
+                  <span className="text-amber-800/80">{m.reason}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={handleRevertMissing} disabled={state.isReverting}>
+                {state.isReverting ? 'Reverting...' : 'No, let me fix it'}
+              </Button>
+              <Button variant="primary" onClick={handleConfirmMissing} disabled={state.isReverting}>
+                Submit anyway
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center mb-6">
         <h2 className="text-h2 font-headline text-primary">Stage 4 of 5</h2>
         <p className="mt-2 text-body text-secondary max-w-md mx-auto">
@@ -187,62 +265,63 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
           </Button>
         </div>
       </div>
-        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
+      
+      {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
+      
       <div className="space-y-6">
         <div className="space-y-2">
-          <Label>Scale and Infrastructure</Label>
+          <Label>Scale and Infrastructure <span className="text-error">*</span></Label>
           <p className="text-caption text-secondary">Describe your current infrastructure and scale.</p>
-          <textarea value={state.scaleAndInfrastructure} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'scaleAndInfrastructure', value: e.target.value })} placeholder="e.g. AWS EKS, 500k req/day…" rows={3} className={ta} />
-        </div>
-        <div className="space-y-2">
-          <Label>Integration Method</Label>
-          <p className="text-caption text-secondary">How do you prefer to integrate with the AI service?</p>
-          <textarea value={state.integrationMethod} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'integrationMethod', value: e.target.value })} placeholder="e.g. REST APIs…" rows={3} className={ta} />
-        </div>
-        <div className="space-y-2">
-          <Label>Legacy Volume</Label>
-          <p className="text-caption text-secondary">How much legacy data do you have?</p>
-          <textarea value={state.legacyVolume} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'legacyVolume', value: e.target.value })} placeholder="e.g. ~2TB in S3…" rows={2} className={ta} />
+          <textarea value={state.currentStack} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'currentStack', value: e.target.value })} placeholder="e.g. AWS EKS, 500k req/day…" rows={3} className={ta} />
         </div>
         
         <div className="space-y-2">
-          <Label>Schemas (Optional)</Label>
-          <p className="text-caption text-secondary">Links to your data schemas.</p>
-          <div className="flex gap-2">
-            <input value={state.schemaInput} onChange={e => dispatch({ type: 'SET_FIELD', field: 'schemaInput', value: e.target.value })} placeholder="https://..." className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none" onKeyDown={e => e.key === 'Enter' && addUrl('schema')} />
-            <Button variant="secondary" onClick={() => addUrl('schema')}>Add</Button>
-          </div>
-          {state.schemas.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {state.schemas.map((url, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
-                  {url.length > 40 ? url.substring(0, 40) + '...' : url}
-                  <button onClick={() => dispatch({ type: 'REMOVE_URL', listField: 'schemas', index: i })} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
-                </span>
-              ))}
-            </div>
-          )}
+          <Label>Integration Method <span className="text-error">*</span></Label>
+          <p className="text-caption text-secondary">How do you prefer to integrate with the AI service?</p>
+          <textarea value={state.integrationMethod} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'integrationMethod', value: e.target.value })} placeholder="e.g. REST APIs…" rows={3} className={ta} />
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Legacy Volume <span className="text-error">*</span></Label>
+          <p className="text-caption text-secondary">How much legacy data do you have?</p>
+          <textarea value={state.legacyVolume} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'legacyVolume', value: e.target.value })} placeholder="e.g. ~2TB in S3…" rows={2} className={ta} />
         </div>
 
         <div className="space-y-2">
-          <Label>Contracts (Optional)</Label>
-          <p className="text-caption text-secondary">Links to your API contracts.</p>
-          <div className="flex gap-2">
-            <input value={state.contractInput} onChange={e => dispatch({ type: 'SET_FIELD', field: 'contractInput', value: e.target.value })} placeholder="https://..." className="flex-1 rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none" onKeyDown={e => e.key === 'Enter' && addUrl('contract')} />
-            <Button variant="secondary" onClick={() => addUrl('contract')}>Add</Button>
-          </div>
-          {state.contracts.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {state.contracts.map((url, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
-                  {url.length > 40 ? url.substring(0, 40) + '...' : url}
-                  <button onClick={() => dispatch({ type: 'REMOVE_URL', listField: 'contracts', index: i })} className="ml-1 text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
-                </span>
+          <Label>Additional Requirements</Label>
+          <p className="text-caption text-secondary">Any other compliance rules, SSO needs, or constraints?</p>
+          <textarea value={state.additionalRequirement} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'additionalRequirement', value: e.target.value })} placeholder="e.g. Must stay GDPR-compliant..." rows={2} className={ta} />
+        </div>
+
+        {session?.criticalArtifactsJson && session.criticalArtifactsJson.length > 0 && (
+          <div className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-6 space-y-4">
+            <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+              Critical Documents Required
+            </h3>
+            <p className="text-sm text-blue-800">
+              Based on your earlier answers, the AI requires the following context to generate an accurate milestone plan:
+            </p>
+            
+            <div className="space-y-4 mt-4">
+              {session.criticalArtifactsJson.map((artifact: any, idx: number) => (
+                <div key={idx} className="space-y-2 bg-white p-4 rounded-lg border border-blue-100 shadow-sm">
+                  <Label className="text-blue-900">{artifact.label}</Label>
+                  <p className="text-xs text-blue-700 italic mb-2">{artifact.reason}</p>
+                  <textarea 
+                    value={state.technicalArtifacts[artifact.artifact_key] || ''} 
+                    onChange={(e) => dispatch({ type: 'SET_ARTIFACT', key: artifact.artifact_key, value: e.target.value })} 
+                    placeholder={artifact.placeholder_prompt || `Please provide the contents or link for ${artifact.label}...`} 
+                    rows={3} 
+                    className={ta} 
+                  />
+                </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
       <div className="flex items-center justify-between pt-4">
         <Button variant="outline" onClick={async () => {
           if (isForced) {

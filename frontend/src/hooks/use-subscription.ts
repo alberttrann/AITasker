@@ -13,7 +13,7 @@ export function useSubscription() {
   const queryClient = useQueryClient();
 
   const activateSubscription = useMutation({
-    mutationFn: async (payload: { paymentMethodId?: string; packageId?: string; tier?: string; activeRole?: string }) => {
+    mutationFn: async (payload: { paymentMethodId?: string; tier?: string; activeRole?: string; packageId?: string }) => {
       const { data } = await apiClient.post<{ access_token: string }>('/subscriptions/activate', payload);
       return data;
     },
@@ -32,9 +32,39 @@ export function useSubscriptionStatus() {
   return useQuery({
     queryKey: ['subscriptionStatus'],
     queryFn: async () => {
-      const { data } = await apiClient.get<SubscriptionStatus>('/subscriptions/status');
-      return data;
+      const { data } = await apiClient.get<any>('/subscriptions/status');
+      const tier = data?.subscriptionTier?.toLowerCase() || 'free';
+      const expiresAt = data?.subscriptionExpires;
+      const isActive = tier === 'pro';
+
+      return {
+        tier,
+        isActive,
+        expiresAt,
+      } as SubscriptionStatus;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
+
+export interface SubscriptionHistoryLog {
+  id: string;
+  packageName: string;
+  role: string;
+  amountPaidVnd: string;
+  purchasedAt: string;
+  expiresAt: string;
+  paymentMethod: string;
+  isExpired: boolean;
+}
+
+export function useSubscriptionHistory() {
+  return useQuery({
+    queryKey: ['subscriptionHistory'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<SubscriptionHistoryLog[]>('/subscriptions/history');
+      return data;
+    },
+  });
+}
+

@@ -8,8 +8,9 @@ import {
   Put,
   Query,
   UseGuards,
+  Delete
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ListingsService } from './listings.service';
 import { CreateListingDto, ListServicesFilterDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -28,11 +29,37 @@ export class ListingsController {
   constructor(private readonly listingsService: ListingsService) {}
 
   @ApiBearerAuth('JWT')
+  @Get('me')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: "Expert's own listings (all states including DRAFT)" })
+  async myListings(@CurrentUser() user: { id: string }) {
+    return this.listingsService.myListings(user.id);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get('me/purchases')
+  @Roles('CLIENT')
+  @ApiOperation({ summary: "CEO's purchased services" })
+  async myPurchases(@CurrentUser() user: { id: string }) {
+    return this.listingsService.myPurchases(user.id);
+  }
+
+  @ApiBearerAuth('JWT')
   @Get()
   // GET /services — browse marketplace (state = PUBLISHED only).
   // Blueprint: docs/04-endpoints.md §0.11 K row 133.
   async list(@Query() filter: ListServicesFilterDto) {
     return this.listingsService.list(filter);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post()
+  // POST /services — EXPERT creates a service listing at state: DRAFT.
+  // Blueprint: docs/04-endpoints.md §0.11 K row 135.
+  // Method-level @Roles('EXPERT') overrides the class-level gate.
+  @Roles('EXPERT')
+  async create(@CurrentUser() user: { id: string }, @Body() body: CreateListingDto) {
+    return this.listingsService.create(user.id, body);
   }
 
   @ApiBearerAuth('JWT')
@@ -45,16 +72,6 @@ export class ListingsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.listingsService.findOne(id, user);
-  }
-
-  @ApiBearerAuth('JWT')
-  @Post()
-  // POST /services — EXPERT creates a service listing at state: DRAFT.
-  // Blueprint: docs/04-endpoints.md §0.11 K row 135.
-  // Method-level @Roles('EXPERT') overrides the class-level gate.
-  @Roles('EXPERT')
-  async create(@CurrentUser() user: { id: string }, @Body() body: CreateListingDto) {
-    return this.listingsService.create(user.id, body);
   }
 
   @ApiBearerAuth('JWT')
@@ -82,5 +99,38 @@ export class ListingsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.listingsService.purchase(id, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Delete(':id')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: 'Delete / archive a service listing (only DRAFT state)' })
+  async delete(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingsService.delete(id, user.id);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id/publish')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: 'Publish a DRAFT listing to the marketplace' })
+  async publish(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingsService.setPublishState(id, user.id, 'PUBLISHED');
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id/unpublish')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: 'Pull a PUBLISHED listing back to DRAFT' })
+  async unpublish(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.listingsService.setPublishState(id, user.id, 'DRAFT');
   }
 }

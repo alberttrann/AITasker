@@ -122,3 +122,21 @@ async def stage5_synthesize(request: Stage5Request):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="LLM service unavailable — retry in a moment",
         ) from exc
+
+from app.models.requests import MilestoneChatRequest
+from app.models.responses import MilestoneChatResponse
+
+@router.post(
+    "/milestone-chat",
+    response_model=MilestoneChatResponse,
+    summary="Context-aware milestone editing assistant",
+)
+async def milestone_chat(request: MilestoneChatRequest):
+    try:
+        return await elicitation_engine.milestone_chat(request)
+    except Exception as exc:
+        logger.exception("milestone_chat failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM service unavailable",
+        ) from exc

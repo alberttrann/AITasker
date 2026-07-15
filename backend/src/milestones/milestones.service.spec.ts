@@ -1,18 +1,18 @@
 // Unit tests for MilestonesService — all Prisma calls are mocked.
 // These run with jest.unit.config.js (no DB, no Docker needed).
 
-import { Test, TestingModule }   from '@nestjs/testing';
-import { BadRequestException }   from '@nestjs/common';
-import { MilestonesService }     from './milestones.service';
-import { PrismaService }         from '../database/prisma.service';
-import { MilestoneBuilder }      from '../../test/helpers/mock.builders';
+import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
+import { MilestonesService } from './milestones.service';
+import { PrismaService } from '../database/prisma.service';
+import { MilestoneBuilder } from '../../test/helpers/mock.builders';
 
 // Prisma mock
 // $transaction executes its callback with a mock tx object.
 const makeMockTx = (overrides: Record<string, any> = {}) => ({
   milestone: {
-    count:      jest.fn().mockResolvedValue(0),
-    create:     jest.fn().mockResolvedValue({ id: 'milestone-uuid' }),
+    count: jest.fn().mockResolvedValue(0),
+    create: jest.fn().mockResolvedValue({ id: 'milestone-uuid' }),
     findUnique: jest.fn().mockResolvedValue({
       id: 'milestone-uuid',
       acceptanceCriteria: [{ id: 'criterion-uuid' }],
@@ -38,10 +38,7 @@ describe('MilestonesService', () => {
     mockPrisma = makeMockPrisma();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MilestonesService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [MilestonesService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<MilestonesService>(MilestonesService);
@@ -67,7 +64,7 @@ describe('MilestonesService', () => {
     await expect(service.createMilestone(dto)).rejects.toThrow(BadRequestException);
   });
 
-  // Transaction behaviour 
+  // Transaction behaviour
 
   it('wraps milestone + criteria creation in a single $transaction', async () => {
     const dto = new MilestoneBuilder().build();
@@ -102,9 +99,9 @@ describe('MilestonesService', () => {
     expect(tx.acceptanceCriterion.createMany).toHaveBeenCalledWith({
       data: expect.arrayContaining([
         expect.objectContaining({
-          criterionText:  'Must pass load test',
+          criterionText: 'Must pass load test',
           verifiedByRole: 'CEO',
-          isRequired:     true,
+          isRequired: true,
         }),
       ]),
     });

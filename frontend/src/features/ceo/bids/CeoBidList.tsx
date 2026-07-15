@@ -1,6 +1,4 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -8,22 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { AlertTriangle, FileText, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements — CEO role-scoped to their projects */
-function useBidsForCeo(projectId: string | undefined) {
-  const user = useAuthStore((s) => s.user);
-  return useQuery({
-    queryKey: ['bids', 'ceo', projectId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto[]>('/engagements');
-      return data;
-    },
-    enabled: !!projectId && !!user,
-    staleTime: 10_000,
-    refetchInterval: 5_000, // Polling until BE emits bid:updated
-  });
-}
+import { useCeoEngagements } from '@/hooks/use-engagements';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -46,7 +29,7 @@ type BidWithEngagement = CapabilityBidDto & { engagementId: string; expertName?:
 export default function CeoBidList() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { data: engagements, isLoading, error, refetch } = useBidsForCeo(projectId);
+  const { data: engagements, isLoading, error, refetch } = useCeoEngagements(projectId);
 
   // Filter to this project + extract bids
   const bids: BidWithEngagement[] = (engagements || [])
@@ -104,8 +87,8 @@ export default function CeoBidList() {
             Invite experts from the shortlist to get started.
           </p>
           <Button
-            variant="secondary"
-            className="mt-4"
+            variant="outline"
+            className="mt-4 flex items-center gap-2"
             onClick={() => navigate(`/ceo/projects/${projectId}/shortlist`)}
           >
             View Shortlist
@@ -130,54 +113,70 @@ export default function CeoBidList() {
 
       <div className="space-y-3">
         {bids.map((bid) => {
-          const ceoStatus = bid.ceoStatus || 'PENDING';
+          const ceoStatus = (bid as any).ceo_status || 'PENDING';
           const ceoStyle = CEO_STATUS_STYLES[ceoStatus] || CEO_STATUS_STYLES.PENDING;
           const pricing: any[] = (bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json || [];
           const totalPrice = pricing.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0);
-          const canDecide = bid.techStatus === 'APPROVED' && ceoStatus === 'PENDING';
+          const totalDuration = pricing.reduce((s: number, m: any) => s + (m.estimated_duration_days || 0), 0);
+          const canDecide = (bid as any).tech_status === 'APPROVED' && ceoStatus === 'PENDING';
 
           return (
-            <Card key={bid.id} className="transition-shadow hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-headline text-[16px] font-semibold text-[#0F172A]">
-                        {bid.expertName}
-                      </h3>
-                      {canDecide && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#059669]/10 px-2 py-0.5 text-[11px] font-medium text-[#059669]">
-                          Ready to decide
-                        </span>
-                      )}
+            <Card key={bid.id} className="group relative overflow-hidden transition-all hover:shadow-lg border border-slate-200 hover:border-emerald-200 bg-white cursor-pointer" onClick={() => navigate(`/ceo/project/${projectId}/bids/${bid.id}`)}>
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-emerald-500 transition-colors" />
+              <CardContent className="p-0">
+                <div className="flex flex-col md:flex-row items-start md:items-center p-6 gap-6">
+                  {/* Avatar & Name */}
+                  <div className="flex items-center gap-4 w-full md:w-[30%] shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl shrink-0 border border-slate-200 group-hover:border-emerald-200 group-hover:text-emerald-600 shadow-sm transition-all">
+                      {bid.expertName?.[0] || 'E'}
                     </div>
-                    <p className="text-[13px] text-[#64748B] line-clamp-2">
-                      {(bid as any).approachSummary || (bid as any).approach_summary || 'No summary'}
-                    </p>
-                    <div className="mt-3 flex items-center gap-3 text-[12px] text-[#94A3B8]">
-                      <span>{formatDate((bid as any).createdAt || (bid as any).submitted_at)}</span>
-                      <span>·</span>
-                      <span className="font-headline font-semibold text-[#0F172A]">
-                        {formatVND(totalPrice)}
-                      </span>
-                      <span>·</span>
-                      <span
-                        className={`inline-flex items-center rounded-[4px] px-2 py-0.5 text-[11px] font-medium uppercase ${ceoStyle.bg} ${ceoStyle.text}`}
-                      >
-                        {ceoStyle.label}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-900 text-base truncate">{bid.expertName}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold uppercase ${ceoStyle.bg} ${ceoStyle.text}`}>
+                          {ceoStyle.label}
+                        </span>
+                        {canDecide && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200 uppercase tracking-wide">
+                            Action Required
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="shrink-0 flex items-center gap-2">
+
+                  {/* Summary & Details */}
+                  <div className="flex-1 flex flex-col justify-center min-w-0 w-full">
+                    <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                      {(bid as any).approachSummary || (bid as any).approach_summary || 'No summary provided for this bid.'}
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5 text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                        <Clock size={14} className="text-slate-400" />
+                        {formatDate((bid as any).createdAt || (bid as any).submitted_at)}
+                      </div>
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
+                        {formatVND(totalPrice)}
+                      </div>
+                      {totalDuration > 0 && (
+                        <div className="flex items-center gap-1.5 font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                          {totalDuration} days
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action */}
+                  <div className="shrink-0 w-full md:w-auto flex justify-end mt-4 md:mt-0">
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant="primary"
+                      className="w-full md:w-auto shadow-md shadow-emerald-600/20 group-hover:bg-emerald-700 transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/ceo/project/${projectId}/bids/${bid.id}`);
                       }}
                     >
-                      View <ArrowRight size={14} className="ml-1" />
+                      Review Bid <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </div>
                 </div>

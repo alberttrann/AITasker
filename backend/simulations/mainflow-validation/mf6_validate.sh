@@ -114,7 +114,7 @@ step_header "POST /bids — submit the 3-component bid (steps 5-6)"
 RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/bids" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
   -d "{
     \"projectId\":\"${PROJECT_ID}\",
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
     \"approach_summary\":\"We will build a RAG pipeline grounded in your Zendesk KB with confidence-based escalation to human agents.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery and architecture sign-off\"}]
   }")
@@ -129,7 +129,7 @@ ENGAGEMENT_ID=$(echo "$BODY" | jq -r '.engagement.id')
 
 step_header "PUT /bids/:id/tech-review — TECH_TEAM requests revision (steps 7-8a)"
 RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/bids/${BID_ID}/tech-review" -H "Content-Type: application/json" "${TECH_AUTH[@]}" \
-  -d '{"action":"REVISION_REQUESTED","tech_feedback":"Approach does not address the A<->C seam directly enough."}')
+  -d '{"action":"REVISION_REQUESTED","tech_feedback":"Approach does not address the A↔C seam directly enough."}')
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
 check_status "200" "$CODE" "Revision request accepted"
@@ -138,8 +138,8 @@ check_field_equals "$BODY" ".techStatus" "REVISION_REQUESTED" "techStatus update
 step_header "PUT /bids/:id — expert edits the bid in place (step 9a)"
 RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/bids/${BID_ID}" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
   -d "{
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
-    \"approach_summary\":\"Updated: RAG pipeline explicitly maps the A<->C seam via a dedicated retrieval-grounding step before escalation logic runs.\",
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
+    \"approach_summary\":\"Updated: RAG pipeline explicitly maps the A↔C seam via a dedicated retrieval-grounding step before escalation logic runs.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery and architecture sign-off\"}]
   }")
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')

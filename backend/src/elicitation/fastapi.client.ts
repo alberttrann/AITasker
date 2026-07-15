@@ -4,6 +4,23 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 export interface Stage1Request {
   symptom_text: string;
+  // live config for Jinja2 template rendering in FastAPI
+  archetypes: Array<{ code: string; name: string; description?: string }>;
+  void_codes: Array<{ code: string; description: string }>;
+}
+
+export interface Stage1Response {
+  symptoms:                 string[];
+  scale_signals:            Record<string, string | null>;
+  voids:                    Array<{ void_code: string; severity: string }>;
+  recommended_archetypes:   string[];
+  // artifacts Stage 1 AI says must be submitted before synthesis
+  critical_artifacts_required: Array<{
+    artifact_key:        string;
+    label:               string;
+    reason:              string;
+    placeholder_prompt:  string;
+  }>;
 }
 
 export interface VoidItem {
@@ -11,17 +28,14 @@ export interface VoidItem {
   severity: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
-export interface Stage1Response {
-  symptoms: string[];
-  scale_signals: Record<string, string | null>;
-  voids: VoidItem[];
-  recommended_archetypes?: string[];
-}
-
 export interface Stage3VaguenessCheckRequest {
-  archetype:       string;
-  probe_responses: Record<string, string>;
+  archetype:         string;
+  probe_questions:   string[];
+  probe_responses:   Record<string, string>;
   is_self_technical?: boolean;
+  // symptom context so Stage 3 can check relevancy, not just vagueness
+  stage1_symptoms:   string[];
+  stage1_voids:      Array<{ void_code: string; severity: string }>;
 }
 
 export interface VaguenessFlag {
@@ -34,9 +48,13 @@ export interface Stage3VaguenessCheckResponse {
 }
 
 export interface Stage4RecommendRequest {
-  stage1_symptoms: string[];
-  stage2_archetype: string;
-  stage3_probes: Record<string, unknown>;
+  stage1_symptoms:          string[];
+  stage2_archetype:         string;
+  stage3_probes:            Record<string, unknown>;
+  void_list_json:           Array<Record<string, unknown>>;
+  is_self_technical?:       boolean;
+  additional_requirement_1?: string | null;
+  estimated_budget_vnd?:    number | null;
 }
 
 export interface Stage4RecommendResponse {
@@ -46,28 +64,41 @@ export interface Stage4RecommendResponse {
 }  
 
 export interface Stage5Request {
-  session_id:          string;
-  stage1_symptoms:     string[];
-  stage2_archetype:    string;
-  stage3_probes:       Record<string, unknown>;
-  stage4_tech_inputs:  Record<string, unknown>;
-  void_list_json:      Array<Record<string, unknown>>;
-  is_self_technical?:  boolean;
+  session_id:                  string;
+  stage1_symptoms:             string[];
+  stage2_archetype:            string;
+  stage3_probes:               Record<string, unknown>;
+  stage4_tech_inputs:          Record<string, unknown>;
+  void_list_json:              Array<Record<string, unknown>>;
+  is_self_technical?:          boolean;
+  estimated_budget_vnd?:       number | null;
+  // artifacts
+  critical_artifacts_required: Array<Record<string, unknown>>;
+  // live config for Jinja2 rendering
+  domains:     Array<{ code: string; name: string }>;
+  seams:       Array<{ code: string; name: string }>;
+  archetypes:  Array<{ code: string; name: string; description?: string }>;
 }
 
 export interface Stage5Response {
-  required_seams_json:      Array<Record<string, unknown>>;
-  required_domains_json:    Array<Record<string, unknown>>;
-  milestone_framework_json: Array<Record<string, unknown>>;
-  artifact_a_json:          Record<string, unknown>;
-  artifact_b_json:          Record<string, unknown>;
-  completeness_score:       number;
+  required_seams_json:           Array<Record<string, unknown>>;
+  required_domains_json:         Array<Record<string, unknown>>;
+  milestone_framework_json:      Array<Record<string, unknown>>;
+  artifact_a_json:               Record<string, unknown>;
+  artifact_b_json:               Record<string, unknown>;
+  completeness_score:            number;
+  flagged_void?:                 string | null;  
+  estimated_total_cost_vnd?:     number | null;
+  estimated_total_duration_days?: number | null;
 }
 
 export interface PortfolioEvalRequest {
-  seam_code:           string;
-  project_description: string;
-  decision_points:     string;
+  seam_code:            string;
+  project_description:  string;
+  decision_points:      string;
+  seam_name?:           string;                  
+  seam_description?:    string | null;           
+  all_seam_definitions?: Array<Record<string, unknown>>; 
 }
 
 export interface PortfolioEvalResponse {
@@ -118,17 +149,23 @@ export interface CriterionCheckResponse {
 export interface ServiceGenerateRequest {
   expert_capabilities: string[];
   target_use_cases:    string[];
+  claimed_domains?:    Array<{ code: string; depth: string }>; 
+  claimed_seams?:      Array<{ code: string }>;               
+  is_pro_expert?:      boolean;                               
 }
 
 export interface ServiceGenerateResponse {
   title:               string;
   description:         string;
-  scope:               string;
-  timeline:            string;
+  scope:               string[];        
+  timeline:            string;          
   suggested_price_vnd: number;
+  suggested_domains:   string[];        
+  suggested_seams:     string[];        
+  pricing_rationale:   string;          
 }
 
-// NEW (Phase 3) — artifact-b guard check
+// artifact-b guard check
 export interface ArtifactBGuardParams {
   engagement_state:    string;
   bid_state:           string;
@@ -140,7 +177,18 @@ export interface ArtifactBGuardResponse {
   project_id:             string;
   artifact_b_accessible:  boolean;
 }
+export interface MilestoneChatRequest {
+  artifact_a:           Record<string, unknown>;
+  milestone_framework:  Array<Record<string, unknown>>;
+  budget_context?:      string;
+  conversation_history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  user_message:         string;
+}
 
+export interface MilestoneChatResponse {
+  reply:          string;
+  suggested_edit: Record<string, unknown> | null;
+}
 const TIMEOUT_DEFAULT  = 30_000;
 const TIMEOUT_STAGE5   = 90_000;
 const TIMEOUT_MATCHING =  5_000;
@@ -205,6 +253,9 @@ export class FastapiClient {
     return this.post<MatchResult[]>('/llm/matching', payload, {
       timeout: TIMEOUT_MATCHING,
     });
+  }
+  async milestoneChatAssist(payload: MilestoneChatRequest): Promise<MilestoneChatResponse> {
+    return this.post<MilestoneChatResponse>('/llm/elicitation/milestone-chat', payload);
   }
 
   async checkArtifactBAccess(

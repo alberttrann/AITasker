@@ -14,7 +14,7 @@ interface ErrorBannerProps {
 export function ErrorBanner({ message, onRetry, className = '' }: ErrorBannerProps) {
   return (
     <div
-      className={`rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-6 text-center ${className}`}
+      className={`rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] p-6 text-center ${className}`}
       role="alert"
     >
       <AlertTriangle className="mx-auto h-8 w-8 text-[#EF4444]" />

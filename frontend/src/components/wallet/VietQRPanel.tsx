@@ -87,44 +87,44 @@ export function VietQRPanel({
 
       {/* Transfer Info */}
       <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-        <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
-          <span className="text-sm font-medium text-slate-500">Bank</span>
-          <span className="text-sm font-bold text-slate-900">{bankName}</span>
+        <div className="flex justify-between items-center pb-3 border-b border-slate-200/60 gap-4">
+          <span className="text-sm font-medium text-slate-500 shrink-0">Bank</span>
+          <span className="text-sm font-bold text-slate-900 truncate text-right">{bankName}</span>
         </div>
 
-        <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
-          <span className="text-sm font-medium text-slate-500">Account</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-900">{accountNumber}</span>
+        <div className="flex justify-between items-center pb-3 border-b border-slate-200/60 gap-4">
+          <span className="text-sm font-medium text-slate-500 shrink-0">Account</span>
+          <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+            <span className="text-sm font-bold text-slate-900 truncate" title={accountNumber}>{accountNumber}</span>
             <button 
               onClick={() => handleCopy(accountNumber, 'account')}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors shrink-0"
             >
               <Copy size={14} />
             </button>
           </div>
         </div>
 
-        <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
-          <span className="text-sm font-medium text-slate-500">Amount</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-900">{formatVND(amount)}</span>
+        <div className="flex justify-between items-center pb-3 border-b border-slate-200/60 gap-4">
+          <span className="text-sm font-medium text-slate-500 shrink-0">Amount</span>
+          <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+            <span className="text-sm font-bold text-slate-900 truncate">{formatVND(amount)}</span>
             <button 
               onClick={() => handleCopy(amount.toString(), 'amount')}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors shrink-0"
             >
               <Copy size={14} />
             </button>
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-slate-500">Memo</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-mono font-bold text-slate-900 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">{paymentReference}</span>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-sm font-medium text-slate-500 shrink-0">Memo</span>
+          <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+            <span className="text-sm font-mono font-bold text-slate-900 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded truncate" title={paymentReference}>{paymentReference}</span>
             <button 
               onClick={() => handleCopy(paymentReference, 'memo')}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors shrink-0"
             >
               <Copy size={14} />
             </button>

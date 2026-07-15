@@ -3,6 +3,7 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import type { DomainDepth } from '@/types/ui.types';
 import { Spinner } from '@/components/ui/Spinner';
 import { Lock } from 'lucide-react';
+import TooltipIcon from '@/components/ui/TooltipIcon';
 
 interface DomainDepthGridProps {
   onSave: (domains: DomainDepth[]) => void;
@@ -10,26 +11,27 @@ interface DomainDepthGridProps {
   lockedDomainsRecord?: Record<string, string>;
 }
 
-const DOMAINS = [
-  { code: 'A', label: 'LLM App Engineering', hint: 'Building applications using LLMs as core reasoning engines' },
-  { code: 'B', label: 'Applied Reasoning Systems', hint: 'Designing agents, tool use, and cognitive architectures' },
-  { code: 'C', label: 'Prompt Engineering & Design', hint: 'Crafting complex prompt strategies and evaluations' },
-  { code: 'D', label: 'Model Fine-Tuning & Training', hint: 'Training models, PEFT, LoRA, and datasets' },
-  { code: 'E', label: 'RAG & Search Architecture', hint: 'Retrieval augmented generation, vector DBs, embedding models' },
-  { code: 'F', label: 'MLOps & Production AI', hint: 'Serving, observability, evals, and infrastructure' },
-];
+import { useDomains } from '@/hooks/use-config';
 
 export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDomainsRecord = {} }: DomainDepthGridProps) {
-  const [domainStates, setDomainStates] = useState<DomainDepth[]>(() => {
-    return DOMAINS.map(d => {
-      const existing = initialDomains.find(id => id.domainCode === d.code);
-      return {
-        domainCode: d.code,
-        depthLevel: existing ? existing.depthLevel : null
-      };
-    });
-  });
+  const { data: dynamicDomains, isLoading } = useDomains();
   const { saveDomains } = useExpertProfile();
+  const [domainStates, setDomainStates] = useState<DomainDepth[]>([]);
+
+  // Initialize state once domains are loaded
+  React.useEffect(() => {
+    if (dynamicDomains && domainStates.length === 0) {
+      setDomainStates(
+        dynamicDomains.map((d) => {
+          const existing = initialDomains.find((id) => id.domainCode === d.code);
+          return {
+            domainCode: d.code,
+            depthLevel: existing ? existing.depthLevel : null,
+          };
+        })
+      );
+    }
+  }, [dynamicDomains, initialDomains]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,48 +100,54 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
         </div>
       )}
 
-      <div className="grid gap-4">
-        {DOMAINS.map(domain => {
-          const currentState = domainStates.find(d => d.domainCode === domain.code);
-          const isSelected = currentState?.depthLevel !== null;
-          const lockedBySeam = lockedDomainsRecord[domain.code];
+      {isLoading ? (
+        <div className="flex justify-center p-8">
+          <Spinner size="lg" className="text-blue-500" />
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {(dynamicDomains || []).map(domain => {
+            const currentState = domainStates.find(d => d.domainCode === domain.code);
+            const isSelected = currentState?.depthLevel !== null;
+            const lockedBySeam = lockedDomainsRecord[domain.code];
 
-          return (
-            <div key={domain.code} className={`border p-4 rounded-lg transition-colors ${isSelected ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-white'}`}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    {domain.code} · {domain.label}
-                    {lockedBySeam && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wide border border-blue-200">
-                        <Lock className="h-3 w-3" /> Required for Seam {lockedBySeam}
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">{domain.hint}</p>
-                </div>
-                
-                <div className="flex gap-2">
-                  {(["SURFACE", "OPERATIONAL", "DEEP"] as const).map(level => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => updateDepth(domain.code, level)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
-                        currentState?.depthLevel === level 
-                          ? 'bg-blue-600 text-white border-blue-600' 
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
+            return (
+              <div key={domain.code} className={`border p-4 rounded-lg transition-colors ${isSelected ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-white'}`}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      {domain.code} &middot; {domain.name}
+                      <TooltipIcon text={domain.description} />
+                      {lockedBySeam && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wide border border-blue-200">
+                          <Lock className="h-3 w-3" /> Required for Seam {lockedBySeam}
+                        </span>
+                      )}
+                    </h3>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {(["SURFACE", "OPERATIONAL", "DEEP"] as const).map(level => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => updateDepth(domain.code, level)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
+                          currentState?.depthLevel === level 
+                            ? 'bg-blue-600 text-white border-blue-600' 
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="pt-4 flex justify-end">
         <button

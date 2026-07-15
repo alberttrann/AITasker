@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Post, Get, Put, Body, Param, UseGuards, Query, Delete } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { BidsService } from './bids.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -86,5 +86,27 @@ export class BidsController {
     @Body() body: CounterOfferDto,
   ) {
     return this.bidsService.counterOffer(id, user, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get()
+  @ApiOperation({ summary: 'List bids — experts see own bids; CEOs see bids for their projects' })
+  @ApiQuery({ name: 'projectId', required: false })
+  async findAll(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.bidsService.findAll(user, projectId);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Delete(':id')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: 'Withdraw a submitted bid (only while in SUBMITTED state)' })
+  async withdraw(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    return this.bidsService.withdraw(id, user.id);
   }
 }

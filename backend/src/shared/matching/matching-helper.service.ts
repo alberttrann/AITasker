@@ -25,10 +25,10 @@ export class MatchingHelperService {
    *   - an in-memory synthesis result not yet persisted (E10's pre-check)
    */
   async scoreEligibleExperts(
-    requiredSeamsJson:   unknown,
+    requiredSeamsJson: unknown,
     requiredDomainsJson: unknown,
-    archetype:           string | null,
-    excludeUserId?:      string,
+    archetype: string | null,
+    excludeUserId?: string,
   ): Promise<MatchResult[]> {
     const expertUsers = await this.prisma.user.findMany({
       where: {
@@ -36,9 +36,9 @@ export class MatchingHelperService {
         expertProfile: { isNot: null },
       },
       include: {
-        expertProfile:      true,
+        expertProfile: true,
         expertDomainDepths: true,
-        expertSeamClaims:   true,
+        expertSeamClaims: true,
       },
     });
 
@@ -49,27 +49,27 @@ export class MatchingHelperService {
     const formattedExperts = expertUsers.map((expertUser) => {
       const profile = expertUser.expertProfile;
       return {
-        expert_id:         expertUser.id,
-        engagement_model:  profile?.engagementModel,
-        stack_tags:        profile?.stackTagsJson || [],
+        expert_id: expertUser.id,
+        engagement_model: profile?.engagementModel,
+        stack_tags: profile?.stackTagsJson || [],
         archetype_history: profile?.archetypeHistoryJson || [],
         domain_depths: expertUser.expertDomainDepths.map((d) => ({
-          domain_code:       d.domainCode,
-          depth_level:       d.depthLevel,
+          domain_code: d.domainCode,
+          depth_level: d.depthLevel,
           verification_tier: d.verificationTier,
         })),
         seam_claims: expertUser.expertSeamClaims.map((s) => ({
-          seam_code:         s.seamCode,
+          seam_code: s.seamCode,
           verification_tier: s.verificationTier,
         })),
       };
     });
 
     return this.fastapiClient.matching({
-      required_seams_json:   requiredSeamsJson as any,
+      required_seams_json: requiredSeamsJson as any,
       required_domains_json: requiredDomainsJson as any,
-      expert_profiles:       formattedExperts,
-      project_archetype:     archetype ?? undefined,
+      expert_profiles: formattedExperts,
+      project_archetype: archetype ?? undefined,
     });
   }
 }

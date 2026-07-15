@@ -1,39 +1,50 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   useSessionHistory, 
   useRestoreElicitationSession, 
   useHardDeleteElicitationSession,
   useActiveElicitationSession,
-  useDeleteElicitationSession
+  useDeleteElicitationSession,
+  useElicitationSessions
 } from "@/hooks/use-projects";
 import { ConfirmModal } from "@/components/ui/Modal";
-import { ArrowLeft, Clock, Trash2, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Trash2, Clock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function SessionsListPage() {
   const navigate = useNavigate();
-  const { data: sessions = [], isLoading: isLoadingSessions } = useSessionHistory();
   const restoreSession = useRestoreElicitationSession();
   const hardDeleteSession = useHardDeleteElicitationSession();
   const { activeSession } = useActiveElicitationSession();
   const abandonSession = useDeleteElicitationSession();
 
-  const [sessionToHardDelete, setSessionToHardDelete] = useState<string | null>(null);
+  const [sessionToHardDelete, setSessionToHardDelete] = useState<number | null>(null);
   const [showEmptyBinConfirm, setShowEmptyBinConfirm] = useState(false);
+  const [sessionSort, setSessionSort] = useState<'date_desc' | 'date_asc' | 'status'>('date_desc');
+  const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
-  const getSafeDate = (obj: any, field: 'updatedAt' | 'createdAt') => {
-    return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
-  };
+  const { data: sessions = [], isLoading } = useSessionHistory();
 
-  const abandonedSessions = sessions
-    .filter(s => s.state === 'ABANDONED')
-    .sort((a, b) => getSafeDate(b, 'updatedAt') - getSafeDate(a, 'updatedAt'));
+  const abandonedSessions = sessions.filter((s: any) => s.state === 'ABANDONED');
+  const returnedSessions = sessions.filter((s: any) => s.state === 'RETURNED');
 
-  // RETURNED = quality gate failed — session sent back to the CEO for revision
-  const returnedSessions = sessions
-    .filter((s: any) => s.state === 'RETURNED')
-    .sort((a: any, b: any) => getSafeDate(b, 'updatedAt') - getSafeDate(a, 'updatedAt'));
+  const allHistorySessions = useMemo(() => {
+    const combined = [
+      ...returnedSessions.map((s: any) => ({ ...s, historyStatus: 'returned' })),
+      ...abandonedSessions.map((s: any) => ({ ...s, historyStatus: 'abandoned' }))
+    ];
+
+    return combined.sort((a, b) => {
+      const getSafeDate = (obj: any) => new Date(obj.updatedAt || obj.updated_at || obj.createdAt || obj.created_at || 0).getTime();
+      
+      if (sessionSort === 'date_desc') return getSafeDate(b) - getSafeDate(a);
+      if (sessionSort === 'date_asc') return getSafeDate(a) - getSafeDate(b);
+      
+      if (sessionSort === 'status') return a.historyStatus.localeCompare(b.historyStatus);
+      return 0;
+    });
+  }, [returnedSessions, abandonedSessions, sessionSort]);
 
   const formatDraftName = (dateString: string) => {
     const date = new Date(dateString);
@@ -42,7 +53,8 @@ export default function SessionsListPage() {
     const y = String(date.getFullYear()).slice(-2);
     const hh = String(date.getHours()).padStart(2, '0');
     const mm = String(date.getMinutes()).padStart(2, '0');
-    return `${d}${m}${y}-${hh}${mm}`;
+    const ss = String(date.getSeconds()).padStart(2, '0');
+    return `Session ${d}${m}${y}${hh}${mm}${ss}`;
   };
 
   const handleContinueSession = async (session: any) => {
@@ -53,10 +65,10 @@ export default function SessionsListPage() {
       }
       
       if (session.state === 'RETURNED') {
-        navigate("/ceo/elicitation", { state: { resumeSessionId: session.id } });
+        navigate("/ceo/projects/elicitation", { state: { resumeSessionId: session.id } });
       } else {
         await restoreSession.mutateAsync(session.id);
-        navigate("/ceo/elicitation");
+        navigate("/ceo/projects/elicitation");
       }
     } catch (error) {
       console.error("Failed to restore session", error);
@@ -64,16 +76,16 @@ export default function SessionsListPage() {
     }
   };
 
-  if (isLoadingSessions) {
+  if (isLoading) {
     return (
-      <div className="w-full max-w-5xl mx-auto flex items-center justify-center py-24">
+      <div className="w-full max-w-[1440px] mx-auto flex items-center justify-center py-24">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-8">
+    <div className="w-full max-w-[1440px] mx-auto space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center gap-4">
@@ -116,17 +128,38 @@ export default function SessionsListPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-10">
-          {returnedSessions.length > 0 && (
+          {allHistorySessions.length > 0 && (
             <div>
-              <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">
-                Returned for Revision
-              </h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider px-1">
+                  Session History
+                </h4>
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsSessionDropdownOpen(!isSessionDropdownOpen)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <ArrowUpDown size={16} />
+                    Order by
+                  </button>
+                  {isSessionDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl py-1 z-10">
+                      <button onClick={() => { setSessionSort('date_desc'); setIsSessionDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm ${sessionSort === 'date_desc' ? 'bg-slate-50 text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Newest First</button>
+                      <button onClick={() => { setSessionSort('date_asc'); setIsSessionDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm ${sessionSort === 'date_asc' ? 'bg-slate-50 text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Oldest First</button>
+                      <button onClick={() => { setSessionSort('status'); setIsSessionDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm ${sessionSort === 'status' ? 'bg-slate-50 text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Status</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
               <div className="flex flex-col gap-4">
-                {returnedSessions.map((session: any) => {
+                {allHistorySessions.map((session: any) => {
                   const safeCreated = session.createdAt || session.created_at || new Date();
                   const safeUpdated = session.updatedAt || session.updated_at || new Date();
                   const safeStage = session.currentStage || session.current_stage || 1;
-                  return (
+                  const isReturned = session.historyStatus === 'returned';
+
+                  return isReturned ? (
                     <div
                       key={session.id}
                       className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5"
@@ -164,25 +197,7 @@ export default function SessionsListPage() {
                         </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {abandonedSessions.length > 0 && (
-            <div>
-              <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">
-                Abandoned Drafts
-              </h4>
-              <div className="flex flex-col gap-4">
-                {abandonedSessions.map((session) => {
-                  const safeCreated = (session as any).createdAt || (session as any).created_at || new Date();
-                  const safeUpdated = (session as any).updatedAt || (session as any).updated_at || new Date();
-                  const safeStage = (session as any).currentStage || (session as any).current_stage || 1;
-                  const safeScenario = (session as any).scenarioType || (session as any).scenario_type;
-
-                  return (
+                  ) : (
                     <div key={session.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 transition-all hover:shadow-md hover:border-blue-200">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
