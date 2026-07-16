@@ -136,7 +136,7 @@ jobs:
         run: npm ci
 
       - name: Run OpenWiki update
-        run: npm run openwiki:update
+        run: npm run openwiki:ci
         env:
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPENAI_COMPATIBLE_API_KEY }}
