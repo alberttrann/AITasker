@@ -191,53 +191,88 @@ export class MessagesService {
         });
     }
 
-    async getConversations(user: { id: string; activeRole: string }) {
-        // Get engagement-based conversations
+    async getConversations(user: { id: string; activeRole: string; clientSubtype?: string | null }) {
+        // Build OR conditions based on the user's role
+        const orConditions: any[] = [
+            { clientId: user.id },
+            { expertId: user.id },
+        ];
+
+        // TECH_TEAM users: find engagements linked to their project
+        if (user.clientSubtype === 'TECH_TEAM') {
+            const techProfile = await this.prisma.techTeamProfile.findUnique({
+                where: { userId: user.id },
+            });
+            if (techProfile?.linkedProjectId) {
+                orConditions.push({ projectId: techProfile.linkedProjectId });
+            }
+        }
+
         const engagements = await this.prisma.engagement.findMany({
-        where: {
-            OR: [{ clientId: user.id }, { expertId: user.id }],
-            state: { not: 'DECLINED' },
-        },
-        select: {
-            id: true, 
-            state: true, 
-            projectId: true,
-            clientId: true,
-            expertId: true,
-            project: { select: { projectName: true } },
-            expert:  { select: { id: true, fullName: true } },
-            client:  { select: { id: true, fullName: true } },
-        },
-        orderBy: { id: 'desc' }, 
-        take: 20,
+            where: {
+                OR: orConditions,
+                state: { not: 'DECLINED' },
+            },
+            select: {
+                id: true, 
+                state: true, 
+                projectId: true,
+                clientId: true,
+                expertId: true,
+                project: { select: { projectName: true } },
+                expert:  { select: { id: true, fullName: true, email: true } }, // Thêm email phục vụ Modal
+                client:  { select: { id: true, fullName: true, email: true } }, // Thêm email phục vụ Modal
+            },
+            orderBy: { id: 'desc' }, 
+            take: 20,
         });
 
-        const threads = await Promise.all(engagements.map(async (eng) => {
-        const lastMessage = await this.prisma.message.findFirst({
-            where: { engagementId: eng.id },
-            orderBy: { timestamp: 'desc' }, 
-            select: { content: true, timestamp: true, senderId: true }, 
-        });
-        const unread = await this.prisma.message.count({
-            where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
-        });
-        return {
-            type:        'engagement',
-            id:          eng.id,
-            projectName: eng.project?.projectName ?? 'Unknown Project',
-            otherParty:  eng.clientId === user.id ? eng.expert : eng.client,
-            lastMessage, 
-            unreadCount: unread,
-        };
-        }));
+        const threads = (await Promise.all(engagements.map(async (eng) => {
+            const lastMessage = await this.prisma.message.findFirst({
+                where: { engagementId: eng.id },
+                orderBy: { timestamp: 'desc' }, 
+                select: { content: true, timestamp: true, senderId: true }, 
+            });
+            const unread = await this.prisma.message.count({
+                where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
+            });
+
+            // Xác định otherParty
+            let otherParty: any = null;
+            if (eng.clientId === user.id) {
+                otherParty = eng.expert;
+            } else if (eng.expertId === user.id) {
+                otherParty = eng.client;
+            } else {
+                otherParty = eng.client || eng.expert;
+            }
+
+            // [BACK-1] Ngăn chặn Ghost Conversations: Loại bỏ các bản ghi không hợp lệ hoặc đã bị xóa
+            if (!otherParty) return null;
+            if (eng.projectId && !eng.project) return null;
+
+            return {
+                type:        'engagement',
+                id:          eng.id,
+                projectName: eng.project?.projectName ?? 'Service Purchase Workspace',
+                otherParty: {
+                    id: otherParty.id,
+                    fullName: otherParty.fullName,
+                    email: otherParty.email ?? '',
+                },
+                lastMessage, 
+                unreadCount: unread,
+            };
+        }))).filter(Boolean); // Lọc bỏ hoàn toàn các giá trị null
 
         return threads.sort((a, b) =>
-        (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 
+            (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 
         );
     }
+
     async projectUnreadCount(projectId: string, userId: string) {
         return this.prisma.message.count({
-        where: { projectId, senderId: { not: userId }, readAt: null },
+            where: { projectId, senderId: { not: userId }, readAt: null },
         });
     }
 }

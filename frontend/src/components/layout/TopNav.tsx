@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // Đã thêm useLocation ở đây
 import { useAuth } from '@hooks/use-auth';
-import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { useEngagementStore } from '@/store/engagement.store';
+import { Bell, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, Inbox, Search, Sparkles, Lock, RefreshCw, UserPlus } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
-import { ConfirmModal, Modal } from '@/components/ui/Modal';
-import { formatVND } from '@/lib/utils';
+import { ConfirmModal } from '@/components/ui/modal';
+import { formatVND, cn } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
@@ -13,11 +16,28 @@ import SpotlightSearch from '@/components/layout/SpotlightSearch';
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // Khai báo biến location để xác định tuyến đường hiện tại
+  const { activeRole, clientSubtype } = useAuth();
+  const { totalUnread } = useEngagementStore();
+  const msgPath = activeRole === 'CLIENT' ? (clientSubtype === 'TECH_TEAM' ? '/tech-team/inbox' : '/ceo/inbox') : '/expert/inbox';
   
-  // ── Dropdown State ──
+  // Dropdown States
   type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | 'mobile' | null;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
   const navRef = useRef<HTMLDivElement>(null);
+
+  // Lấy các cuộc trò chuyện thực tế từ server cho Dropdown của Inbox
+  const { data: conversations } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => apiClient.get('/conversations').then((r) => r.data),
+    enabled: isAuthenticated,
+    refetchInterval: 10000, // Tự động cập nhật mỗi 10 giây
+  });
+
+  const dropdownConversations = conversations || [];
+  const latestConversations = dropdownConversations.slice(0, 5); // Hiển thị tối đa 5 cuộc trò chuyện gần nhất
+  const unreadMessagesCount = dropdownConversations.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0);
+  const unreadMessages = unreadMessagesCount; // Đồng bộ biến để tránh lỗi biên dịch không nhất quán giữa các biến đếm
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -30,7 +50,7 @@ export default function TopNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ── Modal State ──
+  // Modals States
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
@@ -48,12 +68,17 @@ export default function TopNav() {
   };
 
   const confirmAddRole = () => {
-    // If they are currently active as Client, they don't have Expert, so add EXPERT.
-    // Otherwise add CLIENT_CEO.
     const newRole = isClientActive ? 'EXPERT' : 'CLIENT_CEO';
     addRole.mutate({ newRole }, {
       onSuccess: () => setIsAddRoleModalOpen(false)
     });
+  };
+
+  const getRolePrefix = () => {
+    if (activeRole === 'CLIENT' && clientSubtype === 'TECH_TEAM') return 'tech-team';
+    if (activeRole === 'CLIENT') return 'ceo';
+    if (activeRole === 'EXPERT') return 'expert';
+    return 'tech-team';
   };
 
   const getBasePath = () => {
@@ -74,40 +99,30 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
-  const unreadMessages = 0;
 
-  // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
-// 1. Decide which raw string to use
+
   const rawRole = user?.activeRole === 'CLIENT' && user?.clientSubtype
-  ? user.clientSubtype 
-  : user?.activeRole;
+    ? user.clientSubtype 
+    : user?.activeRole;
 
-// 2. Format it for display
-const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN';
+  const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN';
 
-const getRoleColor = (roleStr: string) => {
-  const normalized = roleStr.toUpperCase();
-  if (normalized.includes('CEO')) return 'bg-blue-100 text-blue-700';
-  if (normalized.includes('EXPERT')) return 'bg-emerald-100 text-emerald-700';
-  if (normalized.includes('TECH')) return 'bg-orange-100 text-orange-700';
-  if (normalized.includes('ADMIN')) return 'bg-red-100 text-red-700';
-  return 'bg-slate-100 text-slate-600';
-};
-const roleColorClass = getRoleColor(rawRole || '');
+  const getRoleColor = (roleStr: string) => {
+    const normalized = roleStr.toUpperCase();
+    if (normalized.includes('CEO')) return 'bg-blue-100 text-blue-700';
+    if (normalized.includes('EXPERT')) return 'bg-emerald-100 text-emerald-700';
+    if (normalized.includes('TECH')) return 'bg-orange-100 text-orange-700';
+    if (normalized.includes('ADMIN')) return 'bg-red-100 text-red-700';
+    return 'bg-slate-100 text-slate-600';
+  };
+  const roleColorClass = getRoleColor(rawRole || '');
 
-const RoleIcon = 
-  rawRole === 'CEO' ? Briefcase :
-  rawRole === 'EXPERT' ? Award :
-  rawRole === 'TECH_TEAM' ? Code :
-  rawRole === 'ADMIN' ? Shield :
-  User;
-
-  // 3. Subscription tier
+  // Subscription status
   const { data: subStatus } = useSubscriptionStatus();
   const isPro = subStatus?.tier === 'pro';
   
-  // Real balances via useWallet hook
+  // Real balances
   const { data: wallet } = useWallet();
   const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
   const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.locked_balance ?? 0;
@@ -117,13 +132,13 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
-    logout(); // Clears Zustand state
+    logout();
     navigate('/');
   };
 
   return (
     <>
-    <header ref={navRef} className="relative z-50 w-full bg-primary-bg border-b border-primary/20 select-none flex flex-col">
+    <header ref={navRef} className="relative z-40 w-full bg-primary-bg border-b border-primary/20 select-none flex flex-col">
       <div className="flex flex-row items-center justify-between w-full px-6 max-w-[1440px] mx-auto h-[80px]">
         
         {/* Left: Logo Area */}
@@ -144,11 +159,9 @@ const RoleIcon =
           <SpotlightSearch user={user} isAuthenticated={isAuthenticated} />
         </div>
 
-
         {/* Right: Auth-Aware Controls (Desktop) */}
         <div className="hidden md:flex flex-row items-center gap-4">
           {!isAuthenticated ? (
-            // ── Unauthenticated State ──
             <>
               <button 
                 onClick={() => openModal('signin')} 
@@ -165,7 +178,6 @@ const RoleIcon =
               </button>
             </>
           ) : (
-            // ── Authenticated State ──
             <>
               {/* Wallet Menu */}
               {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
@@ -263,7 +275,7 @@ const RoleIcon =
                 )}
               </div>
 
-              {/* Mailbox */}
+              {/* Messages Dropdown */}
               <div className="relative">
                 <button 
                   aria-label="Messages" 
@@ -271,23 +283,85 @@ const RoleIcon =
                   className={`relative p-2.5 rounded-full transition-all duration-150 active:scale-95 ${activeDropdown === 'messages' ? 'bg-primary-dark/10 text-primary-dark' : 'text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10'}`}
                 >
                   <Mail size={24} strokeWidth={1.5} />
-                  {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                  {unreadMessagesCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                      {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                    </span>
                   )}
                 </button>
 
                 {activeDropdown === 'messages' && (
-                  <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                  <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-slate-200 shadow-xl rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                      <span className="font-semibold text-primary">Inbox {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
+                      <span className="font-semibold text-primary">Inbox ({unreadMessagesCount})</span>
                     </div>
-                    <div className="max-h-80 overflow-y-auto bg-white">
-                      <div className="p-8 flex flex-col items-center justify-center text-slate-400">
-                        <Inbox size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
-                        <p className="text-sm font-medium">No new messages</p>
-                        <p className="text-xs text-center mt-1">Your inbox is empty.</p>
-                      </div>
+                    
+                    <div className="max-h-80 overflow-y-auto divide-y divide-[#F1F5F9] bg-white">
+                      {latestConversations.length === 0 ? (
+                        <div className="p-8 flex flex-col items-center justify-center text-slate-400">
+                          <Inbox size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
+                          <p className="text-sm font-medium">No new messages</p>
+                          <p className="text-xs text-center mt-1">Your inbox is empty.</p>
+                        </div>
+                      ) : (
+                        latestConversations.map((thread: any) => {
+                          const name = thread.otherParty?.fullName || 'User';
+                          const hasUnread = thread.unreadCount > 0;
+                          const lastMsg = thread.lastMessage?.content || '📎 Attachment';
+                          const time = thread.lastMessage?.timestamp
+                            ? new Date(thread.lastMessage.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                            : '';
+
+                          return (
+                            <div
+                              key={thread.id}
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                navigate(`/${getRolePrefix()}/inbox/${thread.id}`);
+                              }}
+                              className={cn(
+                                "flex items-center gap-3 px-4 py-3 hover:bg-[#F8FAFC] cursor-pointer transition-colors bg-white",
+                                hasUnread && "bg-[#059669]/5"
+                              )}
+                            >
+                              <div className="relative shrink-0">
+                                <div className={cn(
+                                  "w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold",
+                                  hasUnread ? "bg-[#059669] text-white" : "bg-[#0F172A]/10 text-[#0F172A]"
+                                )}>
+                                  {name.charAt(0)}
+                                </div>
+                                {hasUnread && (
+                                  <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#059669] ring-2 ring-white" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-baseline">
+                                  <p className={cn("text-[13px] font-semibold text-[#0F172A] truncate", hasUnread && "text-[#059669]")}>
+                                    {name}
+                                  </p>
+                                  <span className="text-[10px] text-[#94A3B8]">{time}</span>
+                                </div>
+                                <p className="text-[11px] text-[#64748B] font-semibold truncate mt-0.5">
+                                  {thread.projectName}
+                                </p>
+                                <p className={cn("text-[11px] text-[#94A3B8] truncate mt-0.5", hasUnread && "text-[#0F172A] font-medium")}>
+                                  {lastMsg}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
+                    
+                    <Link 
+                      to={msgPath} 
+                      onClick={() => setActiveDropdown(null)} 
+                      className="block w-full text-center py-3 border-t border-slate-100 bg-slate-50 text-sm font-bold text-primary hover:bg-slate-100 transition-colors"
+                    >
+                      Open Inbox
+                    </Link>
                   </div>
                 )}
               </div>
@@ -368,10 +442,7 @@ const RoleIcon =
                         Projects
                       </Link>
                     )}
-                    
 
-
-                    {/* Divider for Promoted Actions */}
                     {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                       <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     )}
@@ -399,9 +470,6 @@ const RoleIcon =
                       </Link>
                     )}
 
-
-
-                    {/* Divider before Sign Out */}
                     <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     
                     <button
@@ -448,6 +516,12 @@ const RoleIcon =
                 <Wallet size={20} className="text-slate-500" /> Wallet <span className="ml-auto font-bold">{formatVND(availableBalance)}</span>
               </Link>
               )}
+              <Link to={msgPath} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <div className="flex items-center gap-3">
+                  <Mail size={20} className="text-slate-500" /> Messages
+                </div>
+                {unreadMessagesCount > 0 && <span className="bg-coral text-white text-xs px-2 py-0.5 rounded-full font-bold">{unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}</span>}
+              </Link>
               <Link to={`${dashboardRoute}/notifications`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-slate-500" /> Notifications
@@ -469,7 +543,6 @@ const RoleIcon =
                 </Link>
               )}
 
-              
               <div className="h-[1px] bg-primary/10 my-2" />
 
               {hasClient && hasExpert && (
@@ -503,8 +576,6 @@ const RoleIcon =
                   {isClientActive ? 'Become an Expert' : 'Become a Client'}
                 </button>
               )}
-
-
 
               {/* Divider before Sign Out */}
               <div className="h-[1px] bg-primary/10 my-2" />
@@ -569,7 +640,7 @@ const RoleIcon =
         </div>
       )}
     </header>
-    {/* ── Render the Modal ── */}
+
     <AuthModal 
       isOpen={isAuthModalOpen} 
       onClose={() => setIsAuthModalOpen(false)} 
@@ -587,7 +658,6 @@ const RoleIcon =
       Are you sure you want to sign out?
     </ConfirmModal>
 
-    {/* Switch Role Modal */}
     <ConfirmModal
       isOpen={isSwitchRoleModalOpen}
       onClose={() => setIsSwitchRoleModalOpen(false)}
@@ -606,17 +676,8 @@ const RoleIcon =
       Are you sure you want to switch your role to {isClientActive ? 'Expert' : 'Client'}? You can always switch back.
     </ConfirmModal>
 
-    {/* Add Role Modal */}
     <ConfirmModal
       isOpen={isAddRoleModalOpen}
       onClose={() => setIsAddRoleModalOpen(false)}
       onConfirm={confirmAddRole}
-      title={isClientActive ? "Become an Expert" : "Become a Client"}
-      confirmText={addRole.isPending ? "Loading..." : "Confirm"}
-      cancelText="Cancel"
-    >
-      Are you sure you want to add the {isClientActive ? 'Expert' : 'Client'} role to your account? You will be able to switch seamlessly between both roles anytime.
-    </ConfirmModal>
-    </>
-  );
-}
+      title={isClientActive ? "Become an Expert" : "Become a Client"

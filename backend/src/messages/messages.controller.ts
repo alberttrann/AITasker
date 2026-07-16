@@ -98,7 +98,9 @@ export class MessagesController {
   @ApiOperation({ summary: 'List all active conversation threads for the current user' })
   async getConversations(@CurrentUser() user: AuthUser) {
     return this.messagesService.getConversations({
-      id: user.id, activeRole: user.activeRole,
+      id: user.id,
+      activeRole: user.activeRole,
+      clientSubtype: user.clientSubtype,
     });
   }
   @Get('projects/:id/messages/unread-count')
