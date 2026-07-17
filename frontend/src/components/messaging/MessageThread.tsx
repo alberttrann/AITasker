@@ -1,389 +1,341 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useMessages, useSendMessage, useConversations } from '@/hooks/use-messages';
+import { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { useSocket } from '@/hooks/use-socket';
-import { useAuth } from '@/hooks/use-auth';
-import { useEngagement } from '@/hooks/use-engagements';
-import { useEngagementStore } from '@store/engagement.store';
-import ChatSidebar from '@/components/messaging/ChatSidebar';
-import { Button } from '@/components/ui/button';
+import { useMessages, useProjectMessages, useSendMessage } from '@/hooks/use-messages';
+import { useAuthStore } from '@/store/auth.store';
+import { useEngagementStore } from '@/store/engagement.store';
+import { useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
-import { Send, MessageSquare, ChevronDown, Check, Hash } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 
-export default function MessageThread() {
-  const { engagementId } = useParams<{ engagementId: string }>();
-  const navigate = useNavigate();
+interface Message {
+  id: string;
+  content: string;
+  timestamp: string;
+  senderId: string;
+  engagementId?: string;
+  projectId?: string;
+  sender: {
+    id: string;
+    email: string;
+    fullName: string;
+    activeRole: string;
+  };
+}
+
+export default function MessageThread({ engagementId, projectId }: { engagementId?: string; projectId?: string }) {
   const socket = useSocket();
-  const { user } = useAuth();
-  
-  const setActiveEngagement = useEngagementStore((s) => s.setActiveEngagement);
-  const clearUnread = useEngagementStore((s) => s.clearUnread);
-  const unreadCounts = useEngagementStore((s) => s.unreadCounts);
-
-  const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
-  const { data: historyResponse, isLoading: isLoadingMessages } = useMessages(engagementId);
-  const { data: conversationsResponse } = useConversations();
   const sendMessage = useSendMessage();
+  const user = useAuthStore(s => s.user);
+  const activeRole = useAuthStore(s => s.activeRole);
+  const { setActiveEngagement, clearUnread } = useEngagementStore();
+  const queryClient = useQueryClient();
 
   const [text, setText] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [selectedUser, setSelectedUser] = useState<{ fullName: string; email: string; activeRole: string } | null>(null);
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  type MessageAction =
+    | { type: 'MERGE_FETCHED'; messages: Message[] }
+    | { type: 'APPEND'; message: Message };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+  function messageReducer(state: Message[], action: MessageAction): Message[] {
+    switch (action.type) {
+      case 'MERGE_FETCHED': {
+        const merged = [...action.messages];
+        for (const existing of state) {
+          if (!merged.find(m => m.id === existing.id)) {
+            merged.push(existing);
+          }
+        }
+        merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        return merged;
       }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsDropdownOpen(false);
+      case 'APPEND': {
+        if (state.find(m => m.id === action.message.id)) return state;
+        return [...state, action.message].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
       }
-    };
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
+      default:
+        return state;
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isDropdownOpen]);
+  }
 
-  // Sync active engagement context and clear unread count for this thread
+  const [localMessages, dispatch] = useReducer(messageReducer, []);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { data: engData, isLoading: engLoading } = useMessages(engagementId);
+  const { data: projData, isLoading: projLoading } = useProjectMessages(projectId);
+  const fetchedMessages = engagementId ? engData : projData;
+  const isLoading = engagementId ? engLoading : projLoading;
+
+  const scopeId = engagementId || projectId;
+
+  // Thực hiện đọc tin nhắn realtime khi mở hội thoại [5]
   useEffect(() => {
+    if (!engagementId) return;
+
+    apiClient.post(`/conversations/${engagementId}/read`)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      })
+      .catch(err => console.error("Error marking messages as read:", err));
+  }, [engagementId, queryClient]);
+
+  useEffect(() => {
+    if (!socket || !scopeId) return;
+
+    const payload = engagementId ? { engagementId } : { projectId };
+    socket.emit('joinRoom', payload);
+
     if (engagementId) {
       setActiveEngagement(engagementId);
       clearUnread(engagementId);
     }
-    return () => {
-      setActiveEngagement(null);
-    };
-  }, [engagementId, setActiveEngagement, clearUnread]);
-
-  // Initialize messages list when history loads
-  useEffect(() => {
-    if (historyResponse?.data) {
-      setMessages(historyResponse.data);
-    } else if (Array.isArray(historyResponse)) {
-      setMessages(historyResponse);
-    }
-  }, [historyResponse]);
-
-  // Join socket room on mount/re-connect and listen for messages
-  useEffect(() => {
-    if (!socket || !engagementId) return;
-
-    const join = () => {
-      socket.emit('joinRoom', { engagementId });
-      console.log(`[Socket] Joined chat room for engagement: ${engagementId}`);
-    };
-
-    // If socket is already connected, join immediately
-    if (socket.connected) {
-      join();
-    }
-
-    // Join room again if the socket disconnects and reconnects under the hood
-    socket.on('connect', join);
-
-    // Listen for new incoming messages
-    const handleNewMessage = (msg: any) => {
-      setMessages((prev) => {
-        // 1. If the message is already in the list (by real ID), do nothing
-        if (prev.some((m) => m.id === msg.id)) return prev;
-
-        // 2. If the message was sent by the current user, replace the corresponding optimistic/temporary message
-        const isMyMessage = msg.senderId === user?.id || msg.sender?.id === user?.id;
-        if (isMyMessage) {
-          const tempIndex = prev.findIndex((m) => m.id.toString().startsWith('temp-'));
-          if (tempIndex !== -1) {
-            const updated = [...prev];
-            updated[tempIndex] = msg; // Swap the temporary message with the real server-confirmed one
-            return updated;
-          }
-        }
-
-        // 3. Otherwise, it is a new message from the peer; append it
-        return [...prev, msg];
-      });
-    };
-
-    socket.on('newMessage', handleNewMessage);
 
     return () => {
-      socket.off('connect', join);
-      socket.off('newMessage', handleNewMessage);
+      if (engagementId) {
+        setActiveEngagement(null);
+      }
     };
-  }, [socket, engagementId, user?.id]);
+  }, [socket, scopeId, engagementId, projectId, setActiveEngagement, clearUnread]);
 
-  // Auto scroll to bottom when new messages arrive
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!fetchedMessages) return;
+    const fetched = Array.isArray(fetchedMessages)
+      ? fetchedMessages
+      : (fetchedMessages as any)?.data ?? [];
+    dispatch({ type: 'MERGE_FETCHED', messages: fetched });
+  }, [fetchedMessages]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim() || !engagementId) return;
+  useEffect(() => {
+    if (!socket) return;
 
-    // Build immediate message placeholder for smooth UX
-    const localMsg = {
-      id: `temp-${Date.now()}`,
-      content: text,
-      senderId: user?.id,
-      sender: {
-        id: user?.id,
-        fullName: user?.fullName || 'You',
-      },
-      timestamp: new Date().toISOString(),
+    const handler = (msg: Message) => {
+      const belongsToThisThread = engagementId
+        ? msg.engagementId === engagementId
+        : msg.projectId === projectId;
+
+      if (!belongsToThisThread) return;
+
+      dispatch({ type: 'APPEND', message: msg });
+
+      if (engagementId && msg.senderId !== user?.id) {
+        apiClient.post(`/conversations/${engagementId}/read`)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          })
+          .catch(err => console.error("Error auto-reading message:", err));
+      }
     };
 
-    // Optimistically update message state
-    setMessages((prev) => [...prev, localMsg]);
+    socket.on('newMessage', handler);
+    return () => { socket.off('newMessage', handler); };
+  }, [socket, engagementId, projectId, user, queryClient]);
 
-    // Send via socket hook
-    sendMessage({
-      engagement_id: engagementId,
-      content: text,
-    });
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [localMessages, scrollToBottom]);
+
+  const handleSend = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (!scopeId) return;
+
+    const payload: any = { content: trimmed };
+    if (engagementId) {
+      payload.engagement_id = engagementId;
+    } else if (projectId) {
+      payload.project_id = projectId;
+    }
+
+    sendMessage(payload);
     setText('');
   };
 
-  if (isLoadingEngagement || isLoadingMessages) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-  if (!engagement) {
+  const isOwnMessage = (senderId: string) => senderId === user?.id;
+
+  // Cải tiến format hiển thị đầy đủ ngày giờ khi xem chi tiết tin nhắn cũ [5]
+  const formatTime = (ts: string) => {
+    const date = new Date(ts);
+    const now = new Date();
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    if (msgDate.getTime() === today.getTime()) {
+      return timeStr;
+    } else if (msgDate.getTime() === yesterday.getTime()) {
+      return `Yesterday, ${timeStr}`;
+    } else {
+      const dateStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      return `${dateStr}, ${timeStr}`;
+    }
+  };
+
+  if (!scopeId) {
     return (
-      <div className="w-full max-w-[500px] mx-auto py-16 px-6 text-center space-y-6">
-        <h2 className="text-xl font-bold text-slate-900">Workspace Not Found</h2>
-        <p className="text-slate-500 text-sm">
-          We could not load this conversation. It may have been archived or deleted.
+      <div className='flex flex-col items-center justify-center h-full text-center p-6 bg-[#F8FAFC]'>
+        <div className='w-16 h-16 bg-[#E2E8F0] rounded-full flex items-center justify-center mb-4 text-[#94A3B8]'>
+          <Send size={28} />
+        </div>
+        <h3 className='font-headline text-[16px] font-semibold text-[#64748B]'>Select a conversation</h3>
+        <p className='text-[13px] text-[#94A3B8] mt-1 max-w-xs'>
+          Choose a conversation from the left pane to start messaging.
         </p>
-        <Button onClick={() => navigate(-1)} className="w-full justify-center">
-          Go Back
-        </Button>
       </div>
     );
   }
 
-  // Determine participant labels and route
-  const isClient = user?.activeRole === 'CLIENT' || user?.activeRole?.startsWith('CLIENT');
-  const dashboardRoute = isClient ? '/ceo' : '/expert';
-  const allConversations = conversationsResponse?.data || [];
-  const currentConv = allConversations.find((c: any) => c.id === engagementId);
-
-  const currentPartnerId =
-    currentConv?.otherParty?.id ||
-    currentConv?.partnerId ||
-    (isClient ? (engagement as any).expert?.id : (engagement as any).client?.id) ||
-    (engagement as any).otherParty?.id;
-
-  const peerName =
-    currentConv?.otherParty?.fullName ||
-    currentConv?.partnerName ||
-    (isClient
-      ? (engagement as any).expert?.fullName || (engagement as any).otherParty?.fullName || 'Expert'
-      : (engagement as any).client?.fullName || (engagement as any).otherParty?.fullName || 'Client');
-
-  // Find all available threads between current user and this partner
-  const partnerEngagements = allConversations.filter((c: any) =>
-    (currentPartnerId && (c.otherParty?.id === currentPartnerId || c.partnerId === currentPartnerId)) ||
-    (peerName && peerName !== 'Expert' && peerName !== 'Client' && (c.otherParty?.fullName === peerName || c.partnerName === peerName)) ||
-    c.id === engagementId
-  );
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center h-full bg-[#F8FAFC]'>
+        <Spinner size='lg' />
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full max-w-[1440px] px-6 mx-auto py-6 flex h-[calc(100vh-140px)] min-h-[600px] bg-transparent border-0 gap-6 overflow-hidden">
-      {/* Left panel: Conversations List */}
-      <ChatSidebar activeEngagementId={engagementId} />
+    <div className='flex flex-col h-full overflow-hidden bg-white'>
+      <div className='flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFC]'>
+        {localMessages.map((msg) => {
+          const own = isOwnMessage(msg.senderId);
 
-      {/* Right panel: Active chat window */}
-      <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex flex-col min-w-0 h-full p-4 sm:p-6 overflow-hidden">
-        {/* 1. Header Toolbar */}
-        <div className="flex flex-row items-center justify-between pb-4 border-b border-slate-200/80 shrink-0 gap-4">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 leading-none">{peerName}</h2>
-            </div>
-          </div>
-
-          {/* Thread Dropdown */}
-          {partnerEngagements.length > 0 && (
-            <div className="relative flex items-center gap-2 shrink-0" ref={dropdownRef}>
-              <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Thread:</span>
-              <button
-                type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800 flex items-center justify-between gap-2 transition-all shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-900 max-w-[280px]"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <Hash size={14} className="text-slate-400 shrink-0" />
-                  <span className="truncate">
-                    {partnerEngagements.find((e: any) => e.id === engagementId)?.projectName || 'Direct Chat'}
-                  </span>
+          return (
+            <div key={msg.id} className={cn('flex gap-2', own ? 'justify-end' : 'justify-start')}>
+              {!own && (
+                <div
+                  onClick={() => setSelectedUser({
+                    fullName: msg.sender?.fullName || 'User',
+                    email: msg.sender?.email || 'N/A',
+                    activeRole: msg.sender?.activeRole || 'CLIENT'
+                  })}
+                  className='shrink-0 w-8 h-8 rounded-full bg-[#0F172A]/10 flex items-center justify-center font-headline font-semibold text-[12px] text-[#0F172A] mt-1 cursor-pointer hover:opacity-80 transition-opacity'
+                >
+                  {msg.sender?.fullName?.charAt(0) || '?'}
                 </div>
-                {/* Red dot indicator on trigger if any other thread has new messages */}
-                {partnerEngagements.some((eng: any) => eng.id !== engagementId && (unreadCounts[eng.id] ?? eng.unreadCount ?? 0) > 0) && (
-                  <span className="relative flex h-2 w-2 shrink-0 ml-1" title="New messages in another thread">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
+              )}
+
+              <div className={cn(
+                'max-w-[75%] rounded-2xl px-4 py-2.5 shadow-[0px_1px_3px_rgba(15,23,42,0.03)]',
+                own
+                  ? 'bg-[#059669] text-white rounded-br-md'
+                  : 'bg-white border border-[#E2E8F0] text-[#0F172A] rounded-bl-md'
+              )}>
+                {!own && msg.sender?.fullName && (
+                  <p className='text-[11px] font-bold text-[#059669] mb-0.5'>
+                    {msg.sender.fullName}
+                  </p>
                 )}
-                <ChevronDown
-                  size={14}
-                  className={`text-slate-400 shrink-0 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
 
-              {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-[280px] sm:w-[320px] bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 py-1.5 overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    <span>Select Thread ({partnerEngagements.length})</span>
-                  </div>
-                  <div className="max-h-[260px] overflow-y-auto divide-y divide-slate-100/60">
-                    {partnerEngagements.map((eng: any) => {
-                      const isSelected = eng.id === engagementId;
-                      const count = unreadCounts[eng.id] ?? eng.unreadCount ?? 0;
-                      const hasNew = !isSelected && count > 0;
+                {msg.content && (
+                  <p className='text-[14px] leading-relaxed whitespace-pre-wrap break-words font-body'>
+                    {msg.content}
+                  </p>
+                )}
 
-                      return (
-                        <button
-                          key={eng.id}
-                          type="button"
-                          onClick={() => {
-                            setIsDropdownOpen(false);
-                            if (eng.id !== engagementId) {
-                              navigate(`${dashboardRoute}/engagements/${eng.id}/messages`);
-                            }
-                          }}
-                          className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-3 transition-colors ${
-                            isSelected
-                              ? 'bg-primary/5 text-primary font-bold'
-                              : hasNew
-                              ? 'bg-red-50/40 hover:bg-red-50/70 text-slate-900 font-semibold'
-                              : 'hover:bg-slate-50 text-slate-700 font-medium'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                            <Hash
-                              size={15}
-                              className={`mt-0.5 shrink-0 ${isSelected ? 'text-primary' : hasNew ? 'text-red-500' : 'text-slate-400'}`}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs truncate">
-                                {eng.projectName || 'Direct Chat'}
-                              </p>
-                              {eng.lastMessage?.content && (
-                                <p className={`text-[11px] truncate mt-0.5 ${isSelected ? 'text-primary/70' : hasNew ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
-                                  {eng.lastMessage.content}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="shrink-0 flex items-center gap-1.5">
-                            {hasNew && count > 0 && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center shrink-0" title={`${count} new messages`}>
-                                {count}
-                              </span>
-                            )}
-                            {isSelected && (
-                              <Check size={16} className="text-primary shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                <p className={cn(
+                  'text-[10px] mt-1 text-right font-headline',
+                  own ? 'text-white/60' : 'text-[#94A3B8]'
+                )}>
+                  {formatTime(msg.timestamp)}
+                </p>
+              </div>
+
+              {own && (
+                <div
+                  onClick={() => setSelectedUser({
+                    fullName: user?.fullName || 'Me',
+                    email: user?.email || 'N/A',
+                    activeRole: activeRole || 'CEO'
+                  })}
+                  className='shrink-0 w-8 h-8 rounded-full bg-[#059669] flex items-center justify-center font-headline font-semibold text-[12px] text-white mt-1 cursor-pointer hover:opacity-80 transition-opacity'
+                >
+                  {user?.fullName?.charAt(0) || 'Y'}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          );
+        })}
 
-        {/* 2. Message Thread Body */}
-        <div className="flex-grow overflow-y-auto py-4 pr-2 space-y-3 bg-transparent">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-3">
-              <MessageSquare size={36} className="text-slate-300" />
-              <h3 className="text-sm font-bold text-slate-800">No Messages Yet</h3>
-              <p className="text-xs text-slate-400 max-w-[280px]">
-                Start the discussion! Type your questions, coordinate milestones, or align on scopes below.
-              </p>
-            </div>
-          ) : (
-            messages.map((msg: any) => {
-              const isMe = msg.senderId === user?.id || msg.sender?.id === user?.id;
-              const senderInitial = msg.sender?.fullName ? msg.sender.fullName.charAt(0).toUpperCase() : '?';
+        <div ref={bottomRef} />
+      </div>
 
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex items-end gap-2.5 max-w-[75%] w-fit ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
-                >
-                  {/* Incoming Avatar bubble - hide for outcoming messages */}
-                  {!isMe && (
-                    <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm mb-1">
-                      {senderInitial}
-                    </div>
-                  )}
-
-                  {/* Message Bubble wrapper */}
-                  <div className={`space-y-1 min-w-0 max-w-full ${isMe ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
-                    <div
-                      className={`w-fit max-w-full p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                        isMe
-                          ? 'bg-emerald-600 text-white rounded-br-none'
-                          : 'bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60'
-                      }`}
-                    >
-                      <p className="break-words whitespace-pre-wrap">{msg.content}</p>
-                    </div>
-                    {/* Timestamp */}
-                    <p className={`text-[10px] text-slate-400 font-medium ${isMe ? 'text-right' : 'text-left'}`}>
-                      {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={scrollRef} />
-        </div>
-
-        {/* 3. Send Input Form */}
-        <form
-          onSubmit={handleSend}
-          className="flex items-center gap-2 pt-3 border-t border-slate-200/80 shrink-0"
-        >
-          <input
-            type="text"
+      <div className='px-4 py-3 border-t border-[#E2E8F0] bg-white flex items-end gap-2 shrink-0'>
+        <div className='flex-1 relative'>
+          <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={`Message ${peerName}...`}
-            className="flex-1 px-4 py-2.5 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all text-slate-800 shadow-sm"
+            onKeyDown={handleKeyDown}
+            placeholder='Type a message...'
+            rows={1}
+            className='w-full resize-none rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-[14px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]/30 font-body'
           />
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!text.trim()}
-            className="p-2.5 rounded-xl shrink-0 h-10 w-10 justify-center items-center shadow-sm"
-            aria-label="Send message"
-          >
-            <Send size={16} />
-          </Button>
-        </form>
+        </div>
+
+        <button
+          onClick={handleSend}
+          disabled={!text.trim()}
+          className={cn(
+            'p-2.5 rounded-full transition-colors shrink-0',
+            text.trim()
+              ? 'bg-[#059669] text-white hover:bg-[#047857]'
+              : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+          )}
+        >
+          <Send size={18} />
+        </button>
       </div>
+
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl border border-[#E2E8F0] relative animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setSelectedUser(null)}
+              className="absolute top-4 right-4 p-1 rounded-full hover:bg-[#F1F5F9] text-[#64748B] transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-[#0F172A]/10 text-[#0F172A] flex items-center justify-center rounded-full text-2xl font-bold mx-auto mb-4 font-headline">
+                {selectedUser.fullName.charAt(0)}
+              </div>
+              <h3 className="text-lg font-bold text-[#0F172A] font-headline">{selectedUser.fullName}</h3>
+              <span className="inline-block px-2.5 py-0.5 mt-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#059669]/10 text-[#059669]">
+                {selectedUser.activeRole}
+              </span>
+
+              <div className="mt-6 border-t border-[#F1F5F9] pt-4 text-left space-y-3">
+                <div>
+                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider block font-headline">Email Address</span>
+                  <span className="text-[14px] text-[#0F172A] font-body font-medium">{selectedUser.email}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider block font-headline">System Role</span>
+                  <span className="text-[14px] text-[#0F172A] font-body font-medium">{selectedUser.activeRole}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

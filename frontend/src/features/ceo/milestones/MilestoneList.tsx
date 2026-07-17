@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import { ArrowLeft, Plus, CheckCircle } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle, MessageSquare } from "lucide-react";
 import MilestoneChatAssistant from "./MilestoneChatAssistant";
 
 export default function MilestoneList() {
@@ -123,16 +123,26 @@ export default function MilestoneList() {
           </div>
         </div>
 
-        {/* Create Milestone action */}
-        <Button
-          variant="primary"
-          onClick={() =>
-            navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-          }
-          className="inline-flex items-center gap-2"
-        >
-          <Plus size={16} /> Create New Milestone
-        </Button>
+        {/* Group actions together on the right side of header row */}
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/ceo/inbox/${engagementId}`)}
+            className="inline-flex items-center gap-2"
+          >
+            <MessageSquare size={16} /> Chat
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={() =>
+              navigate(`/ceo/engagements/${engagementId}/milestones/create`)
+            }
+            className="inline-flex items-center gap-2"
+          >
+            <Plus size={16} /> Create New Milestone
+          </Button>
+        </div>
       </div>
 
       {/* Main List Layout */}

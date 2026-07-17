@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
 import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
-import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function ExpertMilestoneDetail() {
@@ -80,6 +80,18 @@ export default function ExpertMilestoneDetail() {
             <p className="text-sm text-slate-500">Track DoD checklist requirements, submit deliverables, and review sign-offs.</p>
           </div>
         </div>
+
+        {/* Group expert's actions together on the right side of heading line */}
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/expert/inbox/${engagementId}`)}
+            className="inline-flex items-center gap-2"
+          >
+            <MessageSquare size={16} />
+            Chat với CEO
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
@@ -140,7 +152,7 @@ export default function ExpertMilestoneDetail() {
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> Registered: <strong>{new Date(milestone.updatedAt).toLocaleDateString()}</strong>
                     </span>
-                    <span>•</span>
+                    <span>ΓÇó</span>
                     <span>Sign-off Authority: <strong className="text-slate-700">{milestone.signOffAuthority.replace(/_/g, " ")}</strong></span>
                   </div>
                 </div>

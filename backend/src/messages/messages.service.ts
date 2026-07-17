@@ -85,7 +85,7 @@ export class MessagesService {
                 projectId:     dto.project_id ?? null,
                 senderId:      sender.id,
                 content:       dto.content,
-                attachmentUrl: dto.attachment_url || null,
+                attachmentUrl: null,
             },
             include: {
                 sender: {
@@ -126,7 +126,6 @@ export class MessagesService {
         });
     }
 
-    // project-scoped chat history, the pre-bid thread's read side.
     async getProjectChatHistory(
         projectId: string,
         user: ActorUser,
@@ -177,6 +176,73 @@ export class MessagesService {
         });
     }
 
+    async markEngagementAsRead(engagementId: string, userId: string) {
+        const unreadMessages = await this.prisma.message.findMany({
+            where: {
+                engagementId,
+                senderId: { not: userId },
+                reads: {
+                    none: {
+                        userId,
+                    },
+                },
+            },
+        });
+
+        await Promise.all(
+            unreadMessages.map(msg =>
+                this.prisma.messageRead.upsert({
+                    where: {
+                        messageId_userId: {
+                            messageId: msg.id,
+                            userId,
+                        },
+                    },
+                    update: {},
+                    create: {
+                        messageId: msg.id,
+                        userId,
+                    },
+                })
+            )
+        );
+
+        return { success: true, count: unreadMessages.length };
+    }
+
+    async markAllAsRead(userId: string) {
+        const unreadMessages = await this.prisma.message.findMany({
+            where: {
+                senderId: { not: userId },
+                reads: {
+                    none: {
+                        userId,
+                    },
+                },
+            },
+        });
+
+        await Promise.all(
+            unreadMessages.map(msg =>
+                this.prisma.messageRead.upsert({
+                    where: {
+                        messageId_userId: {
+                            messageId: msg.id,
+                            userId,
+                        },
+                    },
+                    update: {},
+                    create: {
+                        messageId: msg.id,
+                        userId,
+                    },
+                })
+            )
+        );
+
+        return { success: true, count: unreadMessages.length };
+    }
+
     async unreadCount(engagementId: string, userId: string) {
         return this.prisma.message.count({
             where: {
@@ -191,54 +257,86 @@ export class MessagesService {
         });
     }
 
-    async getConversations(user: { id: string; activeRole: string }) {
-         // Get engagement-based conversations
+    async getConversations(user: { id: string; activeRole: string; clientSubtype?: string | null }) {
+        const orConditions: any[] = [
+            { clientId: user.id },
+            { expertId: user.id },
+        ];
+
+        if (user.clientSubtype === 'TECH_TEAM') {
+            const techProfile = await this.prisma.techTeamProfile.findUnique({
+                where: { userId: user.id },
+            });
+            if (techProfile?.linkedProjectId) {
+                orConditions.push({ projectId: techProfile.linkedProjectId });
+            }
+        }
+
         const engagements = await this.prisma.engagement.findMany({
-        where: {
-            OR: [{ clientId: user.id }, { expertId: user.id }],
-            state: { not: 'DECLINED' },
-        },
-        select: {
-            id: true, 
-            state: true, 
-            projectId: true,
-            clientId: true,
-            expertId: true,
-            project: { select: { projectName: true } },
-            service: { select: { title: true } },
-            expert:  { select: { id: true, fullName: true } },
-            client:  { select: { id: true, fullName: true } },
-        },
-        orderBy: { id: 'desc' }, 
-        take: 20,
+            where: {
+                OR: orConditions,
+                state: { not: 'DECLINED' },
+            },
+            select: {
+                id: true, 
+                state: true, 
+                projectId: true,
+                clientId: true,
+                expertId: true,
+                project: { select: { projectName: true } },
+                expert:  { select: { id: true, fullName: true, email: true } },
+                client:  { select: { id: true, fullName: true, email: true } },
+            },
+            orderBy: { id: 'desc' }, 
+            take: 20,
         });
 
-        const threads = await Promise.all(engagements.map(async (eng) => {
-        const lastMessage = await this.prisma.message.findFirst({
-            where: { engagementId: eng.id },
-            orderBy: { timestamp: 'desc' }, 
-            select: { content: true, timestamp: true, senderId: true }, 
-        });
-        const unread = await this.prisma.message.count({
-            where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
-        });
-        return {
-            type:        'engagement',
-            id:          eng.id,
-            projectName: eng.project?.projectName ?? eng.service?.title ?? 'Direct Chat',
-            otherParty:  eng.clientId === user.id ? eng.expert : eng.client,
-            lastMessage, 
-            unreadCount: unread,
-        };
-        }));
+        const threads = (await Promise.all(engagements.map(async (eng) => {
+            const lastMessage = await this.prisma.message.findFirst({
+                where: { engagementId: eng.id },
+                orderBy: { timestamp: 'desc' }, 
+                select: { content: true, timestamp: true, senderId: true }, 
+            });
+            const unread = await this.prisma.message.count({
+                where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
+            });
+
+            let otherParty: any = null;
+            if (eng.clientId === user.id) {
+                otherParty = eng.expert;
+            } else if (eng.expertId === user.id) {
+                otherParty = eng.client;
+            } else {
+                otherParty = eng.client || eng.expert;
+            }
+
+            if (!otherParty) return null;
+            if (eng.projectId && !eng.project) return null;
+            // Ẩn hoàn toàn các cuộc trò chuyện trống không có tin nhắn thực tế từ phía Backend [5]
+            if (!lastMessage) return null; 
+
+            return {
+                type:        'engagement',
+                id:          eng.id,
+                projectName: eng.project?.projectName ?? 'Service Purchase Workspace',
+                otherParty: {
+                    id: otherParty.id,
+                    fullName: otherParty.fullName,
+                    email: otherParty.email ?? '',
+                },
+                lastMessage, 
+                unreadCount: unread,
+            };
+        }))).filter(Boolean);
 
         return threads.sort((a, b) =>
-        (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 
+            (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 
         );
     }
+
     async projectUnreadCount(projectId: string, userId: string) {
         return this.prisma.message.count({
-        where: { projectId, senderId: { not: userId }, readAt: null },
+            where: { projectId, senderId: { not: userId }, readAt: null },
         });
     }
 }
