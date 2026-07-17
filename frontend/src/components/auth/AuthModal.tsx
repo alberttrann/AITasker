@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '@hooks/use-auth';
@@ -7,7 +7,37 @@ import { Button } from '@components/ui/button';
 import { Input, Label } from '@components/ui/input';
 import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
-import { CheckCircle2, XCircle, Loader2, Target, Settings, Search, Eye, EyeOff, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, EyeOff, X } from 'lucide-react';
+import { useToastActions } from '@lib/toast-context';
+
+/**
+ * ShakeInput — wraps <Input> and plays a shake animation whenever
+ * `error` transitions from false → true (on blur/submit with invalid value).
+ * The class is removed after the animation ends so it can re-fire next time.
+ */
+type ShakeInputProps = React.ComponentProps<typeof Input>;
+function ShakeInput({ error, className, ...props }: ShakeInputProps) {
+  const [shaking, setShaking] = useState(false);
+  const prevError = useRef(false);
+
+  useEffect(() => {
+    if (error && !prevError.current) {
+      setShaking(true);
+    }
+    prevError.current = !!error;
+  }, [error]);
+
+  return (
+    <Input
+      {...props}
+      error={error}
+      shake={shaking}
+      className={className}
+      onAnimationEnd={() => setShaking(false)}
+    />
+  );
+}
+
 
 const passwordRules = [
   { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -69,6 +99,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgotPassword' | 'verifyOtp'>(initialMode);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const toast = useToastActions();
   
   const { login, register, forgotPassword, isAuthenticated, verifyOtp, resendOtp } = useAuth();
 
@@ -87,28 +118,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
   }, [isAuthenticated, isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const loginError = login.isError
-    ? ((login.error as any)?.response?.data?.message ?? 'Invalid email or password.')
-    : null;
-
-  const registerError = register.isError
-    ? ((register.error as any)?.response?.data?.message ?? 'Something went wrong. Please try again.')
-    : null;
-
-  const renderApiError = (err: any) => {
-    if (!err) return null;
-    if (Array.isArray(err)) {
-      return (
-        <div className="bg-red-50 text-red-600 font-label-sm text-sm p-3 rounded-md text-left shadow-sm border border-red-100 mt-2">
-          <ul className="list-disc list-inside space-y-1">
-            {err.map((e, i) => <li key={i}>{e}</li>)}
-          </ul>
-        </div>
-      );
-    }
-    return <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600 mt-2">{err}</div>;
-  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -156,9 +165,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                 onSettled: () => setSubmitting(false),
                 onSuccess: () => onClose(),
                 onError: (error: any) => {
-                  if (error?.response?.data?.message === 'EMAIL_UNVERIFIED') {
+                  const msg = error?.response?.data?.message;
+                  if (msg === 'EMAIL_UNVERIFIED') {
                     setVerificationEmail(values.email);
                     setMode('verifyOtp');
+                  } else {
+                    toast.error(msg ?? 'Invalid email or password.');
                   }
                 }
               });
@@ -170,7 +182,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <Label htmlFor="email">Email address</Label>
                   <Field name="email">
                     {({ field, meta, form }: any) => (
-                      <Input
+                      <ShakeInput
                         {...field}
                         id="email"
                         type="email"
@@ -192,7 +204,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <Field name="password">
                     {({ field, meta, form }: any) => (
                       <div className="relative">
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="password"
                           type={showPassword ? "text" : "password"}
@@ -235,7 +247,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <button type="button" onClick={() => setMode('forgotPassword')} className="font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors">Forgot Password?</button>
                 </div>
 
-                {renderApiError(loginError)}
 
                 <Button
                   type="submit"
@@ -267,6 +278,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       onClose();
                     }
                   },
+                  onError: (error: any) => {
+                    const msg = (error as any)?.response?.data?.message ?? 'Something went wrong. Please try again.';
+                    if (Array.isArray(msg)) {
+                      msg.forEach((m: string) => toast.error(m));
+                    } else {
+                      toast.error(msg);
+                    }
+                  },
                 });
               }}
             >
@@ -282,7 +301,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       <Label htmlFor="fullName">Full name</Label>
                     <Field name="fullName">
                       {({ field, meta, form }: any) => (
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="fullname"
                           type="text"
@@ -303,7 +322,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     <Label htmlFor="email">Email address</Label>
                     <Field name="email">
                       {({ field, meta, form }: any) => (
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="email"
                           type="email"
@@ -326,7 +345,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       {({ field, meta, form }: any) => (
                         <>
                           <div className="relative">
-                            <Input
+                            <ShakeInput
                               {...field}
                               id="password"
                               type={showPassword ? "text" : "password"}
@@ -379,7 +398,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     </Label>
                     <Field name="phone">
                       {({ field, meta, form }: any) => (
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="phone"
                           type="tel"
@@ -408,7 +427,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   )}
                   </div>
 
-                  {renderApiError(registerError)}
 
                   <Button
                     type="submit"
@@ -430,41 +448,39 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
         {/* ── Forgot Password Form ── */}
         {mode === 'forgotPassword' && (
           <Formik
-            initialValues={{ email: rememberedEmail }}
+              initialValues={{ email: rememberedEmail }}
             validationSchema={forgotPasswordSchema}
-            onSubmit={(values, { setSubmitting, setStatus }) => {
+            onSubmit={(values, { setSubmitting }) => {
               forgotPassword.mutate({ email: values.email }, {
                 onSettled: () => setSubmitting(false),
                 onSuccess: () => {
-                  setStatus({ success: 'Reset link sent to your email.' });
+                  toast.success('Reset link sent! Check your inbox.');
                 },
                 onError: (error: any) => {
-                  setStatus({ error: error.response?.data?.message || 'Something went wrong.' });
+                  toast.error(error.response?.data?.message || 'Something went wrong.');
                 }
               });
             }}
           >
-            {({ isSubmitting, status }) => (
+            {({ isSubmitting }) => (
               <Form className="space-y-4" noValidate>
                 <div>
                   <Label htmlFor="forgot-email">Email address</Label>
                   <Field name="email">
-                    {({ field, meta }: any) => (
-                      <Input
+                    {({ field, meta, form }: any) => (
+                      <ShakeInput
                         {...field}
                         id="forgot-email"
                         type="email"
                         placeholder="you@example.com"
                         disabled={forgotPassword.isPending}
                         error={meta.touched && !!meta.error}
+                        onFocus={() => form.setFieldTouched(field.name, false)}
                       />
                     )}
                   </Field>
                   <ErrorMessage name="email" component="p" className="mt-1 text-xs font-semibold text-error" />
                 </div>
-
-                {status?.success && <div className="bg-emerald-50 text-emerald-700 font-label-sm text-sm p-3 rounded-md text-center">{status.success}</div>}
-                {status?.error && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-3 rounded-md text-center text-red-600">{status.error}</div>}
 
                 <Button
                   type="submit"
@@ -487,7 +503,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                 .length(6, 'Verification code must be exactly 6 digits.')
                 .required('Verification code is required.'),
             })}
-            onSubmit={(values, { setSubmitting, setFieldError }) => {
+              onSubmit={(values, { setSubmitting, setFieldError }) => {
               verifyOtp.mutate(
                 { email: verificationEmail, otp: values.otp },
                 {
@@ -498,6 +514,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   onError: (error: any) => {
                     const msg = error.response?.data?.message || 'Invalid code.';
                     setFieldError('otp', msg);
+                    toast.error(msg);
                   },
                 }
               );
@@ -515,7 +532,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <Label htmlFor="otp">Verification Code</Label>
                   <Field name="otp">
                     {({ field, meta, form }: any) => (
-                      <Input
+                      <ShakeInput
                         {...field}
                         id="otp"
                         type="text"
@@ -534,7 +551,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <ErrorMessage name="otp" component="p" className="mt-1 text-xs font-semibold text-error text-red-600" />
                 </div>
 
-                {renderApiError(verifyOtp.error ? (verifyOtp.error as any).response?.data?.message : null)}
 
                 <Button
                   type="submit"

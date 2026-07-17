@@ -8,7 +8,7 @@ import { useEngagementStore } from '@store/engagement.store';
 import ChatSidebar from '@/components/messaging/ChatSidebar';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/Spinner';
-import { Send, MessageSquare } from 'lucide-react';
+import { Send, MessageSquare, ChevronDown, Check, Hash } from 'lucide-react';
 
 export default function MessageThread() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -18,6 +18,7 @@ export default function MessageThread() {
   
   const setActiveEngagement = useEngagementStore((s) => s.setActiveEngagement);
   const clearUnread = useEngagementStore((s) => s.clearUnread);
+  const unreadCounts = useEngagementStore((s) => s.unreadCounts);
 
   const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
   const { data: historyResponse, isLoading: isLoadingMessages } = useMessages(engagementId);
@@ -27,6 +28,30 @@ export default function MessageThread() {
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isDropdownOpen]);
 
   // Sync active engagement context and clear unread count for this thread
   useEffect(() => {
@@ -193,23 +218,94 @@ export default function MessageThread() {
 
           {/* Thread Dropdown */}
           {partnerEngagements.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="relative flex items-center gap-2 shrink-0" ref={dropdownRef}>
               <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Thread:</span>
-              <select
-                value={engagementId || ''}
-                onChange={(e) => {
-                  if (e.target.value && e.target.value !== engagementId) {
-                    navigate(`${dashboardRoute}/engagements/${e.target.value}/messages`);
-                  }
-                }}
-                className="px-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all cursor-pointer max-w-[280px] truncate shadow-sm"
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800 flex items-center justify-between gap-2 transition-all shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-900 max-w-[280px]"
               >
-                {partnerEngagements.map((eng: any) => (
-                  <option key={eng.id} value={eng.id}>
-                    {eng.projectName || 'Direct Chat'}
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-center gap-1.5 truncate">
+                  <Hash size={14} className="text-slate-400 shrink-0" />
+                  <span className="truncate">
+                    {partnerEngagements.find((e: any) => e.id === engagementId)?.projectName || 'Direct Chat'}
+                  </span>
+                </div>
+                {/* Red dot indicator on trigger if any other thread has new messages */}
+                {partnerEngagements.some((eng: any) => eng.id !== engagementId && (unreadCounts[eng.id] ?? eng.unreadCount ?? 0) > 0) && (
+                  <span className="relative flex h-2 w-2 shrink-0 ml-1" title="New messages in another thread">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                )}
+                <ChevronDown
+                  size={14}
+                  className={`text-slate-400 shrink-0 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-[280px] sm:w-[320px] bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 py-1.5 overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <span>Select Thread ({partnerEngagements.length})</span>
+                  </div>
+                  <div className="max-h-[260px] overflow-y-auto divide-y divide-slate-100/60">
+                    {partnerEngagements.map((eng: any) => {
+                      const isSelected = eng.id === engagementId;
+                      const count = unreadCounts[eng.id] ?? eng.unreadCount ?? 0;
+                      const hasNew = !isSelected && count > 0;
+
+                      return (
+                        <button
+                          key={eng.id}
+                          type="button"
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            if (eng.id !== engagementId) {
+                              navigate(`${dashboardRoute}/engagements/${eng.id}/messages`);
+                            }
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-3 transition-colors ${
+                            isSelected
+                              ? 'bg-primary/5 text-primary font-bold'
+                              : hasNew
+                              ? 'bg-red-50/40 hover:bg-red-50/70 text-slate-900 font-semibold'
+                              : 'hover:bg-slate-50 text-slate-700 font-medium'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <Hash
+                              size={15}
+                              className={`mt-0.5 shrink-0 ${isSelected ? 'text-primary' : hasNew ? 'text-red-500' : 'text-slate-400'}`}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs truncate">
+                                {eng.projectName || 'Direct Chat'}
+                              </p>
+                              {eng.lastMessage?.content && (
+                                <p className={`text-[11px] truncate mt-0.5 ${isSelected ? 'text-primary/70' : hasNew ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
+                                  {eng.lastMessage.content}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            {hasNew && count > 0 && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center shrink-0" title={`${count} new messages`}>
+                                {count}
+                              </span>
+                            )}
+                            {isSelected && (
+                              <Check size={16} className="text-primary shrink-0" />
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

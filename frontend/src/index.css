@@ -171,3 +171,21 @@
   .max-w-2xl { max-width: 42rem !important; } /* 672px */
   .max-w-3xl { max-width: 48rem !important; } /* 768px */
 }
+
+/* =========================================
+   8. INPUT SHAKE ANIMATION
+   ========================================= */
+@keyframes input-shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-6px); }
+  30%  { transform: translateX(5px); }
+  45%  { transform: translateX(-4px); }
+  60%  { transform: translateX(3px); }
+  75%  { transform: translateX(-2px); }
+  90%  { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+.input-shake {
+  animation: input-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}

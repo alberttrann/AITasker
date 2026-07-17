@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
@@ -9,6 +9,31 @@ import { Button } from '@components/ui/Button';
 import { Input, Label } from '@components/ui/Input';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
 import { Spinner } from '@components/ui/Spinner';
+
+/**
+ * ShakeInput — plays a horizontal shake animation when `error` first becomes true.
+ * Resets via onAnimationEnd so it can re-fire on the next invalid attempt.
+ */
+type ShakeInputProps = React.ComponentProps<typeof Input>;
+function ShakeInput({ error, className, ...props }: ShakeInputProps) {
+  const [shaking, setShaking] = useState(false);
+  const prevError = useRef(false);
+
+  useEffect(() => {
+    if (error && !prevError.current) setShaking(true);
+    prevError.current = !!error;
+  }, [error]);
+
+  return (
+    <Input
+      {...props}
+      error={error}
+      shake={shaking}
+      className={className}
+      onAnimationEnd={() => setShaking(false)}
+    />
+  );
+}
 
 const passwordRules = [
   { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -124,10 +149,10 @@ export default function ResetPasswordPage() {
                   <div>
                 <Label htmlFor="newPassword">New Password</Label>
                 <Field name="newPassword">
-                  {({ field, meta }: any) => (
+                  {({ field, meta, form }: any) => (
                     <>
                       <div className="relative">
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="newPassword"
                           type={showPassword ? "text" : "password"}
@@ -135,6 +160,7 @@ export default function ResetPasswordPage() {
                           disabled={resetPassword.isPending || status?.success}
                           error={meta.touched && !!meta.error}
                           className="pr-10"
+                          onFocus={() => form.setFieldTouched(field.name, false)}
                         />
                         <button
                           type="button"
@@ -166,9 +192,9 @@ export default function ResetPasswordPage() {
               <div>
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Field name="confirmPassword">
-                  {({ field, meta }: any) => (
+                  {({ field, meta, form }: any) => (
                     <div className="relative">
-                      <Input
+                      <ShakeInput
                         {...field}
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
@@ -176,6 +202,7 @@ export default function ResetPasswordPage() {
                         disabled={resetPassword.isPending || status?.success}
                         error={meta.touched && !!meta.error}
                         className="pr-10"
+                        onFocus={() => form.setFieldTouched(field.name, false)}
                       />
                       <button
                         type="button"

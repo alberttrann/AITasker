@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/Input';
 import { submitStage4, saveStage4Draft, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useToastActions } from '@lib/toast-context';
 
 interface Stage4AProps {
   sessionId: string;
@@ -117,7 +118,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
   });
 
   const [isRecommending, setIsRecommending] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const toast = useToastActions();
   const [cooldown, setCooldown] = useState(0);
   
   const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -131,12 +132,11 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
 
   const handleRecommend = async () => {
     setIsRecommending(true);
-    setAiError(null);
     try {
       const res = await recommendStage4(sessionId);
       dispatch({ type: 'AUTOFILL_AI', payload: res });
     } catch (err: any) {
-      setAiError(handleElicitationError(err).message || 'Failed to generate AI recommendations.');
+      toast.error(handleElicitationError(err).message || 'Failed to generate AI recommendations.');
     } finally {
       setIsRecommending(false);
     }
@@ -266,7 +266,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
         </div>
       </div>
       
-      {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
+
       
       <div className="space-y-6">
         <div className="space-y-2">

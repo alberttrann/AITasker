@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react";
 import { Route, createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet } from "react-router-dom";
 import { AuthProvider } from '@lib/auth-context';
 import { SocketProvider } from '@lib/socket-provider';
+import { ToastProvider } from '@lib/toast-context';
+import { ToastContainer } from '@components/ui/ToastContainer';
 
 // Guards
 import { GuestRoute, ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
@@ -85,13 +87,17 @@ const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult
 
 function RootLayout() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Suspense fallback={<AuthGate />}>
-          <Outlet />
-        </Suspense>
-      </SocketProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <Suspense fallback={<AuthGate />}>
+            <Outlet />
+          </Suspense>
+        </SocketProvider>
+      </AuthProvider>
+      {/* Global toast notifications — rendered outside router subtree */}
+      <ToastContainer />
+    </ToastProvider>
   );
 }
 
