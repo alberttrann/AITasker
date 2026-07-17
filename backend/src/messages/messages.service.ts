@@ -85,7 +85,7 @@ export class MessagesService {
                 projectId:     dto.project_id ?? null,
                 senderId:      sender.id,
                 content:       dto.content,
-                attachmentUrl: dto.attachment_url || null,
+                attachmentUrl: null,
             },
             include: {
                 sender: {
@@ -126,7 +126,6 @@ export class MessagesService {
         });
     }
 
-    // project-scoped chat history, the pre-bid thread's read side.
     async getProjectChatHistory(
         projectId: string,
         user: ActorUser,
@@ -177,6 +176,73 @@ export class MessagesService {
         });
     }
 
+    async markEngagementAsRead(engagementId: string, userId: string) {
+        const unreadMessages = await this.prisma.message.findMany({
+            where: {
+                engagementId,
+                senderId: { not: userId },
+                reads: {
+                    none: {
+                        userId,
+                    },
+                },
+            },
+        });
+
+        await Promise.all(
+            unreadMessages.map(msg =>
+                this.prisma.messageRead.upsert({
+                    where: {
+                        messageId_userId: {
+                            messageId: msg.id,
+                            userId,
+                        },
+                    },
+                    update: {},
+                    create: {
+                        messageId: msg.id,
+                        userId,
+                    },
+                })
+            )
+        );
+
+        return { success: true, count: unreadMessages.length };
+    }
+
+    async markAllAsRead(userId: string) {
+        const unreadMessages = await this.prisma.message.findMany({
+            where: {
+                senderId: { not: userId },
+                reads: {
+                    none: {
+                        userId,
+                    },
+                },
+            },
+        });
+
+        await Promise.all(
+            unreadMessages.map(msg =>
+                this.prisma.messageRead.upsert({
+                    where: {
+                        messageId_userId: {
+                            messageId: msg.id,
+                            userId,
+                        },
+                    },
+                    update: {},
+                    create: {
+                        messageId: msg.id,
+                        userId,
+                    },
+                })
+            )
+        );
+
+        return { success: true, count: unreadMessages.length };
+    }
+
     async unreadCount(engagementId: string, userId: string) {
         return this.prisma.message.count({
             where: {
@@ -192,13 +258,11 @@ export class MessagesService {
     }
 
     async getConversations(user: { id: string; activeRole: string; clientSubtype?: string | null }) {
-        // Build OR conditions based on the user's role
         const orConditions: any[] = [
             { clientId: user.id },
             { expertId: user.id },
         ];
 
-        // TECH_TEAM users: find engagements linked to their project
         if (user.clientSubtype === 'TECH_TEAM') {
             const techProfile = await this.prisma.techTeamProfile.findUnique({
                 where: { userId: user.id },
@@ -220,8 +284,8 @@ export class MessagesService {
                 clientId: true,
                 expertId: true,
                 project: { select: { projectName: true } },
-                expert:  { select: { id: true, fullName: true, email: true } }, // Thêm email phục vụ Modal
-                client:  { select: { id: true, fullName: true, email: true } }, // Thêm email phục vụ Modal
+                expert:  { select: { id: true, fullName: true, email: true } },
+                client:  { select: { id: true, fullName: true, email: true } },
             },
             orderBy: { id: 'desc' }, 
             take: 20,
@@ -237,7 +301,6 @@ export class MessagesService {
                 where: { engagementId: eng.id, senderId: { not: user.id }, reads: { none: { userId: user.id } } }, 
             });
 
-            // Xác định otherParty
             let otherParty: any = null;
             if (eng.clientId === user.id) {
                 otherParty = eng.expert;
@@ -247,9 +310,10 @@ export class MessagesService {
                 otherParty = eng.client || eng.expert;
             }
 
-            // [BACK-1] Ngăn chặn Ghost Conversations: Loại bỏ các bản ghi không hợp lệ hoặc đã bị xóa
             if (!otherParty) return null;
             if (eng.projectId && !eng.project) return null;
+            // Ẩn hoàn toàn các cuộc trò chuyện trống không có tin nhắn thực tế từ phía Backend [5]
+            if (!lastMessage) return null; 
 
             return {
                 type:        'engagement',
@@ -263,7 +327,7 @@ export class MessagesService {
                 lastMessage, 
                 unreadCount: unread,
             };
-        }))).filter(Boolean); // Lọc bỏ hoàn toàn các giá trị null
+        }))).filter(Boolean);
 
         return threads.sort((a, b) =>
             (b.lastMessage?.timestamp?.getTime() ?? 0) - (a.lastMessage?.timestamp?.getTime() ?? 0), 

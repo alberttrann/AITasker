@@ -989,15 +989,6 @@ export interface AcceptanceCriterionDto {
   platformDecisionsJson?: any[]; // optional platform notes
 }
 
-export interface MilestoneDodItemDto {
-  id: string;
-  milestoneId: string;
-  itemDescription: string;
-  isRequired: boolean;
-  status: string; // e.g. "PENDING", "COMPLETED"
-  mapsToCriterionId?: string | null;
-}
-
 export interface BulkCreateDodItemsDto {
   items: CreateDodItemDto[];
 }
@@ -1021,5 +1012,4 @@ export interface VerifyOtpDto {
 export interface ResendOtpDto {
   email: string;
 }
-
 

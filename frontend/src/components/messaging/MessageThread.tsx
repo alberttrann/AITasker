@@ -7,12 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
-import { Paperclip, Send, FileText, X } from 'lucide-react';
-
-interface MessageThreadProps {
-  engagementId?: string;
-  projectId?: string;
-}
+import { Send, X } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -21,7 +16,6 @@ interface Message {
   senderId: string;
   engagementId?: string;
   projectId?: string;
-  attachmentUrl?: string | null;
   sender: {
     id: string;
     email: string;
@@ -30,7 +24,7 @@ interface Message {
   };
 }
 
-export default function MessageThread({ engagementId, projectId }: MessageThreadProps) {
+export default function MessageThread({ engagementId, projectId }: { engagementId?: string; projectId?: string }) {
   const socket = useSocket();
   const sendMessage = useSendMessage();
   const user = useAuthStore(s => s.user);
@@ -39,12 +33,6 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
   const queryClient = useQueryClient();
 
   const [text, setText] = useState('');
-  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
-  const [attachmentName, setAttachmentName] = useState<string>('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // [FRONT-1] State kiểm soát thông tin liên hệ người dùng nhấp vào avatar
   const [selectedUser, setSelectedUser] = useState<{ fullName: string; email: string; activeRole: string } | null>(null);
 
   type MessageAction =
@@ -75,9 +63,7 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
   }
 
   const [localMessages, dispatch] = useReducer(messageReducer, []);
-
   const bottomRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: engData, isLoading: engLoading } = useMessages(engagementId);
   const { data: projData, isLoading: projLoading } = useProjectMessages(projectId);
@@ -86,6 +72,7 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
 
   const scopeId = engagementId || projectId;
 
+  // Thực hiện đọc tin nhắn realtime khi mở hội thoại [5]
   useEffect(() => {
     if (!engagementId) return;
 
@@ -99,10 +86,7 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
   useEffect(() => {
     if (!socket || !scopeId) return;
 
-    const payload = engagementId
-      ? { engagementId }
-      : { projectId };
-
+    const payload = engagementId ? { engagementId } : { projectId };
     socket.emit('joinRoom', payload);
 
     if (engagementId) {
@@ -115,7 +99,7 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
         setActiveEngagement(null);
       }
     };
-  }, [socket, scopeId, engagementId, projectId, setActiveEngagement]);
+  }, [socket, scopeId, engagementId, projectId, setActiveEngagement, clearUnread]);
 
   useEffect(() => {
     if (!fetchedMessages) return;
@@ -158,58 +142,20 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
     scrollToBottom();
   }, [localMessages, scrollToBottom]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setAttachmentName(file.name);
-    setUploadError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const res = await apiClient.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const data = res?.data;
-      setAttachmentUrl(data?.url || data?.attachment_url || null);
-    } catch {
-      setUploadError('Upload failed. Extension or file size limit exceeded.');
-      setAttachmentUrl(null);
-    } finally {
-      setUploading(false);
-    }
-
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const clearAttachment = () => {
-    setAttachmentUrl(null);
-    setAttachmentName('');
-    setUploadError(null);
-  };
-
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed && !attachmentUrl) return;
+    if (!trimmed) return;
     if (!scopeId) return;
 
-    const payload: any = { content: trimmed || '📎 Attachment' };
+    const payload: any = { content: trimmed };
     if (engagementId) {
       payload.engagement_id = engagementId;
     } else if (projectId) {
       payload.project_id = projectId;
     }
-    if (attachmentUrl) {
-      payload.attachment_url = attachmentUrl;
-    }
 
     sendMessage(payload);
     setText('');
-    setAttachmentUrl(null);
-    setAttachmentName('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -221,20 +167,33 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
 
   const isOwnMessage = (senderId: string) => senderId === user?.id;
 
-  const isImageAttachment = (url: string) =>
-    /\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(url) ||
-    url.startsWith('data:image/');
-
+  // Cải tiến format hiển thị đầy đủ ngày giờ khi xem chi tiết tin nhắn cũ [5]
   const formatTime = (ts: string) => {
-    const d = new Date(ts);
-    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(ts);
+    const now = new Date();
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    if (msgDate.getTime() === today.getTime()) {
+      return timeStr;
+    } else if (msgDate.getTime() === yesterday.getTime()) {
+      return `Yesterday, ${timeStr}`;
+    } else {
+      const dateStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      return `${dateStr}, ${timeStr}`;
+    }
   };
 
   if (!scopeId) {
     return (
       <div className='flex flex-col items-center justify-center h-full text-center p-6 bg-[#F8FAFC]'>
         <div className='w-16 h-16 bg-[#E2E8F0] rounded-full flex items-center justify-center mb-4 text-[#94A3B8]'>
-          <Paperclip size={28} />
+          <Send size={28} />
         </div>
         <h3 className='font-headline text-[16px] font-semibold text-[#64748B]'>Select a conversation</h3>
         <p className='text-[13px] text-[#94A3B8] mt-1 max-w-xs'>
@@ -254,25 +213,12 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
 
   return (
     <div className='flex flex-col h-full overflow-hidden bg-white'>
-      {/* Messages area */}
       <div className='flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFC]'>
-        {localMessages.length === 0 && (
-          <div className='flex flex-col items-center justify-center h-full text-center'>
-            <div className='w-12 h-12 bg-[#E2E8F0] rounded-full flex items-center justify-center mb-3 text-[#94A3B8]'>
-              <Paperclip size={20} />
-            </div>
-            <p className='text-[13px] text-[#94A3B8]'>No messages yet. Say hello!</p>
-          </div>
-        )}
-
         {localMessages.map((msg) => {
           const own = isOwnMessage(msg.senderId);
-          const hasAttachment = !!msg.attachmentUrl;
-          const isImage = hasAttachment && isImageAttachment(msg.attachmentUrl!);
 
           return (
             <div key={msg.id} className={cn('flex gap-2', own ? 'justify-end' : 'justify-start')}>
-              {/* [FRONT-2] Nhấn vào Avatar của người khác gửi */}
               {!own && (
                 <div 
                   onClick={() => setSelectedUser({
@@ -298,32 +244,6 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
                   </p>
                 )}
 
-                {hasAttachment && isImage && (
-                  <a href={msg.attachmentUrl!} target='_blank' rel='noopener noreferrer' className='block mb-1 overflow-hidden rounded-lg'>
-                    <img
-                      src={msg.attachmentUrl!}
-                      alt='attachment'
-                      className='max-w-[240px] max-h-[200px] object-cover hover:scale-105 transition-transform duration-200'
-                    />
-                  </a>
-                )}
-                {hasAttachment && !isImage && (
-                  <a
-                    href={msg.attachmentUrl!}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className={cn(
-                      'flex items-center gap-2 text-[13px] underline mb-1',
-                      own ? 'text-white/90' : 'text-[#059669]'
-                    )}
-                  >
-                    <FileText size={16} />
-                    <span className='truncate max-w-[180px]'>
-                      {msg.attachmentUrl!.split('/').pop() || 'Document'}
-                    </span>
-                  </a>
-                )}
-
                 {msg.content && (
                   <p className='text-[14px] leading-relaxed whitespace-pre-wrap break-words font-body'>
                     {msg.content}
@@ -338,7 +258,6 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
                 </p>
               </div>
 
-              {/* [FRONT-2] Nhấn vào Avatar của bản thân gửi */}
               {own && (
                 <div 
                   onClick={() => setSelectedUser({
@@ -358,47 +277,7 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
         <div ref={bottomRef} />
       </div>
 
-      {/* Progress & Error Preview Bar */}
-      {(attachmentName || uploadError) && (
-        <div className={cn(
-          'px-4 py-2.5 border-t flex items-center gap-2 bg-white',
-          uploadError ? 'border-[#EF4444]/30 bg-[#FEF2F2]' : 'border-[#E2E8F0] bg-[#F8FAFC]'
-        )}>
-          <div className='flex items-center gap-1.5 flex-1 min-w-0'>
-            <span className={cn('text-[12px] truncate font-body', uploadError ? 'text-[#EF4444] font-medium' : 'text-[#64748B]')}>
-              {uploading ? `Uploading: ${attachmentName}` : uploadError ? `Error: ${uploadError}` : attachmentName}
-            </span>
-          </div>
-          <button
-            onClick={clearAttachment}
-            className={cn(
-              'p-1.5 rounded-full transition-colors bg-white',
-              uploadError ? 'hover:bg-[#FEE2E2] text-[#EF4444]' : 'hover:bg-[#E2E8F0] text-[#94A3B8]'
-            )}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* Input area */}
       <div className='px-4 py-3 border-t border-[#E2E8F0] bg-white flex items-end gap-2 shrink-0'>
-        <input
-          ref={fileInputRef}
-          type='file'
-          className='hidden'
-          onChange={handleFileSelect}
-          accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip'
-        />
-
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className='p-2.5 rounded-full hover:bg-[#F1F5F9] transition-colors text-[#64748B] disabled:opacity-40'
-        >
-          <Paperclip size={18} />
-        </button>
-
         <div className='flex-1 relative'>
           <textarea
             value={text}
@@ -412,11 +291,10 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
 
         <button
           onClick={handleSend}
-          // [FRONT-4] Sửa lỗi nút Send bị chặn bằng việc cho phép gửi ngay khi có URL đính kèm
-          disabled={!text.trim() && !attachmentUrl}
+          disabled={!text.trim()}
           className={cn(
             'p-2.5 rounded-full transition-colors shrink-0',
-            (text.trim() || attachmentUrl)
+            text.trim()
               ? 'bg-[#059669] text-white hover:bg-[#047857]'
               : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
           )}
@@ -425,7 +303,6 @@ export default function MessageThread({ engagementId, projectId }: MessageThread
         </button>
       </div>
 
-      {/* [FRONT-1] Modal thông tin chi tiết user nhấp vào Avatar */}
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl border border-[#E2E8F0] relative animate-in zoom-in-95 duration-200">

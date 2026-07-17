@@ -80,6 +80,8 @@ export class EngagementsService {
         include: { 
           project: PROJECT_SUMMARY_SELECT, 
           capabilityBid: true,
+          service: { select: { id: true, title: true } },
+          client: { select: { id: true, fullName: true } },
           ...CURRENT_MILESTONE_INCLUDE 
         },
         orderBy: { id: 'desc' }, // Sort by newest IDs first
@@ -93,6 +95,7 @@ export class EngagementsService {
         include: { 
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
+          service: { select: { id: true, title: true } },
           expert: { select: { fullName: true } },
           ...CURRENT_MILESTONE_INCLUDE 
         },
@@ -137,6 +140,7 @@ export class EngagementsService {
       include: {
         capabilityBid: true,
         milestones: true,
+        service: true,
       },
     });
 

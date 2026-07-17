@@ -1,105 +1,117 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import MilestoneChatAssistant from './MilestoneChatAssistant';
+import { MessageSquare, Plus, DollarSign, ShieldAlert, Award } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
-import { ArrowLeft, Plus, MessageSquare, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default function MilestoneList() {
-  const navigate = useNavigate();
   const { engagementId } = useParams<{ engagementId: string }>();
+  const navigate = useNavigate();
 
-  // Fetch dữ liệu Milestones thực tế từ DB
-  const { data: milestones, isLoading } = useQuery({
+  const { data: response, isLoading } = useQuery({
     queryKey: ['milestones', engagementId],
     queryFn: () => apiClient.get(`/engagements/${engagementId}/milestones`).then(r => r.data),
-    enabled: !!engagementId,
   });
 
-  const formatVnd = (val: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-      .format(val)
-      .replace('₫', 'VND');
+  const milestones = response?.data || [];
+  const engagement = response?.engagement;
+  const projectId = engagement?.projectId;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
   };
 
-  if (isLoading) return <div className='py-12 text-center'><Spinner size='lg' /></div>;
-
   return (
-    <div className='max-w-5xl mx-auto space-y-6 font-sans'>
-      {/* [FRONT-5] Tiêu đề & Cụm nút hành động bên góc phải */}
-      <div className="flex items-center justify-between bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm">
+    <div className="space-y-6 font-body">
+      {/* Dynamic Grouped Actions Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate(-1)} className="p-1 hover:bg-[#F1F5F9] rounded-full text-[#64748B] transition-colors">
-              <ArrowLeft size={20} />
-            </button>
-            <h1 className="text-2xl font-bold text-[#0F172A] font-headline">Milestones</h1>
-          </div>
-          <p className="text-sm text-[#64748B] mt-1 pl-7">
+          <h1 className="text-2xl font-bold text-slate-900 font-headline">Milestones</h1>
+          <p className="text-slate-500 text-sm mt-1">
             Manage deliverables, track escrow status, and sign off criteria.
           </p>
         </div>
-        
-        {/* Nhóm các nút hành động nằm bên phải */}
-        <div className="flex items-center gap-3">
+
+        {/* [FRONT-3] Group actions together on the right side of header row */}
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => navigate(`/ceo/inbox/${engagementId}`)}
-            className="flex items-center gap-2 px-4 py-2 h-10 border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] text-sm font-semibold text-[#64748B] transition-colors bg-white shadow-sm"
+            className="flex items-center gap-2 h-10 px-4 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition-colors"
           >
             <MessageSquare size={16} />
-            <span>Chat</span>
+            Chat
           </button>
-          
+
           <button
             onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/create`)}
-            className="flex items-center gap-2 px-4 py-2 h-10 bg-[#0F172A] text-white rounded-lg hover:bg-[#020617] text-sm font-semibold transition-colors shadow-sm"
+            className="flex items-center gap-2 h-10 px-4 bg-[#0F172A] hover:bg-[#020617] rounded-xl text-xs font-bold text-white shadow-sm transition-colors"
           >
             <Plus size={16} />
-            <span>Create New Milestone</span>
+            Create New Milestone
           </button>
         </div>
       </div>
 
-      {/* Render list of Milestones */}
-      {(!milestones || milestones.length === 0) ? (
-        <div className='border-2 border-dashed border-[#E2E8F0] rounded-xl p-16 text-center bg-white shadow-sm'>
-          <CheckCircle2 className='mx-auto h-12 w-12 text-[#94A3B8]' />
-          <h3 className='text-[16px] font-bold text-[#0F172A] mt-4 font-headline'>No Milestones Created</h3>
-          <p className='text-[13px] text-[#64748B] mt-1'>Define a milestone workflow and deposit assets to begin work.</p>
+      {/* Main List Workspace */}
+      {milestones.length === 0 ? (
+        <div className="border-2 border-dashed border-slate-200 rounded-xl p-16 text-center bg-white">
+          <Award size={36} className="mx-auto text-slate-300 mb-3" />
+          <h3 className="text-sm font-bold text-slate-800 mb-1">No Milestones Defined</h3>
+          <p className="text-slate-500 text-xs">
+            Start the contract execution by planning the first deliverable milestone.
+          </p>
         </div>
       ) : (
-        <div className='space-y-4'>
+        <div className="space-y-4">
           {milestones.map((milestone: any) => (
-            <div key={milestone.id} className='bg-white border border-[#E2E8F0] rounded-xl p-6 shadow-sm flex justify-between items-start'>
-              <div className='space-y-3 flex-1 pr-6 min-w-0'>
-                <div className='flex items-center gap-2.5'>
-                  <span className='px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[#0F172A]/10 text-[#0F172A] tracking-wider'>
+            <div
+              key={milestone.id}
+              className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start"
+            >
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
                     Milestone #{milestone.milestoneNumber}
                   </span>
-                  <span className={cn(
-                    'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                    milestone.state === 'APPROVED' || milestone.state === 'RELEASED'
-                      ? 'bg-[#059669]/10 text-[#059669]'
-                      : 'bg-[#EAB308]/10 text-[#CA8A04]'
-                  )}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    milestone.state === 'FUNDED' || milestone.state === 'RELEASED'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
                     {milestone.state}
                   </span>
                 </div>
-                <h3 className='text-[16px] font-bold text-[#0F172A] leading-relaxed break-words font-headline'>{milestone.deliverableStatement}</h3>
-                <div className='flex items-center gap-1.5 text-xs text-[#64748B]'>
-                  <ShieldCheck size={14} className='text-[#94A3B8]' />
-                  <span>Authority: <strong className='text-[#0F172A]'>{milestone.signOffAuthority}</strong></span>
-                </div>
+
+                <p className="text-sm font-medium text-slate-800 leading-relaxed">
+                  {milestone.deliverableStatement}
+                </p>
+
+                <p className="text-[11px] text-slate-400">
+                  Sign-off authority: <strong className="text-slate-600">{milestone.signOffAuthority}</strong>
+                </p>
               </div>
 
-              <div className='text-right shrink-0 space-y-4'>
+              <div className="text-right shrink-0 flex flex-col items-end justify-between h-full min-h-[80px]">
                 <div>
-                  <p className='text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider'>Payment Amount</p>
-                  <p className='text-xl font-black text-[#0F172A] mt-0.5'>{formatVnd(Number(milestone.paymentAmountVnd))}</p>
+                  <span className="text-[10px] text-slate-400 block font-headline">Payment Amount</span>
+                  <strong className="text-emerald-600 text-base font-bold block">
+                    {formatCurrency(milestone.paymentAmountVnd)}
+                  </strong>
                 </div>
+
                 <button
                   onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestone.id}`)}
-                  className='px-4 py-1.5 border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] transition-colors bg-white shadow-sm'
+                  className="mt-4 h-8 px-4 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-lg transition-colors"
                 >
                   Review
                 </button>
@@ -107,6 +119,11 @@ export default function MilestoneList() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Floating Single Project-Scoped Milestone Chat Widget */}
+      {projectId && (
+        <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
       )}
     </div>
   );

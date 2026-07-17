@@ -4,20 +4,19 @@ import { AuthProvider } from '@lib/auth-context';
 import { SocketProvider } from '@lib/socket-provider';
 
 // Guards
-import { GuestRoute, ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
+import { ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
 
 // Public pages
 const LandingPage = lazy(() => import("@/components/pages/landingPage"));
 const ErrorPage = lazy(() => import("@components/pages/ErrorPage"));
 
-// Tech Team has a public registration route (no auth, link-based)
+// Tech Team registration routes
 const HandoffRegister = lazy(() => import("@features/tech-team/auth/HandoffRegister").then(m => ({ default: m.HandoffRegister })));
 const LinkExpiredError = lazy(() => import("@features/tech-team/auth/LinkExpiredError").then(m => ({ default: m.LinkExpiredError })));
 
-// Auth
 const ResetPasswordPage = lazy(() => import("@components/auth/ResetPasswordPage"));
 
-// Dashboards
+// Dashboards & Layouts
 const CeoDashboard = lazy(() => import("@features/ceo/CeoDashboard"));
 const CeoOverview = lazy(() => import("@features/ceo/CeoDashboard").then(m => ({ default: m.CeoOverview })));
 const ExpertDashboard = lazy(() => import("@features/expert/ExpertDashboard"));
@@ -50,6 +49,11 @@ const ServiceDetail = lazy(() => import("./features/expert/services/ServiceDetai
 const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
 const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/SubscriptionPlans"));
 const MarketplaceBrowse = lazy(() => import("@features/ceo/marketplace/MarketplaceBrowse"));
+const CeoServiceDetail = lazy(() => import("@features/ceo/marketplace/ServiceDetail"));
+const CeoServicePurchase = lazy(() => import("@features/ceo/marketplace/ServicePurchase"));
+const MessageThread = lazy(() => import("@/components/messaging/MessageThread"));
+const ConversationsList = lazy(() => import("@/components/messaging/ConversationsList"));
+const InboxPage = lazy(() => import("@/components/messaging/InboxPage"));
 const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
 const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
 const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
@@ -64,8 +68,6 @@ const VerificationHistoryPage = lazy(() => import("@features/expert/verification
 const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickThrough"));
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
 const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
-const InboxPage = lazy(() => import("@/components/messaging/InboxPage"));
-const MessageThread = lazy(() => import("@/components/messaging/MessageThread"));
 const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
@@ -95,15 +97,14 @@ function RootLayout() {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route element={<RootLayout />}>
-      {/* Public Routes */}
+      {/* Public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/register/handoff/:token" element={<HandoffRegister />} />
       <Route path="/register/handoff/expired" element={<LinkExpiredError />} />
 
-      {/* Authenticated Routes */}
+      {/* Authenticated */}
       <Route element={<ProtectedRoute />}>
-        {/* CEO Routes */}
         <Route element={<RoleRoute requiredSubtype="CEO" />}>
           <Route path="/ceo" element={<CeoDashboard />}>
             <Route index element={<CeoOverview />} />
@@ -118,18 +119,18 @@ const router = createBrowserRouter(
             <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
             <Route path="projects/elicitation" element={<ElicitationWizard />} />
             <Route path="marketplace" element={<MarketplaceBrowse />} />
+            <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
+            <Route path="marketplace/service/:id/purchase" element={<CeoServicePurchase />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
-            
-            {/* Unified inbox system with route parameters support */}
-            <Route path="inbox" element={<InboxPage />} />
-            <Route path="inbox/:engagementId" element={<InboxPage />} />
-            <Route path="engagements/:engagementId/messages" element={<MessageThread />} />
-            
             <Route path="projects/:projectId/bids" element={<CeoBidList />} />
             <Route path="project/:projectId/bids/:bidId" element={<CeoDecision />} />
             <Route path="projects/:projectId/bids/:bidId" element={<CeoDecision />} />
             <Route path="engagements/:engagementId/nda" element={<CeoNdaClickThrough />} />
             <Route path="engagements/:engagementId/milestones" element={<MilestoneList />} />
+            <Route path="engagements/:engagementId/messages" element={<MessageThread />} />
+            <Route path="messages" element={<ConversationsList />} />
+            <Route path="inbox" element={<InboxPage />} />
+            <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="engagements/:engagementId/milestones/create" element={<CreateMilestone />} />
             <Route path="engagements/:engagementId/milestones/:milestoneId" element={<MilestoneDetail />} />
             <Route path="engagements/:engagementId/milestones/:milestoneId/fund" element={<FundMilestone />} />
@@ -138,7 +139,6 @@ const router = createBrowserRouter(
           </Route>
         </Route>
 
-        {/* Expert Routes */}
         <Route element={<RoleRoute requiredRole="EXPERT" />}>
           <Route path="/expert" element={<ExpertDashboard />}>
             <Route index element={<ExpertOverview />} />
@@ -154,21 +154,18 @@ const router = createBrowserRouter(
             <Route path="verification-history" element={<VerificationHistoryPage />} />
             <Route path="subscriptions" element={<ExpertSubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<ExpertSubscriptionPlans />} />
-            
-            {/* Unified inbox system with route parameters support */}
-            <Route path="inbox" element={<InboxPage />} />
-            <Route path="inbox/:engagementId" element={<InboxPage />} />
-            <Route path="engagements/:engagementId/messages" element={<MessageThread />} />
-            
             <Route path="bids/:projectId" element={<BidForm />} />
             <Route path="engagements/:engagementId/nda" element={<ExpertNdaClickThrough />} />
+            <Route path="engagements/:engagementId/messages" element={<MessageThread />} />
+            <Route path="messages" element={<ConversationsList />} />
+            <Route path="inbox" element={<InboxPage />} />
+            <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="engagements/:engagementId/milestones/:milestoneId" element={<ExpertMilestoneDetail />} />
             <Route path="engagements/:engagementId/milestones/:milestoneId/dispute" element={<DisputeFile />} />
             <Route path="engagements/:engagementId/milestones/:milestoneId/dispute/result" element={<DisputeResult />} />
           </Route>
         </Route>
 
-        {/* Tech Team Routes */}
         <Route element={<RoleRoute requiredSubtype="TECH_TEAM" />}>
           <Route path="/tech-team" element={<TechTeamDashboard />}>
             <Route index element={<TechTeamOverview />} />
@@ -176,21 +173,16 @@ const router = createBrowserRouter(
             <Route path="projects/:id" element={<ProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
-            
-            {/* Unified inbox system with route parameters support */}
-            <Route path="inbox" element={<InboxPage />} />
-            <Route path="inbox/:engagementId" element={<InboxPage />} />
-            <Route path="engagements/:engagementId/messages" element={<MessageThread />} />
-            
             <Route path="submitted" element={<Stage4Submitted />} />
             <Route path="bids" element={<BidReviewList />} />
             <Route path="bids/:bidId" element={<BidReviewDetail />} />
             <Route path="bids/:bidId/approve" element={<BidApprove />} />
             <Route path="bids/:bidId/revision" element={<BidRevisionRequest />} />
+            <Route path="inbox" element={<InboxPage />} />
+            <Route path="inbox/:engagementId" element={<InboxPage />} />
           </Route>
         </Route>
 
-        {/* Admin Routes */}
         <Route element={<RoleRoute requiredRole="ADMIN" />}>
           <Route path="/admin" element={<AdminDashboard />}>
             <Route index element={<AdminOverview />} />
@@ -212,6 +204,7 @@ const router = createBrowserRouter(
         </Route>
       </Route>
 
+      {/* 404 */}
       <Route path="*" element={<ErrorPage />} />
     </Route>,
   ),

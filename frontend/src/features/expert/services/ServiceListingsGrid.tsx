@@ -51,7 +51,7 @@ export function ServiceListingsGrid({ services, isLoading, onEmptyClick }: Servi
             <p className="text-sm text-slate-500 line-clamp-2 mb-4 flex-grow">{svc.description || "No description provided."}</p>
             <div className="flex justify-between items-end mt-auto pt-4 border-t border-slate-100">
               <div className="font-bold text-slate-900">
-                {(svc.price_vnd || 0).toLocaleString('vi-VN')} ₫
+                {(svc.priceVnd || 0).toLocaleString('vi-VN')} ₫
               </div>
               <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
             </div>
