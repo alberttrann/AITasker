@@ -56,10 +56,10 @@ export default function BidRevisionRequest() {
     <div className="w-full max-w-[1440px] mx-auto space-y-6">
       <button
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-secondary hover:text-primary transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
       >
-        <ArrowLeft size={14} />
-        Back to Bid
+        <ArrowLeft size={16} />
+        <span>Back to Bid</span>
       </button>
 
       <h1 className="font-headline text-[24px] font-semibold text-primary">

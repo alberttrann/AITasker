@@ -44,9 +44,13 @@ export default function ServiceListingCreate() {
   return (
     <div className="w-full max-w-2xl px-6 mx-auto py-12">
       <div className="flex items-center gap-3 mb-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-2 hover:bg-slate-200 rounded-full">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+          aria-label="Go back"
+        >
           <ArrowLeft size={20} />
-        </Button>
+        </button>
         <h1 className="text-2xl font-bold text-slate-900">Create Service</h1>
       </div>
 
@@ -157,7 +161,7 @@ export default function ServiceListingCreate() {
                <Clock size={18} strokeWidth={2.5} />
             </button>
             <button 
-              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-purple-500 bg-white shadow-sm border border-slate-200 cursor-not-allowed opacity-50"
+              className="p-2 hover:bg-slate-200 rounded-full transition-colors flex items-center gap-2 text-blue-500 bg-white shadow-sm border border-slate-200 cursor-not-allowed opacity-50"
               title="Add Tags (Coming soon)"
             >
                <Tags size={18} strokeWidth={2.5} />

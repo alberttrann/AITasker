@@ -118,7 +118,7 @@ export default function DisputeMonitor() {
                         E: {dispute.engagementId || dispute.engagement_id}
                       </span>
                       {dispute.llmConfidence !== null && (
-                        <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 flex items-center gap-1">
+                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1">
                           <BrainCircuitIcon /> AI Confidence: {Math.round(dispute.llmConfidence || dispute.llm_confidence || 0)}%
                         </span>
                       )}
@@ -186,10 +186,10 @@ export default function DisputeMonitor() {
             <button 
               onClick={() => handleResolveAction("split")}
               disabled={resolveDispute.isPending}
-              className="w-full text-left p-4 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-colors group"
+              className="w-full text-left p-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors group"
             >
-              <div className="font-bold text-indigo-900 text-lg group-hover:text-indigo-700">50/50 Split</div>
-              <div className="text-indigo-700 text-sm mt-1">Partial delivery or mutual fault. Escrow is split evenly.</div>
+              <div className="font-bold text-blue-900 text-lg group-hover:text-blue-700">50/50 Split</div>
+              <div className="text-blue-700 text-sm mt-1">Partial delivery or mutual fault. Escrow is split evenly.</div>
             </button>
           </div>
         </div>

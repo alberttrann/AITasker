@@ -110,10 +110,10 @@ export default function ShortlistView() {
           <div className="flex items-center gap-3">
             <button 
               onClick={handleGoBack}
-              className="p-2 -ml-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900 shrink-0"
+              className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
               aria-label="Go back"
             >
-              <ArrowLeft size={24} />
+              <ArrowLeft size={20} />
             </button>
             <h2 className="text-h2 font-headline text-primary">
               {projectName}

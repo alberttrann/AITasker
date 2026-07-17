@@ -80,7 +80,7 @@ export default function ProjectsPage() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/ceo')}
-            className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Go back"
           >
             <ArrowLeft size={20} />
@@ -110,7 +110,7 @@ export default function ProjectsPage() {
             <div className="mb-10 relative overflow-hidden rounded-2xl bg-slate-900 shadow-xl shadow-blue-900/10 border border-slate-800 transition-all hover:shadow-2xl hover:shadow-blue-900/20 group">
               {/* Decorative background glow */}
               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-500/20 blur-[80px] pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-700"></div>
-              <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-indigo-500/20 blur-[80px] pointer-events-none group-hover:bg-indigo-500/30 transition-colors duration-700"></div>
+              <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-blue-600/20 blur-[80px] pointer-events-none group-hover:bg-blue-600/30 transition-colors duration-700"></div>
               
               <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div className="flex-1 min-w-0 z-10">
@@ -241,12 +241,12 @@ export default function ProjectsPage() {
                           {project.state.replace(/_/g, ' ')}
                         </span>
                         {project.tier && (
-                          <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[11px] font-semibold uppercase rounded-md border border-purple-100">
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-semibold uppercase rounded-md border border-blue-100">
                             {project.tier.replace(/_/g, ' ')}
                           </span>
                         )}
                         {project.selfTechnical && (
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-semibold uppercase rounded-md border border-indigo-100">
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-semibold uppercase rounded-md border border-blue-100">
                             Self-Managed Tech
                           </span>
                         )}

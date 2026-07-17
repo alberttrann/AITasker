@@ -712,28 +712,28 @@ export interface ProbeQuestion {
 
 // ── Invitations ───────────────────────────────────────────────────────────────
 export interface InvitationDto {
-  id:          string;
-  projectId:   string;
-  expertId:    string;
-  ceoId:       string;
-  message:     string | null;
-  status:      'PENDING' | 'ACCEPTED' | 'DECLINED';
-  invitedAt:   string;
+  id: string;
+  projectId: string;
+  expertId: string;
+  ceoId: string;
+  message: string | null;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  invitedAt: string;
   respondedAt: string | null;
-  expiresAt:   string | null;
-  isExpired:   boolean;
+  expiresAt: string | null;
+  isExpired: boolean;
   project: {
-    id:                  string;
-    projectName:         string;
-    state:               string;
-    archetype:           string;
-    tier:                string;
-    createdAt:           string;
+    id: string;
+    projectName: string;
+    state: string;
+    archetype: string;
+    tier: string;
+    createdAt: string;
     requiredDomainsJson: any[];
-    requiredSeamsJson:   any[];
+    requiredSeamsJson: any[];
   };
   ceo: {
-    id:       string;
+    id: string;
     fullName: string;
   };
 }
@@ -906,28 +906,28 @@ export interface ProbeQuestion {
 
 // ── Invitations ───────────────────────────────────────────────────────────────
 export interface InvitationDto {
-  id:          string;
-  projectId:   string;
-  expertId:    string;
-  ceoId:       string;
-  message:     string | null;
-  status:      'PENDING' | 'ACCEPTED' | 'DECLINED';
-  invitedAt:   string;
+  id: string;
+  projectId: string;
+  expertId: string;
+  ceoId: string;
+  message: string | null;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  invitedAt: string;
   respondedAt: string | null;
-  expiresAt:   string | null;
-  isExpired:   boolean;
+  expiresAt: string | null;
+  isExpired: boolean;
   project: {
-    id:                  string;
-    projectName:         string;
-    state:               string;
-    archetype:           string;
-    tier:                string;
-    createdAt:           string;
+    id: string;
+    projectName: string;
+    state: string;
+    archetype: string;
+    tier: string;
+    createdAt: string;
     requiredDomainsJson: any[];
-    requiredSeamsJson:   any[];
+    requiredSeamsJson: any[];
   };
   ceo: {
-    id:       string;
+    id: string;
     fullName: string;
   };
 }
@@ -955,7 +955,7 @@ export interface VoidCodeDefinition {
 }
 
 export interface MilestoneChatMessageDto {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -1012,3 +1012,13 @@ export interface BulkStagePaygatedDocsVariable {
   milestoneId: string;
   body: BulkStagePaygatedDocsDto;
 }
+
+export interface VerifyOtpDto {
+  email: string;
+  otp: string;
+}
+
+export interface ResendOtpDto {
+  email: string;
+}
+

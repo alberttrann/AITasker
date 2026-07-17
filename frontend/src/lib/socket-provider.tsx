@@ -48,6 +48,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socketRef.current?.disconnect();
       socketRef.current = null;
       setActiveSocket(null);
+      useEngagementStore.getState().clearAllUnread();
       return;
     }
 
@@ -86,15 +87,20 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       if (data.senderId === user?.id || data.sender?.id === user?.id) return;
 
       incrementUnread(engagementId);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
       // Only show notification if user is not currently in that conversation
+      // Note: We no longer call addNotification here to prevent direct chat messages from
+      // cluttering the Bell icon notification list. Unread state is tracked separately
+      // via incrementUnread and shown under the Messages/Chat icon.
       if (activeEngagement !== engagementId) {
-        addNotification({
-          type:  'message',
-          title: `New message from ${data.sender?.fullName || 'someone'}`,
-          body:  data.content ? (data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content) : 'Attachment',
-          link:  data.engagementId ? `/engagements/${engagementId}/messages` : `/projects/${engagementId}`,
-          meta:  { engagement_id: engagementId },
-        });
+        // addNotification({
+        //   type:  'message',
+        //   title: `New message from ${data.sender?.fullName || 'someone'}`,
+        //   body:  data.content ? (data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content) : 'Attachment',
+        //   link:  data.engagementId ? `/engagements/${engagementId}/messages` : `/projects/${engagementId}`,
+        //   meta:  { engagement_id: engagementId },
+        // });
       }
     });
 

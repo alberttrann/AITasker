@@ -1,9 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@store/auth.store';
 import { apiClient } from '@lib/api-client';
 import { useNotificationsStore } from '@/store/notifications.store';
-import type { AuthTokens, UserDto } from '@t/api.types';
+import type { AuthTokens, ResendOtpDto, UserDto, VerifyOtpDto } from '@t/api.types';
 import type { ActiveRole, ClientSubtype, UserRoleItem } from '@t/enums';
 
 /**
@@ -25,6 +25,10 @@ export function useAuth() {
     return data;
   },
   onSuccess: async (data) => {
+    if (!data.access_token) {
+      // Email verification is required. Return early and let the local onSuccess transition to OTP mode.
+      return;
+    }
     store.setTokens(data.access_token, data.refresh_token ?? '');
     const { data: user } = await apiClient.get<UserDto>('/users/me');
     store.setUser(user);
@@ -136,6 +140,29 @@ const login = useMutation({
     queryClient.invalidateQueries({ queryKey: ['user'] });
   };
 
+  const verifyOtp = useMutation({
+    mutationFn: async (payload: VerifyOtpDto) => {
+      const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
+        '/auth/verify-otp',
+        payload
+      );
+      return data;
+    },
+    onSuccess: async (data) => {
+      store.setTokens(data.access_token, data.refresh_token ?? '');
+      const { data: user } = await apiClient.get<UserDto>('/users/me');
+      store.setUser(user);
+      redirectByRole(user, navigate);
+    },
+  });
+
+  const resendOtp = useMutation({
+    mutationFn: async (payload: ResendOtpDto) => {
+      const { data } = await apiClient.post<{ message: string }>('/auth/resend-otp', payload);
+      return data;
+    },
+  });
+
   return {
     // State (read from store directly — reactive)
     user:            store.user,
@@ -154,6 +181,8 @@ const login = useMutation({
     forgotPassword,
     resetPassword,
     refreshUser,
+    verifyOtp,
+    resendOtp,
   };
 }
 

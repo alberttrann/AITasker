@@ -290,6 +290,21 @@ export class IpnHandlerService {
       data: { state: EngagementState.ACTIVE },
     });
 
+    try {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.expertId,
+        event: 'notification:generic',
+        payload: {
+          type: 'system',
+          title: 'Service Purchased!',
+          body: 'A client has purchased your service and funded the escrow milestones.',
+          link: `/expert/service`,
+        },
+      });
+    } catch (_err) {
+      // best-effort broadcast
+    }
+
     await tx.virtualAccount.update({
       where: { id: userVirtualAccount.id },
       data: { status: VAStatus.USED },

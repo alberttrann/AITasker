@@ -56,4 +56,34 @@ export class EmailService {
       this.logger.error(`Failed to send password reset email to ${to}`, error);
     }
   }
+
+  async sendOtpEmail(to: string, otp: string): Promise<void> {
+    const subject = 'AITasker — Verify your email';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #0F172A; text-align: center;">Verify your email</h2>
+        <p>Thank you for registering on AITasker. Please use the verification code below to complete your registration:</p>
+        <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; text-align: center; margin: 30px 0; color: #4F46E5; background: #F1F5F9; padding: 15px; border-radius: 8px;">
+          ${otp}
+        </div>
+        <p style="color: #666; font-size: 14px;">This code is valid for <strong>15 minutes</strong>. Do not share this code with anyone.</p>
+        <hr style="border:none; border-top:1px solid #eee; margin:24px 0;"/>
+        <p style="color:#999; font-size:12px; text-align: center;">
+          If you did not request this, you can safely ignore this email.
+        </p>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.FROM_EMAIL ?? '"AITasker" <noreply@aitasker.com>',
+        to,
+        subject,
+        html,
+      });
+      this.logger.log(`Email verification OTP sent to ${to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email verification OTP to ${to}`, error);
+    }
+  }
 }

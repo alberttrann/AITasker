@@ -1,13 +1,43 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '@hooks/use-auth';
 import { RegisterRoleSwitcher } from '@components/layout/RoleSwitcher';
-import { Button } from '@components/ui/Button';
-import { Input, Label } from '@components/ui/Input';
+import { Button } from '@components/ui/button';
+import { Input, Label } from '@components/ui/input';
 import { Checkbox } from '@components/ui/Checkbox';
 import type { UserRoleItem } from '@t/enums';
-import { CheckCircle2, XCircle, Loader2, Target, Settings, Search, Eye, EyeOff, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, EyeOff, X } from 'lucide-react';
+import { useToastActions } from '@lib/toast-context';
+
+/**
+ * ShakeInput — wraps <Input> and plays a shake animation whenever
+ * `error` transitions from false → true (on blur/submit with invalid value).
+ * The class is removed after the animation ends so it can re-fire next time.
+ */
+type ShakeInputProps = React.ComponentProps<typeof Input>;
+function ShakeInput({ error, className, ...props }: ShakeInputProps) {
+  const [shaking, setShaking] = useState(false);
+  const prevError = useRef(false);
+
+  useEffect(() => {
+    if (error && !prevError.current) {
+      setShaking(true);
+    }
+    prevError.current = !!error;
+  }, [error]);
+
+  return (
+    <Input
+      {...props}
+      error={error}
+      shake={shaking}
+      className={className}
+      onAnimationEnd={() => setShaking(false)}
+    />
+  );
+}
+
 
 const passwordRules = [
   { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -67,9 +97,11 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgotPassword'>(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgotPassword' | 'verifyOtp'>(initialMode);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const toast = useToastActions();
   
-  const { login, register, forgotPassword, isAuthenticated } = useAuth();
+  const { login, register, forgotPassword, isAuthenticated, verifyOtp, resendOtp } = useAuth();
 
   const rememberedEmail = typeof window !== 'undefined' ? localStorage.getItem('aitasker-remembered-email') || '' : '';
 
@@ -86,28 +118,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
   }, [isAuthenticated, isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const loginError = login.isError
-    ? ((login.error as any)?.response?.data?.message ?? 'Invalid email or password.')
-    : null;
-
-  const registerError = register.isError
-    ? ((register.error as any)?.response?.data?.message ?? 'Something went wrong. Please try again.')
-    : null;
-
-  const renderApiError = (err: any) => {
-    if (!err) return null;
-    if (Array.isArray(err)) {
-      return (
-        <div className="bg-red-50 text-red-600 font-label-sm text-sm p-3 rounded-md text-left shadow-sm border border-red-100 mt-2">
-          <ul className="list-disc list-inside space-y-1">
-            {err.map((e, i) => <li key={i}>{e}</li>)}
-          </ul>
-        </div>
-      );
-    }
-    return <div className="bg-error-container text-on-error-container font-label-sm text-sm p-2 rounded-md text-center text-red-600 mt-2">{err}</div>;
-  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -154,6 +164,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
               login.mutate({ email: values.email, password: values.password }, {
                 onSettled: () => setSubmitting(false),
                 onSuccess: () => onClose(),
+                onError: (error: any) => {
+                  const msg = error?.response?.data?.message;
+                  if (msg === 'EMAIL_UNVERIFIED') {
+                    setVerificationEmail(values.email);
+                    setMode('verifyOtp');
+                  } else {
+                    toast.error(msg ?? 'Invalid email or password.');
+                  }
+                }
               });
             }}
           >
@@ -163,7 +182,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <Label htmlFor="email">Email address</Label>
                   <Field name="email">
                     {({ field, meta, form }: any) => (
-                      <Input
+                      <ShakeInput
                         {...field}
                         id="email"
                         type="email"
@@ -185,7 +204,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <Field name="password">
                     {({ field, meta, form }: any) => (
                       <div className="relative">
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="password"
                           type={showPassword ? "text" : "password"}
@@ -228,7 +247,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   <button type="button" onClick={() => setMode('forgotPassword')} className="font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors">Forgot Password?</button>
                 </div>
 
-                {renderApiError(loginError)}
 
                 <Button
                   type="submit"
@@ -252,7 +270,22 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                 const { role, ...rest } = values;
                 register.mutate({ ...rest, roles: role }, {
                   onSettled: () => setSubmitting(false),
-                  onSuccess: () => onClose(),
+                  onSuccess: (data: any) => {
+                    if (data?.message === 'OTP_SENT') {
+                      setVerificationEmail(values.email);
+                      setMode('verifyOtp');
+                    } else {
+                      onClose();
+                    }
+                  },
+                  onError: (error: any) => {
+                    const msg = (error as any)?.response?.data?.message ?? 'Something went wrong. Please try again.';
+                    if (Array.isArray(msg)) {
+                      msg.forEach((m: string) => toast.error(m));
+                    } else {
+                      toast.error(msg);
+                    }
+                  },
                 });
               }}
             >
@@ -268,7 +301,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       <Label htmlFor="fullName">Full name</Label>
                     <Field name="fullName">
                       {({ field, meta, form }: any) => (
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="fullname"
                           type="text"
@@ -289,7 +322,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     <Label htmlFor="email">Email address</Label>
                     <Field name="email">
                       {({ field, meta, form }: any) => (
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="email"
                           type="email"
@@ -312,7 +345,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                       {({ field, meta, form }: any) => (
                         <>
                           <div className="relative">
-                            <Input
+                            <ShakeInput
                               {...field}
                               id="password"
                               type={showPassword ? "text" : "password"}
@@ -365,7 +398,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                     </Label>
                     <Field name="phone">
                       {({ field, meta, form }: any) => (
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="phone"
                           type="tel"
@@ -394,7 +427,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
                   )}
                   </div>
 
-                  {renderApiError(registerError)}
 
                   <Button
                     type="submit"
@@ -416,41 +448,39 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
         {/* ── Forgot Password Form ── */}
         {mode === 'forgotPassword' && (
           <Formik
-            initialValues={{ email: rememberedEmail }}
+              initialValues={{ email: rememberedEmail }}
             validationSchema={forgotPasswordSchema}
-            onSubmit={(values, { setSubmitting, setStatus }) => {
+            onSubmit={(values, { setSubmitting }) => {
               forgotPassword.mutate({ email: values.email }, {
                 onSettled: () => setSubmitting(false),
                 onSuccess: () => {
-                  setStatus({ success: 'Reset link sent to your email.' });
+                  toast.success('Reset link sent! Check your inbox.');
                 },
                 onError: (error: any) => {
-                  setStatus({ error: error.response?.data?.message || 'Something went wrong.' });
+                  toast.error(error.response?.data?.message || 'Something went wrong.');
                 }
               });
             }}
           >
-            {({ isSubmitting, status }) => (
+            {({ isSubmitting }) => (
               <Form className="space-y-4" noValidate>
                 <div>
                   <Label htmlFor="forgot-email">Email address</Label>
                   <Field name="email">
-                    {({ field, meta }: any) => (
-                      <Input
+                    {({ field, meta, form }: any) => (
+                      <ShakeInput
                         {...field}
                         id="forgot-email"
                         type="email"
                         placeholder="you@example.com"
                         disabled={forgotPassword.isPending}
                         error={meta.touched && !!meta.error}
+                        onFocus={() => form.setFieldTouched(field.name, false)}
                       />
                     )}
                   </Field>
                   <ErrorMessage name="email" component="p" className="mt-1 text-xs font-semibold text-error" />
                 </div>
-
-                {status?.success && <div className="bg-emerald-50 text-emerald-700 font-label-sm text-sm p-3 rounded-md text-center">{status.success}</div>}
-                {status?.error && <div className="bg-error-container text-on-error-container font-label-sm text-sm p-3 rounded-md text-center text-red-600">{status.error}</div>}
 
                 <Button
                   type="submit"
@@ -464,20 +494,159 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
           </Formik>
         )}
 
+        {/* ── OTP Verification Form ── */}
+        {mode === 'verifyOtp' && (
+          <Formik
+            initialValues={{ otp: '' }}
+            validationSchema={Yup.object({
+              otp: Yup.string()
+                .length(6, 'Verification code must be exactly 6 digits.')
+                .required('Verification code is required.'),
+            })}
+              onSubmit={(values, { setSubmitting, setFieldError }) => {
+              verifyOtp.mutate(
+                { email: verificationEmail, otp: values.otp },
+                {
+                  onSettled: () => setSubmitting(false),
+                  onSuccess: () => {
+                    onClose();
+                  },
+                  onError: (error: any) => {
+                    const msg = error.response?.data?.message || 'Invalid code.';
+                    setFieldError('otp', msg);
+                    toast.error(msg);
+                  },
+                }
+              );
+            }}
+          >
+            {({ isSubmitting }) => (
+              <Form className="space-y-4" noValidate>
+                <div className="text-center">
+                  <p className="text-sm text-slate-500 mb-4">
+                    We sent a 6-digit verification code to <strong className="text-primary">{verificationEmail}</strong>. Please enter it below.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="otp">Verification Code</Label>
+                  <Field name="otp">
+                    {({ field, meta, form }: any) => (
+                      <ShakeInput
+                        {...field}
+                        id="otp"
+                        type="text"
+                        placeholder="123456"
+                        maxLength={6}
+                        disabled={verifyOtp.isPending}
+                        onFocus={() => {
+                          if (verifyOtp.isError) verifyOtp.reset();
+                          form.setFieldTouched(field.name, false);
+                        }}
+                        error={meta.touched && !!meta.error}
+                        className="text-center text-2xl tracking-[1em] pl-[1em]"
+                      />
+                    )}
+                  </Field>
+                  <ErrorMessage name="otp" component="p" className="mt-1 text-xs font-semibold text-error text-red-600" />
+                </div>
+
+
+                <Button
+                  type="submit"
+                  disabled={verifyOtp.isPending || isSubmitting}
+                  className="w-full py-3 px-4 rounded-lg shadow-sm hover:shadow-md mt-2"
+                >
+                  {verifyOtp.isPending ? 'Verifying...' : 'Verify Email'}
+                </Button>
+
+                <div className="flex flex-col items-center justify-center gap-2 pt-2">
+                  <ResendOtpButton email={verificationEmail} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      verifyOtp.reset();
+                    }}
+                    className="text-sm text-slate-500 hover:text-slate-900 underline mt-2"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </Form>
+            )}
+          </Formik>
+        )}
+
         {/* ── Shared Social / Footer ── */}
             {/* Mode Toggler */}
-            <p className="mt-6 text-center font-label-md text-label-md text-on-surface-variant">
-              {mode === 'signin' || mode === 'forgotPassword' ? "Don't have an account? " : "Already have an account? "}
-              <button
-                type="button"
-                onClick={() => setMode(mode === 'signin' || mode === 'forgotPassword' ? 'signup' : 'signin')}
-                className="font-bold text-primary hover:underline"
-              >
-                {mode === 'signin' || mode === 'forgotPassword' ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
+            {mode !== 'verifyOtp' && (
+              <p className="mt-6 text-center font-label-md text-label-md text-on-surface-variant">
+                {mode === 'signin' || mode === 'forgotPassword' ? "Don't have an account? " : "Already have an account? "}
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'signin' || mode === 'forgotPassword' ? 'signup' : 'signin')}
+                  className="font-bold text-primary hover:underline"
+                >
+                  {mode === 'signin' || mode === 'forgotPassword' ? 'Sign up' : 'Sign in'}
+                </button>
+              </p>
+            )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ResendOtpButton({ email }: { email: string }) {
+  const { resendOtp } = useAuth();
+  const [cooldown, setCooldown] = useState(0);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
+
+  const handleResend = () => {
+    if (cooldown > 0) return;
+    resendOtp.mutate(
+      { email },
+      {
+        onSuccess: () => {
+          setStatus('A fresh code has been sent!');
+          setCooldown(30);
+          setTimeout(() => setStatus(null), 5000);
+        },
+        onError: (err: any) => {
+          setStatus(err.response?.data?.message || 'Failed to resend code.');
+          setTimeout(() => setStatus(null), 5000);
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="text-center mt-2">
+      <button
+        type="button"
+        disabled={cooldown > 0 || resendOtp.isPending}
+        onClick={handleResend}
+        className={`text-sm font-semibold transition-colors ${
+          cooldown > 0 || resendOtp.isPending
+            ? "text-slate-400 cursor-not-allowed"
+            : "text-primary hover:text-primary-container"
+        }`}
+      >
+        {resendOtp.isPending ? 'Sending...' : cooldown > 0 ? `Resend Code (${cooldown}s)` : 'Resend Code'}
+      </button>
+      {status && (
+        <p className={`text-xs mt-1 font-medium ${status.includes('sent') ? "text-emerald-600" : "text-rose-600"}`}>
+          {status}
+        </p>
+      )}
     </div>
   );
 }

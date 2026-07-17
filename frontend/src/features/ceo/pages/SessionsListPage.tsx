@@ -91,9 +91,10 @@ export default function SessionsListPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/ceo/projects')}
-            className="p-2 -ml-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+            aria-label="Go back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Session History</h1>

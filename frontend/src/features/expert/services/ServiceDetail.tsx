@@ -241,10 +241,13 @@ export default function ServiceDetail() {
     <div className="w-full max-w-[1440px] px-6 mx-auto py-12 font-body animate-in fade-in duration-500">
       {/* Back Button & Top Bar */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-          <ArrowLeft size={20} className="text-slate-600" />
-        </Button>
-        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Back to Services</span>
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer uppercase tracking-wider"
+        >
+          <ArrowLeft size={18} />
+          <span>Back to Services</span>
+        </button>
         
         <div className="ml-auto flex items-center gap-3">
           {isDraft && (
@@ -368,9 +371,9 @@ export default function ServiceDetail() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-8 pb-6 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Investment</h3>
-              {service.price_vnd ? (
+              {service.priceVnd ? (
                 <div className="flex items-end gap-1 mb-1 text-slate-900">
-                  <span className="text-[32px] font-headline font-bold leading-none">{(parseInt(service.price_vnd)).toLocaleString('vi-VN')}</span>
+                  <span className="text-[32px] font-headline font-bold leading-none">{Number(service.priceVnd).toLocaleString('vi-VN')}</span>
                   <span className="text-xl font-semibold mb-1">₫</span>
                 </div>
               ) : (

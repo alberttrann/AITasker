@@ -138,7 +138,11 @@ export class AdminController {
     @Query('isActive') isActive?: string,
     @Query('search') search?: string,
   ) {
-    return this.adminService.listUsers({ role, isActive: isActive === 'true', search });
+    return this.adminService.listUsers({ 
+      role, 
+      isActive: isActive !== undefined ? isActive === 'true' : undefined, 
+      search 
+    });
   }
 
   @Get('users/:id')

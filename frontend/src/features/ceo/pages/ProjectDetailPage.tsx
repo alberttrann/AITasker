@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName, useUpdateProjectMilestones, useProjectMilestones } from "@/hooks/use-projects";
-import { 
+import {
   ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X,
   Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
 } from "lucide-react";
@@ -18,12 +18,12 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { projects, isLoadingProjects } = useProjects();
-  
+
   const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
   const isLoadingProject = isLoadingProjects;
-  
+
   const { data: engagements } = useEngagements();
-  
+
   const activeBidsCount = useMemo(() => {
     if (!engagements || !project) return 0;
     return engagements.filter(
@@ -42,11 +42,11 @@ export default function ProjectDetailPage() {
         !['CLOSED', 'CANCELLED', 'DECLINED'].includes(e.state)
     );
   }, [engagements, project]);
-  
+
   const user = useAuthStore(s => s.user);
   const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
   const isCeo = user?.clientSubtype === 'CEO';
-  
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const updateProjectName = useUpdateProjectName();
@@ -63,18 +63,18 @@ export default function ProjectDetailPage() {
   const [editedMilestones, setEditedMilestones] = useState<any[]>([]);
 
   const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
-  const displayMilestones = projectMilestones?.length > 0 ? projectMilestones : jsonMilestones;
+  const displayMilestones = (projectMilestones && projectMilestones.length > 0) ? projectMilestones : jsonMilestones;
 
   const handleEditMilestones = () => {
     // When editing in bulk, we edit the JSON structure. If projectMilestones exist, we convert them back to the JSON structure for the bulk edit endpoint.
-    const toEdit = projectMilestones?.length > 0 ? projectMilestones.map((pm: any) => ({
+    const toEdit = (projectMilestones && projectMilestones.length > 0) ? projectMilestones.map((pm: any) => ({
       milestone_number: pm.milestoneNumber,
       deliverable_statement: pm.deliverableStatement,
       payment_amount_vnd: pm.paymentAmountVnd,
       estimated_duration_days: pm.estimatedDurationDays,
       sign_off_authority: pm.signOffAuthority
     })) : jsonMilestones;
-    
+
     setEditedMilestones(JSON.parse(JSON.stringify(toEdit)));
     setIsEditingMilestones(true);
   };
@@ -191,9 +191,9 @@ export default function ProjectDetailPage() {
       {/* Header Area */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")}
-            className="p-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-600 shadow-sm"
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Go back"
           >
             <ArrowLeft size={20} />
@@ -224,7 +224,7 @@ export default function ProjectDetailPage() {
               ) : (
                 <div className="flex items-center gap-3 group">
                   <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {project.projectName || `Project ${project.id.slice(0,8)}`}
+                    {project.projectName || `Project ${project.id.slice(0, 8)}`}
                   </h1>
                   {isCeo && (
                     <button
@@ -243,7 +243,7 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
           {activeEngagement ? (
             <div className="flex items-center gap-3">
@@ -322,7 +322,7 @@ export default function ProjectDetailPage() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Left Column: Intent & Capabilities */}
         <div className="lg:col-span-1 space-y-8">
           {/* Business Intent Card */}
@@ -340,7 +340,7 @@ export default function ProjectDetailPage() {
           {/* Capabilities Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 mb-4 border-b border-slate-100 pb-2">Required Capabilities</h3>
-            
+
             <div className="space-y-6">
               <div>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Domains</h4>
@@ -381,7 +381,7 @@ export default function ProjectDetailPage() {
                   <p className="text-sm text-slate-500 italic">No specific seams required.</p>
                 )}
               </div>
-              
+
               {artifactA?.stack_tags && artifactA.stack_tags.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Stack Tags</h4>
@@ -405,9 +405,9 @@ export default function ProjectDetailPage() {
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Project Milestones</h3>
               </div>
-              
+
               {isCeo && !isEditingMilestones && !activeEngagement && (
-                <button 
+                <button
                   onClick={handleEditMilestones}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"
                 >
@@ -416,18 +416,18 @@ export default function ProjectDetailPage() {
               )}
               {isCeo && isEditingMilestones && (
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={() => setIsEditingMilestones(false)}
                     className="px-4 py-2 bg-white border border-slate-200 text-slate-600 font-medium rounded-xl hover:bg-slate-50 transition-all"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={handleSaveMilestones}
                     disabled={updateProjectMilestones.isPending}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-600/20 disabled:opacity-70"
                   >
-                    {updateProjectMilestones.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
+                    {updateProjectMilestones.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save Changes
                   </button>
                 </div>
@@ -471,7 +471,7 @@ export default function ProjectDetailPage() {
                               )}
                             </div>
                           </div>
-                          
+
                           <div className="flex md:flex-col items-end justify-between w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 gap-4">
                             <div className="text-right">
                               <p className="text-xs text-slate-400 uppercase font-semibold">
@@ -501,7 +501,7 @@ export default function ProjectDetailPage() {
                     <h4 className="text-lg font-semibold text-slate-700 mb-2">No Milestones Defined</h4>
                     <p className="text-slate-500 max-w-sm mb-6">This project currently has no milestone framework. You can add them before opening the project for bids.</p>
                     {isCeo && (
-                      <button 
+                      <button
                         onClick={handleEditMilestones}
                         className="px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                       >
@@ -515,22 +515,22 @@ export default function ProjectDetailPage() {
                 <div className="space-y-6">
                   {editedMilestones.map((m, idx) => (
                     <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-lg relative group">
-                      <button 
+                      <button
                         onClick={() => handleDeleteMilestone(idx)}
                         className="absolute -top-3 -right-3 p-2 bg-white text-slate-500 rounded-full hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 focus:opacity-100"
                         title="Delete Milestone"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      
+
                       <div className="flex items-center gap-3 mb-4">
                         <h4 className="font-bold text-slate-800">Milestone {m.milestone_number}</h4>
                       </div>
-                      
+
                       <div className="space-y-4">
                         <div>
                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Deliverable Statement</label>
-                          <textarea 
+                          <textarea
                             value={m.deliverable_statement}
                             onChange={(e) => handleUpdateMilestone(idx, 'deliverable_statement', e.target.value)}
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm resize-none"
@@ -542,8 +542,8 @@ export default function ProjectDetailPage() {
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Duration (Days)</label>
                             <div className="relative">
-                              <input 
-                                type="number" 
+                              <input
+                                type="number"
                                 value={m.estimated_duration_days || ''}
                                 onChange={(e) => handleUpdateMilestone(idx, 'estimated_duration_days', parseInt(e.target.value) || undefined)}
                                 className="w-full pl-3 pr-12 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900"
@@ -554,7 +554,7 @@ export default function ProjectDetailPage() {
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Amount (VND)</label>
                             <div className="relative">
-                              <CurrencyInput 
+                              <CurrencyInput
                                 value={m.payment_amount_vnd}
                                 onChange={(val) => handleUpdateMilestone(idx, 'payment_amount_vnd', val)}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900 bg-white shadow-sm"
@@ -563,7 +563,7 @@ export default function ProjectDetailPage() {
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Sign-Off Authority</label>
-                            <select 
+                            <select
                               value={m.sign_off_authority}
                               onChange={(e) => handleUpdateMilestone(idx, 'sign_off_authority', e.target.value)}
                               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-700 bg-white"
@@ -577,8 +577,8 @@ export default function ProjectDetailPage() {
                       </div>
                     </div>
                   ))}
-                  
-                  <button 
+
+                  <button
                     onClick={handleAddMilestone}
                     className="w-full py-4 border-2 border-dashed border-slate-300 text-slate-500 font-medium rounded-xl hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all flex items-center justify-center gap-2"
                   >
@@ -592,9 +592,9 @@ export default function ProjectDetailPage() {
 
       </div>
 
-      <MilestoneChatAssistant 
-        projectId={project.id} 
-        currentMilestones={isEditingMilestones ? editedMilestones : undefined} 
+      <MilestoneChatAssistant
+        projectId={project.id}
+        currentMilestones={isEditingMilestones ? editedMilestones : undefined}
       />
     </div>
   );

@@ -31,6 +31,10 @@ model User {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   passwordResetToken          String?   @map("password_reset_token")
   passwordResetTokenExpiresAt DateTime? @map("password_reset_token_expires_at") @db.Timestamptz(6)
+
+  isEmailVerified             Boolean   @default(false) @map("is_email_verified")
+  emailOtp                    String?   @map("email_otp")
+  emailOtpExpiresAt           DateTime? @map("email_otp_expires_at") @db.Timestamptz(6)
   // Relations
   clientProfile        ClientProfile?
   expertProfile        ExpertProfile?

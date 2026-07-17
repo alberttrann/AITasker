@@ -114,7 +114,7 @@ export class MilestonesService {
       throw new BadRequestException('Milestone cannot be found');
     }
 
-    const vaNumber = `VA-${Math.floor(100000 + Math.random() * 900000)}`;
+    const vaNumber = generateVaNumber(VAEntityType.MILESTONE);
 
     await this.prisma.virtualAccount.create({
       data: {

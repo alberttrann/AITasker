@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { Bell, BellOff, Mail, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
+import { Bell, BellOff, MessageSquare, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
+import SpotlightSearch from '@/components/layout/SpotlightSearch';
+import { useEngagementStore } from '@store/engagement.store';
+import { useConversations } from '@/hooks/use-messages';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // ── Dropdown State ──
   type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | 'mobile' | null;
@@ -73,7 +77,13 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
-  const unreadMessages = 0;
+  const unreadCounts = useEngagementStore((s) => s.unreadCounts);
+  const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
+  const { data: conversationsResponse } = useConversations();
+  const conversations = conversationsResponse?.data || [];
+  const unreadMessages = conversations.length === 0 
+    ? 0 
+    : conversations.reduce((acc: number, conv: any) => acc + (unreadCounts[conv.id] ?? conv.unreadCount ?? 0), 0);
 
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
@@ -116,6 +126,7 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
+    clearAllUnread();
     logout(); // Clears Zustand state
     navigate('/');
   };
@@ -140,16 +151,7 @@ const RoleIcon =
 
         {/* Middle: Search Bar */}
         <div className="flex flex-1 mx-4 md:mx-8 lg:mx-12 min-w-0">
-          <div className="w-full flex items-stretch group border-[1.5px] border-primary-dark/30 rounded overflow-hidden transition-colors duration-150 hover:border-primary-dark/50 focus-within:border-primary-dark min-w-0">
-            <input 
-              type="text" 
-              placeholder="Search..." 
-              className="flex-1 min-w-0 w-full bg-transparent pl-4 pr-3 py-3 text-sm font-medium text-primary-dark placeholder:text-primary-dark/50 focus:outline-none"
-            />
-            <button className="flex items-center justify-center shrink-0 aspect-square bg-primary-dark text-white hover:bg-primary-dark/90 transition-colors duration-150">
-              <Search size={20} strokeWidth={1.5} />
-            </button>
-          </div>
+          <SpotlightSearch user={user} isAuthenticated={isAuthenticated} />
         </div>
 
 
@@ -222,7 +224,9 @@ const RoleIcon =
                 >
                   <Bell size={24} strokeWidth={1.5} />
                   {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-white font-headline font-extrabold text-[10px] leading-none rounded-full border-2 border-surface flex items-center justify-center shadow-xs">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </span>
                   )}
                 </button>
 
@@ -271,31 +275,88 @@ const RoleIcon =
                 )}
               </div>
 
-              {/* Mailbox */}
+              {/* Chat messages */}
               <div className="relative">
                 <button 
                   aria-label="Messages" 
                   onClick={() => setActiveDropdown(activeDropdown === 'messages' ? null : 'messages')}
                   className={`relative p-2.5 rounded-full transition-all duration-150 active:scale-95 ${activeDropdown === 'messages' ? 'bg-primary-dark/10 text-primary-dark' : 'text-primary-dark hover:text-primary-dark/80 hover:bg-primary-dark/10'}`}
                 >
-                  <Mail size={24} strokeWidth={1.5} />
+                  <MessageSquare size={24} strokeWidth={1.5} />
                   {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-white font-headline font-extrabold text-[10px] leading-none rounded-full border-2 border-surface flex items-center justify-center shadow-xs">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
                   )}
                 </button>
 
                 {activeDropdown === 'messages' && (
                   <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                      <span className="font-semibold text-primary">Inbox {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
+                      <span className="font-semibold text-primary">Messages {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
                     </div>
                     <div className="max-h-80 overflow-y-auto bg-white">
-                      <div className="p-8 flex flex-col items-center justify-center text-slate-400">
-                        <Inbox size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
-                        <p className="text-sm font-medium">No new messages</p>
-                        <p className="text-xs text-center mt-1">Your inbox is empty.</p>
-                      </div>
+                      {conversations.length === 0 ? (
+                        <div className="p-8 flex flex-col items-center justify-center text-slate-400">
+                          <Inbox size={40} className="mb-3 text-slate-300" strokeWidth={1.5} />
+                          <p className="text-sm font-medium">No new messages</p>
+                          <p className="text-xs text-center mt-1">Your inbox is empty.</p>
+                        </div>
+                      ) : (
+                        conversations.map((conv: any) => {
+                          const hasUnread = conv.unreadCount > 0;
+                          const otherPartyName = conv.otherParty?.fullName || 'Partner';
+                          const lastMsgContent = conv.lastMessage?.content 
+                            ? (conv.lastMessage.content.length > 60 
+                                ? conv.lastMessage.content.substring(0, 60) + '...' 
+                                : conv.lastMessage.content)
+                            : 'No messages yet';
+                          const timeStr = conv.lastMessage?.timestamp 
+                            ? new Date(conv.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                            : '';
+
+                          return (
+                            <div
+                              key={conv.id}
+                              onClick={() => {
+                                navigate(`${dashboardRoute}/engagements/${conv.id}/messages`);
+                                setActiveDropdown(null);
+                              }}
+                              className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors flex gap-3 ${hasUnread ? 'bg-primary/5' : ''}`}
+                            >
+                              {/* Avatar Bubble */}
+                              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0 border border-slate-200">
+                                {otherPartyName.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-baseline mb-0.5">
+                                  <span className={`text-sm truncate ${hasUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                                    {otherPartyName}
+                                  </span>
+                                  {timeStr && <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-2">{timeStr}</span>}
+                                </div>
+                                <p className="text-xs text-slate-400 font-medium truncate mb-1">{conv.projectName}</p>
+                                <p className={`text-xs truncate ${hasUnread ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                                  {lastMsgContent}
+                                </p>
+                              </div>
+                              {hasUnread && (
+                                <span className="w-2.5 h-2.5 bg-error rounded-full shrink-0 self-center" />
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
+                    {conversations.length > 0 && (
+                      <Link
+                        to={`${dashboardRoute}/messages`}
+                        onClick={() => setActiveDropdown(null)}
+                        className="p-3 text-center text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100/80 border-t border-slate-100 block transition-all"
+                      >
+                        See All in Messenger
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -377,15 +438,7 @@ const RoleIcon =
                       </Link>
                     )}
                     
-                    {rawRole === 'ADMIN' && (
-                      <Link
-                        to={`${dashboardRoute}/analytics`} 
-                        onClick={() => setActiveDropdown(null)} 
-                        className="px-5 py-3 text-sm font-headline text-primary hover:bg-primary/5 transition-colors mx-2 rounded-lg"
-                      >
-                        Analytics Console
-                      </Link>
-                    )}
+
 
                     {/* Divider for Promoted Actions */}
                     {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
@@ -468,7 +521,21 @@ const RoleIcon =
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-slate-500" /> Notifications
                 </div>
-                {unreadNotifications > 0 && <span className="bg-coral text-white text-xs px-2 py-0.5 rounded-full font-bold">{unreadNotifications}</span>}
+                {unreadNotifications > 0 && (
+                  <span className="bg-error text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </span>
+                )}
+              </Link>
+              <Link to={`${dashboardRoute}/messages`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <div className="flex items-center gap-3">
+                  <MessageSquare size={20} className="text-slate-500" /> Messages
+                </div>
+                {unreadMessages > 0 && (
+                  <span className="bg-error text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
               </Link>
               <Link to={`${dashboardRoute}/profile`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <User size={20} className="text-slate-500" /> Account
@@ -484,22 +551,12 @@ const RoleIcon =
                   <Briefcase size={20} className="text-slate-500" /> Projects
                 </Link>
               )}
-              {rawRole === 'ADMIN' && (
-                <>
-                  <Link to={`${dashboardRoute}/analytics`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Sparkles size={20} className="text-slate-500" /> Analytics
-                  </Link>
-                  <Link to={`${dashboardRoute}/config`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Briefcase size={20} className="text-slate-500" /> Configuration
-                  </Link>
-                  <Link to={`${dashboardRoute}/disputes`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Shield size={20} className="text-slate-500" /> Disputes
-                  </Link>
-                  <Link to={`${dashboardRoute}/withdrawals`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
-                    <Wallet size={20} className="text-slate-500" /> Withdrawals
-                  </Link>
-                </>
+              {rawRole === 'CEO' && (
+                <Link to={`${dashboardRoute}/marketplace`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                  <Briefcase size={20} className="text-slate-500" /> Marketplace
+                </Link>
               )}
+
               
               <div className="h-[1px] bg-primary/10 my-2" />
 
@@ -549,7 +606,7 @@ const RoleIcon =
       )}
 
       {/* Bottom Navigation Row */}
-      {isAuthenticated && (
+      {isAuthenticated && rawRole !== 'ADMIN' && (
         <div className="hidden md:block w-full bg-transparent border-t border-primary/20 relative z-40">
           <div className="flex flex-row items-center justify-start gap-8 px-6 max-w-[1440px] mx-auto">
             <Link 
@@ -572,6 +629,17 @@ const RoleIcon =
                 )}
               </Link>
             )}
+            {rawRole === 'CEO' && (
+              <Link 
+                to={`${dashboardRoute}/marketplace`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/marketplace') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+              >
+                Marketplace
+                {location.pathname.includes('/marketplace') && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                )}
+              </Link>
+            )}
             {rawRole === 'EXPERT' && (
               <Link 
                 to={`/expert/service`} 
@@ -583,55 +651,7 @@ const RoleIcon =
                 )}
               </Link>
             )}
-            {rawRole === 'ADMIN' && (
-              <>
-                <Link 
-                  to={`${dashboardRoute}/analytics`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/analytics') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Analytics
-                  {location.pathname.includes('/analytics') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/config`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/config') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Configuration
-                  {location.pathname.includes('/config') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/disputes`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/disputes') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Disputes
-                  {location.pathname.includes('/disputes') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/withdrawals`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/withdrawals') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Withdrawals
-                  {location.pathname.includes('/withdrawals') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-                <Link 
-                  to={`${dashboardRoute}/ledger`} 
-                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/ledger') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-                >
-                  Ledger
-                  {location.pathname.includes('/ledger') && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                  )}
-                </Link>
-              </>
-            )}
+
             {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
               <Link 
                 to={`${dashboardRoute}/subscriptions`} 
@@ -640,6 +660,18 @@ const RoleIcon =
                 <Sparkles size={16} />
                 Plans
                 {location.pathname.includes('/subscriptions') && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                )}
+              </Link>
+            )}
+
+            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+              <Link 
+                to={`${dashboardRoute}/messages`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/messages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+              >
+                Messages
+                {location.pathname.includes('/messages') && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>
