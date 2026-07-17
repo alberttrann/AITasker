@@ -10,7 +10,7 @@ import { AlertCircle, Scale, ArrowLeft, ShieldAlert } from "lucide-react";
 import { formatVND } from "@/lib/utils";
 
 export default function DisputeFile() {
-  const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
+  const { milestoneId } = useParams<{ milestoneId: string }>();
   const navigate = useNavigate();
 
   // Fetch milestone
@@ -62,11 +62,7 @@ export default function DisputeFile() {
     try {
       await createDisputeMutation.mutateAsync({
         criterion_id: selectedCriterionId,
-        engagement_id: engagementId!,
-        milestone_id: milestoneId!,
-        reason: reason.trim(),
-        // Map to additional_context for the backend validator
-        ...({ additional_context: reason.trim() } as any)
+        additional_context: reason.trim(),
       });
 
       // Redirect to workspace page on success

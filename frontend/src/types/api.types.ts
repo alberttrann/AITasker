@@ -943,9 +943,7 @@ export interface MilestoneDetailDto extends MilestoneDto {
  */
 export interface CreateDisputePayload {
   criterion_id: string;
-  engagement_id: string;
-  milestone_id: string;
-  reason: string;
+  additional_context?: string;
 }
 
 export interface VoidCodeDefinition {
