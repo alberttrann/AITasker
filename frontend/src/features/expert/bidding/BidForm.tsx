@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-import { useAuthStore } from '@/store/auth.store';
-import { useProject } from '@/hooks/use-projects';
+import { useAuth } from '@/hooks/use-auth';
+import { useProject, useArtifactA } from '@/hooks/use-projects';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import { useEngagement, useEngagements } from '@/hooks/use-engagements';
+import { useCreateBid } from '@/hooks/use-bids';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -15,47 +14,11 @@ import ApproachSummary from './ApproachSummary';
 import FootprintAlignment, { type FootprintAlignmentData } from './FootprintAlignment';
 import ConditionalPricing, { type PricingItem } from './ConditionalPricing';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /projects/:id/artifact-a — fetch project spec */
-function useArtifactA(projectId: string | undefined) {
-  return useQuery({
-    queryKey: ['project', projectId, 'artifact-a'],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/projects/${projectId}/artifact-a`);
-      return data;
-    },
-    enabled: !!projectId,
-  });
-}
-
-/** POST /bids — expert-only bid creation */
-function useCreateBid() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: {
-      projectId: string;
-      footprint_alignment_json: any;
-      approach_summary: string;
-      conditional_pricing_json: PricingItem[];
-    }) => {
-      const { data } = await apiClient.post('/bids', payload);
-      return data; // { engagement, bid }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
-
-// ── Component ────────────────────────────────────────────────────
-
 export default function BidForm() {
   const { projectId: routeId } = useParams<{ projectId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
+  const { user } = useAuth();
 
   const actualProjectId = routeId;
 

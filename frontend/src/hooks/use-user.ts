@@ -35,10 +35,34 @@ export function useUser() {
     },
   });
 
+  const updateExpertProfile = useMutation({
+    mutationFn: async (payload: any) => {
+      await apiClient.put('/expert-profile/me', payload);
+    },
+    onSuccess: async () => {
+      const { data } = await apiClient.get<UserDto>('/users/me');
+      store.setUser(data);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    },
+  });
+
   return {
     user: userQuery.data,
     isLoading: userQuery.isLoading,
     updateProfile,
+    updateExpertProfile,
     verifyTaxCode,
   };
+}
+
+export function usePublicProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['expertProfile', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await apiClient.get(`/users/${userId}/public-profile`);
+      return data;
+    },
+    enabled: !!userId,
+  });
 }

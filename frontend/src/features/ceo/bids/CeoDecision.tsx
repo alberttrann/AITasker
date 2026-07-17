@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+
 import { Button } from '@/components/ui/Button';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -11,21 +10,7 @@ import { AlertTriangle, CheckCircle2, XCircle, ArrowLeft, DollarSign, MessageSqu
 import { cn, formatVND } from '@/lib/utils';
 import type { CapabilityBidDto } from '@/types/api.types';
 import { useBid, useCeoDecision } from '@/hooks/use-bids';
-/** PUT /bids/:id/counter-offer */
-function useCounterOfferBid() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ bidId, price }: { bidId: string; price: number }) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/counter-offer`, {
-        negotiated_price_vnd: price,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-    },
-  });
-}
+
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -35,7 +20,7 @@ export default function CeoDecision() {
 
   const { data: bid, isLoading, error, refetch } = useBid(bidId as string, { refetchInterval: 5_000 });
   const ceoDecision = useCeoDecision();
-  const counterOffer = useCounterOfferBid();
+  const counterOffer = useCounterOffer();
 
   // Modals state
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
@@ -119,7 +104,7 @@ export default function CeoDecision() {
     if (!counterPrice || counterPrice <= 0 || !bidId) return;
     setServerError(null);
     counterOffer.mutate(
-      { bidId, price: counterPrice },
+      { bidId, body: { negotiated_price_vnd: counterPrice } },
       {
         onSuccess: () => {
           setShowCounterOffer(false);

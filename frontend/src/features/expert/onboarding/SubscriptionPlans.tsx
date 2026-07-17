@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { useAuthStore } from '@/store/auth.store';
+
 import { useSubscription, useSubscriptionHistory, useSubscriptionStatus } from '@/hooks/use-subscription';
 import { useSubscriptionPackages } from '@/hooks/use-config';
 import { useNavigate, Link } from 'react-router-dom';
@@ -13,8 +13,7 @@ import { Button } from '@/components/ui/Button';
 export default function SubscriptionPlans() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, refreshUser } = useAuth();
-  const store = useAuthStore();
+  const { user } = useAuth();
   const { data: wallet } = useWallet();
   const { activateSubscription } = useSubscription();
   const { data: packages, isLoading: isLoadingPackages } = useSubscriptionPackages();
@@ -35,9 +34,6 @@ export default function SubscriptionPlans() {
       { activeRole: user?.activeRole || 'EXPERT', packageId },
       {
         onSuccess: async (data) => {
-          store.setTokens(data.access_token, ''); 
-          await refreshUser();
-          queryClient.invalidateQueries({ queryKey: ['wallet'] });
           navigate('/expert/subscriptions', { state: { success: true } });
         },
         onError: (error: any) => {

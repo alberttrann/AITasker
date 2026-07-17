@@ -1,34 +1,13 @@
 import DashboardGreeting from "@/components/layout/DashboardGreeting";
 import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 import { Users, CreditCard, AlertTriangle, Wallet, Activity, Zap } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api-client";
+import { useAdminAnalytics, useAdminDisputes, useAdminWithdrawals } from "@/hooks/use-admin";
 
 export default function AdminOverview() {
   // Fetch real data from available admin APIs
-  const { data: analytics, isLoading: isLoadingAnalytics } = useQuery({
-    queryKey: ['admin-analytics'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/admin/analytics');
-      return data;
-    }
-  });
-
-  const { data: disputes, isLoading: isLoadingDisputes } = useQuery({
-    queryKey: ['admin-disputes'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/admin/disputes');
-      return data;
-    }
-  });
-
-  const { data: withdrawals, isLoading: isLoadingWithdrawals } = useQuery({
-    queryKey: ['admin-withdrawals'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/admin/withdrawals?status=PENDING');
-      return data;
-    }
-  });
+  const { data: analytics, isLoading: isLoadingAnalytics } = useAdminAnalytics();
+  const { data: disputes, isLoading: isLoadingDisputes } = useAdminDisputes();
+  const { data: withdrawals, isLoading: isLoadingWithdrawals } = useAdminWithdrawals('PENDING');
 
 
 

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';

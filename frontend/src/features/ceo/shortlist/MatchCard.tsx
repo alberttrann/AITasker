@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
 import type { MatchResult, GapMapItem } from '@t/jsonb.types';
 import { useSocket } from '@/hooks/use-socket';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { useProject } from '@/hooks/use-projects';
+import { usePublicProfile } from '@/hooks/use-user';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -24,14 +23,7 @@ const STRENGTH_STYLES: Record<string, string> = {
 };
 
 export default function MatchCard({ expert, projectId, projectName }: MatchCardProps) {
-  // Fetch public profile since matching backend strips it
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['expertProfile', expert.expert_id],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/users/${expert.expert_id}/public-profile`);
-      return data;
-    },
-  });
+  const { data: profile, isLoading } = usePublicProfile(expert.expert_id);
 
   const { data: dynamicDomains } = useDomains();
   const { data: dynamicSeams } = useSeams();

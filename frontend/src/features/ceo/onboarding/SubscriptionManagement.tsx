@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuth } from '@/hooks/use-auth';
 import { useUser } from '@/hooks/use-user';
 import { useSubscriptionStatus, useSubscriptionHistory } from '@/hooks/use-subscription';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -15,8 +14,7 @@ export default function SubscriptionActivate() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const store = useAuthStore();
-  const { user } = store;
+  const { user } = useAuth();
   const { data: wallet } = useWallet();
   const { data: subStatus } = useSubscriptionStatus();
   const { data: historyLogs, isLoading: isLoadingHistory } = useSubscriptionHistory();

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { formatVND } from '@/lib/utils';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
-import { useAuthStore } from "@/store/auth.store";
+import { useAuth } from '@/hooks/use-auth';
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
@@ -43,7 +43,7 @@ export default function ProjectDetailPage() {
     );
   }, [engagements, project]);
 
-  const user = useAuthStore(s => s.user);
+  const { user } = useAuth();
   const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
   const isCeo = user?.clientSubtype === 'CEO';
 
