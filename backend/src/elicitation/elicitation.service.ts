@@ -23,6 +23,7 @@ const VOID_TO_STAGE: Record<string, number> = {
   UNCLEAR_SUCCESS_METRIC: 3,
   TIMELINE_UNREALISTIC:   3,
   INTEGRATION_UNCLEAR:    4,
+  MISSING_TECHNICAL_ARTIFACT: 4,
 };
 
 const HANDOFF_TOKEN_EXPIRY = '72h';
@@ -313,7 +314,9 @@ export class ElicitationService {
 
     // check which critical artifacts are still missing
     const criticalArtifacts = (session.criticalArtifactsJson as any[]) ?? [];
-    const submittedKeys = Object.keys(dto.technical_artifacts ?? {});
+    const submittedKeys = Object.entries(dto.technical_artifacts ?? {})
+      .filter(([, content]) => content.trim().length > 0)
+      .map(([key]) => key);
     const missingArtifacts = criticalArtifacts.filter(
       (a: any) => !submittedKeys.includes(a.artifact_key),
     );
@@ -378,7 +381,9 @@ export class ElicitationService {
 
     // check which critical artifacts are still missing
     const criticalArtifacts = (session.criticalArtifactsJson as any[]) ?? [];
-    const submittedKeys = Object.keys(dto.technical_artifacts ?? {});
+    const submittedKeys = Object.entries(dto.technical_artifacts ?? {})
+      .filter(([, content]) => content.trim().length > 0)
+      .map(([key]) => key);
     const missingArtifacts = criticalArtifacts.filter(
       (a: any) => !submittedKeys.includes(a.artifact_key),
     );

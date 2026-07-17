@@ -450,6 +450,25 @@ describe('ElicitationService — regression', () => {
       }
     });
 
+    it('returns missing technical artifacts to Stage 4', async () => {
+      prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({
+          completeness_score: 0.6,
+          flagged_void: 'MISSING_TECHNICAL_ARTIFACT',
+        }),
+      );
+      matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
+      prisma.elicitationSession.update.mockResolvedValue({});
+
+      const result = await service.retryFailedSynthesis(SESSION_ID, CEO_ID);
+      expect(result.gate_passed).toBe(false);
+      if (isGateFailed(result)) {
+        expect(result.flagged_void).toBe('MISSING_TECHNICAL_ARTIFACT');
+        expect(result.return_to_stage).toBe(4);
+      }
+    });
+
     it('fails when an unresolved HIGH-severity void exists, even with good completeness and candidates', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
         ...stage5ReadySession,
