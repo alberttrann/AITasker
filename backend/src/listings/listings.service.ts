@@ -403,7 +403,7 @@ export class ListingsService {
     const purchases = await this.prisma.engagement.findMany({
       where: { 
         clientId: clientUserId, 
-        type: 'SERVICE_PURCHASE' 
+        type: { in: ['SERVICE_PURCHASE', 'TECH_DISCOVERY'] }
       },
       include: {
         service: true,

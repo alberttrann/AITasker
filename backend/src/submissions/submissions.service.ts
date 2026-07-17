@@ -100,12 +100,16 @@ export class SubmissionsService {
         throw new NotFoundException('Milestone cannot be found in database.');
         }
 
+        const releaseState = ['DEFINED', 'AWAITING_PAYMENT'].includes(milestone.state) ? 'STAGED' : 'RELEASED';
+        const releasedAt = releaseState === 'RELEASED' ? new Date() : null;
+
         return this.prisma.paygatedDocument.create({
         data: {
             milestoneId: milestoneId,
             documentUrl: dto.document_url,
-            releaseState: 'STAGED', 
+            releaseState, 
             stagedAt: new Date(),
+            releasedAt,
         },
         });
   }
@@ -183,12 +187,16 @@ export class SubmissionsService {
       throw new NotFoundException('Milestone cannot be found in database.');
     }
 
+    const releaseState = ['DEFINED', 'AWAITING_PAYMENT'].includes(milestone.state) ? 'STAGED' : 'RELEASED';
+    const releasedAt = releaseState === 'RELEASED' ? new Date() : null;
+
     const result = await this.prisma.paygatedDocument.createMany({
       data: documentUrls.map((url) => ({
         milestoneId: milestoneId,
         documentUrl: url,
-        releaseState: 'STAGED',
+        releaseState,
         stagedAt: new Date(),
+        releasedAt,
       })),
     });
 
