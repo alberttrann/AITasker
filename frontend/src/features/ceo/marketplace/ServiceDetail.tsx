@@ -179,32 +179,47 @@ export default function ServiceDetail() {
         </div>
       </div>
 
-      {/* Safety Escrow Warning Modal */}
+      {/* Safety Escrow & Delivery Notice */}
       <ConfirmModal
         isOpen={isWarningOpen}
         onClose={() => setIsWarningOpen(false)}
         onConfirm={confirmPurchase}
-        title="Safety Escrow & Delivery Notice"
-        confirmText={purchaseAction === 'CHAT' ? 'Start Conversation' : 'Continue to Payment'}
+        title={purchaseAction === 'CHAT' ? 'Start Conversation with Expert' : 'Safety Escrow & Delivery Notice'}
+        confirmText={purchaseAction === 'CHAT' ? 'Start Chat' : 'Continue to Payment'}
         cancelText="Cancel"
       >
-        <div className="space-y-3 text-sm text-slate-600">
-          <p>
-            You are placing an order for <strong>{service.title}</strong> for <strong className="text-emerald-600">{formatVND(service.priceVnd)}</strong>.
-          </p>
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs leading-relaxed space-y-1">
-            <strong className="font-bold flex items-center gap-1">
-              <Info size={14} /> Safety Suggestion
-            </strong>
+        {purchaseAction === 'CHAT' ? (
+          <div className="space-y-3 text-sm text-slate-600">
             <p>
-              Your payment will be locked safely in escrow and only released after you verify the final deliverables. 
-              {purchaseAction === 'PAY' && (
-                <> We highly recommend chatting with the expert first to align on details.</>
-              )}
+              You are opening a direct message workspace with the expert to discuss <strong>{service.title}</strong>.
             </p>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-xs leading-relaxed space-y-1">
+              <strong className="font-bold flex items-center gap-1">
+                <Info size={14} /> Pre-Purchase Chat
+              </strong>
+              <p>
+                No payment or escrow deposit is required to start chatting. You can align on custom specifications or ask questions before committing to the purchase.
+              </p>
+            </div>
+            <p>Click confirm to open the direct conversation thread.</p>
           </div>
-          <p>Click confirm to proceed and open the direct workspace.</p>
-        </div>
+        ) : (
+          <div className="space-y-3 text-sm text-slate-600">
+            <p>
+              You are placing an order for <strong>{service.title}</strong> for <strong className="text-emerald-600">{formatVND(service.priceVnd)}</strong>.
+            </p>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs leading-relaxed space-y-1">
+              <strong className="font-bold flex items-center gap-1">
+                <Info size={14} /> Safety Suggestion
+              </strong>
+              <p>
+                Your payment will be locked safely in escrow and only released after you verify the final deliverables. 
+                We highly recommend chatting with the expert first to align on details.
+              </p>
+            </div>
+            <p>Click confirm to proceed and open the direct workspace checkout.</p>
+          </div>
+        )}
       </ConfirmModal>
     </div>
   );
