@@ -238,7 +238,14 @@ export class MessagesService {
     }
     async projectUnreadCount(projectId: string, userId: string) {
         return this.prisma.message.count({
-        where: { projectId, senderId: { not: userId }, readAt: null },
+        where: { projectId, senderId: { not: userId }, 
+                // replace unRead cause there's no unRead field in the prisma schema
+                reads: {
+                    none: {
+                        userId,
+                        },
+                    }, 
+                },
         });
     }
 }

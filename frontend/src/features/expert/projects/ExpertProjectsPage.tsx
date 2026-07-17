@@ -5,7 +5,7 @@ import { useEngagements } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useExpertProfile } from "@/hooks/use-expert-profile";
-import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2 } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -69,10 +69,13 @@ export default function ExpertProjectsPage() {
     // Process Engagements first (they hold priority state over invitations)
     if (engagements) {
       engagements.forEach((eng) => {
-        if (!eng.project) return;
+        const isServiceOrder = !eng.project && eng.service;
+        if (!eng.project && !isServiceOrder) return;
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
-        if (eng.state === 'PENDING') {
+        if (isServiceOrder) {
+          status = eng.state === 'PENDING' ? 'NDA_PENDING' : 'IN_PROGRESS'; // Pending payment/chat vs active
+        } else if (eng.state === 'PENDING') {
           // It's in bidding
           if (eng.capabilityBid?.tech_status === 'REVISION_REQUESTED' || eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' || eng.capabilityBid?.ceo_status === 'NEGOTIATING' || eng.capabilityBid?.ceoStatus === 'NEGOTIATING') {
              status = 'COUNTER_OFFER';
@@ -87,11 +90,15 @@ export default function ExpertProjectsPage() {
           status = 'DECLINED';
         }
 
-        projectMap.set(eng.projectId, {
-          id: eng.projectId,
-          projectId: eng.projectId,
-          projectName: eng.project.projectName,
-          ceoName: eng.client_id || 'Client', // Normally we'd join user, but we'll fallback
+        const projectId = eng.projectId || eng.id;
+        const projectName = eng.project?.projectName || eng.service?.title || 'Service Order';
+        const ceoName = eng.client?.fullName || eng.client_id || 'Client';
+
+        projectMap.set(projectId, {
+          id: projectId,
+          projectId: projectId,
+          projectName,
+          ceoName,
           companyName: null,
           status,
           updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || Date.now()),
@@ -446,23 +453,40 @@ export default function ExpertProjectsPage() {
                     )}
 
                     {selectedProject.status === 'NDA_PENDING' && (
-                      <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/nda`)}>
-                        Sign NDA
-                      </Button>
+                      selectedProject.engagement?.serviceId ? (
+                        <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}>
+                          Chat with Client
+                        </Button>
+                      ) : (
+                        <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/nda`)}>
+                          Sign NDA
+                        </Button>
+                      )
                     )}
 
                     {selectedProject.status === 'IN_PROGRESS' && (
-                      <Button onClick={() => {
-                        const milestones = selectedProject.engagement?.milestones || [];
-                        const activeMilestone = milestones.find(m => m.state !== 'RELEASED' && m.state !== 'APPROVED') || milestones[0];
-                        if (activeMilestone) {
-                          navigate(`/expert/engagements/${selectedProject.engagement!.id}/milestones/${activeMilestone.id}`);
-                        } else {
-                          alert("No milestones defined yet for this engagement.");
-                        }
-                      }}>
-                        Open Workspace
-                      </Button>
+                      <>
+                        {selectedProject.engagement?.serviceId && (
+                          <Button 
+                            variant="outline"
+                            onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}
+                            className="mr-2"
+                          >
+                            Chat with Client
+                          </Button>
+                        )}
+                        <Button onClick={() => {
+                          const milestones = selectedProject.engagement?.milestones || [];
+                          const activeMilestone = milestones.find(m => m.state !== 'RELEASED' && m.state !== 'APPROVED') || milestones[0];
+                          if (activeMilestone) {
+                            navigate(`/expert/engagements/${selectedProject.engagement!.id}/milestones/${activeMilestone.id}`);
+                          } else {
+                            alert("No milestones defined yet for this engagement.");
+                          }
+                        }}>
+                          Open Workspace
+                        </Button>
+                      </>
                     )}
 
                     {(selectedProject.status === 'DECLINED' || selectedProject.status === 'EXPIRED') && (

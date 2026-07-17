@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { submitStage4Handoff, getSession, saveStage4Draft } from '../../../hooks/use-elicitation';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Input';
+import { Label } from '@/components/ui/input';
 
 type FormState = {
   currentStack: string;
