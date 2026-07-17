@@ -241,6 +241,7 @@ export class IpnHandlerService {
 
     const engagement = await tx.engagement.findUnique({
       where: { id: userVirtualAccount.entityId },
+      include: { service: true },
     });
 
     if (!engagement) throw new ConflictException('Engagement not found');
@@ -273,6 +274,16 @@ export class IpnHandlerService {
         paymentAmountVnd: Number(transferAmount),
         state: MilestoneState.FUNDED,
         fundedAt: new Date(),
+      },
+    });
+
+    // Create a default Acceptance Criterion for the auto-created service milestone
+    await tx.acceptanceCriterion.create({
+      data: {
+        milestoneId: milestone.id,
+        criterionText: `Deliver and verify all requirements specified in the service: "${engagement.service?.title || 'Service Listing'}"`,
+        isRequired: true,
+        verifiedByRole: SignOffAuthority.CEO,
       },
     });
 
