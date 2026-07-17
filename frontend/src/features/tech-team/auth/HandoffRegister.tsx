@@ -115,11 +115,11 @@ export function HandoffRegister() {
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900">
+    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-900 via-[#0F172A] to-slate-900">
       <div className="relative w-full max-w-4xl bg-white sm:rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in zoom-in-95 duration-200 flex flex-col md:flex-row overflow-hidden">
         
         {/* Left Side - Tech Team Visual */}
-        <div className="hidden md:flex md:w-1/2 relative bg-gradient-to-br from-blue-600 to-indigo-800 p-12 flex-col justify-between overflow-hidden">
+        <div className="hidden md:flex md:w-1/2 relative bg-gradient-to-br from-blue-600 to-blue-900 p-12 flex-col justify-between overflow-hidden">
           {/* Decorative shapes */}
           <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 rounded-full bg-white opacity-5 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-48 h-48 rounded-full bg-blue-400 opacity-20 blur-2xl"></div>

@@ -4,13 +4,13 @@ import { MessageCircle } from 'lucide-react';
 
 export default function ConversationsList() {
   return (
-    <div className="w-full max-w-[1024px] px-4 sm:px-6 mx-auto py-6 flex h-[calc(100vh-140px)] min-h-[500px] border border-slate-200 bg-white rounded-2xl shadow-sm overflow-hidden select-none">
+    <div className="w-full max-w-[1440px] px-6 mx-auto py-6 flex h-[calc(100vh-140px)] min-h-[600px] bg-transparent border-0 gap-6 overflow-hidden select-none">
       {/* Conversations List Left Panel */}
       <ChatSidebar activeEngagementId={null} />
 
       {/* Empty State Right Panel */}
-      <div className="flex-1 bg-slate-50/50 flex flex-col items-center justify-center p-8 text-center space-y-3">
-        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200 shadow-inner">
+      <div className="flex-1 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex flex-col items-center justify-center p-8 text-center space-y-3 overflow-hidden">
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border border-slate-200/80 shadow-inner">
           <MessageCircle size={28} />
         </div>
         <div className="space-y-1.5 max-w-sm">
@@ -24,3 +24,4 @@ export default function ConversationsList() {
   );
 }
 export { ConversationsList };
+

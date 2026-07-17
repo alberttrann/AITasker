@@ -70,7 +70,7 @@ export default function MarketplaceBrowse() {
           <button
             onClick={() => setActiveTab('PURCHASES')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'PURCHASES' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              activeTab === 'PURCHASES' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Clock className="w-4 h-4" /> My Purchases
@@ -169,7 +169,7 @@ export default function MarketplaceBrowse() {
       {isClient && activeTab === 'PURCHASES' && (
         <div className="animate-in fade-in duration-300">
           {isLoadingPurchases ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>
+            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
           ) : purchases?.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {purchases.map((purchase: any) => {

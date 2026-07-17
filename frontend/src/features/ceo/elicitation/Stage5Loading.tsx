@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { submitStage5, retrySynthesis, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
 import { Button } from '@/components/ui/Button';
 import { Loader2 } from 'lucide-react';
+import { useToastActions } from '@lib/toast-context';
 
 interface Stage5Props {
   sessionId: string;
@@ -11,10 +12,11 @@ interface Stage5Props {
 }
 
 export default function Stage5Loading({ sessionId, initialGateResult, onComplete, onError }: Stage5Props) {
+  const toast = useToastActions();
   const [cooldown, setCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [synthError, setSynthError] = useState<string | null>(null);
+  const [hasSynthError, setHasSynthError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   
   const hasStartedRef = useRef(false);
@@ -40,14 +42,16 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
 
   const triggerSynthesis = async () => {
     setErrorMsg(null);
-    setSynthError(null);
+    setHasSynthError(false);
     setIsSynthesizing(true);
     try {
       const data = await submitStage5(sessionId);
       onComplete(data as GateResult);
     } catch (err: any) {
       const { message } = handleElicitationError(err);
-      setSynthError(message || 'Synthesis failed. Please try again.');
+      const msg = message || 'Synthesis failed. Please try again.';
+      toast.error(msg);
+      setHasSynthError(true);
       setCooldown(30);
     } finally {
       setIsSynthesizing(false);
@@ -56,14 +60,14 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
 
   const handleRetry = async () => {
     setIsRetrying(true);
-    setSynthError(null);
+    setHasSynthError(false);
     try {
       const result = await retrySynthesis(sessionId);
       onComplete(result as GateResult);
     } catch (err: any) {
-      setSynthError(
-        err?.response?.data?.message ?? "AI service unavailable. Try again in a moment."
-      );
+      const msg = err?.response?.data?.message ?? "AI service unavailable. Try again in a moment.";
+      toast.error(msg);
+      setHasSynthError(true);
     } finally {
       setIsRetrying(false);
     }
@@ -94,9 +98,8 @@ export default function Stage5Loading({ sessionId, initialGateResult, onComplete
         )}
       </div>
 
-      {synthError && (
+      {hasSynthError && (
         <div className="mt-8 space-y-4 max-w-md mx-auto text-center">
-          <p className="text-body-sm text-error">{synthError}</p>
           <Button onClick={handleRetry} disabled={isRetrying} variant="primary" className="w-full">
             {isRetrying ? <Loader2 className="w-4 h-4 animate-spin mr-2 inline" /> : null}
             Try Again

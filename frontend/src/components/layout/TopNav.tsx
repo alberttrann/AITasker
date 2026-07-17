@@ -77,9 +77,13 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
-  const unreadMessages = useEngagementStore((s) => s.totalUnread);
+  const unreadCounts = useEngagementStore((s) => s.unreadCounts);
+  const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
   const conversations = conversationsResponse?.data || [];
+  const unreadMessages = conversations.length === 0 
+    ? 0 
+    : conversations.reduce((acc: number, conv: any) => acc + (unreadCounts[conv.id] ?? conv.unreadCount ?? 0), 0);
 
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
@@ -122,6 +126,7 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
+    clearAllUnread();
     logout(); // Clears Zustand state
     navigate('/');
   };
@@ -219,7 +224,9 @@ const RoleIcon =
                 >
                   <Bell size={24} strokeWidth={1.5} />
                   {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-white font-headline font-extrabold text-[10px] leading-none rounded-full border-2 border-surface flex items-center justify-center shadow-xs">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </span>
                   )}
                 </button>
 
@@ -277,7 +284,9 @@ const RoleIcon =
                 >
                   <MessageSquare size={24} strokeWidth={1.5} />
                   {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-white font-headline font-extrabold text-[10px] leading-none rounded-full border-2 border-surface flex items-center justify-center shadow-xs">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
                   )}
                 </button>
 
@@ -512,7 +521,21 @@ const RoleIcon =
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-slate-500" /> Notifications
                 </div>
-                {unreadNotifications > 0 && <span className="bg-coral text-white text-xs px-2 py-0.5 rounded-full font-bold">{unreadNotifications}</span>}
+                {unreadNotifications > 0 && (
+                  <span className="bg-error text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </span>
+                )}
+              </Link>
+              <Link to={`${dashboardRoute}/messages`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <div className="flex items-center gap-3">
+                  <MessageSquare size={20} className="text-slate-500" /> Messages
+                </div>
+                {unreadMessages > 0 && (
+                  <span className="bg-error text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
               </Link>
               <Link to={`${dashboardRoute}/profile`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <User size={20} className="text-slate-500" /> Account
