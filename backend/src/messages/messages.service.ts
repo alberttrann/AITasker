@@ -192,7 +192,7 @@ export class MessagesService {
     }
 
     async getConversations(user: { id: string; activeRole: string }) {
-        // Get engagement-based conversations
+         // Get engagement-based conversations
         const engagements = await this.prisma.engagement.findMany({
         where: {
             OR: [{ clientId: user.id }, { expertId: user.id }],
@@ -205,6 +205,7 @@ export class MessagesService {
             clientId: true,
             expertId: true,
             project: { select: { projectName: true } },
+            service: { select: { title: true } },
             expert:  { select: { id: true, fullName: true } },
             client:  { select: { id: true, fullName: true } },
         },
@@ -224,7 +225,7 @@ export class MessagesService {
         return {
             type:        'engagement',
             id:          eng.id,
-            projectName: eng.project?.projectName ?? 'Unknown Project',
+            projectName: eng.project?.projectName ?? eng.service?.title ?? 'Direct Chat',
             otherParty:  eng.clientId === user.id ? eng.expert : eng.client,
             lastMessage, 
             unreadCount: unread,

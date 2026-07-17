@@ -205,17 +205,17 @@ export default function ResolutionConfirm() {
         <button
           onClick={() => handleResolve("split")}
           disabled={isPending}
-          className="w-full text-left p-5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-left p-5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
-              <SplitSquareVertical className="h-5 w-5 text-indigo-700" />
+            <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+              <SplitSquareVertical className="h-5 w-5 text-blue-700" />
             </div>
             <div className="flex-1">
-              <div className="font-bold text-indigo-900 text-lg group-hover:text-indigo-700">
+              <div className="font-bold text-blue-900 text-lg group-hover:text-blue-700">
                 50/50 Split
               </div>
-              <div className="text-indigo-700 text-sm mt-1">
+              <div className="text-blue-700 text-sm mt-1">
                 Partial delivery or mutual fault. Escrow is split evenly —{" "}
                 {formatVND(Math.round(displayAmount / 2))} to each party.
               </div>

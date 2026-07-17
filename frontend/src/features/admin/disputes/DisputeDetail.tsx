@@ -22,7 +22,7 @@ function StateBadge({ state }: { state: string }) {
     AUTO_RESOLVED: { bg: "bg-emerald-100", text: "text-emerald-700" },
     RESOLVED: { bg: "bg-slate-100", text: "text-slate-700" },
     PENDING: { bg: "bg-amber-100", text: "text-amber-700" },
-    LAYER_1_EVAL: { bg: "bg-indigo-100", text: "text-indigo-700" },
+    LAYER_1_EVAL: { bg: "bg-blue-100", text: "text-blue-700" },
   };
   const config = configs[state] || {
     bg: "bg-slate-100",
@@ -125,7 +125,7 @@ export default function DisputeDetail() {
           {/* Deliverable */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <FileText className="h-5 w-5 text-indigo-600" />
+              <FileText className="h-5 w-5 text-blue-600" />
               Deliverable Statement
             </h2>
             <div className="bg-slate-50 border border-slate-100 rounded-lg p-4">
@@ -145,20 +145,20 @@ export default function DisputeDetail() {
 
           {/* LLM Evaluation */}
           {llmConfidence !== null && (
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 border border-indigo-900 shadow-sm rounded-xl p-6 text-white">
-              <h2 className="text-lg font-semibold text-indigo-200 flex items-center gap-2 mb-4">
-                <BrainCircuit className="h-5 w-5 text-indigo-400" />
+            <div className="bg-gradient-to-br from-slate-900 to-blue-950 border border-blue-900 shadow-sm rounded-xl p-6 text-white">
+              <h2 className="text-lg font-semibold text-blue-200 flex items-center gap-2 mb-4">
+                <BrainCircuit className="h-5 w-5 text-blue-400" />
                 AI Layer-1 Evaluation
               </h2>
               <div className="flex items-end gap-4">
                 <span className="text-5xl font-black tracking-tighter">
                   {Math.round(llmConfidence)}%
                 </span>
-                <span className="text-sm text-indigo-200 pb-2 mb-1">
+                <span className="text-sm text-blue-200 pb-2 mb-1">
                   confidence score
                 </span>
               </div>
-              <p className="mt-3 text-indigo-200 text-sm">
+              <p className="mt-3 text-blue-200 text-sm">
                 The AI evaluated this dispute's alignment with the criterion and
                 the defined deliverable. This score informed whether automatic
                 resolution was possible or manual review was required.

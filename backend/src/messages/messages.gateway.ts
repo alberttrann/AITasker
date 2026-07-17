@@ -131,6 +131,24 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
       );
       const room = dto.engagement_id || dto.project_id;
       this.server.to(room!).emit('newMessage', savedMessage);
+
+      // Also emit directly to the recipient's personal room to trigger real-time unread count updates
+      if (dto.engagement_id) {
+        const engagement = await this.prisma.engagement.findUnique({
+          where: { id: dto.engagement_id },
+        });
+        if (engagement) {
+          const recipientId = engagement.clientId === user.sub ? engagement.expertId : engagement.clientId;
+          this.server.to(recipientId).emit('newMessage', savedMessage);
+        }
+      } else if (dto.project_id) {
+        const project = await this.prisma.project.findUnique({
+          where: { id: dto.project_id },
+        });
+        if (project && project.clientId !== user.sub) {
+          this.server.to(project.clientId).emit('newMessage', savedMessage);
+        }
+      }
     } catch (err: any) {
       client.emit('error', { message: err.message || 'Failed to send message.' });
     }

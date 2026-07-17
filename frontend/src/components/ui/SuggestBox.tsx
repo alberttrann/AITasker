@@ -7,7 +7,7 @@ interface SuggestBoxProps {
   icon: React.ReactNode;
   buttonText: string;
   onButtonClick: () => void;
-  theme?: 'emerald' | 'blue' | 'outline' | 'outline-purple';
+  theme?: 'emerald' | 'blue' | 'outline' | 'outline-blue';
   topLabel?: string;
   className?: string;
   onDismiss?: () => void;
@@ -25,7 +25,7 @@ export function SuggestBox({
   onDismiss
 }: SuggestBoxProps) {
   const isEmerald = theme === 'emerald';
-  const isOutline = theme === 'outline' || theme === 'outline-purple';
+  const isOutline = theme === 'outline' || theme === 'outline-blue';
 
   if (isOutline) {
     return (
@@ -78,7 +78,7 @@ export function SuggestBox({
 
   // Enhanced Premium Theme
   const orbsClass = isEmerald ? "bg-emerald-500/20" : "bg-blue-500/20";
-  const orb2Class = isEmerald ? "bg-teal-400/10" : "bg-indigo-400/10";
+  const orb2Class = isEmerald ? "bg-teal-400/10" : "bg-sky-400/10";
   const orb3Class = isEmerald ? "bg-emerald-600/20" : "bg-blue-600/20";
   
   const iconBgClass = isEmerald ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-blue-500/20 text-blue-400 border-blue-500/30";
