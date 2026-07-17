@@ -48,6 +48,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socketRef.current?.disconnect();
       socketRef.current = null;
       setActiveSocket(null);
+      useEngagementStore.getState().clearAllUnread();
       return;
     }
 

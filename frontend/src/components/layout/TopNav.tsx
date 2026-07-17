@@ -77,9 +77,13 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
-  const unreadMessages = useEngagementStore((s) => s.totalUnread);
+  const unreadCounts = useEngagementStore((s) => s.unreadCounts);
+  const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
   const conversations = conversationsResponse?.data || [];
+  const unreadMessages = conversations.length === 0 
+    ? 0 
+    : conversations.reduce((acc: number, conv: any) => acc + (unreadCounts[conv.id] ?? conv.unreadCount ?? 0), 0);
 
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
@@ -122,6 +126,7 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
+    clearAllUnread();
     logout(); // Clears Zustand state
     navigate('/');
   };
