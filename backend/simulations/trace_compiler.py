@@ -11,6 +11,7 @@ BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
 SWAGGER_FILE = os.path.join(BACKEND_DIR, "swagger.json")
 INPUT_TRACE_FILE = os.path.join(BACKEND_DIR, "primitive_traces.jsonl")
 OUTPUT_TRACE_FILE = os.path.join(BACKEND_DIR, "compiled_traces.jsonl")
+CATALOG_FILE = os.path.join(BACKEND_DIR, "ocli_catalog.json")
 
 class TraceCompiler:
     def __init__(self, swagger_path):
@@ -32,8 +33,6 @@ class TraceCompiler:
         
         for openapi_path, methods in paths.items():
             methods_by_path[openapi_path] = list(methods.keys())
-            
-            # Map {id} to regex group (?P<id>[^/]+)
             regex_str = re.sub(r'\{([^}]+)\}', r'(?P<\1>[^/]+)', openapi_path)
             regex_pattern = re.compile(f"^{regex_str}$")
             
@@ -47,10 +46,6 @@ class TraceCompiler:
         return routes, methods_by_path
 
     def _get_ocli_command_name(self, openapi_path, method):
-        """
-        Perfectly replicates openapi-to-cli naming logic.
-        If a path has multiple methods, append _post / _get. Otherwise, omit it.
-        """
         clean_path = openapi_path.strip('/')
         clean_path = re.sub(r'\{([^}]+)\}', r'\1', clean_path)
         cmd_base = clean_path.replace('/', '_')
@@ -70,10 +65,8 @@ class TraceCompiler:
         actual_path = parsed_url.path
         query_dict = dict(urllib.parse.parse_qsl(parsed_url.query))
 
-        if actual_path == "/health":
-            return None
+        if actual_path == "/health": return None
 
-        # 1. Match Route
         matched_route = None
         path_params = {}
         for route in self.routes:
@@ -84,32 +77,43 @@ class TraceCompiler:
                     path_params = match.groupdict()
                     break
         
-        if not matched_route:
-            print(f"[SKIP] Unknown route: {method} {actual_path}")
-            return None
+        if not matched_route: return None
 
         openapi_path = matched_route['openapi_path']
         route_details = matched_route['details']
-        
-        # 2. Get accurate CLI Command name
         ocli_cmd = self._get_ocli_command_name(openapi_path, method)
 
         flags = []
-        
-        # 3. Path & Query parameters
-        for k, v in path_params.items():
-            flags.append(f"--{k} {shlex.quote(str(v))}")
-        for k, v in query_dict.items():
-            flags.append(f"--{k} {shlex.quote(str(v))}")
+        for k, v in path_params.items(): flags.append(f"--{k} {shlex.quote(str(v))}")
+        for k, v in query_dict.items(): flags.append(f"--{k} {shlex.quote(str(v))}")
 
-        # 4. JSON Body parameters
+        # 4. JSON Body parameters (ĐÃ VÁ LỖI SCHEMA RỖNG)
         body = request.get('body')
         if body and isinstance(body, dict):
-            for k, v in body.items():
-                val_str = json.dumps(v) if isinstance(v, (dict, list, bool)) or v is None else str(v)
-                flags.append(f"--{k} {shlex.quote(val_str)}")
+            # Kiểm tra xem Swagger có định nghĩa properties cho DTO này không
+            has_defined_properties = False
+            request_body_spec = route_details.get('requestBody', {})
+            if request_body_spec:
+                content = request_body_spec.get('content', {})
+                json_content = content.get('application/json', {})
+                schema_ref = json_content.get('schema', {}).get('$ref', '')
+                if schema_ref:
+                    schema_name = schema_ref.split('/')[-1]
+                    schema_details = self.openapi_spec.get('components', {}).get('schemas', {}).get(schema_name, {})
+                    if schema_details.get('properties'):
+                        has_defined_properties = True
 
-        # 5. Header parameters (CRITICAL for SePay webhooks)
+            if has_defined_properties:
+                # Nếu Swagger có định nghĩa trường, dùng cờ lẻ như cũ
+                for k, v in body.items():
+                    val_str = json.dumps(v) if isinstance(v, (dict, list, bool)) or v is None else str(v)
+                    flags.append(f"--{k} {shlex.quote(val_str)}")
+            else:
+                # Nếu Swagger bị rỗng properties, tự động gom thành cờ --body duy nhất bọc JSON
+                val_str = json.dumps(body)
+                flags.append(f"--body {shlex.quote(val_str)}")
+
+        # 5. Header parameters (GIỮ NGUYÊN - RẤT QUAN TRỌNG CHO SEPAY WEBHOOK)
         defined_params = route_details.get('parameters', [])
         req_headers = request.get('headers', {})
         for param in defined_params:
@@ -119,8 +123,13 @@ class TraceCompiler:
                 for req_h_key, req_h_val in req_headers.items():
                     if req_h_key.lower() == header_name.lower():
                         flags.append(f"--{header_name} {shlex.quote(str(req_h_val))}")
+        
+        # 6. EXPLICIT AUTHENTICATION MAPPING (GIỮ NGUYÊN - ĐỂ AI NHÌN THẤY JWT)
+        for req_h_key, req_h_val in req_headers.items():
+            if req_h_key.lower() == 'authorization' and str(req_h_val).lower().startswith('bearer '):
+                token = str(req_h_val)[7:].strip()
+                flags.append(f"--api-bearer-token {shlex.quote(token)}")
 
-        # Final Assembly
         trace_step['ocli_command'] = f"{ocli_cmd} {' '.join(flags)}".strip()
         trace_step['openapi_path'] = openapi_path
         
@@ -141,8 +150,13 @@ class TraceCompiler:
         with open(OUTPUT_TRACE_FILE, 'w', encoding='utf-8') as f:
             for step in compiled_traces:
                 f.write(json.dumps(step, ensure_ascii=False) + '\n')
-                
-        print(f" Compiled {len(compiled_traces)} raw requests to OCLI syntax!")
+        
+        # XUẤT CATALOG
+        catalog = [self._get_ocli_command_name(route['openapi_path'], route['method']) for route in self.routes]
+        with open(CATALOG_FILE, "w", encoding="utf-8") as f:
+            json.dump(sorted(list(set(catalog))), f, indent=2)
+            
+        print(f" Compiled {len(compiled_traces)} traces and saved {len(set(catalog))} commands to catalog!")
 
 if __name__ == "__main__":
     compiler = TraceCompiler(SWAGGER_FILE)
