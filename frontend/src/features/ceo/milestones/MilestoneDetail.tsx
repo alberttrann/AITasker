@@ -58,6 +58,7 @@ export default function MilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
+  const isServiceOrder = engagement?.type === 'SERVICE_PURCHASE' || engagement?.type === 'TECH_DISCOVERY';
 
   // List of milestones to switch between
   const milestones = engagement?.milestones ?? [];
@@ -192,6 +193,31 @@ export default function MilestoneDetail() {
                       This milestone is currently funded. The Expert is working on deliverables and checking off their DoD requirements checklist.
                     </p>
                   </div>
+                </div>
+              )}
+
+              {isSubmitted && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-900">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-bold">Awaiting Your Sign-off</p>
+                      <p className="text-amber-800">
+                        {isServiceOrder
+                          ? "The Expert has submitted the service deliverables for your review. Please review their submission below."
+                          : "The Expert has submitted the deliverables for review. Please review the checklist criteria below and sign off on each item."}
+                      </p>
+                    </div>
+                  </div>
+                  {isServiceOrder && milestone.acceptanceCriteria && milestone.acceptanceCriteria.length > 0 && (
+                    <Button
+                      variant="primary"
+                      onClick={() => handleOpenVerify(milestone.acceptanceCriteria[0].id, milestone.acceptanceCriteria[0].criterionText)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-semibold"
+                    >
+                      Approve & Release Escrow
+                    </Button>
+                  )}
                 </div>
               )}
 

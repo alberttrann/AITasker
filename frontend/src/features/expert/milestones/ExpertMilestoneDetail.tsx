@@ -51,6 +51,8 @@ export default function ExpertMilestoneDetail() {
   const milestones = engagement.milestones ?? [];
   const selectedMilestoneIndex = milestones.findIndex((m) => m.id === milestoneId);
   
+  const isServiceOrder = engagement.type === 'SERVICE_PURCHASE' || engagement.type === 'TECH_DISCOVERY';
+
   // Decide layout rendering based on milestone state
   const isLocked = milestone.state === "DEFINED" || milestone.state === "AWAITING_PAYMENT";
   const isUnderReview = milestone.state === "SUBMITTED";
@@ -69,9 +71,9 @@ export default function ExpertMilestoneDetail() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(engagement.project ? `/expert/service/projects` : `/expert/service/orders`)}
+            onClick={() => navigate(isServiceOrder ? `/expert/service/orders` : `/expert/service/projects`)}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-            aria-label={engagement.project ? "Back to projects" : "Back to orders"}
+            aria-label={isServiceOrder ? "Back to orders" : "Back to projects"}
           >
             <ArrowLeft size={20} />
           </button>
@@ -335,24 +337,26 @@ export default function ExpertMilestoneDetail() {
                     </div>
                   </div>
 
-                  {/* DoD Checklist Panel */}
-                  <div className="border-t border-slate-100 pt-6 space-y-4">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-800 font-headline">DoD Requirements Checklist</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Define your delivery checklists and check off required items with completion comments.</p>
+                  {/* DoD Checklist Panel - Only for Custom Project-Based Milestones */}
+                  {!isServiceOrder && (
+                    <div className="border-t border-slate-100 pt-6 space-y-4">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-800 font-headline">DoD Requirements Checklist</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Define your delivery checklists and check off required items with completion comments.</p>
+                      </div>
+                      <DodChecklist
+                        milestoneId={milestone.id}
+                        dodItems={milestone.dodItems || []}
+                        acceptanceCriteria={milestone.acceptanceCriteria || []}
+                      />
                     </div>
-                    <DodChecklist
-                      milestoneId={milestone.id}
-                      dodItems={milestone.dodItems || []}
-                      acceptanceCriteria={milestone.acceptanceCriteria || []}
-                    />
-                  </div>
+                  )}
 
                   {/* Deliverable Submission Panel */}
                   <div className="border-t border-slate-100 pt-6">
                     <DeliverableSubmit
                       milestoneId={milestone.id}
-                      dodItems={milestone.dodItems || []}
+                      dodItems={isServiceOrder ? [] : (milestone.dodItems || [])}
                       onSuccessSubmit={() => refetch()}
                     />
                   </div>
