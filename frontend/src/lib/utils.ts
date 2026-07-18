@@ -8,6 +8,11 @@ export function cn(...inputs: ClassValue[]) {
 export function formatVND(amount: number): string {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VND';
 }
+
+export function formatConfidencePercent(score: number): string {
+  return `${Math.round(score * 100)}%`;
+}
+
 export function formatSeamCode(code: string): string {
   if (!code) return code;
   return code.replace('<->', '↔');

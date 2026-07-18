@@ -14,7 +14,7 @@ import {
   Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatVND } from "@/lib/utils";
+import { formatConfidencePercent, formatVND } from "@/lib/utils";
 
 function StateBadge({ state }: { state: string }) {
   const configs: Record<string, { bg: string; text: string }> = {
@@ -152,7 +152,7 @@ export default function DisputeDetail() {
               </h2>
               <div className="flex items-end gap-4">
                 <span className="text-5xl font-black tracking-tighter">
-                  {Math.round(llmConfidence)}%
+                  {formatConfidencePercent(llmConfidence)}
                 </span>
                 <span className="text-sm text-blue-200 pb-2 mb-1">
                   confidence score
@@ -235,9 +235,10 @@ export default function DisputeDetail() {
           {/* Resolve button */}
           {isManualReview && (
             <Button
+              id={`btn-resolve-dispute-${id}`}
               variant="primary"
               size="lg"
-              className="w-full bg-rose-600 hover:bg-rose-700"
+              className="w-full bg-rose-600 hover:bg-rose-700 cursor-pointer"
               onClick={() => navigate(`/admin/disputes/${id}/resolve`)}
             >
               <AlertTriangle className="h-5 w-5 mr-2" />

@@ -10,7 +10,7 @@ import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 type ActorUser = { id: string };
 
 @ApiTags('Admin')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT')
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')

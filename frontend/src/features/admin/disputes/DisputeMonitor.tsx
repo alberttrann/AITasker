@@ -1,10 +1,17 @@
 import { useState } from "react";
-import { useAdminDisputes, useResolveDispute } from "@/hooks/use-admin";
+import { useNavigate } from "react-router-dom";
+import {
+  useAdminDisputes,
+  useResolveDispute,
+  type AdminDisputeDecision,
+} from "@/hooks/use-admin";
 import { Spinner } from "@/components/ui/Spinner";
-import { Shield, ShieldAlert, Scale, Search, FileText, ChevronRight } from "lucide-react";
+import { Shield, ShieldAlert, Scale, FileText, ChevronRight } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { formatConfidencePercent } from "@/lib/utils";
 
 export default function DisputeMonitor() {
+  const navigate = useNavigate();
   const [filterState, setFilterState] = useState<string>("MANUAL_REVIEW");
   const { data: disputes, isLoading, isError } = useAdminDisputes(filterState === "ALL" ? undefined : filterState);
 
@@ -32,7 +39,7 @@ export default function DisputeMonitor() {
     );
   }
 
-  const handleResolveAction = (decision: "release" | "refund" | "split") => {
+  const handleResolveAction = (decision: AdminDisputeDecision) => {
     if (!selectedDispute) return;
     resolveDispute.mutate(
       { id: selectedDispute, decision },
@@ -117,9 +124,9 @@ export default function DisputeMonitor() {
                       <span className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded">
                         E: {dispute.engagementId || dispute.engagement_id}
                       </span>
-                      {dispute.llmConfidence !== null && (
+                      {(dispute.llmConfidence ?? dispute.llm_confidence) != null && (
                         <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1">
-                          <BrainCircuitIcon /> AI Confidence: {Math.round(dispute.llmConfidence || dispute.llm_confidence || 0)}%
+                          <BrainCircuitIcon /> AI Confidence: {formatConfidencePercent(dispute.llmConfidence ?? dispute.llm_confidence)}
                         </span>
                       )}
                     </div>
@@ -130,16 +137,24 @@ export default function DisputeMonitor() {
                 <div className="flex items-center gap-3 shrink-0">
                   {dispute.state === 'MANUAL_REVIEW' && (
                     <button 
+                      id={`btn-open-resolve-dispute-${dispute.id}`}
+                      type="button"
                       onClick={() => {
                         setSelectedDispute(dispute.id);
                         setIsResolveModalOpen(true);
                       }}
-                      className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-colors shadow-sm focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                      className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-colors shadow-sm focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 cursor-pointer"
                     >
                       Resolve Now
                     </button>
                   )}
-                  <button className="p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors border border-transparent hover:border-primary/20">
+                  <button
+                    id={`btn-view-dispute-${dispute.id}`}
+                    type="button"
+                    aria-label={`View dispute ${dispute.id}`}
+                    onClick={() => navigate(`/admin/disputes/${dispute.id}`)}
+                    className="p-2.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors border border-transparent hover:border-primary/20 cursor-pointer"
+                  >
                     <ChevronRight className="h-5 w-5" />
                   </button>
                 </div>
@@ -166,27 +181,33 @@ export default function DisputeMonitor() {
 
           <div className="grid grid-cols-1 gap-3">
             <button 
-              onClick={() => handleResolveAction("release")}
+              id="btn-resolve-dispute-expert-wins"
+              type="button"
+              onClick={() => handleResolveAction("EXPERT_WINS")}
               disabled={resolveDispute.isPending}
-              className="w-full text-left p-4 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group"
+              className="w-full text-left p-4 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group cursor-pointer disabled:cursor-not-allowed"
             >
               <div className="font-bold text-emerald-900 text-lg group-hover:text-emerald-700">Release Funds to Expert</div>
               <div className="text-emerald-700 text-sm mt-1">The expert met the Definition of Done. Escrow is paid out.</div>
             </button>
 
             <button 
-              onClick={() => handleResolveAction("refund")}
+              id="btn-resolve-dispute-client-wins"
+              type="button"
+              onClick={() => handleResolveAction("CLIENT_WINS")}
               disabled={resolveDispute.isPending}
-              className="w-full text-left p-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 transition-colors group"
+              className="w-full text-left p-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 transition-colors group cursor-pointer disabled:cursor-not-allowed"
             >
               <div className="font-bold text-rose-900 text-lg group-hover:text-rose-700">Refund Client</div>
               <div className="text-rose-700 text-sm mt-1">The expert failed to deliver. Escrow is returned to the CEO.</div>
             </button>
 
             <button 
-              onClick={() => handleResolveAction("split")}
+              id="btn-resolve-dispute-split"
+              type="button"
+              onClick={() => handleResolveAction("SPLIT")}
               disabled={resolveDispute.isPending}
-              className="w-full text-left p-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors group"
+              className="w-full text-left p-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors group cursor-pointer disabled:cursor-not-allowed"
             >
               <div className="font-bold text-blue-900 text-lg group-hover:text-blue-700">50/50 Split</div>
               <div className="text-blue-700 text-sm mt-1">Partial delivery or mutual fault. Escrow is split evenly.</div>
