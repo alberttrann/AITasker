@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@hooks/use-auth';
-import { apiClient } from '@lib/api-client';
 import { Button } from '@components/ui/Button';
 import { Input, Label } from '@components/ui/Input';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
@@ -58,18 +56,9 @@ export default function ResetPasswordPage() {
   const { token } = useParams<{ token: string }>();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { resetPassword } = useAuth();
+  const { resetPassword, verifyResetToken } = useAuth();
   
-  const verifyTokenQuery = useQuery({
-    queryKey: ['verify-reset-token', token],
-    queryFn: async () => {
-      if (!token) throw new Error("No token");
-      const { data } = await apiClient.get(`/auth/verify-reset-token/${token}`);
-      return data;
-    },
-    enabled: !!token,
-    retry: false,
-  });
+  const verifyTokenQuery = verifyResetToken(token);
 
   if (!token || verifyTokenQuery.isError) {
     return (

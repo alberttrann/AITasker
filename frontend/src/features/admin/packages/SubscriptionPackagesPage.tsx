@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import apiClient from '@/lib/api-client';
 import { Plus, Edit2, Check, X, Package, Trash2, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';

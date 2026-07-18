@@ -1011,3 +1011,23 @@ export interface ResendOtpDto {
   email: string;
 }
 
+export interface SubscriptionStatus {
+  tier: 'free' | 'pro' | string;
+  isActive: boolean;
+  packageId?: string;
+  expiresAt?: string;
+  [key: string]: any;
+}
+
+export interface SubscriptionHistoryLog {
+  id: string;
+  packageName: string;
+  role: string;
+  amountPaidVnd: string;
+  purchasedAt: string;
+  expiresAt: string;
+  paymentMethod: string;
+  isExpired: boolean;
+}
+
+

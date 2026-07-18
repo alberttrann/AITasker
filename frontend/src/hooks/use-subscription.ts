@@ -1,13 +1,8 @@
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 
-export interface SubscriptionStatus {
-  tier: 'free' | 'pro' | string;
-  isActive: boolean;
-  packageId?: string;
-  expiresAt?: string;
-  [key: string]: any;
-}
+import { useAuthStore } from '@/store/auth.store';
+import { SubscriptionHistoryLog, SubscriptionStatus, UserDto } from '@/types/api.types';
 
 export function useSubscription() {
   const queryClient = useQueryClient();
@@ -17,9 +12,15 @@ export function useSubscription() {
       const { data } = await apiClient.post<{ access_token: string }>('/subscriptions/activate', payload);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      if (data.access_token) {
+        useAuthStore.getState().setTokens(data.access_token, '');
+        const { data: userRes } = await apiClient.get<UserDto>('/users/me');
+        useAuthStore.getState().setUser(userRes);
+      }
       queryClient.invalidateQueries({ queryKey: ['user'] });
       queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },
   });
 
@@ -47,16 +48,7 @@ export function useSubscriptionStatus() {
   });
 }
 
-export interface SubscriptionHistoryLog {
-  id: string;
-  packageName: string;
-  role: string;
-  amountPaidVnd: string;
-  purchasedAt: string;
-  expiresAt: string;
-  paymentMethod: string;
-  isExpired: boolean;
-}
+
 
 export function useSubscriptionHistory() {
   return useQuery({

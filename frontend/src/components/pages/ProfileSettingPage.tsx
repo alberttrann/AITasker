@@ -3,13 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Pencil, X, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
-import { useAuthStore } from '@/store/auth.store';
-import apiClient from '@/lib/api-client';
 
 export default function ProfileSettingPage() {
   const { user } = useAuth();
-  const { updateProfile, verifyTaxCode } = useUser();
-  const store = useAuthStore();
+  const { updateProfile, updateExpertProfile, verifyTaxCode } = useUser();
   const navigate = useNavigate();
 
   // ── State Management ──
@@ -92,7 +89,7 @@ export default function ProfileSettingPage() {
         setOriginalValues((prev) => ({ ...prev, companyName: newValue }));
         setFormValues((prev) => ({ ...prev, companyName: newValue }));
       } else if (field === 'bio') {
-        await apiClient.put('/expert-profile/me', { bio: newValue });
+        await updateExpertProfile.mutateAsync({ bio: newValue });
         setOriginalValues((prev) => ({ ...prev, bio: newValue }));
         setFormValues((prev) => ({ ...prev, bio: newValue }));
       } else {

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Input';
 import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 
@@ -51,8 +49,7 @@ function decodeJwt(token: string) {
 export function HandoffRegister() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, logout, user, setTokens, setUser } = useAuthStore();
-  const { registerHandoff } = useAuth();
+  const { isAuthenticated, logout, user, registerHandoff, loginNoRedirect, claimHandoff } = useAuth();
   
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -91,11 +88,7 @@ export function HandoffRegister() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const { data } = await apiClient.post('/auth/claim-handoff', {
-        invite_token: token,
-      });
-      setTokens(data.access_token, '');
-      setUser(data.user);
+      await claimHandoff.mutateAsync({ invite_token: token });
       navigate('/tech-team', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to claim invite. This link might be invalid or used.');
@@ -231,10 +224,7 @@ export function HandoffRegister() {
                   setError(null);
                   try {
                     if (isLoginMode) {
-                      const { data } = await apiClient.post('/auth/login', { email: values.email, password: values.password });
-                      setTokens(data.access_token, data.refresh_token ?? '');
-                      const { data: userData } = await apiClient.get('/users/me');
-                      setUser(userData);
+                      await loginNoRedirect.mutateAsync({ email: values.email, password: values.password });
                     } else {
                       await registerHandoff.mutateAsync({
                         invite_token: token || '',

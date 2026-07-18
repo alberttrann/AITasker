@@ -6,7 +6,7 @@ import type { Stage4ScenarioBProps } from "@t/ui.types";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuth } from "@/hooks/use-auth";
 import { useToastActions } from "@lib/toast-context";
 
 /**
@@ -51,7 +51,7 @@ export default function Stage4ScenarioB({
   onBack,
 }: Stage4ScenarioBProps) {
   const queryClient = useQueryClient();
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
   const toast = useToastActions();
   const [inviteEmail, setInviteEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);

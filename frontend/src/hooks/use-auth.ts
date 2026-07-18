@@ -53,6 +53,21 @@ const login = useMutation({
   },
 });
 
+const loginNoRedirect = useMutation({
+  mutationFn: async (creds: { email: string; password: string }) => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token?: string }>(
+      '/auth/login',
+      creds
+    );
+    return data;
+  },
+  onSuccess: async (data) => {
+    store.setTokens(data.access_token, data.refresh_token ?? '');
+    const { data: user } = await apiClient.get<UserDto>('/users/me');
+    store.setUser(user);
+  },
+});
+
   // Logout 
   const logout = async () => {
     try {
@@ -133,6 +148,30 @@ const login = useMutation({
     },
   });
 
+  const verifyResetToken = (token?: string) => {
+    return useQuery({
+      queryKey: ['verify-reset-token', token],
+      queryFn: async () => {
+        if (!token) throw new Error("No token");
+        const { data } = await apiClient.get(`/auth/verify-reset-token/${token}`);
+        return data;
+      },
+      enabled: !!token,
+      retry: false,
+    });
+  };
+
+  const claimHandoff = useMutation({
+    mutationFn: async (payload: { invite_token: string }) => {
+      const { data } = await apiClient.post<{ access_token: string; user: UserDto }>('/auth/claim-handoff', payload);
+      return data;
+    },
+    onSuccess: async (data) => {
+      store.setTokens(data.access_token, '');
+      store.setUser(data.user);
+    },
+  });
+
   const refreshUser = async () => {
     const { data: userRes } = await apiClient.get<UserDto>('/users/me');
     store.setUser(userRes);
@@ -180,9 +219,12 @@ const login = useMutation({
     changePassword,
     forgotPassword,
     resetPassword,
+    verifyResetToken,
     refreshUser,
     verifyOtp,
     resendOtp,
+    loginNoRedirect,
+    claimHandoff,
   };
 }
 

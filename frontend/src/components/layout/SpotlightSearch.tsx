@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, ArrowRight } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
+import { useSearchData } from '@/hooks/use-search';
 
 interface SpotlightSearchProps {
   user: any;
@@ -72,75 +71,22 @@ export default function SpotlightSearch({ user, isAuthenticated }: SpotlightSear
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Fetch data safely and STRICTLY gated by activeRole so no 403 / 400 errors occur
-  const { data: rawProjects } = useQuery({
-    queryKey: ['projects', { slim: true }],
-    queryFn: async () => {
-      const res = await apiClient.get('/projects?slim=true');
-      return res.data;
-    },
-    enabled: isAuthenticated && activeRole === 'CLIENT_CEO',
-  });
+  const { 
+    rawProjects, 
+    rawServices, 
+    rawEngagements, 
+    rawInvitations, 
+    rawTechEngagements, 
+    adminUsersData, 
+    rawAdminDisputes 
+  } = useSearchData(isAuthenticated, activeRole);
+
   const projects = useMemo(() => Array.isArray(rawProjects) ? rawProjects : (rawProjects as any)?.data || [], [rawProjects]);
-
-  const { data: rawServices } = useQuery({
-    queryKey: ['services', { limit: 30 }],
-    queryFn: async () => {
-      const res = await apiClient.get('/services', { params: { limit: 30 } });
-      return res.data;
-    },
-    enabled: isAuthenticated && (activeRole === 'CLIENT_CEO' || activeRole === 'EXPERT'),
-  });
   const services = useMemo(() => Array.isArray(rawServices) ? rawServices : (rawServices as any)?.data || [], [rawServices]);
-
-  const { data: rawEngagements } = useQuery({
-    queryKey: ['engagements'],
-    queryFn: async () => {
-      const res = await apiClient.get('/engagements');
-      return res.data;
-    },
-    enabled: isAuthenticated && activeRole === 'EXPERT',
-  });
   const engagements = useMemo(() => Array.isArray(rawEngagements) ? rawEngagements : (rawEngagements as any)?.data || [], [rawEngagements]);
-
-  const { data: rawInvitations } = useQuery({
-    queryKey: ['invitations'],
-    queryFn: async () => {
-      const res = await apiClient.get('/invitations');
-      return res.data;
-    },
-    enabled: isAuthenticated && activeRole === 'EXPERT',
-  });
   const invitations = useMemo(() => Array.isArray(rawInvitations) ? rawInvitations : (rawInvitations as any)?.data || [], [rawInvitations]);
-
-  const { data: rawTechEngagements } = useQuery({
-    queryKey: ['engagements', 'tech-team'],
-    queryFn: async () => {
-      const res = await apiClient.get('/engagements/tech-team');
-      return res.data;
-    },
-    enabled: isAuthenticated && activeRole === 'TECH_TEAM',
-  });
   const techEngagements = useMemo(() => Array.isArray(rawTechEngagements) ? rawTechEngagements : (rawTechEngagements as any)?.data || [], [rawTechEngagements]);
-
-  const { data: adminUsersData } = useQuery({
-    queryKey: ['admin', 'users', 1, 30],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/users', { params: { page: 1, limit: 30 } });
-      return res.data;
-    },
-    enabled: isAuthenticated && activeRole === 'ADMIN',
-  });
   const adminUsers = useMemo(() => Array.isArray(adminUsersData) ? adminUsersData : (adminUsersData as any)?.data || [], [adminUsersData]);
-
-  const { data: rawAdminDisputes } = useQuery({
-    queryKey: ['admin', 'disputes', undefined],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/disputes');
-      return res.data;
-    },
-    enabled: isAuthenticated && activeRole === 'ADMIN',
-  });
   const adminDisputes = useMemo(() => Array.isArray(rawAdminDisputes) ? rawAdminDisputes : (rawAdminDisputes as any)?.data || [], [rawAdminDisputes]);
 
   // Compute matched results
