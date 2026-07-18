@@ -9,6 +9,7 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
 import { useInvitations } from '@/hooks/use-invitations';
 import { useMyServices } from '@/hooks/use-services';
+import { useEngagements } from '@/hooks/use-engagements';
 import Widget, { WidgetMetric } from '@/components/dashboard/Widget';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -23,6 +24,7 @@ export function ExpertOverview() {
   const { data: subStatus, isLoading: isLoadingSub } = useSubscriptionStatus();
   const { data: invitations, isLoading: isLoadingInvites } = useInvitations();
   const { data: services, isLoading: isLoadingServices } = useMyServices();
+  const { data: engagements, isLoading: isLoadingEngagements } = useEngagements();
   
   const hasSubscription = subStatus?.tier === 'pro';
   const hasDomains = profile?.domainDepths?.length > 0;
@@ -42,6 +44,19 @@ export function ExpertOverview() {
   const pendingInvites = invitations?.filter(i => i.status === 'PENDING' && !i.isExpired) || [];
   const latestInvite = pendingInvites.length > 0 ? pendingInvites[0] : null;
 
+  const activeEngagements = engagements?.filter(e => e.state === 'ACTIVE' || e.state === 'CONNECTED') || [];
+  const latestActive = activeEngagements.length > 0 ? activeEngagements[0] : null;
+
+  const hasActiveProjects = engagements?.some(e => (e.state === 'ACTIVE' || e.state === 'CONNECTED') && e.project) || false;
+  const hasActiveOrders = engagements?.some(e => e.state === 'ACTIVE' && e.service) || false;
+
+  let workspaceHref = '/expert/service';
+  if (hasActiveProjects && !hasActiveOrders) {
+    workspaceHref = '/expert/service/projects';
+  } else if (!hasActiveProjects && hasActiveOrders) {
+    workspaceHref = '/expert/service/orders';
+  }
+
   const widgets: WidgetMetric[][] = [
     [
       {
@@ -51,6 +66,16 @@ export function ExpertOverview() {
         subValue: latestInvite ? `${latestInvite.ceo.fullName} invited you to ${latestInvite.project.projectName}` : 'No new project invitations',
         href: '/expert/service/projects',
         icon: <Mail className="h-5 w-5" />
+      },
+      {
+        id: 'active_workspaces',
+        label: 'Active Workspaces',
+        value: isLoadingEngagements ? '...' : activeEngagements.length.toString(),
+        subValue: latestActive 
+          ? `Working on "${latestActive.project?.projectName || latestActive.service?.title || 'Service Order'}"` 
+          : 'No active workspaces',
+        href: workspaceHref,
+        icon: <Briefcase className="h-5 w-5" />
       }
     ]
   ];

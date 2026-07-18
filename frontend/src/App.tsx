@@ -72,6 +72,7 @@ const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickT
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
 const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
 const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
+const ExpertOrdersPage = lazy(() => import("@features/expert/services/ExpertOrdersPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
@@ -180,6 +181,7 @@ const router = createBrowserRouter(
             <Route path="service" element={<ExpertServicesPage />} />
             <Route path="service/:id" element={<ServiceDetail />} />
             <Route path="service/projects" element={<ExpertProjectsPage />} />
+            <Route path="service/orders" element={<ExpertOrdersPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />

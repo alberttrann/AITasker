@@ -19,11 +19,36 @@ export class MilestonesService {
   async getMilestone(milestoneId: string) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
-      include: { acceptanceCriteria: true, dodItems: true, submissions: true },
+      include: {
+        acceptanceCriteria: true,
+        dodItems: true,
+        submissions: true,
+        engagement: {
+          select: {
+            type: true,
+            service: { select: { title: true } },
+          },
+        },
+      },
     });
     if (!milestone) {
       throw new NotFoundException('Milestone not found.');
     }
+
+    // Auto-heal missing criteria for service purchases
+    const isServiceOrder = milestone.engagement?.type === 'SERVICE_PURCHASE' || milestone.engagement?.type === 'TECH_DISCOVERY';
+    if (isServiceOrder && milestone.acceptanceCriteria.length === 0) {
+      const defaultCriterion = await this.prisma.acceptanceCriterion.create({
+        data: {
+          milestoneId: milestone.id,
+          criterionText: `Deliver and verify all requirements specified in the service: "${milestone.engagement?.service?.title || 'Service Listing'}"`,
+          isRequired: true,
+          verifiedByRole: milestone.signOffAuthority,
+        },
+      });
+      milestone.acceptanceCriteria.push(defaultCriterion);
+    }
+
     return milestone;
   }
 

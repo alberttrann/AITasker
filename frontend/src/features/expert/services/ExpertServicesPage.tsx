@@ -38,9 +38,28 @@ export default function ExpertServicesPage() {
           </div>
         </div>
 
-        {/* Expert Profile Card */}
+        {/* Service Orders Card */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center text-center p-8 transition-all hover:border-slate-300 hover:shadow-md w-full">
           <div className="w-16 h-16 flex items-center justify-center mb-4 text-emerald-600">
+            <Briefcase className="w-8 h-8" strokeWidth={2} />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Service Orders</h2>
+          <p className="text-slate-500 text-sm leading-relaxed mb-6">
+            Manage your service sales, track client payments, and open active service workspaces.
+          </p>
+          <div className="w-full mt-auto">
+            <Button 
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => navigate('/expert/service/orders')}
+            >
+              Open Orders
+            </Button>
+          </div>
+        </div>
+
+        {/* Expert Profile Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center text-center p-8 transition-all hover:border-slate-300 hover:shadow-md w-full">
+          <div className="w-16 h-16 flex items-center justify-center mb-4 text-slate-600">
             <User className="w-8 h-8" strokeWidth={2} />
           </div>
           <h2 className="text-xl font-bold text-slate-900 mb-2">Expert Profile</h2>
