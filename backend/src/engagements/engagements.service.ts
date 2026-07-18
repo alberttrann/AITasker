@@ -30,7 +30,8 @@ const CURRENT_MILESTONE_INCLUDE = {
       id: true,
       milestoneNumber: true,
       state: true,
-      deliverableStatement: true
+      deliverableStatement: true,
+      paymentAmountVnd: true
     }
   }
 } as any;
@@ -78,7 +79,7 @@ export class EngagementsService {
         include: { 
           project: PROJECT_SUMMARY_SELECT, 
           capabilityBid: true,
-          service: { select: { id: true, title: true } },
+          service: { select: { id: true, title: true, priceVnd: true } },
           client: { select: { id: true, fullName: true } },
           ...CURRENT_MILESTONE_INCLUDE 
         },
@@ -93,7 +94,7 @@ export class EngagementsService {
         include: { 
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
-          service: { select: { id: true, title: true } },
+          service: { select: { id: true, title: true, priceVnd: true } },
           expert: { select: { fullName: true } },
           ...CURRENT_MILESTONE_INCLUDE 
         },

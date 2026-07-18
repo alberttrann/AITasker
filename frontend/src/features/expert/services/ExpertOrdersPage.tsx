@@ -283,7 +283,7 @@ export default function ExpertOrdersPage() {
                                   </div>
 
                                   <div className="flex items-center gap-3 shrink-0">
-                                    <span className="text-xs font-bold text-slate-700">{formatVND(m.priceVnd)}</span>
+                                    <span className="text-xs font-bold text-slate-700">{formatVND(m.paymentAmountVnd)}</span>
                                     {order.state === 'ACTIVE' && (
                                       <button
                                         onClick={() => navigate(`/expert/engagements/${order.id}/milestones/${m.id}`)}

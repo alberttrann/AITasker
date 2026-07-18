@@ -13,7 +13,7 @@ function signSepayPayload(rawBodyString: string, secret: string, timestamp: stri
 }
 
 async function main() {
-  const webhookSecret = "whsec_w3djV5C6NeaB5Ypwc7LWeBYlIPK2m0SW"; // from local .env
+  const webhookSecret = "enter your webhook secret here"; // from local .env
   
   // 1. Fetch the latest active virtual account created locally for a MILESTONE or SERVICE
   const va = await prisma.virtualAccount.findFirst({
