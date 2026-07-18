@@ -445,6 +445,7 @@ export class ListingsService {
       },
       include: {
         service: true,
+        milestones: true,
       },
       orderBy: { id: 'desc' },
     });
@@ -473,7 +474,21 @@ export class ListingsService {
           },
         };
       }
-      return p;
+      
+      // Fallback for orphaned service purchases (deleted service listings)
+      const serviceType = p.type === 'SERVICE_PURCHASE' ? 'AI_SERVICE' : 'TECH_DISCOVERY';
+      const totalMilestonesPrice = p.milestones.reduce((sum: number, m: any) => sum + Number(m.paymentAmountVnd), 0);
+      return {
+        ...p,
+        service: {
+          id: p.serviceId || 'deleted',
+          title: `Deleted Service Order (${p.id.slice(0, 8)})`,
+          description: 'This service listing has been deleted by the expert.',
+          priceVnd: totalMilestonesPrice.toString(),
+          serviceType,
+          state: 'DELETED',
+        }
+      };
     });
   }
 

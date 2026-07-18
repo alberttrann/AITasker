@@ -32,8 +32,8 @@ export default function ExpertOrdersPage() {
   const unifiedOrders = useMemo(() => {
     if (!engagements) return [];
     
-    // Filter engagements where user is expert and it's a service order
-    const serviceEngagements = engagements.filter((eng) => !eng.project && eng.service);
+    // Filter engagements where user is expert and it's a service order (even if service listing is deleted)
+    const serviceEngagements = engagements.filter((eng) => !eng.project && (eng.type === 'SERVICE_PURCHASE' || eng.type === 'TECH_DISCOVERY'));
     
     // Find active combination of (serviceId, clientId)
     const activeCombinations = new Set<string>();
@@ -54,15 +54,20 @@ export default function ExpertOrdersPage() {
     });
     
     return filtered
-      .map((eng) => ({
-        id: eng.id,
-        serviceTitle: eng.service?.title || 'Service Listing',
-        clientName: eng.client?.fullName || 'Client',
-        priceVnd: eng.service?.priceVnd ? Number(eng.service.priceVnd) : 0,
-        state: eng.state as any,
-        updatedAt: new Date(eng.updatedAt || eng.connectedAt || Date.now()).getTime(),
-        engagement: eng,
-      }))
+      .map((eng) => {
+        const milestones = eng.milestones || [];
+        const totalMilestonesPrice = milestones.reduce((sum: number, m: any) => sum + Number(m.paymentAmountVnd), 0);
+        
+        return {
+          id: eng.id,
+          serviceTitle: eng.service?.title || `Deleted Service Order (${eng.id.slice(0, 8)})`,
+          clientName: eng.client?.fullName || 'Client',
+          priceVnd: eng.service?.priceVnd ? Number(eng.service.priceVnd) : totalMilestonesPrice,
+          state: eng.state as any,
+          updatedAt: new Date(eng.updatedAt || eng.connectedAt || Date.now()).getTime(),
+          engagement: eng,
+        };
+      })
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }, [engagements]);
 
