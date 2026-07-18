@@ -69,9 +69,9 @@ export default function ExpertMilestoneDetail() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/expert/service/projects`)}
+            onClick={() => navigate(engagement.project ? `/expert/service/projects` : `/expert/service/orders`)}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-            aria-label="Back to projects"
+            aria-label={engagement.project ? "Back to projects" : "Back to orders"}
           >
             <ArrowLeft size={20} />
           </button>

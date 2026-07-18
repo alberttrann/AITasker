@@ -310,7 +310,7 @@ export class IpnHandlerService {
           type: 'system',
           title: 'Service Purchased!',
           body: 'A client has purchased your service and funded the escrow milestones.',
-          link: `/expert/service`,
+          link: `/expert/engagements/${engagement.id}/milestones/${milestone.id}`,
         },
       });
 
@@ -322,7 +322,7 @@ export class IpnHandlerService {
           type: 'system',
           title: 'Payment Confirmed!',
           body: `Your payment for the service "${engagement.service?.title || 'Service Listing'}" has been confirmed.`,
-          link: `/ceo/marketplace`,
+          link: `/ceo/engagements/${engagement.id}/milestones`,
         },
       });
 

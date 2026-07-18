@@ -5,13 +5,17 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { formatVND } from '@/lib/utils';
 
 export default function MarketplaceBrowse() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'SERVICES' | 'EXPERTS' | 'PURCHASES'>('SERVICES');
+  const [activeTab, setActiveTab] = useState<'SERVICES' | 'EXPERTS' | 'PURCHASES'>(() => {
+    if (location.state?.tab === 'PURCHASES') return 'PURCHASES';
+    return 'SERVICES';
+  });
   
   const { data: services, isLoading: isLoadingServices } = useGetServices();
   const { data: experts, isLoading: isLoadingExperts } = useExpertSearch();

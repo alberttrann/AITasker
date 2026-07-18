@@ -107,7 +107,7 @@ export default function MilestoneList() {
               if (projectId) {
                 navigate(`/ceo/projects/${projectId}`);
               } else {
-                navigate("/ceo/marketplace");
+                navigate("/ceo/marketplace", { state: { tab: "PURCHASES" } });
               }
             }}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
