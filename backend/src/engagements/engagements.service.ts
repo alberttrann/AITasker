@@ -25,9 +25,7 @@ const PROJECT_SUMMARY_SELECT = {
 
 const CURRENT_MILESTONE_INCLUDE = {
   milestones: {
-    where: { state: { notIn: ['RELEASED', 'APPROVED'] } }, // Get the active/pending ones
     orderBy: { milestoneNumber: 'asc' },
-    take: 1, // Only grab the very next actionable milestone
     select: {
       id: true,
       milestoneNumber: true,

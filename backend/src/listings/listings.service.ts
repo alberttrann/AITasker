@@ -298,36 +298,73 @@ export class ListingsService {
       throw new UnprocessableEntityException('CAN NOT FOUND USER WALLET!');
     }
 
-    // 5. Determine engagement type from service.service_type
+    // 5. Check if they already have an ACTIVE engagement for this service.
+    const existingActive = await this.prisma.engagement.findFirst({
+      where: {
+        serviceId: id,
+        clientId: buyer.id,
+        state: 'ACTIVE',
+      },
+    });
+
+    if (existingActive) {
+      return {
+        engagement: existingActive,
+        virtualAccount: null,
+        vietqrUrl: '',
+      };
+    }
+
+    // 5b. Check if they already have a PENDING engagement for this service to reuse.
+    const existingPending = await this.prisma.engagement.findFirst({
+      where: {
+        serviceId: id,
+        clientId: buyer.id,
+        state: 'PENDING',
+      },
+    });
+
     const engagementType =
       service.serviceType === 'AI_SERVICE' ? 'SERVICE_PURCHASE' : 'TECH_DISCOVERY';
 
     // 6. Create engagement + per-order VA atomically.
     const result = await this.prisma.$transaction(async (tx) => {
-      const engagement = await tx.engagement.create({
-        data: {
-          expertId: service.expertId,
-          clientId: buyer.id,
-          serviceId: id,
-          type: engagementType,
-          state: 'PENDING',
-        },
-      });
+      let engagement = existingPending;
+      if (!engagement) {
+        engagement = await tx.engagement.create({
+          data: {
+            expertId: service.expertId,
+            clientId: buyer.id,
+            serviceId: id,
+            type: engagementType,
+            state: 'PENDING',
+          },
+        });
+      }
 
-      const vaNumber = generateVaNumber(VAEntityType.SERVICE);
-
-      // Per-order VA for service purchase. Fixed amount = service price so
-      // IPN handler can match the payment. Expires in 24h.
-      const va = await tx.virtualAccount.create({
-        data: {
+      // Reuse active VA if valid, otherwise create a new one
+      let va = await tx.virtualAccount.findFirst({
+        where: {
           entityType: VAEntityType.SERVICE,
           entityId: engagement.id,
-          vaNumber,
-          fixedAmount: service.priceVnd,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           status: VAStatus.ACTIVE,
+          expiresAt: { gte: new Date() },
         },
       });
+
+      if (!va) {
+        const vaNumber = generateVaNumber(VAEntityType.SERVICE);
+        va = await tx.virtualAccount.create({
+          data: {
+            entityType: VAEntityType.SERVICE,
+            entityId: engagement.id,
+            vaNumber,
+            fixedAmount: service.priceVnd,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            status: VAStatus.ACTIVE,
+          },
+        });
+      }
 
       return { engagement, va };
     });
@@ -403,7 +440,8 @@ export class ListingsService {
     const purchases = await this.prisma.engagement.findMany({
       where: { 
         clientId: clientUserId, 
-        type: { in: ['SERVICE_PURCHASE', 'TECH_DISCOVERY'] }
+        type: { in: ['SERVICE_PURCHASE', 'TECH_DISCOVERY'] },
+        state: { not: 'DECLINED' }
       },
       include: {
         service: true,
@@ -411,7 +449,21 @@ export class ListingsService {
       orderBy: { id: 'desc' },
     });
 
-    return purchases.map((p) => {
+    // Hide duplicate PENDING service purchases if there is already an ACTIVE one for the same service
+    const activeServiceIds = new Set(
+      purchases
+        .filter(p => p.state === 'ACTIVE' && p.serviceId)
+        .map(p => p.serviceId)
+    );
+
+    const filteredPurchases = purchases.filter(p => {
+      if (p.state === 'PENDING' && p.serviceId && activeServiceIds.has(p.serviceId)) {
+        return false;
+      }
+      return true;
+    });
+
+    return filteredPurchases.map((p) => {
       if (p.service) {
         return {
           ...p,

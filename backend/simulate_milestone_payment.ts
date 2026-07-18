@@ -15,10 +15,10 @@ function signSepayPayload(rawBodyString: string, secret: string, timestamp: stri
 async function main() {
   const webhookSecret = "whsec_w3djV5C6NeaB5Ypwc7LWeBYlIPK2m0SW"; // from local .env
   
-  // 1. Fetch the latest active virtual account created locally for a MILESTONE
+  // 1. Fetch the latest active virtual account created locally for a MILESTONE or SERVICE
   const va = await prisma.virtualAccount.findFirst({
     where: {
-      entityType: "MILESTONE",
+      entityType: { in: ["MILESTONE", "SERVICE"] },
       status: "ACTIVE"
     },
     orderBy: {
@@ -27,12 +27,12 @@ async function main() {
   });
 
   if (!va || !va.vaNumber) {
-    console.error("❌ No ACTIVE virtual account found for any milestone on your LOCAL database.");
-    console.error("👉 Make sure you clicked 'Generate Payment Info' on your browser page first!");
+    console.error("❌ No ACTIVE virtual account found for any milestone or service on your LOCAL database.");
+    console.error("👉 Make sure you clicked 'Generate Payment Info' or 'Pay Now' on your browser page first!");
     return;
   }
 
-  console.log(`Found active VA: ${va.vaNumber} with amount: ${va.fixedAmount} VND (linked to Milestone ID: ${va.entityId})`);
+  console.log(`Found active VA: ${va.vaNumber} (Type: ${va.entityType}) with amount: ${va.fixedAmount} VND (linked to ID: ${va.entityId})`);
 
   // 2. Construct SePay webhook payload
   const payload = {
