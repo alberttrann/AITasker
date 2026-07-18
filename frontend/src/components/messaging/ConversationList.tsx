@@ -48,10 +48,8 @@ export default function ConversationList({ onSelect, selectedId }: ConversationL
   const deduped: any[] = [];
   const seenKeys = new Set<string>();
 
-  // Sắp xếp các đoạn chat để ưu tiên hội thoại đang được chọn lên đầu trước khi lọc trùng
+  // Sort conversations by latest message timestamp — newest first (no selected-first priority)
   const sortedThreads = [...(threads || [])].sort((a, b) => {
-    if (a.id === effectiveSelectedId) return -1;
-    if (b.id === effectiveSelectedId) return 1;
     return (new Date(b.lastMessage?.timestamp || 0).getTime()) - (new Date(a.lastMessage?.timestamp || 0).getTime());
   });
 
@@ -88,6 +86,7 @@ export default function ConversationList({ onSelect, selectedId }: ConversationL
       {deduped.map((t: any) => {
         const isSelected = effectiveSelectedId === t.id;
         const name = t.otherParty?.fullName || 'Partner';
+        const projectName = t.projectName || 'Service Purchase Workspace';
         const unread = unreadCounts[t.id] ?? t.unreadCount ?? 0;
         const lastMsg = (t.lastMessage?.content || '').substring(0, 60);
 
@@ -134,14 +133,14 @@ export default function ConversationList({ onSelect, selectedId }: ConversationL
             <div className='flex-1 min-w-0 text-left'>
               <div className='flex justify-between items-baseline mb-0.5'>
                 <p className={`text-[14px] truncate ${isSelected ? 'font-bold text-[#0F172A]' : 'font-semibold text-slate-700'}`}>
-                  {name}
+                  {projectName}
                 </p>
                 {time && (
                   <span className='text-[10px] text-[#94A3B8] shrink-0 ml-2'>{time}</span>
                 )}
               </div>
               <p className={`text-[12px] truncate mb-0.5 ${isSelected ? 'text-slate-600' : 'text-slate-400 font-medium'}`}>
-                {t.projectName || 'Service Purchase Workspace'}
+                {name}
               </p>
               <p className={`text-[12px] truncate ${
                 unread > 0 && !isSelected ? 'text-[#0F172A] font-bold' : 'text-slate-500'

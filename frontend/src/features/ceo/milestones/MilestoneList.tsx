@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEngagement, useEngagementMilestones } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
 import { ArrowLeft, Plus, CheckCircle, MessageSquare } from "lucide-react";
 import MilestoneChatAssistant from "./MilestoneChatAssistant";
+import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -32,6 +34,9 @@ export default function MilestoneList() {
 
   const projectId = engagement?.projectId || (engagement as any)?.project_id;
   const { data: project, isLoading: isLoadingProject } = useProject(projectId);
+
+  // State for workspace chat drawer (additive)
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const isLoading = isLoadingEngagement || isLoadingMilestones || isLoadingProject;
   const error = engagementError || milestonesError;
@@ -127,10 +132,10 @@ export default function MilestoneList() {
         <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
-            onClick={() => navigate(`/ceo/inbox/${engagementId}`)}
+            onClick={() => setIsChatOpen(true)}
             className="inline-flex items-center gap-2"
           >
-            <MessageSquare size={16} /> Chat
+            <MessageSquare size={16} /> Discuss with Team
           </Button>
 
           <Button
@@ -275,6 +280,18 @@ export default function MilestoneList() {
       )}
       {projectId && (
         <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
+      )}
+
+      {/* Workspace Chat Drawer — additive */}
+      {engagement && (
+        <MilestoneChatPanel
+          engagementId={engagementId || ""}
+          clientId={engagement.clientId}
+          expertId={engagement.expertId}
+          projectName={engagement.project?.projectName || project?.projectName}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
       )}
     </div>
   );

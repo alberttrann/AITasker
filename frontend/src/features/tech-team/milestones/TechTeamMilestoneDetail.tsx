@@ -2,30 +2,31 @@ import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMilestone } from "@/hooks/use-milestones";
 import { useEngagement } from "@/hooks/use-engagements";
+import { useDownloadDocument } from "@/hooks/use-submissions";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import CriteriaVerify from "./CriteriaVerify";
-import RevisionRequest from "./RevisionRequest";
-import { ArrowLeft, Check, RotateCcw, AlertTriangle, FileText, Calendar, CheckCircle2, Scale, MessageSquare } from "lucide-react";
-import { cn } from "@/lib/utils";
+import CriteriaVerify from "@/features/ceo/milestones/CriteriaVerify";
+import RevisionRequest from "@/features/ceo/milestones/RevisionRequest";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
+import { ArrowLeft, Check, RotateCcw, FileText, Calendar, CheckCircle2, MessageSquare, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function MilestoneDetail() {
+export default function TechTeamMilestoneDetail() {
   const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
   const navigate = useNavigate();
 
   // Fetch milestone detail (including acceptanceCriteria and dodItems nested)
   const { data: milestone, isLoading: isLoadingMilestone, error: milestoneError, refetch } = useMilestone(milestoneId);
   const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
+  const { data: paygatedDocs } = useDownloadDocument(milestoneId || "");
 
-  // States for verification and revision modals
+  // States for verification, revision, and chat drawer
   const [selectedCriterion, setSelectedCriterion] = useState<{ id: string; text: string } | null>(null);
   const [activeModal, setActiveModal] = useState<"VERIFY" | "REVISION" | null>(null);
-  // State for workspace chat drawer (additive — does not affect existing modals)
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   const isLoading = isLoadingMilestone || isLoadingEngagement;
@@ -66,7 +67,7 @@ export default function MilestoneDetail() {
   const milestones = engagement?.milestones ?? [];
 
   const handleMilestoneSwitch = (id: string) => {
-    navigate(`/ceo/engagements/${engagementId}/milestones/${id}`);
+    navigate(`/tech-team/engagements/${engagementId}/milestones/${id}`);
   };
 
   const handleOpenVerify = (id: string, text: string) => {
@@ -91,23 +92,24 @@ export default function MilestoneDetail() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)}
+            onClick={() => navigate(`/tech-team/projects`)}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-            aria-label="Back to milestones"
+            aria-label="Back to projects"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 font-headline">Review Milestone Workspace</h1>
-            <p className="text-sm text-slate-500">Verify deliverables, manage acceptance criteria, and release escrow funds.</p>
+            <p className="text-sm text-slate-500">Sign off technical deliverables and collaborate with the project team.</p>
           </div>
         </div>
-        {/* Workspace Chat Trigger — additive, placed alongside existing header actions */}
-        <div className="flex items-center shrink-0">
+
+        {/* Workspace Chat Trigger */}
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
             onClick={() => setIsChatOpen(true)}
-            className="inline-flex items-center gap-2 font-semibold"
+            className="inline-flex items-center gap-2 font-semibold hover:bg-slate-50"
           >
             <MessageSquare size={16} className="text-slate-600" />
             Discuss with Team
@@ -187,11 +189,10 @@ export default function MilestoneDetail() {
               {/* Status Alert Banners */}
               {!isFunded && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex gap-3 text-slate-800">
-                  <AlertTriangle className="w-5 h-5 shrink-0 text-slate-400 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-bold">Awaiting Escrow Funding</p>
                     <p className="text-slate-500">
-                      The Expert cannot submit deliverables yet because this milestone is not funded. Go to the fund screen to initiate bank payments.
+                      This milestone is currently awaiting payment from the CEO. Work will begin once funded.
                     </p>
                   </div>
                 </div>
@@ -203,7 +204,7 @@ export default function MilestoneDetail() {
                   <div className="text-sm">
                     <p className="font-bold">Expert Executing Work</p>
                     <p className="text-slate-500">
-                      This milestone is currently funded. The Expert is working on deliverables and checking off their DoD requirements checklist.
+                      The Expert is currently working on deliverables and compiling their checklist of DoD requirements.
                     </p>
                   </div>
                 </div>
@@ -215,7 +216,7 @@ export default function MilestoneDetail() {
                   <div className="text-sm">
                     <p className="font-bold">Awaiting Expert Re-submission</p>
                     <p className="text-amber-800">
-                      You requested revisions on this milestone. The Expert has been notified of the feedback and must re-submit their deliverables once corrected.
+                      Revisions have been requested for this milestone. The Expert is resolving the feedback before re-submitting.
                     </p>
                   </div>
                 </div>
@@ -227,31 +228,20 @@ export default function MilestoneDetail() {
                   <div className="text-sm">
                     <p className="font-bold">Milestone Approved & Released</p>
                     <p className="text-emerald-800">
-                      All criteria have been signed off. Escrow funds have been disbursed to the Expert's wallet.
+                      All criteria have been signed off. Escrow funds have been successfully disbursed to the Expert.
                     </p>
                   </div>
                 </div>
               )}
 
               {isDisputed && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-red-900">
-                  <div className="flex gap-3">
-                    <Scale className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-bold">Dispute File Pending Review</p>
-                      <p className="text-red-800 font-body">
-                        This milestone has an open dispute. Escrow funds are frozen. The system AI or platform administrator is resolving the dispute.
-                      </p>
-                    </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 text-red-900">
+                  <div className="text-sm">
+                    <p className="font-bold">Dispute Pending Review</p>
+                    <p className="text-red-800">
+                      This milestone has an open dispute. Escrow funds are locked while system arbitration resolves the issue.
+                    </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute/result`)}
-                    className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 shrink-0 h-8 font-headline"
-                  >
-                    View Dispute Status
-                  </Button>
                 </div>
               )}
 
@@ -294,27 +284,45 @@ export default function MilestoneDetail() {
                 );
               })()}
 
+              {/* Paygated technical documents released to Tech Team */}
+              {isApproved && paygatedDocs && paygatedDocs.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Technical Deliverables & Code</h3>
+                  <div className="bg-emerald-50/30 border border-emerald-200/50 rounded-xl p-5 space-y-4">
+                    <p className="text-xs text-slate-500">
+                      These technical documents were released upon milestone approval.
+                    </p>
+                    <div className="space-y-2">
+                      {paygatedDocs.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText size={16} className="text-emerald-600 shrink-0" />
+                            <span className="text-xs font-medium text-slate-700 truncate">{doc.documentUrl}</span>
+                          </div>
+                          <a
+                            href={doc.documentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded transition-colors"
+                          >
+                            <Download size={12} /> Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Acceptance Criteria Sign Off Sheet */}
               <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria</h3>
-                  
-                  {/* File Dispute Button */}
-                  {(isSubmitted || isRevisionPhase) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute`)}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 inline-flex items-center gap-1 h-8"
-                    >
-                      <Scale size={14} /> File Dispute
-                    </Button>
-                  )}
-                </div>
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria</h3>
 
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
                   {milestone.acceptanceCriteria && milestone.acceptanceCriteria.map((c, idx) => {
                     const isVerified = c.verifiedAt !== null;
+                    const canSignOff = c.verifiedByRole === "TECH_TEAM" || milestone.signOffAuthority === "TECH_TEAM" || milestone.signOffAuthority === "JOINT";
+
                     return (
                       <div
                         key={c.id}
@@ -329,21 +337,26 @@ export default function MilestoneDetail() {
                             {c.isRequired && <span className="text-red-500 ml-1 font-bold">*</span>}
                           </p>
 
-                          {isVerified && c.verifiedAt && (
-                            <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-max">
-                              Signed off on {new Date(c.verifiedAt).toLocaleDateString()}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isVerified && c.verifiedAt && (
+                              <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-max">
+                                Signed off on {new Date(c.verifiedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                            <span className="text-[9px] font-black bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded tracking-wide uppercase">
+                              Authority: {c.verifiedByRole}
+                            </span>
+                          </div>
 
                           {c.revisionNote && (
                             <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200/50 rounded-lg p-2.5 mt-2 italic font-medium break-words">
-                              <strong>Your Revision Feedback:</strong> {c.revisionNote}
+                              <strong>Revision Feedback:</strong> {c.revisionNote}
                             </div>
                           )}
                         </div>
 
                         {/* Sign-off Actions */}
-                        {isSubmitted && !isVerified && (
+                        {isSubmitted && !isVerified && canSignOff && (
                           <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
                             <Button
                               variant="outline"
@@ -362,6 +375,12 @@ export default function MilestoneDetail() {
                               <Check size={14} /> Verify & Approve
                             </Button>
                           </div>
+                        )}
+
+                        {isSubmitted && !isVerified && !canSignOff && (
+                          <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded border border-slate-200 shrink-0">
+                            Awaiting {c.verifiedByRole} Sign-off
+                          </span>
                         )}
 
                         {isSubmitted && isVerified && (
@@ -452,7 +471,7 @@ export default function MilestoneDetail() {
         />
       )}
 
-      {/* Workspace Chat Drawer — additive, does not replace any existing functionality */}
+      {/* Embedded Workspace Chat Drawer */}
       {engagement && (
         <MilestoneChatPanel
           engagementId={engagementId || ""}

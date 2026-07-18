@@ -37,7 +37,8 @@ export default function MessageThread({ engagementId, projectId }: { engagementI
 
   type MessageAction =
     | { type: 'MERGE_FETCHED'; messages: Message[] }
-    | { type: 'APPEND'; message: Message };
+    | { type: 'APPEND'; message: Message }
+    | { type: 'RESET' };
 
   function messageReducer(state: Message[], action: MessageAction): Message[] {
     switch (action.type) {
@@ -57,6 +58,8 @@ export default function MessageThread({ engagementId, projectId }: { engagementI
           (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
       }
+      case 'RESET':
+        return [];
       default:
         return state;
     }
@@ -71,6 +74,11 @@ export default function MessageThread({ engagementId, projectId }: { engagementI
   const isLoading = engagementId ? engLoading : projLoading;
 
   const scopeId = engagementId || projectId;
+
+  // Reset messages when switching to a different conversation to prevent cross-chat leakage
+  useEffect(() => {
+    dispatch({ type: 'RESET' });
+  }, [scopeId]);
 
   // Thực hiện đọc tin nhắn realtime khi mở hội thoại [5]
   useEffect(() => {

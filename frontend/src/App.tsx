@@ -81,6 +81,7 @@ const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
 const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
 const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
+const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/TechTeamMilestoneDetail"));
 
 function RootLayout() {
   return (
@@ -180,6 +181,8 @@ const router = createBrowserRouter(
             <Route path="bids/:bidId/revision" element={<BidRevisionRequest />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="engagements/:engagementId/milestones" element={<MilestoneList />} />
+            <Route path="engagements/:engagementId/milestones/:milestoneId" element={<TechTeamMilestoneDetail />} />
           </Route>
         </Route>
 

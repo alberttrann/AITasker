@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useMilestone } from "@/hooks/use-milestones";
@@ -12,6 +12,7 @@ import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
 import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 
 export default function ExpertMilestoneDetail() {
   const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
@@ -62,6 +63,9 @@ export default function ExpertMilestoneDetail() {
     navigate(`/expert/engagements/${engagementId}/milestones/${id}`);
   };
 
+  // State for workspace chat drawer (additive — keeps existing inbox navigation intact)
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   return (
     <div className="w-full max-w-[1440px] px-6 mx-auto py-8">
       {/* Back to Project button & Header */}
@@ -85,11 +89,11 @@ export default function ExpertMilestoneDetail() {
         <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
-            onClick={() => navigate(`/expert/inbox/${engagementId}`)}
-            className="inline-flex items-center gap-2"
+            onClick={() => setIsChatOpen(true)}
+            className="inline-flex items-center gap-2 font-semibold"
           >
-            <MessageSquare size={16} />
-            Chat với CEO
+            <MessageSquare size={16} className="text-slate-600" />
+            Discuss with Team
           </Button>
         </div>
       </div>
@@ -374,6 +378,16 @@ export default function ExpertMilestoneDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Workspace Chat Drawer — additive, does not affect existing inbox navigation */}
+      <MilestoneChatPanel
+        engagementId={engagementId || ""}
+        clientId={engagement.clientId}
+        expertId={engagement.expertId}
+        projectName={engagement.project?.projectName}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 }
