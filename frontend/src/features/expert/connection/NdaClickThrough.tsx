@@ -131,8 +131,9 @@ export default function ExpertNdaClickThrough() {
         </p>
         <Button
           variant="primary"
+          className="cursor-pointer"
           onClick={() =>
-            navigate(`/engagements/${engagementId}/messages`)
+            navigate(`/expert/engagements/${engagementId}/messages`)
           }
         >
           Open Messages
