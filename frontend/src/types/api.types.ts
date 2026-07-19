@@ -85,6 +85,7 @@ export interface WalletTransactionDto {
   transactionType: WalletTxType;
   referenceId: string | null;
   createdAt: string;
+  details?: string | null;
 }
 
 export interface VirtualAccountDto {
