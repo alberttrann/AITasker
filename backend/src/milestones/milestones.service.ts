@@ -229,7 +229,14 @@ export class MilestonesService {
     if (!milestone) throw new NotFoundException('Milestone not found.');
     return this.prisma.dispute.findMany({
       where: { milestoneId },
-      orderBy: { filedAt: 'desc' }, 
+      orderBy: { filedAt: 'desc' },
+      include: {
+        criterion: { select: { criterionText: true } },
+        milestone: {
+          select: { deliverableStatement: true, paymentAmountVnd: true },
+        },
+        escrowAccount: { select: { status: true, amount: true } },
+      },
     });
   }
 

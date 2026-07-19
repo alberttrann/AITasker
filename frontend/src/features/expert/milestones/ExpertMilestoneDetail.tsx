@@ -2,15 +2,17 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useMilestone } from "@/hooks/use-milestones";
+import { useMilestoneSettlement } from "@/hooks/use-disputes";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
+import { getSettlementCopy } from "@/lib/dispute-resolution";
 import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
-import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function ExpertMilestoneDetail() {
@@ -20,8 +22,13 @@ export default function ExpertMilestoneDetail() {
   // Fetch data
   const { data: engagement, isLoading: isLoadingEngagement, error: engagementError } = useEngagement(engagementId);
   const { data: milestone, isLoading: isLoadingMilestone, error: milestoneError, refetch } = useMilestone(milestoneId);
+  const {
+    settlementOutcome,
+    isLoading: isLoadingSettlement,
+    isError: isSettlementError,
+  } = useMilestoneSettlement(milestoneId);
 
-  const isLoading = isLoadingEngagement || isLoadingMilestone;
+  const isLoading = isLoadingEngagement || isLoadingMilestone || isLoadingSettlement;
   const error = engagementError || milestoneError;
 
   if (isLoading) {
@@ -57,6 +64,46 @@ export default function ExpertMilestoneDetail() {
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
   const isWorkPhase = milestone.state === "FUNDED" || milestone.state === "IN_PROGRESS" || milestone.state === "IN_REVISION";
+  const approvedSettlement = isSettlementError
+    ? "UNKNOWN"
+    : settlementOutcome ?? "EXPERT_RELEASED";
+  const settlementText = getSettlementCopy(
+    approvedSettlement,
+    "EXPERT",
+    formatVND(milestone.paymentAmountVnd),
+  );
+  const settlementCopy = approvedSettlement === "CLIENT_REFUNDED"
+    ? {
+        ...settlementText,
+        wrapperClass: "border-rose-200 bg-rose-50/20",
+        iconWrapperClass: "bg-rose-100 text-rose-600",
+        bodyClass: "text-rose-800",
+        icon: RotateCcw,
+      }
+    : approvedSettlement === "SPLIT"
+      ? {
+          ...settlementText,
+          wrapperClass: "border-amber-200 bg-amber-50/20",
+          iconWrapperClass: "bg-amber-100 text-amber-600",
+          bodyClass: "text-amber-800",
+          icon: Scale,
+        }
+      : approvedSettlement === "UNKNOWN" || approvedSettlement === "FUNDS_HELD" || approvedSettlement === "FUNDS_FROZEN"
+        ? {
+            ...settlementText,
+            wrapperClass: "border-slate-200 bg-slate-50/50",
+            iconWrapperClass: "bg-slate-100 text-slate-500",
+            bodyClass: "text-slate-600",
+            icon: AlertTriangle,
+          }
+        : {
+            ...settlementText,
+            wrapperClass: "border-emerald-200 bg-emerald-50/10",
+            iconWrapperClass: "bg-emerald-100 text-emerald-600",
+            bodyClass: "text-slate-500",
+            icon: CheckCircle2,
+          };
+  const SettlementIcon = settlementCopy.icon;
 
   const handleMilestoneSwitch = (id: string) => {
     navigate(`/expert/engagements/${engagementId}/milestones/${id}`);
@@ -111,7 +158,7 @@ export default function ExpertMilestoneDetail() {
                       <StatusBadge
                         label={m.state.replace(/_/g, " ")}
                         variant={variantFromStatus(m.state)}
-                        size="xs"
+                        className="px-2 py-0.5 text-[10px]"
                       />
                     </span>
                   </button>
@@ -229,15 +276,15 @@ export default function ExpertMilestoneDetail() {
 
               {/* APPROVED/RELEASED STATE */}
               {isApproved && (
-                <div className="flex flex-col items-center justify-center text-center py-12 px-6 border border-emerald-200 rounded-2xl bg-emerald-50/10">
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-                    <CheckCircle2 size={24} />
+                <div className={`flex flex-col items-center justify-center text-center py-12 px-6 border rounded-2xl ${settlementCopy.wrapperClass}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${settlementCopy.iconWrapperClass}`}>
+                    <SettlementIcon size={24} />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">Milestone Approved & Released</h3>
-                  <p className="text-sm text-slate-500 max-w-md mb-4">
-                    All acceptance criteria have been verified successfully. The escrow sum of {formatVND(milestone.paymentAmountVnd)} has been released and credited to your available balance.
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">{settlementCopy.title}</h3>
+                  <p className={`text-sm max-w-md mb-4 ${settlementCopy.bodyClass}`}>
+                    {settlementCopy.body}
                   </p>
-                  {milestone.releasedAt && (
+                  {approvedSettlement === "EXPERT_RELEASED" && milestone.releasedAt && (
                     <span className="text-xs text-slate-400">Released on: {new Date(milestone.releasedAt).toLocaleString()}</span>
                   )}
                 </div>

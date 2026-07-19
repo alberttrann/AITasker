@@ -39,6 +39,7 @@ async def test_dispute_eval_expert_wins_high_confidence(client):
         new=AsyncMock(return_value={
             "confidence_score": 0.94,
             "finding": "expert_wins",
+            "reasoning": "The measured results satisfy every stated threshold.",
         }),
     ):
         res = await client.post("/llm/dispute-eval", json=VALID_PAYLOAD)
@@ -47,6 +48,8 @@ async def test_dispute_eval_expert_wins_high_confidence(client):
     body = res.json()
     assert body["finding"] == "expert_wins"
     assert body["confidence_score"] == 0.94
+    assert body["reasoning"] == "The measured results satisfy every stated threshold."
+    assert set(body) == {"confidence_score", "finding", "reasoning"}
 
 
 async def test_dispute_eval_client_wins_high_confidence(client):
@@ -137,6 +140,30 @@ async def test_dispute_eval_files_included_in_prompt(client):
     prompt = mock.call_args.kwargs["prompt"]
     assert file_urls[0] in prompt
     assert file_urls[1] in prompt
+    assert "contents not inspected" in prompt
+
+
+async def test_dispute_eval_context_fields_are_text_only_prompt_context(client):
+    """Criterion, deliverable, and calibration fields are passed as text."""
+    mock = AsyncMock(return_value={
+        "confidence_score": 0.88,
+        "finding": "expert_wins",
+        "reasoning": "The described work meets the stated criterion.",
+    })
+    with patch("app.services.llm_client.call_llm_json_with_system", new=mock):
+        await client.post("/llm/dispute-eval", json={
+            **VALID_PAYLOAD,
+            "project_archetype": "3",
+            "milestone_context": "Build the rule parser.",
+            "prior_revision_count": 2,
+        })
+
+    prompt = mock.call_args.kwargs["prompt"]
+    assert VALID_PAYLOAD["criterion_text"] in prompt
+    assert VALID_PAYLOAD["deliverable_description"] in prompt
+    assert "Project Archetype: 3" in prompt
+    assert "Milestone Scope: Build the rule parser." in prompt
+    assert "Prior Revision Loops: 2" in prompt
 
 
 async def test_dispute_eval_empty_files_list_no_files_section_in_prompt(client):

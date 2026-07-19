@@ -8,7 +8,10 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ArrowLeft, Scale, AlertTriangle, ShieldCheck, Clock } from "lucide-react";
-import { formatVND } from "@/lib/utils";
+import {
+  formatDisputeResolution,
+  formatEscrowMovement,
+} from "@/lib/dispute-resolution";
 
 export default function DisputeResult() {
   const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
@@ -40,7 +43,9 @@ export default function DisputeResult() {
   }
 
   // Find active dispute for this milestone
-  const activeDispute = disputes?.find(d => d.milestoneId === milestoneId);
+  const activeDispute = disputes?.find(
+    (dispute) => (dispute.milestoneId ?? dispute.milestone_id) === milestoneId,
+  );
 
   if (!activeDispute) {
     return (
@@ -61,6 +66,9 @@ export default function DisputeResult() {
   const isResolved = activeDispute.state === "RESOLVED";
   const isPendingAI = activeDispute.state === "LAYER_1_EVAL";
   const isAwaitingAdmin = activeDispute.state === "MANUAL_REVIEW";
+  const resolutionLabel = formatDisputeResolution(activeDispute.resolution);
+  const escrowStatus = activeDispute.escrowAccount?.status;
+  const escrowMovement = formatEscrowMovement(escrowStatus, "CLIENT");
   
   // Find criterion text
   const criterionText = milestone.acceptanceCriteria?.find(c => c.id === activeDispute.criterionId)?.criterionText || "Acceptance Criterion";
@@ -123,8 +131,39 @@ export default function DisputeResult() {
                   <span className="text-xs font-bold text-blue-700">{(activeDispute.llmConfidence * 100).toFixed(0)}%</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-snug">
-                  AI confidence threshold for auto-resolution is 80%. Evaluated against submissions description and file contents.
+                  AI confidence threshold for auto-resolution is 80%. The evaluation compares the criterion with the deliverable description; submitted URLs are reference metadata only.
                 </p>
+              </div>
+            )}
+
+            {activeDispute.llmReasoning && (
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm space-y-2">
+                <span className="text-xs uppercase font-bold text-blue-500 block">
+                  AI Reasoning
+                </span>
+                <p className="text-blue-950 leading-relaxed">
+                  {activeDispute.llmReasoning}
+                </p>
+              </div>
+            )}
+
+            {(isAutoResolved || isResolved) && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                  <span className="text-xs uppercase font-bold text-slate-400 block">
+                    Resolution
+                  </span>
+                  <p className="mt-1 font-bold text-slate-900">{resolutionLabel}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                  <span className="text-xs uppercase font-bold text-slate-400 block">
+                    Escrow Status
+                  </span>
+                  <p className="mt-1 font-bold text-slate-900">
+                    {escrowStatus ?? "Unavailable"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">{escrowMovement}</p>
+                </div>
               </div>
             )}
 
@@ -159,7 +198,7 @@ export default function DisputeResult() {
                 <div className="text-sm space-y-1">
                   <p className="font-bold">Mediation Completed</p>
                   <p className="text-emerald-800 leading-relaxed">
-                    The dispute has been resolved. {isAutoResolved ? "AI Auto-evaluator" : "Platform Administrator"} has settled the escrow accounts and updated the balances accordingly.
+                    The dispute has been resolved by the {isAutoResolved ? "AI auto-evaluator" : "Platform Administrator"}. {escrowMovement}
                   </p>
                   {activeDispute.resolvedAt && (
                     <span className="block text-[11px] text-emerald-600 mt-2 font-medium">

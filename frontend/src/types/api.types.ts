@@ -41,7 +41,6 @@ import type {
   RequiredSeam,
   RequiredDomain,
   MilestoneFrameworkItem,
-  SubmissionFile,
   SeamSignal,
   MatchResult,
   VoidItem,
@@ -234,6 +233,7 @@ export interface MilestoneDto {
   submittedAt: string | null;
   approvedAt: string | null;
   releasedAt: string | null;
+  updatedAt: string;
 }
 
 export interface AcceptanceCriterionDto {
@@ -263,7 +263,7 @@ export interface MilestoneSubmissionDto {
   milestoneId: string;
   expertId: string;
   description: string | null;
-  filesJson: SubmissionFile[];
+  filesJson: string[];
   submittedAt: string;
 }
 
@@ -291,15 +291,44 @@ export interface EscrowAccountDto {
 
 export interface DisputeDto {
   id: string;
-  engagement_id: string;
-  milestone_id: string | null;
-  criterion_id: string;
-  escrow_account_id: string;
-  filed_by: string;
+  engagementId: string;
+  milestoneId: string | null;
+  criterionId: string;
+  escrowAccountId: string;
+  filedBy: string;
   state: DisputeState;
-  llm_confidence: number | null;
-  filed_at: string;
-  resolved_at: string | null;
+  llmConfidence: number | null;
+  resolution: "EXPERT_WINS" | "CLIENT_WINS" | "SPLIT" | null;
+  llmReasoning: string | null;
+  filedAt: string;
+  resolvedAt: string | null;
+  resolvedBy?: string | null;
+  escrowAccount?: {
+    status: EscrowStatus;
+    amount: number | string;
+  };
+  criterion?: {
+    criterionText: string;
+    criterion_text?: string;
+  };
+  milestone?: {
+    deliverableStatement: string | null;
+    paymentAmountVnd: number | string;
+    milestoneNumber?: number;
+    deliverable_statement?: string | null;
+    payment_amount_vnd?: number | string;
+  };
+
+  // Transitional fallbacks for older API payloads and admin screens.
+  engagement_id?: string;
+  milestone_id?: string | null;
+  criterion_id?: string;
+  escrow_account_id?: string;
+  filed_by?: string;
+  llm_confidence?: number | null;
+  llm_reasoning?: string | null;
+  filed_at?: string;
+  resolved_at?: string | null;
 }
 
 export interface MessageDto {
@@ -741,6 +770,7 @@ export interface InvitationDto {
 export interface MilestoneDetailDto extends MilestoneDto {
   acceptanceCriteria: AcceptanceCriterionDto[];
   dodItems: MilestoneDodItemDto[];
+  submissions: MilestoneSubmissionDto[];
 }
 // ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
 
@@ -1029,5 +1059,3 @@ export interface SubscriptionHistoryLog {
   paymentMethod: string;
   isExpired: boolean;
 }
-
-

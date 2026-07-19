@@ -498,6 +498,8 @@ model Dispute {
   filedBy         String    @map("filed_by") @db.Uuid
   state           String    @default("PENDING")
   llmConfidence   Float?    @map("llm_confidence")
+  resolution      String?   @map("resolution")
+  llmReasoning    String?   @map("llm_reasoning")
   filedAt         DateTime  @default(now()) @map("filed_at") @db.Timestamptz(6)
   resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
   resolvedBy      String?   @map("resolved_by") @db.Uuid

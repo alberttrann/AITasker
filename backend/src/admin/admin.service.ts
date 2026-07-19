@@ -69,7 +69,10 @@ export class AdminService {
     const resolution: DisputeResolution = {
       decision: dto.decision,
     };
-    await this.disputesService.applyResolution(disputeId, resolution, undefined, adminUserId);
+    await this.disputesService.applyResolution(disputeId, resolution, {
+      source: 'ADMIN',
+      resolvedBy: adminUserId,
+    });
     return { success: true };
   }
 

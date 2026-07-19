@@ -1,6 +1,6 @@
 import apiClient from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
-import { CreateMilestonePayload, MilestoneDto } from "@/types/api.types";
+import { CreateMilestonePayload, MilestoneDetailDto, MilestoneDto } from "@/types/api.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useCreateMilestone() {
@@ -67,7 +67,7 @@ export function useMilestone(milestoneId: string | undefined) {
   return useQuery({
     queryKey: ["milestones", milestoneId],
     queryFn: async () => {
-      const { data } = await apiClient.get<MilestoneDto>(
+      const { data } = await apiClient.get<MilestoneDetailDto>(
         `/milestones/${milestoneId}`,
       );
       return data;

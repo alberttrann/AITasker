@@ -13,7 +13,7 @@ import { DisputeState } from '@common/enums/dispute-state.enum';
 import { EscrowStatus } from '@common/enums/escrow-status.enum';
 import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
-import { DisputeResolution } from './dto/resolve-dispute.dto';
+import { DisputeResolution, ResolutionContext } from './dto/resolve-dispute.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
@@ -56,6 +56,9 @@ export class DisputesService {
 
     const engagement = await this.prisma.engagement.findUnique({
       where: { id: milestone.engagementId },
+      include: {
+        project: { select: { archetype: true } },
+      },
     });
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
@@ -118,10 +121,15 @@ export class DisputesService {
       // Broadcast is best-effort; transaction is already committed.
     }
 
-    const latestSubmission = await this.prisma.milestoneSubmission.findFirst({
-      where: { milestoneId: milestone.id },
-      orderBy: { submittedAt: 'desc' },
-    });
+    const [latestSubmission, submissionCount] = await Promise.all([
+      this.prisma.milestoneSubmission.findFirst({
+        where: { milestoneId: milestone.id },
+        orderBy: { submittedAt: 'desc' },
+      }),
+      this.prisma.milestoneSubmission.count({
+        where: { milestoneId: milestone.id },
+      }),
+    ]);
 
     let evalResult;
     try {
@@ -129,6 +137,9 @@ export class DisputesService {
         criterion_text: criterion.criterionText,
         deliverable_description: latestSubmission?.description ?? dto.additional_context ?? '',
         files: (latestSubmission?.filesJson as string[]) ?? [],
+        project_archetype: engagement.project?.archetype ?? undefined,
+        milestone_context: milestone.deliverableStatement ?? undefined,
+        prior_revision_count: Math.max(0, submissionCount - 1),
       });
     } catch (err) {
       // AI service unavailable — dispute stays in LAYER_1_EVAL, escrow
@@ -141,39 +152,39 @@ export class DisputesService {
     }
 
     if (evalResult.confidence_score >= AUTO_RESOLVE_THRESHOLD) {
+      const finding = evalResult.finding === 'expert_wins' ? 'expert_wins' : 'client_wins';
       const resolution: DisputeResolution = {
-        decision: evalResult.finding === 'expert_wins' ? 'EXPERT_WINS' : 'CLIENT_WINS',
+        decision: finding === 'expert_wins' ? 'EXPERT_WINS' : 'CLIENT_WINS',
       };
-      await this.applyResolution(dispute.id, resolution, evalResult.confidence_score);
-
-      // platform_decisions write on the auto-resolve path only.
-      await this.prisma.platformDecision.create({
-        data: {
-          decisionType: 'DISPUTE_L1_EVAL',
-          entityType: 'disputes',
-          entityId: dispute.id,
-          llmConfidence: evalResult.confidence_score,
-          decision: 'AUTO_RESOLVED',
-        },
+      await this.applyResolution(dispute.id, resolution, {
+        source: 'AI',
+        llmConfidence: evalResult.confidence_score,
+        llmReasoning: evalResult.reasoning,
       });
 
       return {
         dispute_id: dispute.id,
         state: DisputeState.AUTO_RESOLVED,
-        finding: evalResult.finding,
+        finding,
         confidence_score: evalResult.confidence_score,
+        reasoning: evalResult.reasoning,
       };
     }
 
     await this.prisma.dispute.update({
       where: { id: dispute.id },
-      data: { state: DisputeState.MANUAL_REVIEW, llmConfidence: evalResult.confidence_score },
+      data: {
+        state: DisputeState.MANUAL_REVIEW,
+        llmConfidence: evalResult.confidence_score,
+        llmReasoning: evalResult.reasoning,
+      },
     });
 
     return {
       dispute_id: dispute.id,
       state: DisputeState.MANUAL_REVIEW,
       confidence_score: evalResult.confidence_score,
+      reasoning: evalResult.reasoning,
       message: 'AI confidence below threshold — routed to Admin for manual review.',
     };
   }
@@ -182,8 +193,7 @@ export class DisputesService {
   async applyResolution(
     disputeId: string,
     resolution: DisputeResolution,
-    llmConfidence?: number,
-    resolvedBy?: string,
+    context: ResolutionContext,
   ) {
     const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
     if (!dispute) {
@@ -238,13 +248,33 @@ export class DisputesService {
         await this.ledgerService.splitEscrowWithTx(tx, dispute.escrowAccountId);
       }
 
+      const llmConfidence = context.llmConfidence ?? dispute.llmConfidence;
+      const llmReasoning = context.llmReasoning ?? dispute.llmReasoning;
+
       await tx.dispute.update({
         where: { id: dispute.id },
         data: {
-          state: resolvedBy ? DisputeState.RESOLVED : DisputeState.AUTO_RESOLVED,
-          llmConfidence: llmConfidence ?? dispute.llmConfidence,
+          state: context.source === 'ADMIN'
+            ? DisputeState.RESOLVED
+            : DisputeState.AUTO_RESOLVED,
+          resolution: resolution.decision,
+          llmConfidence,
+          llmReasoning,
           resolvedAt: new Date(),
-          resolvedBy: resolvedBy ?? null,
+          resolvedBy: context.resolvedBy ?? null,
+        },
+      });
+
+      await tx.platformDecision.create({
+        data: {
+          decisionType: 'DISPUTE_L1_EVAL',
+          entityType: 'disputes',
+          entityId: dispute.id,
+          llmConfidence,
+          decision: resolution.decision,
+          advisoryNote: context.source === 'AI'
+            ? llmReasoning
+            : 'Manual resolution by platform administrator.',
         },
       });
     });
@@ -261,6 +291,8 @@ export class DisputesService {
             event: 'dispute:resolved',
             payload: {
               engagement_id: dispute.engagementId,
+              dispute_id: dispute.id,
+              milestone_id: dispute.milestoneId,
               resolution: resolution.decision,
             },
           });
@@ -273,7 +305,16 @@ export class DisputesService {
 
   // GET /disputes/:id
   async findById(disputeId: string, user: ActorUser) {
-    const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
+    const dispute = await this.prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: {
+        criterion: { select: { criterionText: true } },
+        milestone: {
+          select: { deliverableStatement: true, paymentAmountVnd: true },
+        },
+        escrowAccount: { select: { status: true, amount: true } },
+      },
+    });
     if (!dispute) {
       throw new NotFoundException('Dispute not found.');
     }

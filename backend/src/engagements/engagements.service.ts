@@ -416,7 +416,15 @@ export class EngagementsService {
       where: { milestone: { engagementId } },
       orderBy: { filedAt: 'desc' },
       include: {
-        milestone: { select: { milestoneNumber: true, deliverableStatement: true } },
+        criterion: { select: { criterionText: true } },
+        milestone: {
+          select: {
+            milestoneNumber: true,
+            deliverableStatement: true,
+            paymentAmountVnd: true,
+          },
+        },
+        escrowAccount: { select: { status: true, amount: true } },
       },
     });
   }

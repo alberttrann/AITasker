@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatConfidencePercent, formatVND } from "@/lib/utils";
+import { formatDisputeResolution } from "@/lib/dispute-resolution";
 
 function StateBadge({ state }: { state: string }) {
   const configs: Record<string, { bg: string; text: string }> = {
@@ -69,15 +70,24 @@ export default function DisputeDetail() {
   }
 
   const criterionText =
-    dispute.criterion?.criterion_text || "No criterion text available";
+    dispute.criterion?.criterionText ||
+    dispute.criterion?.criterion_text ||
+    "No criterion text available";
   const deliverableStatement =
+    dispute.milestone?.deliverableStatement ||
     dispute.milestone?.deliverable_statement ||
     "No deliverable statement available";
-  const paymentAmount = dispute.milestone?.payment_amount_vnd || 0;
-  const escrowAmount = dispute.escrowAccount?.amount || 0;
+  const paymentAmount = Number(
+    dispute.milestone?.paymentAmountVnd ||
+    dispute.milestone?.payment_amount_vnd ||
+    0,
+  );
+  const escrowAmount = Number(dispute.escrowAccount?.amount || 0);
   const escrowStatus = dispute.escrowAccount?.status || "N/A";
   const llmConfidence =
     dispute.llm_confidence ?? dispute.llmConfidence ?? null;
+  const llmReasoning = dispute.llmReasoning ?? dispute.llm_reasoning ?? null;
+  const resolvedAt = dispute.resolvedAt ?? dispute.resolved_at ?? null;
   const isManualReview = dispute.state === "MANUAL_REVIEW";
 
   return (
@@ -163,6 +173,16 @@ export default function DisputeDetail() {
                 the defined deliverable. This score informed whether automatic
                 resolution was possible or manual review was required.
               </p>
+              {llmReasoning && (
+                <div className="mt-4 border-t border-blue-800 pt-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-300">
+                    AI reasoning
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-blue-100">
+                    {llmReasoning}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -188,6 +208,14 @@ export default function DisputeDetail() {
                   {escrowStatus}
                 </span>
               </div>
+              {dispute.resolution && (
+                <div>
+                  <p className="text-xs text-slate-400">Resolution</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {formatDisputeResolution(dispute.resolution)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -213,12 +241,12 @@ export default function DisputeDetail() {
                   ).toLocaleDateString()}
                 </span>
               </div>
-              {dispute.resolved_at && (
+              {resolvedAt && (
                 <div className="flex items-center gap-2 text-sm">
                   <Clock className="h-4 w-4 text-slate-400" />
                   <span className="text-slate-500">Resolved at:</span>
                   <span className="text-slate-700">
-                    {new Date(dispute.resolved_at).toLocaleDateString()}
+                    {new Date(resolvedAt).toLocaleDateString()}
                   </span>
                 </div>
               )}
@@ -246,7 +274,7 @@ export default function DisputeDetail() {
             </Button>
           )}
 
-          {dispute.state === "RESOLVED" && (
+          {(dispute.state === "RESOLVED" || dispute.state === "AUTO_RESOLVED") && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
               <p className="text-emerald-700 font-semibold text-sm">
                 ✓ This dispute has been resolved

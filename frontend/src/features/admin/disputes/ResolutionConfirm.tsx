@@ -82,12 +82,19 @@ export default function ResolutionConfirm() {
   }
 
   const criterionText =
-    dispute.criterion?.criterion_text || "No criterion text available";
-  const escrowAmount = dispute.escrowAccount?.amount || 0;
-  const paymentAmount = dispute.milestone?.payment_amount_vnd || 0;
+    dispute.criterion?.criterionText ||
+    dispute.criterion?.criterion_text ||
+    "No criterion text available";
+  const escrowAmount = Number(dispute.escrowAccount?.amount || 0);
+  const paymentAmount = Number(
+    dispute.milestone?.paymentAmountVnd ||
+    dispute.milestone?.payment_amount_vnd ||
+    0,
+  );
   const displayAmount = escrowAmount || paymentAmount;
   const llmConfidence =
     dispute.llm_confidence ?? dispute.llmConfidence ?? null;
+  const llmReasoning = dispute.llmReasoning ?? dispute.llm_reasoning ?? null;
 
   const handleResolve = (decision: AdminDisputeDecision) => {
     resolveDispute.mutate(
@@ -137,6 +144,16 @@ export default function ResolutionConfirm() {
               {criterionText}
             </p>
           </div>
+          {llmReasoning && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-500">
+                AI reasoning
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-blue-950">
+                {llmReasoning}
+              </p>
+            </div>
+          )}
           <div className="flex gap-8">
             <div>
               <p className="text-xs text-slate-400">Escrow Amount</p>
