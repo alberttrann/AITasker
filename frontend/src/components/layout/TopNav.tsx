@@ -641,15 +641,26 @@ const RoleIcon =
               </Link>
             )}
             {rawRole === 'EXPERT' && (
-              <Link 
-                to={`/expert/service`} 
-                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname === '/expert/service' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-              >
-                Services
-                {location.pathname === '/expert/service' && (
-                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                )}
-              </Link>
+              <>
+                <Link 
+                  to={`/expert/service/projects`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/projects') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Projects
+                  {location.pathname.includes('/projects') && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+                <Link 
+                  to={`/expert/service`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname === '/expert/service' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Services
+                  {location.pathname === '/expert/service' && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+              </>
             )}
 
             {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (

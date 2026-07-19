@@ -135,6 +135,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
         queryClient.invalidateQueries({ queryKey: ['bids'] });
       }
+
+      // 4. Service purchase paid/confirmed -> Refresh purchases list & engagements
+      if (data.title === 'Payment Confirmed!' || data.title === 'Service Purchased!') {
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      }
     });
 
     socket.on('bid:updated', (data: {
@@ -188,6 +194,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         link:  `/engagements/${data.engagement_id}/milestones`,
         meta:  { engagement_id: data.engagement_id },
       });
+      // Invalidate queries to instantly update UI state
+      queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
     });
 
     socket.on('dispute:filed', (data: { engagement_id: string }) => {

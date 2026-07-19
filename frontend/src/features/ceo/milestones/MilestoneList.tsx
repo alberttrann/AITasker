@@ -107,7 +107,7 @@ export default function MilestoneList() {
               if (projectId) {
                 navigate(`/ceo/projects/${projectId}`);
               } else {
-                navigate("/ceo/marketplace");
+                navigate("/ceo/marketplace", { state: { tab: "PURCHASES" } });
               }
             }}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
@@ -123,33 +123,41 @@ export default function MilestoneList() {
           </div>
         </div>
 
-        {/* Create Milestone action */}
-        <Button
-          variant="primary"
-          onClick={() =>
-            navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-          }
-          className="inline-flex items-center gap-2"
-        >
-          <Plus size={16} /> Create New Milestone
-        </Button>
+        {/* Create Milestone action - Only for project-based engagements */}
+        {engagement.type === "PROJECT_BASED" && (
+          <Button
+            variant="primary"
+            onClick={() =>
+              navigate(`/ceo/engagements/${engagementId}/milestones/create`)
+            }
+            className="inline-flex items-center gap-2"
+          >
+            <Plus size={16} /> Create New Milestone
+          </Button>
+        )}
       </div>
 
       {/* Main List Layout */}
       {milestones.length === 0 ? (
         <EmptyState
           title="No Milestones Defined Yet"
-          description="Create your first milestone with clear deliverables and acceptance criteria to start tracking project progress."
+          description={
+            engagement.type === "PROJECT_BASED"
+              ? "Create your first milestone with clear deliverables and acceptance criteria to start tracking project progress."
+              : "No milestones defined yet. A milestone will be created automatically once payment is confirmed."
+          }
           action={
-            <Button
-              variant="primary"
-              onClick={() =>
-                navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-              }
-              className="inline-flex items-center gap-2"
-            >
-              <Plus size={16} /> Create First Milestone
-            </Button>
+            engagement.type === "PROJECT_BASED" ? (
+              <Button
+                variant="primary"
+                onClick={() =>
+                  navigate(`/ceo/engagements/${engagementId}/milestones/create`)
+                }
+                className="inline-flex items-center gap-2"
+              >
+                <Plus size={16} /> Create First Milestone
+              </Button>
+            ) : undefined
           }
         />
       ) : (

@@ -111,8 +111,9 @@ export default function CeoNdaClickThrough() {
         </p>
         <Button
           variant="primary"
+          className="cursor-pointer"
           onClick={() =>
-            navigate(`/engagements/${engagementId}/messages`)
+            navigate(`/ceo/engagements/${engagementId}/messages`)
           }
         >
           Open Messages
@@ -231,9 +232,9 @@ export default function CeoNdaClickThrough() {
           </p>
           <Button
             variant="primary"
-            className="mt-3"
+            className="mt-3 cursor-pointer"
             onClick={() =>
-              navigate(`/engagements/${engagementId}/messages`)
+              navigate(`/ceo/engagements/${engagementId}/messages`)
             }
           >
             Open Messages

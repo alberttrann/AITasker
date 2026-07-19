@@ -69,13 +69,10 @@ export default function ExpertProjectsPage() {
     // Process Engagements first (they hold priority state over invitations)
     if (engagements) {
       engagements.forEach((eng) => {
-        const isServiceOrder = !eng.project && eng.service;
-        if (!eng.project && !isServiceOrder) return;
+        if (!eng.project) return;
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
-        if (isServiceOrder) {
-          status = eng.state === 'PENDING' ? 'NDA_PENDING' : 'IN_PROGRESS'; // Pending payment/chat vs active
-        } else if (eng.state === 'PENDING') {
+        if (eng.state === 'PENDING') {
           // It's in bidding
           if (eng.capabilityBid?.tech_status === 'REVISION_REQUESTED' || eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' || eng.capabilityBid?.ceo_status === 'NEGOTIATING' || eng.capabilityBid?.ceoStatus === 'NEGOTIATING') {
              status = 'COUNTER_OFFER';
