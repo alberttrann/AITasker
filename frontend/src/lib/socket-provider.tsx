@@ -13,6 +13,7 @@ import { formatResolutionNotification } from '@/lib/dispute-resolution';
 import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
+import { updateProjectNameInCache } from '@/hooks/use-projects';
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:3001';
 
 const SocketContext = createContext<Socket | null>(null);
@@ -159,7 +160,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['bids'] });
     });
 
-    socket.on('project:updated', () => {
+    socket.on('project:updated', (data: { project_id: string; project_name: string }) => {
+      updateProjectNameInCache(queryClient, data.project_id, data.project_name);
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
     });

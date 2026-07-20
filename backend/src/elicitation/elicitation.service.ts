@@ -27,6 +27,7 @@ const VOID_TO_STAGE: Record<string, number> = {
 };
 
 const HANDOFF_TOKEN_EXPIRY = '72h';
+const TECH_TEAM_USER_ID_KEY = '_tech_team_user_id';
 
 export interface ProjectPublishedEvent {
   projectId:  string;
@@ -377,6 +378,9 @@ export class ElicitationService {
       additional_requirement_1: dto.additional_requirement_1 ?? null,
       // include submitted artifact content
       technical_artifacts:      dto.technical_artifacts ?? {},
+      // Persist the exact handoff submitter with this session. This internal
+      // value is removed before the technical context is sent to the AI service.
+      [TECH_TEAM_USER_ID_KEY]:   techTeamUserId,
     };
 
     // check which critical artifacts are still missing
@@ -421,16 +425,8 @@ export class ElicitationService {
     this.assertOwnership(session, userId);           
     this.assertStage(session, 5);                    
 
-    // Only pick a TechTeam that is NOT yet linked to any project
-    const techProfile = await this.prisma.techTeamProfile.findFirst({
-      where: {
-        linkedClientId: userId,
-        linkedProjectId: null,                       
-      },
-      select: { userId: true },
-    });
-
-    return this.runSynthesis(session, techProfile?.userId);
+    const techTeamUserId = await this.resolveTechTeamUserId(session, userId);
+    return this.runSynthesis(session, techTeamUserId);
   }
 
   async inviteTechTeam(sessionId: string, ceoUserId: string, email: string) {
@@ -484,7 +480,8 @@ export class ElicitationService {
       );
     }
 
-    return this.runSynthesis(session);
+    const techTeamUserId = await this.resolveTechTeamUserId(session, userId);
+    return this.runSynthesis(session, techTeamUserId);
   }
 
   // Private helpers
@@ -547,6 +544,28 @@ export class ElicitationService {
     }
   }
 
+  private getRecordedTechTeamUserId(session: any): string | undefined {
+    const inputs = session.stage4TechInputsJson;
+    if (!inputs || typeof inputs !== 'object' || Array.isArray(inputs)) return undefined;
+    const userId = (inputs as Record<string, unknown>)[TECH_TEAM_USER_ID_KEY];
+    return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
+  }
+
+  private async resolveTechTeamUserId(session: any, ceoUserId: string): Promise<string | undefined> {
+    const recordedUserId = this.getRecordedTechTeamUserId(session);
+    if (recordedUserId) return recordedUserId;
+    if (session.scenarioType === 'SCENARIO_B') return undefined;
+
+    // Legacy sessions did not persist the Stage 4 submitter. Repair only the
+    // unambiguous case instead of assigning an arbitrary Tech Team profile.
+    const unlinkedProfiles = await this.prisma.techTeamProfile.findMany({
+      where: { linkedClientId: ceoUserId, linkedProjectId: null },
+      select: { userId: true },
+      take: 2,
+    });
+    return unlinkedProfiles.length === 1 ? unlinkedProfiles[0].userId : undefined;
+  }
+
   private async runSynthesis(session: any, techTeamUserId?: string): Promise<
     | { gate_passed: true;  completeness_score: number; project_id: string }
     | { gate_passed: false; completeness_score: number; flagged_void: string | null;
@@ -577,12 +596,17 @@ export class ElicitationService {
       }),
     ]);
 
+    const stage4TechInputs = {
+      ...((session.stage4TechInputsJson as Record<string, unknown>) ?? {}),
+    };
+    delete stage4TechInputs[TECH_TEAM_USER_ID_KEY];
+
     const stage5Request = {
       session_id:                    session.id,
       stage1_symptoms:               session.stage1SymptomsJson as string[],
       stage2_archetype:              session.archetype!,
       stage3_probes:                 session.stage3ProbesJson      as Record<string, unknown>,
-      stage4_tech_inputs:            session.stage4TechInputsJson  as Record<string, unknown>,
+      stage4_tech_inputs:            stage4TechInputs,
       void_list_json:                (session.voidListJson as Array<Record<string, unknown>>) ?? [],
       is_self_technical:             effectiveSelfTechnical,
       estimated_budget_vnd:          session.estimatedBudgetVnd

@@ -1,7 +1,38 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import type { ProjectDto, ElicitationSessionDto, PaginatedResponse } from '@/types/api.types';
 import type { ArtifactA, ArtifactB } from '@/types/jsonb.types';
+
+function replaceProjectName<T>(value: T, projectId: string, projectName: string): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => replaceProjectName(item, projectId, projectName)) as T;
+  }
+  if (!value || typeof value !== 'object') return value;
+
+  const record = value as Record<string, any>;
+  const next: Record<string, any> =
+    record.id === projectId ? { ...record, projectName } : { ...record };
+  if (Array.isArray(record.data)) {
+    next.data = record.data.map((item: unknown) => replaceProjectName(item, projectId, projectName));
+  }
+  if (record.project?.id === projectId) {
+    next.project = { ...record.project, projectName };
+  }
+  return next as T;
+}
+
+export function updateProjectNameInCache(
+  queryClient: QueryClient,
+  projectId: string,
+  projectName: string,
+) {
+  queryClient.setQueriesData({ queryKey: ['projects'] }, (data) =>
+    replaceProjectName(data, projectId, projectName),
+  );
+  queryClient.setQueriesData({ queryKey: ['engagements'] }, (data) =>
+    replaceProjectName(data, projectId, projectName),
+  );
+}
 export function useProjects(slim: boolean = false) {
   const projectsQuery = useQuery({
     queryKey: ['projects', { slim }],
@@ -95,10 +126,16 @@ export function useUpdateProjectName() {
   
   return useMutation({
     mutationFn: async ({ id, projectName }: { id: string; projectName: string }) => {
-      await apiClient.put(`/projects/${id}/name`, { projectName });
+      const { data } = await apiClient.put<{ id: string; projectName: string }>(
+        `/projects/${id}/name`,
+        { projectName },
+      );
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (updatedProject) => {
+      updateProjectNameInCache(queryClient, updatedProject.id, updatedProject.projectName);
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
     }
   });
 }

@@ -20,8 +20,14 @@ type EngagementAccess = {
   project?: {
     selfTechnical: boolean;
     techTeamProfiles?: Array<{ userId: string }>;
+    elicitationSession?: {
+      stage4TechInputsJson: unknown;
+      handoffConsumedAt: Date | null;
+    } | null;
   } | null;
 };
+
+const TECH_TEAM_USER_ID_KEY = '_tech_team_user_id';
 
 @Injectable()
 export class MilestonesService {
@@ -312,6 +318,9 @@ export class MilestonesService {
           select: {
             selfTechnical: true,
             techTeamProfiles: { take: 1, select: { userId: true } },
+            elicitationSession: {
+              select: { stage4TechInputsJson: true, handoffConsumedAt: true },
+            },
           },
         },
       },
@@ -375,6 +384,9 @@ export class MilestonesService {
           select: {
             selfTechnical: true,
             techTeamProfiles: { take: 1, select: { userId: true } },
+            elicitationSession: {
+              select: { stage4TechInputsJson: true, handoffConsumedAt: true },
+            },
           },
         },
       },
@@ -402,8 +414,28 @@ export class MilestonesService {
       return;
     }
 
-    // Older new-account handoffs consumed the invitation before assigning the
-    // resulting project. Repair only the unambiguous one-profile case.
+    const stage4Inputs = engagement.project.elicitationSession?.stage4TechInputsJson;
+    const recordedTechTeamUserId =
+      stage4Inputs && typeof stage4Inputs === 'object' && !Array.isArray(stage4Inputs)
+        ? (stage4Inputs as Record<string, unknown>)[TECH_TEAM_USER_ID_KEY]
+        : undefined;
+
+    if (engagement.projectId && typeof recordedTechTeamUserId === 'string') {
+      const repaired = await this.prisma.techTeamProfile.updateMany({
+        where: {
+          userId: recordedTechTeamUserId,
+          linkedClientId: engagement.clientId,
+        },
+        data: { linkedProjectId: engagement.projectId },
+      });
+      if (repaired.count === 1) {
+        engagement.project.techTeamProfiles = [{ userId: recordedTechTeamUserId }];
+        return;
+      }
+    }
+
+    // Older handoffs did not record the exact Stage 4 submitter. Repair only
+    // the unambiguous one-profile case.
     const unlinkedProfiles = await this.prisma.techTeamProfile.findMany({
       where: {
         linkedClientId: engagement.clientId,
@@ -425,6 +457,31 @@ export class MilestonesService {
       if (repaired.count === 1) {
         engagement.project.techTeamProfiles = [unlinkedProfiles[0]];
         return;
+      }
+    }
+
+    // Some consumed legacy handoffs overwrote the sole profile with a stale
+    // project link before the invited session published its project. When the
+    // CEO has exactly one Tech Team profile, the intended reviewer is still
+    // unambiguous and can be safely reassigned to this project.
+    if (engagement.projectId && engagement.project.elicitationSession?.handoffConsumedAt) {
+      const linkedProfiles = await this.prisma.techTeamProfile.findMany({
+        where: { linkedClientId: engagement.clientId },
+        select: { userId: true },
+        take: 2,
+      });
+      if (linkedProfiles.length === 1) {
+        const repaired = await this.prisma.techTeamProfile.updateMany({
+          where: {
+            userId: linkedProfiles[0].userId,
+            linkedClientId: engagement.clientId,
+          },
+          data: { linkedProjectId: engagement.projectId },
+        });
+        if (repaired.count === 1) {
+          engagement.project.techTeamProfiles = [linkedProfiles[0]];
+          return;
+        }
       }
     }
 

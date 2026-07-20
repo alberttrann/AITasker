@@ -13,7 +13,7 @@ export default function TechTeamProjectsPage() {
       !["PENDING", "CLOSED", "CANCELLED", "DECLINED"].includes(engagement.state),
   );
   const currentProjectName =
-    activeEngagement?.project?.projectName ?? activeProject?.projectName;
+    activeProject?.projectName ?? activeEngagement?.project?.projectName;
 
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-300">
