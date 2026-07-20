@@ -26,6 +26,10 @@ function createHarness(selfTechnical = false) {
         },
       }),
     },
+    techTeamProfile: {
+      findMany: jest.fn().mockResolvedValue([]),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     platformDecision: { create: jest.fn() },
     $transaction: jest.fn().mockImplementation((callback) => callback(tx)),
   };
@@ -67,6 +71,29 @@ describe('MilestonesService review authority', () => {
 
     expect(tx.milestone.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ signOffAuthority: 'CEO' }),
+    });
+  });
+
+  it('repairs a completed legacy handoff that was not linked to its project', async () => {
+    const { service, prisma, user } = createHarness(false);
+    prisma.engagement.findUnique.mockResolvedValue({
+      id: 'engagement-1',
+      clientId: 'ceo-1',
+      expertId: 'expert-1',
+      projectId: 'project-1',
+      project: { selfTechnical: false, techTeamProfiles: [] },
+    });
+    prisma.techTeamProfile.findMany.mockResolvedValue([{ userId: 'tech-1' }]);
+
+    await service.createMilestone(new MilestoneBuilder().build(), user);
+
+    expect(prisma.techTeamProfile.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'tech-1',
+        linkedClientId: 'ceo-1',
+        linkedProjectId: null,
+      },
+      data: { linkedProjectId: 'project-1' },
     });
   });
 });

@@ -8,8 +8,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import { ArrowLeft, Plus, CheckCircle } from "lucide-react";
-import MilestoneChatAssistant from "./MilestoneChatAssistant";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -73,11 +72,20 @@ export default function MilestoneList() {
   const getActionTextAndVariant = (milestone: any, state: string) => {
     switch (state.toUpperCase()) {
       case "DEFINED":
-        return { text: "Fund Milestone", variant: "primary" as const };
+        return { text: "View Details", variant: "outline" as const };
       case "AWAITING_PAYMENT":
-        return { text: "View Payment", variant: "secondary" as const };
+        return { text: "View Details", variant: "outline" as const };
       case "SUBMITTED":
-        return { text: "Review", variant: "primary" as const };
+        const requiredCriteria = (milestone.acceptanceCriteria ?? []).filter(
+          (criterion: any) => criterion.isRequired,
+        );
+        const techReviewComplete =
+          requiredCriteria.length > 0 &&
+          requiredCriteria.every((criterion: any) => criterion.techVerifiedAt);
+        return {
+          text: techReviewComplete ? "View Review Status" : "Review",
+          variant: techReviewComplete ? ("outline" as const) : ("primary" as const),
+        };
       case "DISPUTED":
         return { text: "View Dispute", variant: "destructive" as const };
       default:
@@ -85,15 +93,8 @@ export default function MilestoneList() {
     }
   };
 
-  const handleActionClick = (milestoneId: string, state: string) => {
-    const s = state.toUpperCase();
-    if (s === "DEFINED" || s === "AWAITING_PAYMENT") {
-      navigate(
-        `/ceo/engagements/${engagementId}/milestones/${milestoneId}/fund`,
-      );
-    } else {
-      navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}`);
-    }
+  const handleActionClick = (milestoneId: string) => {
+    navigate(`/tech-team/engagements/${engagementId}/milestones/${milestoneId}`);
   };
 
   return (
@@ -103,67 +104,31 @@ export default function MilestoneList() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => {
-              if (projectId) {
-                navigate(`/ceo/projects/${projectId}`);
-              } else {
-                navigate("/ceo/marketplace", { state: { tab: "PURCHASES" } });
-              }
-            }}
+            onClick={() => navigate(projectId ? `/tech-team/projects/${projectId}` : "/tech-team/projects")}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Back to project details"
-            id="btn-back-to-project-from-milestones"
+            id="btn-tech-back-to-project-from-milestones"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              Milestones
+              Milestone Reviews
             </h1>
             <p className="text-sm text-slate-500">
-              Manage deliverables, track escrow status, and sign off criteria.
+              {project?.projectName
+                ? `${project.projectName} — review expert submissions before CEO approval.`
+                : "Review expert submissions before the CEO gives final approval."}
             </p>
           </div>
         </div>
-
-        {/* Create Milestone action - Only for project-based engagements */}
-        {engagement.type === "PROJECT_BASED" && (
-          <Button
-            variant="primary"
-            onClick={() =>
-              navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-            }
-            className="inline-flex items-center gap-2"
-            id="btn-create-new-milestone"
-          >
-            <Plus size={16} /> Create New Milestone
-          </Button>
-        )}
       </div>
 
       {/* Main List Layout */}
       {milestones.length === 0 ? (
         <EmptyState
           title="No Milestones Defined Yet"
-          description={
-            engagement.type === "PROJECT_BASED"
-              ? "Create your first milestone with clear deliverables and acceptance criteria to start tracking project progress."
-              : "No milestones defined yet. A milestone will be created automatically once payment is confirmed."
-          }
-          action={
-            engagement.type === "PROJECT_BASED" ? (
-              <Button
-                variant="primary"
-                onClick={() =>
-                  navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-                }
-                className="inline-flex items-center gap-2"
-                id="btn-create-first-milestone"
-              >
-                <Plus size={16} /> Create First Milestone
-              </Button>
-            ) : undefined
-          }
+          description="The CEO has not created any live milestones for this engagement yet."
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -226,9 +191,9 @@ export default function MilestoneList() {
                       <Button
                         variant={action.variant}
                         size="sm"
-                        onClick={() => handleActionClick(m.id, state)}
+                        onClick={() => handleActionClick(m.id)}
                         className="whitespace-nowrap w-full md:w-auto cursor-pointer"
-                        id={`btn-open-milestone-${m.id}`}
+                        id={`btn-tech-open-milestone-${m.id}`}
                       >
                         {action.text}
                       </Button>
@@ -278,9 +243,6 @@ export default function MilestoneList() {
             );
           })}
         </div>
-      )}
-      {projectId && (
-        <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
       )}
     </div>
   );

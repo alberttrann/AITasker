@@ -28,6 +28,9 @@ const ExpertOverview = lazy(() => import("@features/expert/ExpertDashboard").the
 const TechTeamDashboard = lazy(() => import("@features/tech-team/TechTeamDashboard"));
 const TechTeamOverview = lazy(() => import("@features/tech-team/TechTeamOverview"));
 const TechTeamProjectsPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectsPage"));
+const TechTeamProjectDetailPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectDetailPage"));
+const TechTeamMilestoneList = lazy(() => import("@features/tech-team/milestones/MilestoneList"));
+const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/MilestoneDetail"));
 const Stage4Submitted = lazy(() => import("@features/tech-team/stage4/Stage4Submitted"));
 const AdminDashboard = lazy(() => import("@features/admin/AdminDashboard"));
 const AdminOverview = lazy(() => import("@features/admin/AdminOverview"));
@@ -236,7 +239,7 @@ const router = createBrowserRouter(
           <Route path="/tech-team" element={<TechTeamDashboard />}>
             <Route index element={<TechTeamOverview />} />
             <Route path="projects" element={<TechTeamProjectsPage />} />
-            <Route path="projects/:id" element={<ProjectDetailPage />} />
+            <Route path="projects/:id" element={<TechTeamProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="submitted" element={<Stage4Submitted />} />
@@ -245,11 +248,11 @@ const router = createBrowserRouter(
             <Route path="bids/:bidId/approve" element={<BidApprove />} />
             <Route
               path="engagements/:engagementId/milestones"
-              element={<MilestoneList />}
+              element={<TechTeamMilestoneList />}
             />
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
-              element={<MilestoneDetail />}
+              element={<TechTeamMilestoneDetail />}
             />
             <Route
               path="bids/:bidId/revision"

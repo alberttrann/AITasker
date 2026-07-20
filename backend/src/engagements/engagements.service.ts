@@ -138,6 +138,7 @@ export class EngagementsService {
     const engagement = await this.prisma.engagement.findUnique({
       where: { id },
       include: {
+        project: PROJECT_SUMMARY_SELECT,
         capabilityBid: true,
         milestones: true,
         service: true,

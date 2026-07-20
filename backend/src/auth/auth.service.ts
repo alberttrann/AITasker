@@ -316,6 +316,10 @@ export class AuthService {
     const otpExpiresAt = addMinutes(new Date(), 15);
 
     await this.prisma.$transaction(async (tx) => {
+      const project = await tx.project.findUnique({
+        where: { elicitationSessionId: payload.sessionId },
+        select: { id: true },
+      });
       const user = await tx.user.create({
         data: {
           email: dto.email,
@@ -330,7 +334,7 @@ export class AuthService {
           techTeamProfile: {
             create: {
               linkedClientId: payload.ceoId,
-              linkedProjectId: null,
+              linkedProjectId: project?.id ?? null,
             },
           },
         },
@@ -415,10 +419,9 @@ export class AuthService {
         },
       });
 
-      // Resolve the CEO's current published project (if it exists already)
-      const ceoProject = await tx.project.findFirst({
-        where: { clientId: payload.ceoId, state: 'PUBLISHED' },
-        orderBy: { createdAt: 'desc' },
+      // Resolve the exact project created from the invited elicitation session.
+      const ceoProject = await tx.project.findUnique({
+        where: { elicitationSessionId: payload.sessionId },
         select: { id: true },
       });
       const resolvedProjectId = ceoProject?.id ?? null;

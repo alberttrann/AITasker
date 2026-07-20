@@ -9,6 +9,7 @@ import { PrismaService } from '../database/prisma.service';
 import { MatchingService } from './matching.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { deriveMilestoneReviewAuthority } from '../milestones/milestone-review-flow';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class ProjectsService {
@@ -16,6 +17,7 @@ export class ProjectsService {
     private readonly prisma: PrismaService,
     private readonly matchingService: MatchingService,
     private readonly fastapiClient: FastapiClient,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findProject(
@@ -352,11 +354,28 @@ export class ProjectsService {
     if (project.clientId !== userId)
       throw new ForbiddenException('Only the owner can rename the project');
 
-    return this.prisma.project.update({
+    const linkedTechTeamMembers = await this.prisma.techTeamProfile.findMany({
+      where: { linkedProjectId: projectId },
+      select: { userId: true },
+    });
+    const updatedProject = await this.prisma.project.update({
       where: { id: projectId },
       data: { projectName },
       select: { id: true, projectName: true }, // Trả về gọn nhẹ cho FE
     });
+
+    for (const member of linkedTechTeamMembers) {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: member.userId,
+        event: 'project:updated',
+        payload: {
+          project_id: updatedProject.id,
+          project_name: updatedProject.projectName,
+        },
+      });
+    }
+
+    return updatedProject;
   }
 
   async updateProjectMilestones(projectId: string, userId: string, milestones: any[]) {

@@ -159,6 +159,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['bids'] });
     });
 
+    socket.on('project:updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+    });
+
     queryClient.invalidateQueries({ queryKey: ['engagements'] });
     queryClient.invalidateQueries({ queryKey: ['bids'] });
 

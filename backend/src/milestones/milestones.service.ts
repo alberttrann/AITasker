@@ -84,7 +84,7 @@ export class MilestonesService {
 
     const engagement = await this.getEngagementAccess(dto.engagement_id);
     this.assertCeoOwner(user, engagement);
-    this.assertReviewFlowReady(engagement);
+    await this.assertReviewFlowReady(engagement);
     const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -319,7 +319,7 @@ export class MilestonesService {
 
     if (!engagement) throw new NotFoundException('Engagement not found.');
     this.assertCeoOwner(user, engagement);
-    this.assertReviewFlowReady(engagement);
+    await this.assertReviewFlowReady(engagement);
     const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
 
     // Anti-Spam: Block if milestones have already been initialized
@@ -393,18 +393,46 @@ export class MilestonesService {
     }
   }
 
-  private assertReviewFlowReady(engagement: EngagementAccess): void {
+  private async assertReviewFlowReady(engagement: EngagementAccess): Promise<void> {
     if (
-      engagement.project &&
-      !engagement.project.selfTechnical &&
-      !engagement.project.techTeamProfiles?.length
+      !engagement.project ||
+      engagement.project.selfTechnical ||
+      engagement.project.techTeamProfiles?.length
     ) {
-      throw new UnprocessableEntityException({
-        error: 'TECH_TEAM_HANDOFF_REQUIRED',
-        message:
-          'The invited Tech Team must complete the handoff before milestones can be initialized.',
-      });
+      return;
     }
+
+    // Older new-account handoffs consumed the invitation before assigning the
+    // resulting project. Repair only the unambiguous one-profile case.
+    const unlinkedProfiles = await this.prisma.techTeamProfile.findMany({
+      where: {
+        linkedClientId: engagement.clientId,
+        linkedProjectId: null,
+      },
+      select: { userId: true },
+      take: 2,
+    });
+
+    if (engagement.projectId && unlinkedProfiles.length === 1) {
+      const repaired = await this.prisma.techTeamProfile.updateMany({
+        where: {
+          userId: unlinkedProfiles[0].userId,
+          linkedClientId: engagement.clientId,
+          linkedProjectId: null,
+        },
+        data: { linkedProjectId: engagement.projectId },
+      });
+      if (repaired.count === 1) {
+        engagement.project.techTeamProfiles = [unlinkedProfiles[0]];
+        return;
+      }
+    }
+
+    throw new UnprocessableEntityException({
+      error: 'TECH_TEAM_HANDOFF_REQUIRED',
+      message:
+        'The invited Tech Team must complete the handoff before milestones can be initialized.',
+    });
   }
 
   private async assertEngagementAccess(

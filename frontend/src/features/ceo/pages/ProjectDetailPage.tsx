@@ -2,12 +2,11 @@ import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName, useUpdateProjectMilestones, useProjectMilestones } from "@/hooks/use-projects";
 import {
-  ArrowLeft, ArrowRight, Loader2, PlayCircle, Pencil, Check, X,
+  ArrowLeft, Loader2, PlayCircle, Pencil, Check, X,
   Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
 } from "lucide-react";
 import { formatVND } from '@/lib/utils';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
-import { useAuth } from '@/hooks/use-auth';
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
@@ -42,10 +41,6 @@ export default function ProjectDetailPage() {
         !['CLOSED', 'CANCELLED', 'DECLINED'].includes(e.state)
     );
   }, [engagements, project]);
-
-  const { user } = useAuth();
-  const isTechTeam = user?.clientSubtype === 'TECH_TEAM';
-  const isCeo = user?.clientSubtype === 'CEO';
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -152,7 +147,7 @@ export default function ProjectDetailPage() {
         <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200 text-center max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold text-slate-800 mb-3">Project Not Found</h2>
           <p className="text-slate-500 mb-8 text-lg">The project you are looking for does not exist or has been removed.</p>
-          <button onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")} className="px-6 py-3 bg-slate-800 text-white font-medium rounded-xl hover:bg-slate-900 transition-colors">
+          <button onClick={() => navigate("/ceo/projects")} className="px-6 py-3 bg-slate-800 text-white font-medium rounded-xl hover:bg-slate-900 transition-colors cursor-pointer">
             Back to Projects
           </button>
         </div>
@@ -189,7 +184,7 @@ export default function ProjectDetailPage() {
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(isTechTeam ? "/tech-team/projects" : "/ceo/projects")}
+            onClick={() => navigate("/ceo/projects")}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Go back"
           >
@@ -223,7 +218,7 @@ export default function ProjectDetailPage() {
                   <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
                     {project.projectName || `Project ${project.id.slice(0, 8)}`}
                   </h1>
-                  {isCeo && (
+                  {(
                     <button
                       onClick={() => {
                         setIsEditingName(true);
@@ -253,20 +248,13 @@ export default function ProjectDetailPage() {
                 </Link>
               ) : (
                 <Link
-                  to={isTechTeam ? `/tech-team/engagements/${activeEngagement.id}/milestones` : `/ceo/engagements/${activeEngagement.id}/milestones`}
+                  to={`/ceo/engagements/${activeEngagement.id}/milestones`}
                   className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
                 >
                   <Target size={18} /> Go to Workspace
                 </Link>
               )}
             </div>
-          ) : isTechTeam ? (
-            <Link
-              to={`/tech-team/bids`}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
-            >
-              View Bids <ArrowRight size={18} />
-            </Link>
           ) : (
             <div className="flex items-center gap-3">
               <Link
@@ -403,7 +391,7 @@ export default function ProjectDetailPage() {
                 <h3 className="text-lg font-bold text-slate-900">Project Milestones</h3>
               </div>
 
-              {isCeo && !isEditingMilestones && !activeEngagement && (
+              {!isEditingMilestones && !activeEngagement && (
                 <button
                   onClick={handleEditMilestones}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"
@@ -411,7 +399,7 @@ export default function ProjectDetailPage() {
                   <Edit2 className="w-4 h-4" /> Edit Milestones
                 </button>
               )}
-              {isCeo && isEditingMilestones && (
+              {isEditingMilestones && (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsEditingMilestones(false)}
@@ -480,7 +468,7 @@ export default function ProjectDetailPage() {
                           </div>
                         </div>
                         {/* Inline Editors for Relational Milestones */}
-                        {m.id && isCeo && (
+                        {m.id && (
                           <div className="px-6 pb-6 pt-2 bg-slate-50 border-t border-slate-100 rounded-b-xl">
                             <AcceptanceCriteriaEditor milestoneId={m.id} />
                             <DoDEditor milestoneId={m.id} />
@@ -496,7 +484,7 @@ export default function ProjectDetailPage() {
                     </div>
                     <h4 className="text-lg font-semibold text-slate-700 mb-2">No Milestones Defined</h4>
                     <p className="text-slate-500 max-w-sm mb-6">This project currently has no milestone framework. You can add them before opening the project for bids.</p>
-                    {isCeo && (
+                    {(
                       <button
                         onClick={handleEditMilestones}
                         className="px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"

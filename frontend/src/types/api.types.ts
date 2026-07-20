@@ -204,6 +204,7 @@ export interface EngagementDto {
   clientId: string;
   capabilityBid?: CapabilityBidDto | null;
   milestones?: MilestoneDto[];
+  project?: Pick<ProjectDto, 'id' | 'projectName' | 'state' | 'archetype' | 'tier'> | null;
 }
 
 export interface CapabilityBidDto {

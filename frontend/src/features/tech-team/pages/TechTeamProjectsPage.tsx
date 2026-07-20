@@ -12,6 +12,8 @@ export default function TechTeamProjectsPage() {
       engagement.projectId === activeProject?.id &&
       !["PENDING", "CLOSED", "CANCELLED", "DECLINED"].includes(engagement.state),
   );
+  const currentProjectName =
+    activeEngagement?.project?.projectName ?? activeProject?.projectName;
 
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-300">
@@ -44,7 +46,7 @@ export default function TechTeamProjectsPage() {
                 </div>
                 
                 <h4 className="text-xl font-bold text-slate-900 mb-2 truncate">
-                  {activeProject.projectName || `Project ${activeProject.id.slice(0, 8)}`}
+                  {currentProjectName || `Project ${activeProject.id.slice(0, 8)}`}
                 </h4>
                 
                 <p className="text-sm text-slate-500 mb-4">

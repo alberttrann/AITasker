@@ -65,7 +65,6 @@ export default function MilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
-  const isServiceOrder = engagement?.type === "SERVICE_PURCHASE" || engagement?.type === "TECH_DISCOVERY";
   const techReviewRequired = milestone.signOffAuthority === "JOINT";
   const requiredCriteria = (milestone.acceptanceCriteria ?? []).filter(
     (criterion) => criterion.isRequired,
@@ -73,10 +72,7 @@ export default function MilestoneDetail() {
   const techReviewComplete =
     !techReviewRequired ||
     requiredCriteria.every((criterion) => Boolean(criterion.techVerifiedAt));
-  const ceoReviewComplete = requiredCriteria.every((criterion) =>
-    Boolean(criterion.ceoVerifiedAt || criterion.verifiedAt),
-  );
-  const isReviewerTurn = techReviewComplete && !ceoReviewComplete;
+  const isReviewerTurn = techReviewRequired && !techReviewComplete;
   const approvedSettlement = isSettlementError
     ? "UNKNOWN"
     : settlementOutcome ?? "EXPERT_RELEASED";
@@ -118,7 +114,7 @@ export default function MilestoneDetail() {
   const milestones = engagement?.milestones ?? [];
 
   const handleMilestoneSwitch = (id: string) => {
-    navigate(`/ceo/engagements/${engagementId}/milestones/${id}`);
+    navigate(`/tech-team/engagements/${engagementId}/milestones/${id}`);
   };
 
   const handleOpenVerify = (id: string, text: string) => {
@@ -143,19 +139,21 @@ export default function MilestoneDetail() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)}
+            onClick={() => navigate(`/tech-team/engagements/${engagementId}/milestones`)}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Back to milestones"
-            id="btn-back-to-milestone-list"
+            id="btn-tech-back-to-milestone-list"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 font-headline">
-              Review Milestone Workspace
+              Tech Team Milestone Review
             </h1>
             <p className="text-sm text-slate-500">
-              Verify deliverables, manage acceptance criteria, and release escrow funds.
+              {engagement?.project?.projectName
+                ? `${engagement.project.projectName} — validate the expert's technical delivery before CEO approval.`
+                : "Validate the expert's technical delivery before CEO approval."}
             </p>
           </div>
         </div>
@@ -269,27 +267,15 @@ export default function MilestoneDetail() {
                       <p className="font-bold">
                         {isReviewerTurn
                           ? "Awaiting Your Sign-off"
-                          : "Awaiting Tech Team Sign-off"}
+                          : "Tech Team Review Complete"}
                       </p>
                       <p className="text-amber-800">
                         {isReviewerTurn
-                          ? isServiceOrder
-                            ? "The Expert has submitted the service deliverables for your review."
-                            : "Review the Tech Team-approved submission and give final CEO sign-off."
-                          : "The linked Tech Team must sign off all required criteria before CEO review is unlocked."}
+                          ? "Review the submission and sign off each required technical criterion, or request a revision."
+                          : "All required technical criteria are signed off. The CEO must now provide final approval."}
                       </p>
                     </div>
                   </div>
-                  {isReviewerTurn && isServiceOrder && milestone.acceptanceCriteria && milestone.acceptanceCriteria.length > 0 && (
-                    <Button
-                      variant="primary"
-                      onClick={() => handleOpenVerify(milestone.acceptanceCriteria[0].id, milestone.acceptanceCriteria[0].criterionText)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-semibold cursor-pointer"
-                      id="btn-approve-service-milestone"
-                    >
-                      Approve & Release Escrow
-                    </Button>
-                  )}
                 </div>
               )}
 
@@ -326,17 +312,6 @@ export default function MilestoneDetail() {
                       </p>
                     </div>
                   </div>
-                  {(
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute/result`)}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 shrink-0 h-8 font-headline cursor-pointer"
-                      id="btn-view-milestone-dispute-status"
-                    >
-                      View Dispute Status
-                    </Button>
-                  )}
                 </div>
               )}
 
@@ -383,19 +358,6 @@ export default function MilestoneDetail() {
               <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria</h3>
-                  
-                  {/* File Dispute Button */}
-                  {(isSubmitted || isRevisionPhase) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute`)}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 inline-flex items-center gap-1 h-8 cursor-pointer"
-                      id="btn-file-milestone-dispute"
-                    >
-                      <Scale size={14} /> File Dispute
-                    </Button>
-                  )}
                 </div>
 
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
@@ -404,7 +366,7 @@ export default function MilestoneDetail() {
                     const ceoVerified = Boolean(c.ceoVerifiedAt || c.verifiedAt);
                     const canReviewCriterion =
                       isSubmitted &&
-                      techReviewComplete && !ceoVerified;
+                      techReviewRequired && !techReviewComplete && !techVerified;
                     return (
                       <div
                         key={c.id}
@@ -459,7 +421,7 @@ export default function MilestoneDetail() {
                               size="sm"
                               onClick={() => handleOpenRevision(c.id, c.criterionText)}
                               className="text-[12px] h-8 px-2.5 text-amber-600 border-amber-200 hover:bg-amber-50 inline-flex items-center gap-1 cursor-pointer"
-                              id={`btn-request-criterion-revision-${c.id}`}
+                              id={`btn-tech-request-criterion-revision-${c.id}`}
                             >
                               <RotateCcw size={13} /> Request Revision
                             </Button>
@@ -468,14 +430,14 @@ export default function MilestoneDetail() {
                               size="sm"
                               onClick={() => handleOpenVerify(c.id, c.criterionText)}
                               className="text-[12px] bg-emerald-600 hover:bg-emerald-700 border-none h-8 px-2.5 inline-flex items-center gap-1 text-white cursor-pointer"
-                              id={`btn-verify-criterion-${c.id}`}
+                              id={`btn-tech-verify-criterion-${c.id}`}
                             >
                               <Check size={14} /> Verify & Approve
                             </Button>
                           </div>
                         )}
 
-                        {isSubmitted && ceoVerified && (
+                        {isSubmitted && techVerified && (
                           <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 shrink-0">
                             Your sign-off is complete
                           </span>
