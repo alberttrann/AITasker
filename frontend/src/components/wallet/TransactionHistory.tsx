@@ -48,6 +48,10 @@ export function TransactionHistory() {
         return { label: 'Escrow Locked', color: 'text-yellow-600', icon: <Lock size={20} strokeWidth={2.5} />, bg: 'bg-yellow-100' };
       case 'ESCROW_RELEASE':
         return { label: 'Escrow Released', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'ESCROW_REFUND':
+        return { label: 'Dispute Refund', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'ESCROW_SPLIT':
+        return { label: 'Dispute Settlement (Split)', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       case 'WITHDRAWAL':
         return { label: 'Withdrawal', color: 'text-red-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-red-100' };
       default:
@@ -63,7 +67,7 @@ export function TransactionHistory() {
       <div className="divide-y divide-slate-100">
         {transactions.map((tx) => {
           const config = getTxConfig(tx.transactionType);
-          const isPositive = ['TOP_UP', 'ESCROW_RELEASE'].includes(tx.transactionType);
+          const isPositive = ['TOP_UP', 'ESCROW_RELEASE', 'ESCROW_REFUND', 'ESCROW_SPLIT'].includes(tx.transactionType);
           
           return (
              <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">

@@ -183,8 +183,11 @@ export default function MilestoneList() {
                       />
                     </div>
                     <h3 className="text-lg font-bold text-slate-800">
-                      {m.deliverableStatement || m.deliverable_statement ||
-                        "No deliverable statement provided."}
+                      {m.deliverableStatement ||
+                        m.deliverable_statement ||
+                        (engagement.service?.title || (engagement as any)?.service_title
+                          ? `Full Delivery & Implementation for Service: "${engagement.service?.title || (engagement as any)?.service_title}"`
+                          : "No deliverable statement provided.")}
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span>

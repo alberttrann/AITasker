@@ -274,6 +274,7 @@ export class IpnHandlerService {
         paymentAmountVnd: Number(transferAmount),
         state: MilestoneState.FUNDED,
         fundedAt: new Date(),
+        deliverableStatement: `Full Delivery & Implementation for Service: "${engagement.service?.title || 'Service Listing'}"`,
       },
     });
 

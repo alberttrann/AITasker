@@ -65,6 +65,7 @@ export default function MilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
+  const isServiceOrder = engagement?.type === "SERVICE_PURCHASE" || engagement?.type === "TECH_DISCOVERY";
   const approvedSettlement = isSettlementError
     ? "UNKNOWN"
     : settlementOutcome ?? "EXPERT_RELEASED";
@@ -167,7 +168,9 @@ export default function MilestoneDetail() {
                   >
                     <div className="min-w-0">
                       <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Milestone #{m.milestoneNumber}</p>
-                      <p className="text-sm truncate font-medium">{m.deliverableStatement || "No deliverable statement"}</p>
+                      <p className="text-sm truncate font-medium">
+                        {m.deliverableStatement || (engagement?.service?.title ? `Full Delivery for Service: "${engagement.service.title}"` : "No deliverable statement")}
+                      </p>
                     </div>
                     <span className="shrink-0 ml-2">
                       <StatusBadge
@@ -197,7 +200,9 @@ export default function MilestoneDetail() {
                       variant={variantFromStatus(milestone.state)}
                     />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900 leading-snug">{milestone.deliverableStatement || "No deliverables specified."}</h2>
+                  <h2 className="text-xl font-bold text-slate-900 leading-snug">
+                    {milestone.deliverableStatement || (engagement?.service?.title ? `Full Delivery & Implementation for Service: "${engagement.service.title}"` : "No deliverables specified.")}
+                  </h2>
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> Registered: <strong>{new Date(milestone.updatedAt).toLocaleDateString()}</strong>

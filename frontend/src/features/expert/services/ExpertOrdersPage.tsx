@@ -284,7 +284,9 @@ export default function ExpertOrdersPage() {
                                         {m.state}
                                       </span>
                                     </div>
-                                    <p className="text-sm font-semibold text-slate-800 truncate">{m.deliverableStatement || 'No deliverable statement provided.'}</p>
+                                    <p className="text-sm font-semibold text-slate-800 truncate">
+                                      {m.deliverableStatement || (order.serviceTitle ? `Full Delivery for Service: "${order.serviceTitle}"` : 'No deliverable statement provided.')}
+                                    </p>
                                   </div>
 
                                   <div className="flex items-center gap-3 shrink-0">
