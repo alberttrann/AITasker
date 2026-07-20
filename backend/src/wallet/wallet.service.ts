@@ -46,10 +46,65 @@ export class WalletService {
       take: Math.min(filters.limit ?? 50, 100),
       skip: filters.offset ?? 0,
     });
-    return transactions.map(item => ({
-      id: item.id, amount: Number(item.amount),
-      transactionType: item.transactionType, createdAt: item.createdAt,
-    }));
+
+    // Extract milestone IDs from referenceIds
+    const milestoneIds = new Set<string>();
+    for (const tx of transactions) {
+      if (tx.referenceId) {
+        const match = tx.referenceId.match(/(?:FEE|REL-C|REL-E|LOCK|REF|SPLIT-C|SPLIT-E)-([0-9a-fA-F-]{36})/);
+        if (match) {
+          milestoneIds.add(match[1]);
+        }
+      }
+    }
+
+    // Query milestones details in bulk
+    const milestones = await this.prisma.milestone.findMany({
+      where: { id: { in: Array.from(milestoneIds) } },
+      include: {
+        engagement: {
+          select: {
+            type: true,
+            service: { select: { title: true } },
+            project: { select: { projectName: true } },
+          },
+        },
+      },
+    });
+
+    const milestoneMap = new Map(milestones.map(m => [m.id, m]));
+
+    return transactions.map(item => {
+      let details: string | null = null;
+      if (item.referenceId) {
+        const match = item.referenceId.match(/(?:FEE|REL-C|REL-E|LOCK|REF|SPLIT-C|SPLIT-E)-([0-9a-fA-F-]{36})/);
+        if (match) {
+          const milestoneId = match[1];
+          const milestone = milestoneMap.get(milestoneId);
+          if (milestone) {
+            const isService = milestone.engagement?.type === 'SERVICE_PURCHASE' || milestone.engagement?.type === 'TECH_DISCOVERY';
+            const contextName = isService
+              ? milestone.engagement?.service?.title
+              : milestone.engagement?.project?.projectName;
+            
+            if (contextName) {
+              details = `Milestone #${milestone.milestoneNumber} for ${isService ? 'Service' : 'Project'}: ${contextName}`;
+            } else {
+              details = `Milestone #${milestone.milestoneNumber}`;
+            }
+          }
+        }
+      }
+
+      return {
+        id: item.id,
+        amount: Number(item.amount),
+        transactionType: item.transactionType,
+        createdAt: item.createdAt,
+        referenceId: item.referenceId,
+        details,
+      };
+    });
   }
 
   async getTopupWallet(userId: string, walletDto: WalletTopupAmmountDto) {
