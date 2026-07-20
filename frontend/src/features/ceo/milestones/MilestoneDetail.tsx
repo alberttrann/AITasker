@@ -65,6 +65,7 @@ export default function MilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
+  const isServiceOrder = engagement?.type === "SERVICE_PURCHASE" || engagement?.type === "TECH_DISCOVERY";
   const approvedSettlement = isSettlementError
     ? "UNKNOWN"
     : settlementOutcome ?? "EXPERT_RELEASED";
