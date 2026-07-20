@@ -244,6 +244,14 @@ const router = createBrowserRouter(
             <Route path="bids/:bidId" element={<BidReviewDetail />} />
             <Route path="bids/:bidId/approve" element={<BidApprove />} />
             <Route
+              path="engagements/:engagementId/milestones"
+              element={<MilestoneList />}
+            />
+            <Route
+              path="engagements/:engagementId/milestones/:milestoneId"
+              element={<MilestoneDetail />}
+            />
+            <Route
               path="bids/:bidId/revision"
               element={<BidRevisionRequest />}
             />

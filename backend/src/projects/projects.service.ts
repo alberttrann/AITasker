@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { MatchingService } from './matching.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
+import { deriveMilestoneReviewAuthority } from '../milestones/milestone-review-flow';
 
 @Injectable()
 export class ProjectsService {
@@ -33,6 +34,7 @@ export class ProjectsService {
         tier: true,
         artifactAJson: true,
         projectName: true,
+        selfTechnical: true,
         requiredDomainsJson: true,
         requiredSeamsJson: true,
         milestoneFrameworkJson: true,
@@ -214,6 +216,7 @@ export class ProjectsService {
       tier: project.tier,
       artifact_a_json: project.artifactAJson,
       projectName: project.projectName,
+      selfTechnical: project.selfTechnical,
       required_domains_json: project.requiredDomainsJson ?? [],
       required_seams_json: project.requiredSeamsJson ?? [],
       milestone_framework_json: project.milestoneFrameworkJson ?? [],
@@ -363,9 +366,15 @@ export class ProjectsService {
       throw new ForbiddenException('Only the project owner can update project milestones');
     }
 
+    const signOffAuthority = deriveMilestoneReviewAuthority(project);
+    const normalizedMilestones = milestones.map((milestone) => ({
+      ...milestone,
+      sign_off_authority: signOffAuthority,
+    }));
+
     return this.prisma.project.update({
       where: { id: projectId },
-      data: { milestoneFrameworkJson: milestones },
+      data: { milestoneFrameworkJson: normalizedMilestones },
       select: { id: true, milestoneFrameworkJson: true },
     });
   }
@@ -588,17 +597,23 @@ export class ProjectsService {
       throw new UnprocessableEntityException('Can only edit milestone framework for active projects.');
     }
 
+    const signOffAuthority = deriveMilestoneReviewAuthority(project);
+    const normalizedFramework = milestoneFramework.map((milestone) => ({
+      ...milestone,
+      sign_off_authority: signOffAuthority,
+    }));
+
     return this.prisma.$transaction(async (tx) => {
       const updatedProject = await tx.project.update({
         where: { id: projectId },
-        data:  { milestoneFrameworkJson: milestoneFramework as any },
+        data:  { milestoneFrameworkJson: normalizedFramework as any },
         select: { id: true, milestoneFrameworkJson: true },
       });
 
       const activeEngagement = project.engagements?.[0];
 
       if (activeEngagement) {
-        const incomingNumbers = milestoneFramework.map(m => intOrNull(m.milestone_number)).filter(Boolean);
+        const incomingNumbers = normalizedFramework.map(m => intOrNull(m.milestone_number)).filter(Boolean);
         const existingMilestones = activeEngagement.milestones;
 
         const toDelete = existingMilestones.filter(
@@ -609,7 +624,7 @@ export class ProjectsService {
           await tx.milestone.delete({ where: { id: m.id } });
         }
 
-        for (const item of milestoneFramework) {
+        for (const item of normalizedFramework) {
           const mNum = intOrNull(item.milestone_number);
           if (!mNum) continue;
 

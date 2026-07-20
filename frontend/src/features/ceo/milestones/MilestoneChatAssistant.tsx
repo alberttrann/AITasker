@@ -117,8 +117,6 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
       estimated_cost_vnd: 'estimated_cost_vnd',
       estimatedDurationDays: 'estimated_duration_days',
       estimated_duration_days: 'estimated_duration_days',
-      signOffAuthority: 'sign_off_authority',
-      sign_off_authority: 'sign_off_authority'
     };
 
     const targetField = fieldMap[currentEdit.field] || currentEdit.field;
@@ -139,6 +137,7 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
       const cleanPayload: Record<string, any> = {};
       Object.keys(payload).forEach(k => {
         const cleanKey = fieldMap[k] || k;
+        if (cleanKey === 'sign_off_authority' || cleanKey === 'signOffAuthority') return;
         cleanPayload[cleanKey] = payload[k];
       });
 
@@ -200,7 +199,6 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
           deliverable_statement: m.deliverable_statement || m.deliverableStatement || '',
           payment_amount_vnd: m.payment_amount_vnd !== undefined ? m.payment_amount_vnd : (m.paymentAmountVnd || 0),
           estimated_duration_days: m.estimated_duration_days !== undefined ? m.estimated_duration_days : (m.estimatedDurationDays || 0),
-          sign_off_authority: m.sign_off_authority || m.signOffAuthority || 'CEO'
         }));
 
         updateProjectMilestones.mutate({

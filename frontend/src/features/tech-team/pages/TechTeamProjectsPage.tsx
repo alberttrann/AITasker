@@ -1,17 +1,24 @@
 import { useProjects } from "@/hooks/use-projects";
 import { Loader2, PlayCircle, ArrowRight, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTechTeamEngagements } from "@/hooks/use-engagements";
 
 export default function TechTeamProjectsPage() {
   const { projects, isLoadingProjects } = useProjects(true);
+  const { data: engagements, isLoading: isLoadingEngagements } = useTechTeamEngagements();
   const activeProject = projects?.[0];
+  const activeEngagement = engagements?.find(
+    (engagement) =>
+      engagement.projectId === activeProject?.id &&
+      !["PENDING", "CLOSED", "CANCELLED", "DECLINED"].includes(engagement.state),
+  );
 
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-300">
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Linked Project</h4>
         
-        {isLoadingProjects ? (
+        {isLoadingProjects || isLoadingEngagements ? (
           <div className="bg-white border border-slate-200 rounded-[20px] p-12 flex flex-col items-center justify-center min-h-[200px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
@@ -48,10 +55,20 @@ export default function TechTeamProjectsPage() {
               <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-2 sm:mt-0">
                 <Link
                   to={`/tech-team/projects/${activeProject.id}`}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors shadow-sm"
+                  id={`link-view-tech-project-${activeProject.id}`}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-slate-800 font-semibold rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
                 >
                   View Specifications <ArrowRight className="w-4 h-4" />
                 </Link>
+                {activeEngagement && (
+                  <Link
+                    to={`/tech-team/engagements/${activeEngagement.id}/milestones`}
+                    id={`link-open-tech-milestones-${activeEngagement.id}`}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
+                  >
+                    Open Milestones <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
               </div>
             </div>
           </div>

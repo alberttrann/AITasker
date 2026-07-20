@@ -2,7 +2,6 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsPositive,
@@ -21,9 +20,6 @@ export class InitializeMilestoneItemDto {
   @IsString()
   @IsNotEmpty()
   deliverableStatement: string;
-
-  @IsEnum(['TECH_TEAM', 'CEO', 'JOINT'])
-  signOffAuthority: 'TECH_TEAM' | 'CEO' | 'JOINT';
 
   @IsInt()
   @IsPositive()

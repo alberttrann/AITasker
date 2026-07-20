@@ -244,7 +244,10 @@ export interface AcceptanceCriterionDto {
   isRequired: boolean;
   verifiedByRole: SignOffAuthority;
   verifiedAt: string | null;
+  techVerifiedAt: string | null;
+  ceoVerifiedAt: string | null;
   revisionNote: string | null;
+  revisionRequestedByRole: "TECH_TEAM" | "CEO" | null;
 }
 
 export interface MilestoneDodItemDto {
@@ -564,7 +567,6 @@ export interface CreateMilestonePayload {
   engagement_id: string;
   milestone_number: number;
   deliverable_statement: string;
-  sign_off_authority: SignOffAuthority;
   payment_amount_vnd: number;
   criteria: CreateCriterionDto[];
 }

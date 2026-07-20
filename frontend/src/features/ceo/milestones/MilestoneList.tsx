@@ -10,10 +10,14 @@ import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
 import { ArrowLeft, Plus, CheckCircle } from "lucide-react";
 import MilestoneChatAssistant from "./MilestoneChatAssistant";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTechTeam = user?.clientSubtype === "TECH_TEAM";
+  const roleBasePath = isTechTeam ? "/tech-team" : "/ceo";
 
   // Fetch the engagement data which contains the milestones array
   const {
@@ -70,13 +74,27 @@ export default function MilestoneList() {
   const milestones = instantiatedMilestones.length > 0 ? instantiatedMilestones : jsonMilestones;
 
   // Decide button labels and styling depending on current milestone status
-  const getActionTextAndVariant = (state: string) => {
+  const getActionTextAndVariant = (milestone: any, state: string) => {
     switch (state.toUpperCase()) {
       case "DEFINED":
+        if (isTechTeam) return { text: "View Details", variant: "outline" as const };
         return { text: "Fund Milestone", variant: "primary" as const };
       case "AWAITING_PAYMENT":
+        if (isTechTeam) return { text: "View Details", variant: "outline" as const };
         return { text: "View Payment", variant: "secondary" as const };
       case "SUBMITTED":
+        if (isTechTeam) {
+          const requiredCriteria = (milestone.acceptanceCriteria ?? []).filter(
+            (criterion: any) => criterion.isRequired,
+          );
+          const techReviewComplete =
+            requiredCriteria.length > 0 &&
+            requiredCriteria.every((criterion: any) => criterion.techVerifiedAt);
+          return {
+            text: techReviewComplete ? "View Review Status" : "Review",
+            variant: techReviewComplete ? ("outline" as const) : ("primary" as const),
+          };
+        }
         return { text: "Review", variant: "primary" as const };
       case "DISPUTED":
         return { text: "View Dispute", variant: "destructive" as const };
@@ -87,12 +105,12 @@ export default function MilestoneList() {
 
   const handleActionClick = (milestoneId: string, state: string) => {
     const s = state.toUpperCase();
-    if (s === "DEFINED" || s === "AWAITING_PAYMENT") {
+    if (!isTechTeam && (s === "DEFINED" || s === "AWAITING_PAYMENT")) {
       navigate(
         `/ceo/engagements/${engagementId}/milestones/${milestoneId}/fund`,
       );
     } else {
-      navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}`);
+      navigate(`${roleBasePath}/engagements/${engagementId}/milestones/${milestoneId}`);
     }
   };
 
@@ -105,32 +123,38 @@ export default function MilestoneList() {
             type="button"
             onClick={() => {
               if (projectId) {
-                navigate(`/ceo/projects/${projectId}`);
+                navigate(`${roleBasePath}/projects/${projectId}`);
               } else {
                 navigate("/ceo/marketplace", { state: { tab: "PURCHASES" } });
               }
             }}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Back to project details"
+            id="btn-back-to-project-from-milestones"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Milestones</h1>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {isTechTeam ? "Milestone Reviews" : "Milestones"}
+            </h1>
             <p className="text-sm text-slate-500">
-              Manage deliverables, track escrow status, and sign off criteria.
+              {isTechTeam
+                ? "Review expert submissions before the CEO gives final approval."
+                : "Manage deliverables, track escrow status, and sign off criteria."}
             </p>
           </div>
         </div>
 
         {/* Create Milestone action - Only for project-based engagements */}
-        {engagement.type === "PROJECT_BASED" && (
+        {!isTechTeam && engagement.type === "PROJECT_BASED" && (
           <Button
             variant="primary"
             onClick={() =>
               navigate(`/ceo/engagements/${engagementId}/milestones/create`)
             }
             className="inline-flex items-center gap-2"
+            id="btn-create-new-milestone"
           >
             <Plus size={16} /> Create New Milestone
           </Button>
@@ -147,13 +171,14 @@ export default function MilestoneList() {
               : "No milestones defined yet. A milestone will be created automatically once payment is confirmed."
           }
           action={
-            engagement.type === "PROJECT_BASED" ? (
+            !isTechTeam && engagement.type === "PROJECT_BASED" ? (
               <Button
                 variant="primary"
                 onClick={() =>
                   navigate(`/ceo/engagements/${engagementId}/milestones/create`)
                 }
                 className="inline-flex items-center gap-2"
+                id="btn-create-first-milestone"
               >
                 <Plus size={16} /> Create First Milestone
               </Button>
@@ -164,7 +189,7 @@ export default function MilestoneList() {
         <div className="grid grid-cols-1 gap-4">
           {milestones.map((m: any, idx: number) => {
             const state = m.state || "DEFINED";
-            const action = getActionTextAndVariant(state);
+            const action = getActionTextAndVariant(m, state);
             return (
               <Card
                 key={m.id || idx}
@@ -188,9 +213,11 @@ export default function MilestoneList() {
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span>
-                        Sign-off:{" "}
+                        Review flow:{" "}
                         <strong className="text-slate-700">
-                          {m.signOffAuthority || m.sign_off_authority}
+                          {(m.signOffAuthority || m.sign_off_authority) === "JOINT"
+                            ? "Tech Team → CEO"
+                            : "CEO"}
                         </strong>
                       </span>
                       {m.fundedAt && (
@@ -220,7 +247,8 @@ export default function MilestoneList() {
                         variant={action.variant}
                         size="sm"
                         onClick={() => handleActionClick(m.id, state)}
-                        className="whitespace-nowrap w-full md:w-auto"
+                        className="whitespace-nowrap w-full md:w-auto cursor-pointer"
+                        id={`btn-open-milestone-${m.id}`}
                       >
                         {action.text}
                       </Button>
@@ -271,7 +299,7 @@ export default function MilestoneList() {
           })}
         </div>
       )}
-      {projectId && (
+      {!isTechTeam && projectId && (
         <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
       )}
     </div>

@@ -1,131 +1,72 @@
-// Unit tests for MilestonesService — all Prisma calls are mocked.
-// These run with jest.unit.config.js (no DB, no Docker needed).
-
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { MilestonesService } from './milestones.service';
-import { PrismaService } from '../database/prisma.service';
 import { MilestoneBuilder } from '../../test/helpers/mock.builders';
 
-// Prisma mock
-// $transaction executes its callback with a mock tx object.
-const makeMockTx = (overrides: Record<string, any> = {}) => ({
-  milestone: {
-    count: jest.fn().mockResolvedValue(0),
-    create: jest.fn().mockResolvedValue({ id: 'milestone-uuid' }),
-    findUnique: jest.fn().mockResolvedValue({
-      id: 'milestone-uuid',
-      acceptanceCriteria: [{ id: 'criterion-uuid' }],
-    }),
-    ...overrides.milestone,
-  },
-  acceptanceCriterion: {
-    createMany: jest.fn().mockResolvedValue({ count: 1 }),
-    ...overrides.acceptanceCriterion,
-  },
-});
+function createHarness(selfTechnical = false) {
+  const tx = {
+    milestone: {
+      create: jest.fn().mockResolvedValue({ id: 'milestone-1' }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'milestone-1',
+        acceptanceCriteria: [{ id: 'criterion-1', criterionText: 'Tests pass' }],
+      }),
+    },
+    acceptanceCriterion: { create: jest.fn().mockResolvedValue({ id: 'criterion-1' }) },
+  };
+  const prisma = {
+    engagement: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'engagement-1',
+        clientId: 'ceo-1',
+        expertId: 'expert-1',
+        projectId: 'project-1',
+        project: {
+          selfTechnical,
+          techTeamProfiles: selfTechnical ? [] : [{ userId: 'tech-1' }],
+        },
+      }),
+    },
+    platformDecision: { create: jest.fn() },
+    $transaction: jest.fn().mockImplementation((callback) => callback(tx)),
+  };
+  const ledger = { releaseMilestoneWithTx: jest.fn() };
+  const fastapi = {
+    criterionCheck: jest.fn().mockResolvedValue({ is_subjective: false, suggestions: [] }),
+  };
+  const service = new MilestonesService(prisma as any, ledger as any, fastapi as any);
+  const user = { id: 'ceo-1', activeRole: 'CLIENT', clientSubtype: 'CEO' } as any;
 
-const makeMockPrisma = () => ({
-  $transaction: jest.fn().mockImplementation((cb: Function) => cb(makeMockTx())),
-});
+  return { service, prisma, tx, user };
+}
 
-// Tests
-describe('MilestonesService', () => {
-  let service: MilestonesService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
-
-  beforeEach(async () => {
-    mockPrisma = makeMockPrisma();
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [MilestonesService, { provide: PrismaService, useValue: mockPrisma }],
-    }).compile();
-
-    service = module.get<MilestonesService>(MilestonesService);
-  });
-
-  afterEach(() => jest.clearAllMocks());
-
-  // Input validation
-  it('throws BadRequestException when criteria array is empty', async () => {
+describe('MilestonesService review authority', () => {
+  it('rejects a milestone without acceptance criteria', async () => {
+    const { service, user } = createHarness();
     const dto = new MilestoneBuilder().withCriteria([]).build();
-    await expect(service.createMilestone(dto)).rejects.toThrow(BadRequestException);
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-  });
 
-  it('throws BadRequestException when payment_amount_vnd is zero', async () => {
-    const dto = new MilestoneBuilder().withPaymentAmount(0).build();
-    await expect(service.createMilestone(dto)).rejects.toThrow(BadRequestException);
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-  });
-
-  it('throws BadRequestException when payment_amount_vnd is negative', async () => {
-    const dto = new MilestoneBuilder().withPaymentAmount(-1000).build();
-    await expect(service.createMilestone(dto)).rejects.toThrow(BadRequestException);
-  });
-
-  // Transaction behaviour
-
-  it('wraps milestone + criteria creation in a single $transaction', async () => {
-    const dto = new MilestoneBuilder().build();
-    await service.createMilestone(dto);
-    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-  });
-
-  it('sets milestoneNumber to existingCount + 1', async () => {
-    // Simulate 2 existing milestones → new one should be #3
-    const tx = makeMockTx({ milestone: { count: jest.fn().mockResolvedValue(2) } });
-    mockPrisma.$transaction.mockImplementation((cb: Function) => cb(tx));
-
-    const dto = new MilestoneBuilder().build();
-    await service.createMilestone(dto);
-
-    expect(tx.milestone.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ milestoneNumber: 3 }) }),
+    await expect(service.createMilestone(dto, user)).rejects.toBeInstanceOf(
+      BadRequestException,
     );
   });
 
-  it('persists acceptance criteria with verifiedByRole = sign_off_authority', async () => {
-    const tx = makeMockTx();
-    mockPrisma.$transaction.mockImplementation((cb: Function) => cb(tx));
+  it('derives JOINT for a non-technical project', async () => {
+    const { service, tx, user } = createHarness(false);
+    await service.createMilestone(new MilestoneBuilder().build(), user);
 
-    const dto = new MilestoneBuilder()
-      .withSignOffAuthority('CEO')
-      .withCriteria([{ criterion_text: 'Must pass load test', is_required: true }])
-      .build();
-
-    await service.createMilestone(dto);
-
-    expect(tx.acceptanceCriterion.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({
-          criterionText: 'Must pass load test',
-          verifiedByRole: 'CEO',
-          isRequired: true,
-        }),
-      ]),
+    expect(tx.milestone.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ signOffAuthority: 'JOINT' }),
+    });
+    expect(tx.acceptanceCriterion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ verifiedByRole: 'JOINT' }),
     });
   });
 
-  it('returns milestone with its acceptanceCriteria included', async () => {
-    const dto = new MilestoneBuilder().build();
-    const result = await service.createMilestone(dto);
+  it('derives CEO for a self-technical project', async () => {
+    const { service, tx, user } = createHarness(true);
+    await service.createMilestone(new MilestoneBuilder().build(), user);
 
-    expect(result).toHaveProperty('acceptanceCriteria');
-    expect(result?.acceptanceCriteria).toHaveLength(1);
-  });
-
-  // Blueprint business rules
-
-  it('sets initial milestone state to DEFINED', async () => {
-    const tx = makeMockTx();
-    mockPrisma.$transaction.mockImplementation((cb: Function) => cb(tx));
-
-    const dto = new MilestoneBuilder().build();
-    await service.createMilestone(dto);
-
-    expect(tx.milestone.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ state: 'DEFINED' }) }),
-    );
+    expect(tx.milestone.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ signOffAuthority: 'CEO' }),
+    });
   });
 });

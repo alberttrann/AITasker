@@ -63,16 +63,17 @@ export default function RevisionRequest({ isOpen, onClose, criterionId, criterio
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <label htmlFor="textarea-criterion-revision-note" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
             Revision Feedback Note *
           </label>
           <textarea
+            id="textarea-criterion-revision-note"
             rows={4}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             disabled={revisionMutation.isPending}
             placeholder="Provide specific details of what needs to be fixed, missing requirements, or failing checks..."
-            className="w-full text-sm p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
+            className="w-full text-sm p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none disabled:cursor-not-allowed"
           />
           <p className="text-[11px] text-slate-400">Min 10 characters. Clear feedback speeds up delivery.</p>
         </div>
@@ -89,7 +90,8 @@ export default function RevisionRequest({ isOpen, onClose, criterionId, criterio
             variant="ghost"
             onClick={onClose}
             disabled={revisionMutation.isPending}
-            className="text-[12px] h-8 px-3"
+            className="text-[12px] h-8 px-3 cursor-pointer disabled:cursor-not-allowed"
+            id="btn-cancel-criterion-revision"
           >
             Cancel
           </Button>
@@ -97,7 +99,8 @@ export default function RevisionRequest({ isOpen, onClose, criterionId, criterio
             variant="primary"
             onClick={handleRequestRevision}
             disabled={revisionMutation.isPending}
-            className="bg-amber-600 hover:bg-amber-700 text-[12px] h-8 px-3 text-white border-none"
+            className="bg-amber-600 hover:bg-amber-700 text-[12px] h-8 px-3 text-white border-none cursor-pointer disabled:cursor-not-allowed"
+            id="btn-confirm-criterion-revision"
           >
             {revisionMutation.isPending ? "Submitting..." : "Send Revision Request"}
           </Button>

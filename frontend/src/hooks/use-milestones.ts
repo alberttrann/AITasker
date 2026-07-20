@@ -30,7 +30,6 @@ export interface BulkInitializeMilestonesPayload {
   milestones: {
     milestoneNumber: number;
     deliverableStatement: string;
-    signOffAuthority: "CEO" | "TECH_TEAM" | "JOINT";
     paymentAmountVnd: number;
     criteria: {
       criterion_text: string;

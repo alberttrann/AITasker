@@ -52,16 +52,17 @@ export default function CriteriaVerify({ isOpen, onClose, criterionId, criterion
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <label htmlFor="textarea-criterion-verification-comment" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
             Verification Comment (Optional)
           </label>
           <textarea
+            id="textarea-criterion-verification-comment"
             rows={3}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             disabled={verifyMutation.isPending}
             placeholder="Add comments on why this criterion is satisfied (e.g. verified test execution, staging logs look good)..."
-            className="w-full text-sm p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
+            className="w-full text-sm p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none disabled:cursor-not-allowed"
           />
         </div>
 
@@ -77,7 +78,8 @@ export default function CriteriaVerify({ isOpen, onClose, criterionId, criterion
             variant="ghost"
             onClick={onClose}
             disabled={verifyMutation.isPending}
-            className="text-[12px] h-8 px-3"
+            className="text-[12px] h-8 px-3 cursor-pointer disabled:cursor-not-allowed"
+            id="btn-cancel-criterion-verification"
           >
             Cancel
           </Button>
@@ -85,7 +87,8 @@ export default function CriteriaVerify({ isOpen, onClose, criterionId, criterion
             variant="primary"
             onClick={handleVerify}
             disabled={verifyMutation.isPending}
-            className="bg-emerald-600 hover:bg-emerald-700 text-[12px] h-8 px-3"
+            className="bg-emerald-600 hover:bg-emerald-700 text-[12px] h-8 px-3 cursor-pointer disabled:cursor-not-allowed"
+            id="btn-confirm-criterion-verification"
           >
             {verifyMutation.isPending ? "Verifying..." : "Verify & Sign Off"}
           </Button>

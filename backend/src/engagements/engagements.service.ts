@@ -119,6 +119,7 @@ export class EngagementsService {
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
           expert: true,
+          ...CURRENT_MILESTONE_INCLUDE,
         },
         orderBy: { id: 'desc' },
       });
@@ -367,8 +368,16 @@ export class EngagementsService {
   async getEngagementMilestones(engagementId: string, user: ActorUser) {
     const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
     if (!engagement) throw new NotFoundException('Engagement not found.');
-    // Basic party check
-    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+    const isLinkedTechTeam = await this.isLinkedTechTeam(
+      engagement.projectId,
+      user,
+    );
+    if (
+      user.activeRole !== 'ADMIN' &&
+      engagement.expertId !== user.id &&
+      engagement.clientId !== user.id &&
+      !isLinkedTechTeam
+    ) {
       throw new ForbiddenException('Not a party to this engagement.');
     }
     return this.prisma.milestone.findMany({
@@ -446,5 +455,23 @@ export class EngagementsService {
       where: { id: engagementId },
       data: { state: 'CANCELLED' as any },
     });
+  }
+
+  private async isLinkedTechTeam(
+    projectId: string | null,
+    user: ActorUser,
+  ): Promise<boolean> {
+    if (
+      !projectId ||
+      user.activeRole !== 'CLIENT' ||
+      user.clientSubtype !== 'TECH_TEAM'
+    ) {
+      return false;
+    }
+    const profile = await this.prisma.techTeamProfile.findUnique({
+      where: { userId: user.id },
+      select: { linkedProjectId: true },
+    });
+    return profile?.linkedProjectId === projectId;
   }
 }

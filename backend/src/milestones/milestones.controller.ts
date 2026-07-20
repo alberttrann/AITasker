@@ -21,8 +21,11 @@ export class MilestonesController {
   @ApiOperation({ summary: 'Create a new milestone' }) 
   @ApiResponse({ status: 201, description: 'Milestone created successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid input data.' })
-  async createMilestone(@Body() dto: CreateMilestoneDto) {
-    return this.milestonesService.createMilestone(dto);
+  async createMilestone(
+    @Body() dto: CreateMilestoneDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.milestonesService.createMilestone(dto, user);
   }
 
   @Get(':id')
@@ -30,16 +33,16 @@ export class MilestonesController {
   @ApiOperation({ summary: 'Get a milestone by id, including criteria' })
   @ApiResponse({ status: 200, description: 'Milestone detail.' })
   @ApiResponse({ status: 404, description: 'Milestone not found.' })
-  async getMilestone(@Param('id') id: string) {
-    return this.milestonesService.getMilestone(id);
+  async getMilestone(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.milestonesService.getMilestone(id, user);
   }
 
   @Put(':id/fund')    
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Initiate funding for a milestone' })
   @ApiResponse({ status: 200, description: 'Milestone status updated to AWAITING_PAYMENT.' })
-  async fundMilestone(@Param('id') id: string) {
-    return this.milestonesService.initiateFunding(id);
+  async fundMilestone(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.milestonesService.initiateFunding(id, user);
   }
 
   // Edit milestone fields (only while state = DEFINED)
@@ -71,16 +74,22 @@ export class MilestonesController {
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'List milestones, filtered by engagementId' })
   @ApiQuery({ name: 'engagementId', required: true })
-  async listMilestones(@Query('engagementId') engagementId: string) {
-    return this.milestonesService.listByEngagement(engagementId);
+  async listMilestones(
+    @Query('engagementId') engagementId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.milestonesService.listByEngagement(engagementId, user);
   }
 
   @Get(':id/disputes')
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'List disputes for a milestone' })
-  async getMilestoneDisputes(@Param('id') milestoneId: string) {
-    return this.milestonesService.getMilestoneDisputes(milestoneId);
+  async getMilestoneDisputes(
+    @Param('id') milestoneId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.milestonesService.getMilestoneDisputes(milestoneId, user);
   }
 
   @Post('bulk')
@@ -90,6 +99,6 @@ export class MilestonesController {
     @CurrentUser() user: AuthUser,
     @Body() dto: BulkInitializeMilestonesDto,
   ) {
-    return this.milestonesService.bulkInitialize(user.id, dto);
+    return this.milestonesService.bulkInitialize(user, dto);
   }
 }

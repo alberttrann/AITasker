@@ -6,6 +6,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { VerifyCriterionDto } from './dto/verify-criterion.dto';
 import { RevisionNoteDto } from './dto/revision-note.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthUser } from '../auth/strategies/jwt.strategy';
 
 @ApiTags('Acceptance Criteria')
 @ApiBearerAuth('JWT')
@@ -20,25 +22,30 @@ export class CriteriaController {
   @ApiResponse({ status: 200, description: 'Criterion verified successfully.' })
   async verifyCriterion(
     @Param('id') criterionId: string,
-    @Body() dto: VerifyCriterionDto, 
+    @Body() dto: VerifyCriterionDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.criteriaService.verify(criterionId, dto);
+    return this.criteriaService.verify(criterionId, dto, user);
   }
 
   @Put(':id/revision') 
   @Roles('CLIENT')
   async rejectCriterion(
     @Param('id') criterionId: string,
-    @Body() dto: RevisionNoteDto, 
+    @Body() dto: RevisionNoteDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.criteriaService.requestRevision(criterionId, dto);
+    return this.criteriaService.requestRevision(criterionId, dto, user);
   }
 
   @Get(':milestoneId')
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiOperation({ summary: 'List acceptance criteria for a milestone' })
-  async listCriteria(@Param('milestoneId') milestoneId: string) {
-    return this.criteriaService.listCriteria(milestoneId);
+  async listCriteria(
+    @Param('milestoneId') milestoneId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.criteriaService.listCriteria(milestoneId, user);
   }
 
   @Post(':milestoneId')
@@ -47,14 +54,15 @@ export class CriteriaController {
   async createCriterion(
     @Param('milestoneId') milestoneId: string,
     @Body() dto: { criterion_text: string; is_required?: boolean },
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.criteriaService.create(milestoneId, dto);
+    return this.criteriaService.create(milestoneId, dto, user);
   }
 
   @Delete(':id')
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Delete an acceptance criterion (only in DEFINED state)' })
-  async deleteCriterion(@Param('id') id: string) {
-    return this.criteriaService.deleteCriterion(id);
+  async deleteCriterion(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.criteriaService.deleteCriterion(id, user);
   }
 }

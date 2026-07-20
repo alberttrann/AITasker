@@ -19,10 +19,30 @@ export class SubmissionsService {
   async submitMilestones(milestoneId: string, expertId: string, dto: CreateSubmissionDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
+      include: {
+        engagement: {
+          include: {
+            project: {
+              select: {
+                selfTechnical: true,
+                techTeamProfiles: { select: { userId: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!milestone) {
       throw new NotFoundException('Milestone cannot be found in database.');
+    }
+    if (milestone.engagement.expertId !== expertId) {
+      throw new ForbiddenException('Only the assigned expert can submit this milestone.');
+    }
+    if (!['FUNDED', 'IN_PROGRESS', 'IN_REVISION'].includes(milestone.state)) {
+      throw new UnprocessableEntityException(
+        `Cannot submit a milestone in state '${milestone.state}'.`,
+      );
     }
 
     const incompleteRequiredDodCount = await this.prisma.milestoneDodItem.count({
@@ -72,15 +92,24 @@ export class SubmissionsService {
         },
       });
 
-      const eng = await tx.engagement.findUnique({ where: { id: milestone.engagementId } });
-      if (eng) {
+      const engagement = milestone.engagement;
+      const linkedTechTeamIds =
+        engagement.project && !engagement.project.selfTechnical
+          ? engagement.project.techTeamProfiles.map((profile) => profile.userId)
+          : [];
+      const recipients = linkedTechTeamIds.length > 0
+        ? linkedTechTeamIds.map((userId) => ({ userId, rolePath: 'tech-team' }))
+        : [{ userId: engagement.clientId, rolePath: 'ceo' }];
+
+      for (const recipient of recipients) {
         this.eventEmitter.emit('socket.broadcast', {
-          userId: eng.clientId,
+          userId: recipient.userId,
           event: 'milestone:updated',
           payload: {
-            engagement_id: eng.id,
+            engagement_id: engagement.id,
             milestone_number: milestone.milestoneNumber,
             state: 'SUBMITTED',
+            link: `/${recipient.rolePath}/engagements/${engagement.id}/milestones/${milestone.id}`,
           },
         });
       }

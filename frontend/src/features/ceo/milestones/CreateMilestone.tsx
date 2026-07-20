@@ -23,9 +23,6 @@ const validationSchema = Yup.object().shape({
         .required("Payment amount is required")
         .positive("Payment amount must be greater than zero")
         .min(10000, "Minimum payment amount is 10,000 VND"),
-      sign_off_authority: Yup.string()
-        .oneOf(["CEO", "TECH_TEAM", "JOINT"], "Invalid sign-off authority")
-        .required("Sign-off authority is required"),
       criteria: Yup.array()
         .of(
           Yup.object().shape({
@@ -97,6 +94,7 @@ export default function CreateMilestone() {
   // Filter draft blueprint milestones that have not yet been instantiated in the database
   const instantiatedMilestones = milestonesData ?? [];
   const draftFramework = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const requiresTechReview = project?.selfTechnical === false;
 
   const pendingDrafts = draftFramework.filter((draft: any) => {
     const num = draft.milestone_number || draft.milestoneNumber;
@@ -129,9 +127,6 @@ export default function CreateMilestone() {
               draft.payment_amount_vnd !== undefined
                 ? draft.payment_amount_vnd
                 : draft.paymentAmountVnd || 0,
-            sign_off_authority: (draft.sign_off_authority ||
-              draft.signOffAuthority ||
-              "CEO") as "CEO" | "TECH_TEAM" | "JOINT",
             criteria: criteriaList,
           };
         })
@@ -141,7 +136,6 @@ export default function CreateMilestone() {
             milestone_number: nextMilestoneNumber,
             deliverable_statement: "",
             payment_amount_vnd: 0,
-            sign_off_authority: "CEO" as const,
             criteria: [{ criterion_text: "", is_required: true }],
           },
         ];
@@ -160,7 +154,6 @@ export default function CreateMilestone() {
           milestones: values.milestones.map((m: any) => ({
             milestoneNumber: m.milestone_number,
             deliverableStatement: m.deliverable_statement,
-            signOffAuthority: m.sign_off_authority,
             paymentAmountVnd: m.payment_amount_vnd,
             criteria: m.criteria.map((c: any) => ({
               criterion_text: c.criterion_text,
@@ -327,35 +320,19 @@ export default function CreateMilestone() {
                               )}
                             </div>
 
-                            {/* Sign-off Authority */}
+                            {/* Backend-derived review flow */}
                             <div className="space-y-2">
-                              <label
-                                htmlFor={`milestones[${index}].sign_off_authority`}
-                                className="text-sm font-semibold text-slate-700 block"
-                              >
-                                Sign-off Authority
-                              </label>
-                              <Field
-                                as="select"
-                                id={`select-sign-off-authority-${index}`}
-                                name={`milestones[${index}].sign_off_authority`}
-                                className={`w-full rounded-lg border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none cursor-pointer bg-white text-slate-800 ${
-                                  milestoneTouched.sign_off_authority &&
-                                  milestoneErrors.sign_off_authority
-                                    ? "border-red-300 focus:ring-red-500"
-                                    : "border-slate-200"
-                                }`}
-                              >
-                                <option value="CEO">CEO Only</option>
-                                <option value="TECH_TEAM">Internal Tech Team</option>
-                                <option value="JOINT">Joint Sign-off (CEO & Tech Team)</option>
-                              </Field>
-                              {milestoneTouched.sign_off_authority &&
-                                milestoneErrors.sign_off_authority && (
-                                  <p className="text-xs text-red-500 flex items-center gap-1">
-                                    <AlertCircle size={12} /> {milestoneErrors.sign_off_authority}
-                                  </p>
-                                )}
+                              <p className="text-sm font-semibold text-slate-700">Review Flow</p>
+                              <div className="min-h-[46px] rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                <span className="font-semibold">
+                                  {requiresTechReview
+                                    ? "Tech Team review → CEO final approval"
+                                    : "CEO review and approval"}
+                                </span>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  This flow is set automatically from the project's technical handoff.
+                                </p>
+                              </div>
                             </div>
                           </div>
 
@@ -460,7 +437,6 @@ export default function CreateMilestone() {
                         milestone_number: values.milestones.length + 1,
                         deliverable_statement: "",
                         payment_amount_vnd: 0,
-                        sign_off_authority: "CEO" as const,
                         criteria: [{ criterion_text: "", is_required: true }],
                       })
                     }

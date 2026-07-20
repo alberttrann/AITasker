@@ -4,7 +4,6 @@ import {
   IsNumber,
   IsString,
   IsNotEmpty,
-  IsEnum,
   IsOptional,
   Min,
 } from 'class-validator';
@@ -31,8 +30,6 @@ export class ProjectMilestoneDto {
   @IsOptional()
   estimated_duration_days?: number;
 
-  @IsEnum(['CEO', 'TECH_TEAM', 'JOINT'])
-  sign_off_authority: 'CEO' | 'TECH_TEAM' | 'JOINT';
 }
 
 export class UpdateProjectMilestonesDto {

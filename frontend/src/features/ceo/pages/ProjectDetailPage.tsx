@@ -72,7 +72,6 @@ export default function ProjectDetailPage() {
       deliverable_statement: pm.deliverableStatement,
       payment_amount_vnd: pm.paymentAmountVnd,
       estimated_duration_days: pm.estimatedDurationDays,
-      sign_off_authority: pm.signOffAuthority
     })) : jsonMilestones;
 
     setEditedMilestones(JSON.parse(JSON.stringify(toEdit)));
@@ -87,7 +86,6 @@ export default function ProjectDetailPage() {
         deliverable_statement: "",
         payment_amount_vnd: 0,
         estimated_duration_days: 0,
-        sign_off_authority: "CEO"
       }
     ]);
   };
@@ -113,7 +111,6 @@ export default function ProjectDetailPage() {
       deliverable_statement: m.deliverable_statement || '',
       payment_amount_vnd: m.payment_amount_vnd || 0,
       estimated_duration_days: m.estimated_duration_days || 0,
-      sign_off_authority: m.sign_off_authority || 'CEO'
     }));
 
     updateProjectMilestones.mutate(
@@ -453,9 +450,11 @@ export default function ProjectDetailPage() {
                             </h3>
                             <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
                               <span>
-                                Sign-off:{" "}
+                                Review flow:{" "}
                                 <strong className="text-slate-700">
-                                  {m.sign_off_authority === 'JOINT' ? 'CEO, TECH TEAM' : (m.sign_off_authority || 'CEO').replace('_', ' ')}
+                                  {project.selfTechnical
+                                    ? 'CEO review and approval'
+                                    : 'Tech Team review → CEO final approval'}
                                 </strong>
                               </span>
                               {m.estimated_duration_days !== undefined && m.estimated_duration_days > 0 && (
@@ -465,9 +464,6 @@ export default function ProjectDetailPage() {
                                     {m.estimated_duration_days} Days
                                   </strong>
                                 </span>
-                              )}
-                              {(m.sign_off_authority && !['CEO', 'TECH_TEAM', 'JOINT'].includes(m.sign_off_authority)) && (
-                                <span className="px-2 py-0.5 rounded bg-slate-200/50 text-slate-700 text-[10px] font-bold tracking-wide border border-slate-200">{m.sign_off_authority}</span>
                               )}
                             </div>
                           </div>
@@ -538,7 +534,7 @@ export default function ProjectDetailPage() {
                             placeholder="e.g., Deliver MVP with core features..."
                           />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Duration (Days)</label>
                             <div className="relative">
@@ -560,18 +556,6 @@ export default function ProjectDetailPage() {
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-900 bg-white shadow-sm"
                               />
                             </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Sign-Off Authority</label>
-                            <select
-                              value={m.sign_off_authority}
-                              onChange={(e) => handleUpdateMilestone(idx, 'sign_off_authority', e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm font-medium text-slate-700 bg-white"
-                            >
-                              <option value="CEO">CEO</option>
-                              <option value="TECH_TEAM">Tech Team</option>
-                              <option value="JOINT">Joint (CEO + Tech Team)</option>
-                            </select>
                           </div>
                         </div>
                       </div>
