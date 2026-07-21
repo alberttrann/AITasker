@@ -187,7 +187,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       });
       // Refresh milestones and engagements when a milestone is updated
       queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
     });
     
     queryClient.invalidateQueries({ queryKey: ['milestones'] });
@@ -207,8 +209,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       });
       // Invalidate queries to instantly update UI state
       queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone'] });
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
     });
 
     socket.on('dispute:filed', (data: { engagement_id: string }) => {

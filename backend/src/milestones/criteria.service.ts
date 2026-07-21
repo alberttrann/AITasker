@@ -150,12 +150,51 @@ export class CriteriaService {
         event: 'milestone:updated',
         payload: {
           engagement_id: criterion.milestone.engagement.id,
+          milestone_id: criterion.milestoneId,
           milestone_number: criterion.milestone.milestoneNumber,
           state: 'SUBMITTED',
           review_stage: 'CEO',
           link: `/ceo/engagements/${criterion.milestone.engagement.id}/milestones/${criterion.milestoneId}`,
         },
       });
+    }
+
+    if (result.reviewStage === 'COMPLETE') {
+      const engagement = criterion.milestone.engagement;
+      const recipientIds = new Set<string>([
+        engagement.clientId,
+        engagement.expertId,
+      ]);
+
+      if (engagement.projectId) {
+        const techProfiles = await this.prisma.techTeamProfile.findMany({
+          where: { linkedProjectId: engagement.projectId },
+          select: { userId: true },
+        });
+        techProfiles.forEach((tp) => recipientIds.add(tp.userId));
+      }
+
+      for (const userId of recipientIds) {
+        let rolePath = 'ceo';
+        if (userId === engagement.expertId) {
+          rolePath = 'expert';
+        } else if (userId !== engagement.clientId) {
+          rolePath = 'tech-team';
+        }
+
+        this.eventEmitter.emit('socket.broadcast', {
+          userId,
+          event: 'milestone:updated',
+          payload: {
+            engagement_id: engagement.id,
+            milestone_id: criterion.milestoneId,
+            milestone_number: criterion.milestone.milestoneNumber,
+            state: 'APPROVED',
+            review_stage: 'COMPLETE',
+            link: `/${rolePath}/engagements/${engagement.id}/milestones/${criterion.milestoneId}`,
+          },
+        });
+      }
     }
 
     return result;
@@ -200,17 +239,41 @@ export class CriteriaService {
       };
     });
 
-    this.eventEmitter.emit('socket.broadcast', {
-      userId: criterion.milestone.engagement.expertId,
-      event: 'milestone:updated',
-      payload: {
-        engagement_id: criterion.milestone.engagement.id,
-        milestone_number: criterion.milestone.milestoneNumber,
-        state: 'IN_REVISION',
-        revision_requested_by: reviewerRole,
-        link: `/expert/engagements/${criterion.milestone.engagement.id}/milestones/${criterion.milestoneId}`,
-      },
-    });
+    const engagement = criterion.milestone.engagement;
+    const recipientIds = new Set<string>([
+      engagement.clientId,
+      engagement.expertId,
+    ]);
+
+    if (engagement.projectId) {
+      const techProfiles = await this.prisma.techTeamProfile.findMany({
+        where: { linkedProjectId: engagement.projectId },
+        select: { userId: true },
+      });
+      techProfiles.forEach((tp) => recipientIds.add(tp.userId));
+    }
+
+    for (const userId of recipientIds) {
+      let rolePath = 'ceo';
+      if (userId === engagement.expertId) {
+        rolePath = 'expert';
+      } else if (userId !== engagement.clientId) {
+        rolePath = 'tech-team';
+      }
+
+      this.eventEmitter.emit('socket.broadcast', {
+        userId,
+        event: 'milestone:updated',
+        payload: {
+          engagement_id: engagement.id,
+          milestone_id: criterion.milestoneId,
+          milestone_number: criterion.milestone.milestoneNumber,
+          state: 'IN_REVISION',
+          revision_requested_by: reviewerRole,
+          link: `/${rolePath}/engagements/${engagement.id}/milestones/${criterion.milestoneId}`,
+        },
+      });
+    }
 
     return result;
   }

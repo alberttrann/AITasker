@@ -705,13 +705,13 @@ const RoleIcon =
               </Link>
             )}
 
-            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+            {rawRole !== 'ADMIN' && (
               <Link 
                 to={`${dashboardRoute}/inbox`} 
-                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/inbox') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/inbox') || location.pathname.includes('/messages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               >
                 Messages
-                {location.pathname.includes('/inbox') && (
+                {(location.pathname.includes('/inbox') || location.pathname.includes('/messages')) && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>
