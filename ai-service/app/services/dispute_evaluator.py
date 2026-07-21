@@ -17,7 +17,10 @@ async def evaluate(request: DisputeEvalRequest) -> DisputeEvalResponse:
     files_section = ""
     if request.files:
         file_list = "\n".join(f"  - {url}" for url in request.files)
-        files_section = f"\n\nFILES SUBMITTED BY EXPERT (URLs for reference):\n{file_list}"
+        files_section = (
+            "\n\nFILES SUBMITTED BY EXPERT (reference URLs only; contents not inspected):\n"
+            f"{file_list}"
+        )
 
     context_section = ""
     if request.project_archetype or request.milestone_context:

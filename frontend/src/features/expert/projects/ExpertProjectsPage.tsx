@@ -69,13 +69,10 @@ export default function ExpertProjectsPage() {
     // Process Engagements first (they hold priority state over invitations)
     if (engagements) {
       engagements.forEach((eng) => {
-        const isServiceOrder = !eng.project && eng.service;
-        if (!eng.project && !isServiceOrder) return;
+        if (!eng.project) return;
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
-        if (isServiceOrder) {
-          status = eng.state === 'PENDING' ? 'NDA_PENDING' : 'IN_PROGRESS'; // Pending payment/chat vs active
-        } else if (eng.state === 'PENDING') {
+        if (eng.state === 'PENDING') {
           // It's in bidding
           if (eng.capabilityBid?.tech_status === 'REVISION_REQUESTED' || eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' || eng.capabilityBid?.ceo_status === 'NEGOTIATING' || eng.capabilityBid?.ceoStatus === 'NEGOTIATING') {
              status = 'COUNTER_OFFER';
@@ -340,7 +337,7 @@ export default function ExpertProjectsPage() {
                   switch (project.status) {
                     case 'INVITED': chipColor = "bg-amber-100 text-amber-700"; chipText = "New Invite"; break;
                     case 'BID_SENT': chipColor = "bg-blue-100 text-blue-700"; chipText = "Bid Sent"; break;
-                    case 'COUNTER_OFFER': chipColor = "bg-purple-100 text-purple-700"; chipText = "Counter Offer"; break;
+                    case 'COUNTER_OFFER': chipColor = "bg-sky-100 text-sky-700"; chipText = "Counter Offer"; break;
                     case 'IN_PROGRESS': chipColor = "bg-emerald-100 text-emerald-700"; chipText = "In Progress"; break;
                     case 'DECLINED': chipColor = "bg-slate-100 text-slate-600"; chipText = "Declined"; break;
                     case 'EXPIRED': chipColor = "bg-rose-100 text-rose-700"; chipText = "Expired"; break;

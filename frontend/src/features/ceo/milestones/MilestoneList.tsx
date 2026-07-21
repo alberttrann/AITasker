@@ -112,7 +112,7 @@ export default function MilestoneList() {
               if (projectId) {
                 navigate(`/ceo/projects/${projectId}`);
               } else {
-                navigate("/ceo/projects");
+                navigate("/ceo/marketplace", { state: { tab: "PURCHASES" } });
               }
             }}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
@@ -138,24 +138,8 @@ export default function MilestoneList() {
             <MessageSquare size={16} /> Discuss with Team
           </Button>
 
-          <Button
-            variant="primary"
-            onClick={() =>
-              navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-            }
-            className="inline-flex items-center gap-2"
-          >
-            <Plus size={16} /> Create New Milestone
-          </Button>
-        </div>
-      </div>
-
-      {/* Main List Layout */}
-      {milestones.length === 0 ? (
-        <EmptyState
-          title="No Milestones Defined Yet"
-          description="Create your first milestone with clear deliverables and acceptance criteria to start tracking project progress."
-          action={
+          {/* Create Milestone action - Only for project-based engagements */}
+          {engagement.type === "PROJECT_BASED" && (
             <Button
               variant="primary"
               onClick={() =>
@@ -163,8 +147,33 @@ export default function MilestoneList() {
               }
               className="inline-flex items-center gap-2"
             >
-              <Plus size={16} /> Create First Milestone
+              <Plus size={16} /> Create New Milestone
             </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Main List Layout */}
+      {milestones.length === 0 ? (
+        <EmptyState
+          title="No Milestones Defined Yet"
+          description={
+            engagement.type === "PROJECT_BASED"
+              ? "Create your first milestone with clear deliverables and acceptance criteria to start tracking project progress."
+              : "No milestones defined yet. A milestone will be created automatically once payment is confirmed."
+          }
+          action={
+            engagement.type === "PROJECT_BASED" ? (
+              <Button
+                variant="primary"
+                onClick={() =>
+                  navigate(`/ceo/engagements/${engagementId}/milestones/create`)
+                }
+                className="inline-flex items-center gap-2"
+              >
+                <Plus size={16} /> Create First Milestone
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -190,8 +199,11 @@ export default function MilestoneList() {
                       />
                     </div>
                     <h3 className="text-lg font-bold text-slate-800">
-                      {m.deliverableStatement || m.deliverable_statement ||
-                        "No deliverable statement provided."}
+                      {m.deliverableStatement ||
+                        m.deliverable_statement ||
+                        (engagement.service?.title || (engagement as any)?.service_title
+                          ? `Full Delivery & Implementation for Service: "${engagement.service?.title || (engagement as any)?.service_title}"`
+                          : "No deliverable statement provided.")}
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span>
@@ -288,7 +300,7 @@ export default function MilestoneList() {
           engagementId={engagementId || ""}
           clientId={engagement.clientId}
           expertId={engagement.expertId}
-          projectName={engagement.project?.projectName || project?.projectName}
+          projectName={(engagement as any).project?.projectName || project?.projectName}
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
         />

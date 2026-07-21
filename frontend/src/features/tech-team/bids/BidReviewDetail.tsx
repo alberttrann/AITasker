@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useBid } from '@/hooks/use-bids';
 import { formatVND, formatSeamCode } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -8,18 +7,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { AlertTriangle, ArrowLeft, CheckCircle2, AlertCircle, Clock, DollarSign } from 'lucide-react';
 import type { CapabilityBidDto, EngagementDto } from '@/types/api.types';
 
-// ── Inline hook: GET /bids/:id ───────────────────────────────────
 
-function useBidDetail(bidId: string | undefined) {
-  return useQuery({
-    queryKey: ['bids', bidId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<CapabilityBidDto>(`/bids/${bidId}`);
-      return data;
-    },
-    enabled: !!bidId,
-  });
-}
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -35,7 +23,7 @@ export default function BidReviewDetail() {
   const { bidId } = useParams<{ bidId: string }>();
   const navigate = useNavigate();
 
-  const { data: bid, isLoading, error, refetch } = useBidDetail(bidId);
+  const { data: bid, isLoading, error, refetch } = useBid(bidId as string);
 
   // ── Loading ────────────────────────────────────────────────────
 

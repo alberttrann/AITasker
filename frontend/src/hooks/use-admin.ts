@@ -2,6 +2,11 @@ import type { DomainDefinition, SeamDefinition, ArchetypeDefinition, ProbeQuesti
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
+export type AdminDisputeDecision =
+  | "EXPERT_WINS"
+  | "CLIENT_WINS"
+  | "SPLIT";
+
 // GET /admin/analytics
 export function useAdminAnalytics() {
   return useQuery({
@@ -30,13 +35,14 @@ export function useResolveDispute() {
       decision,
     }: {
       id: string;
-      decision: "release" | "refund" | "split";
+      decision: AdminDisputeDecision;
     }) =>
       apiClient
         .put(`/admin/disputes/${id}/resolve`, { decision })
         .then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "disputes"] });
+      qc.invalidateQueries({ queryKey: ["disputes"] });
       // Invalidate ledger/transactions if needed
       qc.invalidateQueries({ queryKey: ["admin", "transactions"] });
     },

@@ -1,5 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useResolveDispute } from "@/hooks/use-admin";
+import {
+  useResolveDispute,
+  type AdminDisputeDecision,
+} from "@/hooks/use-admin";
 import { useDispute as useDisputeDetail } from "@/hooks/use-disputes";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -13,7 +16,7 @@ import {
   SplitSquareVertical,
   Loader2,
 } from "lucide-react";
-import { formatVND } from "@/lib/utils";
+import { formatConfidencePercent, formatVND } from "@/lib/utils";
 
 export default function ResolutionConfirm() {
   const { id } = useParams<{ id: string }>();
@@ -79,12 +82,21 @@ export default function ResolutionConfirm() {
   }
 
   const criterionText =
-    dispute.criterion?.criterion_text || "No criterion text available";
-  const escrowAmount = dispute.escrowAccount?.amount || 0;
-  const paymentAmount = dispute.milestone?.payment_amount_vnd || 0;
+    dispute.criterion?.criterionText ||
+    dispute.criterion?.criterion_text ||
+    "No criterion text available";
+  const escrowAmount = Number(dispute.escrowAccount?.amount || 0);
+  const paymentAmount = Number(
+    dispute.milestone?.paymentAmountVnd ||
+    dispute.milestone?.payment_amount_vnd ||
+    0,
+  );
   const displayAmount = escrowAmount || paymentAmount;
+  const llmConfidence =
+    dispute.llm_confidence ?? dispute.llmConfidence ?? null;
+  const llmReasoning = dispute.llmReasoning ?? dispute.llm_reasoning ?? null;
 
-  const handleResolve = (decision: "release" | "refund" | "split") => {
+  const handleResolve = (decision: AdminDisputeDecision) => {
     resolveDispute.mutate(
       { id: id!, decision },
       {
@@ -132,6 +144,16 @@ export default function ResolutionConfirm() {
               {criterionText}
             </p>
           </div>
+          {llmReasoning && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-500">
+                AI reasoning
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-blue-950">
+                {llmReasoning}
+              </p>
+            </div>
+          )}
           <div className="flex gap-8">
             <div>
               <p className="text-xs text-slate-400">Escrow Amount</p>
@@ -142,8 +164,8 @@ export default function ResolutionConfirm() {
             <div>
               <p className="text-xs text-slate-400">AI Confidence</p>
               <p className="text-lg font-bold text-slate-900">
-                {dispute.llm_confidence != null
-                  ? `${Math.round(dispute.llm_confidence)}%`
+                {llmConfidence != null
+                  ? formatConfidencePercent(llmConfidence)
                   : "N/A"}
               </p>
             </div>
@@ -159,9 +181,11 @@ export default function ResolutionConfirm() {
 
         {/* Release */}
         <button
-          onClick={() => handleResolve("release")}
+          id={`btn-confirm-expert-wins-${id}`}
+          type="button"
+          onClick={() => handleResolve("EXPERT_WINS")}
           disabled={isPending}
-          className="w-full text-left p-5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-left p-5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-start gap-3">
             <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
@@ -181,9 +205,11 @@ export default function ResolutionConfirm() {
 
         {/* Refund */}
         <button
-          onClick={() => handleResolve("refund")}
+          id={`btn-confirm-client-wins-${id}`}
+          type="button"
+          onClick={() => handleResolve("CLIENT_WINS")}
           disabled={isPending}
-          className="w-full text-left p-5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-left p-5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-start gap-3">
             <div className="p-2 bg-rose-100 rounded-lg group-hover:bg-rose-200 transition-colors">
@@ -203,19 +229,21 @@ export default function ResolutionConfirm() {
 
         {/* Split */}
         <button
-          onClick={() => handleResolve("split")}
+          id={`btn-confirm-split-${id}`}
+          type="button"
+          onClick={() => handleResolve("SPLIT")}
           disabled={isPending}
-          className="w-full text-left p-5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-left p-5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
-              <SplitSquareVertical className="h-5 w-5 text-indigo-700" />
+            <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+              <SplitSquareVertical className="h-5 w-5 text-blue-700" />
             </div>
             <div className="flex-1">
-              <div className="font-bold text-indigo-900 text-lg group-hover:text-indigo-700">
+              <div className="font-bold text-blue-900 text-lg group-hover:text-blue-700">
                 50/50 Split
               </div>
-              <div className="text-indigo-700 text-sm mt-1">
+              <div className="text-blue-700 text-sm mt-1">
                 Partial delivery or mutual fault. Escrow is split evenly —{" "}
                 {formatVND(Math.round(displayAmount / 2))} to each party.
               </div>

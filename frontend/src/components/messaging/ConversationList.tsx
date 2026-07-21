@@ -44,22 +44,23 @@ export default function ConversationList({ onSelect, selectedId }: ConversationL
 
   if (isLoading) return <div className='py-12 text-center'><Spinner size='lg'/></div>;
 
+  // Trích xuất mảng một cách an toàn để xử lý triệt để lỗi non-iterable [5]
+  const threadsArray = Array.isArray(threads) 
+    ? threads 
+    : (Array.isArray(threads?.data) ? threads.data : []);
+
   // Lọc sạch các đoạn chat ảo không có tin nhắn và DEDUPLICATE theo từng dự án cụ thể [5]
   const deduped: any[] = [];
   const seenKeys = new Set<string>();
 
-  // Sort conversations by latest message timestamp — newest first (no selected-first priority)
-  const sortedThreads = [...(threads || [])].sort((a, b) => {
+  // Sắp xếp các đoạn chat theo thời gian tin nhắn mới nhất
+  const sortedThreads = [...threadsArray].sort((a, b) => {
     return (new Date(b.lastMessage?.timestamp || 0).getTime()) - (new Date(a.lastMessage?.timestamp || 0).getTime());
   });
 
-  sortedThreads.forEach((t: any) => {
-    // 1. Chỉ giữ hội thoại có chứa tin nhắn thực tế hoặc đang mở
-    const hasLastMessage = !!t.lastMessage && !!t.lastMessage.content;
-    const isActive = t.id === effectiveSelectedId;
-    if (!hasLastMessage && !isActive) return;
-
-    // 2. Định nghĩa Key duy nhất bằng: ID đối tác + ID dự án (hoặc Tên dự án nếu là Service Purchase) [5]
+  sortedThreads.forEach((t: any) =>  {
+    
+    // Định nghĩa Key duy nhất bằng: ID đối tác + ID dự án [5]
     const otherPartyId = t.otherParty?.id || 'unknown';
     const projectKey = t.projectId || t.projectName || 'service-workspace';
     const uniqueKey = `${otherPartyId}-${projectKey}`;
@@ -87,7 +88,7 @@ export default function ConversationList({ onSelect, selectedId }: ConversationL
         const isSelected = effectiveSelectedId === t.id;
         const name = t.otherParty?.fullName || 'Partner';
         const projectName = t.projectName || 'Service Purchase Workspace';
-        const unread = unreadCounts[t.id] ?? t.unreadCount ?? 0;
+        const unread = isSelected ? 0 : (t.unreadCount ?? unreadCounts[t.id] ?? 0);
         const lastMsg = (t.lastMessage?.content || '').substring(0, 60);
 
         // Định dạng thời gian thông minh cho Sidebar

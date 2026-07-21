@@ -28,7 +28,7 @@ export default function ConfigurationPage() {
         
         <Link to="/admin/config/domain-seam" className="block p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-primary/30 hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+            <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center group-hover:bg-sky-100 transition-colors">
               <Globe size={24} />
             </div>
             <ChevronRight className="text-slate-400 group-hover:text-primary transition-colors" />

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Input';
 import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 
@@ -51,8 +49,7 @@ function decodeJwt(token: string) {
 export function HandoffRegister() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, logout, user, setTokens, setUser } = useAuthStore();
-  const { registerHandoff } = useAuth();
+  const { isAuthenticated, logout, user, registerHandoff, loginNoRedirect, claimHandoff } = useAuth();
   
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -91,11 +88,7 @@ export function HandoffRegister() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const { data } = await apiClient.post('/auth/claim-handoff', {
-        invite_token: token,
-      });
-      setTokens(data.access_token, '');
-      setUser(data.user);
+      await claimHandoff.mutateAsync({ invite_token: token });
       navigate('/tech-team', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to claim invite. This link might be invalid or used.');
@@ -115,11 +108,11 @@ export function HandoffRegister() {
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900">
+    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-900 via-[#0F172A] to-slate-900">
       <div className="relative w-full max-w-4xl bg-white sm:rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in zoom-in-95 duration-200 flex flex-col md:flex-row overflow-hidden">
         
         {/* Left Side - Tech Team Visual */}
-        <div className="hidden md:flex md:w-1/2 relative bg-gradient-to-br from-blue-600 to-indigo-800 p-12 flex-col justify-between overflow-hidden">
+        <div className="hidden md:flex md:w-1/2 relative bg-gradient-to-br from-blue-600 to-blue-900 p-12 flex-col justify-between overflow-hidden">
           {/* Decorative shapes */}
           <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 rounded-full bg-white opacity-5 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-48 h-48 rounded-full bg-blue-400 opacity-20 blur-2xl"></div>
@@ -231,10 +224,7 @@ export function HandoffRegister() {
                   setError(null);
                   try {
                     if (isLoginMode) {
-                      const { data } = await apiClient.post('/auth/login', { email: values.email, password: values.password });
-                      setTokens(data.access_token, data.refresh_token ?? '');
-                      const { data: userData } = await apiClient.get('/users/me');
-                      setUser(userData);
+                      await loginNoRedirect.mutateAsync({ email: values.email, password: values.password });
                     } else {
                       await registerHandoff.mutateAsync({
                         invite_token: token || '',

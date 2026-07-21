@@ -18,6 +18,7 @@ import {
   type StageCompleteData,
 } from "@/hooks/use-elicitation";
 import { Loader2, Check } from "lucide-react";
+import { useToastActions } from "@lib/toast-context";
 
 // Child stage components
 import Stage1Symptoms from "./Stage1Symptoms";
@@ -114,6 +115,7 @@ export default function ElicitationWizard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const toast = useToastActions();
   const initPromiseRef = useRef<Promise<any> | null>(null);
 
   const [state, dispatch] = useReducer(wizardReducer, {
@@ -405,11 +407,6 @@ export default function ElicitationWizard() {
         </div>
       </div>
 
-      {state.error && (
-        <div className="mb-6 rounded-lg border border-error/20 bg-error/5 px-4 py-3">
-          <p className="text-body-sm text-error">{state.error}</p>
-        </div>
-      )}
 
       <Card>
         <CardContent className="pt-6">
@@ -418,14 +415,14 @@ export default function ElicitationWizard() {
               sessionId={state.sessionId}
               symptomTextDraft={state.symptomTextDraft}
               onComplete={handleStageComplete}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
             />
           )}
           {state.currentStage === 2 && state.sessionId && (
             <Stage2Archetype
               sessionId={state.sessionId}
               onComplete={handleStageComplete}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
               onBack={handleBack}
             />
           )}
@@ -433,7 +430,7 @@ export default function ElicitationWizard() {
             <Stage3Probes
               sessionId={state.sessionId}
               onComplete={handleStageComplete}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
               onBack={handleBack}
             />
           )}
@@ -443,7 +440,7 @@ export default function ElicitationWizard() {
               <Stage4ScenarioA
                 sessionId={state.sessionId}
                 onComplete={handleStageComplete}
-                onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+                onError={(msg) => toast.error(msg)}
                 onBack={state.forceScenarioA ? () => handleSetSelfTechnical(false) : handleBack}
                 isForced={state.forceScenarioA}
               />
@@ -460,7 +457,7 @@ export default function ElicitationWizard() {
               sessionId={state.sessionId}
               initialGateResult={state.gateResult}
               onComplete={handleSynthesisResolved}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
             />
           )}
         </CardContent>

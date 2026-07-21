@@ -12,6 +12,7 @@ import SpotlightSearch from '@/components/layout/SpotlightSearch';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useConversations } from '@/hooks/use-messages';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -78,17 +79,19 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
-
   const queryClient = useQueryClient();
-  const { data: threads } = useQuery({
-    queryKey: ['conversations'],
-    queryFn: () => apiClient.get('/conversations').then(r => r.data),
-    refetchInterval: 10_000,
-  });
+  const unreadCounts = useEngagementStore((s) => s.unreadCounts);
+  const { data: conversationsResponse } = useConversations();
 
-  const safeThreads = threads || [];
-  const filteredThreads = safeThreads.filter((t: any) => !!t.lastMessage && !!t.lastMessage.content);
-  const unreadMessages = filteredThreads.reduce((sum: number, t: any) => sum + (t.unreadCount || 0), 0);
+  const rawThreads = conversationsResponse?.data || [];
+  const filteredThreads = rawThreads.filter((t: any) => !!t.lastMessage && !!t.lastMessage.content);
+  
+  // Calculate total unread messages using store counts or fallback counts
+  const unreadMessages = filteredThreads.reduce(
+  (sum: number, t: any) => sum + (t.unreadCount ?? unreadCounts[t.id] ?? 0),
+  0
+);
+  // Show top 5 conversations in the dropdown
   const conversations = filteredThreads.slice(0, 5);
 
   const handleConversationClick = async (id: string) => {
@@ -152,6 +155,7 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
+    clearAllUnread();
     logout(); // Clears Zustand state
     navigate('/');
   };
@@ -249,7 +253,9 @@ const RoleIcon =
                 >
                   <Bell size={24} strokeWidth={1.5} />
                   {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-white font-headline font-extrabold text-[10px] leading-none rounded-full border-2 border-surface flex items-center justify-center shadow-xs">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </span>
                   )}
                 </button>
 
@@ -307,7 +313,9 @@ const RoleIcon =
                 >
                   <MessageSquare size={24} strokeWidth={1.5} />
                   {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-white font-headline font-extrabold text-[10px] leading-none rounded-full border-2 border-surface flex items-center justify-center shadow-xs">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
                   )}
                 </button>
 
@@ -542,7 +550,21 @@ const RoleIcon =
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-slate-500" /> Notifications
                 </div>
-                {unreadNotifications > 0 && <span className="bg-coral text-white text-xs px-2 py-0.5 rounded-full font-bold">{unreadNotifications}</span>}
+                {unreadNotifications > 0 && (
+                  <span className="bg-error text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </span>
+                )}
+              </Link>
+              <Link to={`${dashboardRoute}/messages`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <div className="flex items-center gap-3">
+                  <MessageSquare size={20} className="text-slate-500" /> Messages
+                </div>
+                {unreadMessages > 0 && (
+                  <span className="bg-error text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
               </Link>
               <Link to={`${dashboardRoute}/profile`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <User size={20} className="text-slate-500" /> Account
@@ -648,15 +670,26 @@ const RoleIcon =
               </Link>
             )}
             {rawRole === 'EXPERT' && (
-              <Link 
-                to={`/expert/service`} 
-                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname === '/expert/service' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-              >
-                Services
-                {location.pathname === '/expert/service' && (
-                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
-                )}
-              </Link>
+              <>
+                <Link 
+                  to={`/expert/service/projects`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/projects') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Projects
+                  {location.pathname.includes('/projects') && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+                <Link 
+                  to={`/expert/service`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname === '/expert/service' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Services
+                  {location.pathname === '/expert/service' && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+              </>
             )}
 
             {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (

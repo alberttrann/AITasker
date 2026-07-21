@@ -1,14 +1,37 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@hooks/use-auth';
-import { apiClient } from '@lib/api-client';
 import { Button } from '@components/ui/Button';
 import { Input, Label } from '@components/ui/Input';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
 import { Spinner } from '@components/ui/Spinner';
+
+/**
+ * ShakeInput — plays a horizontal shake animation when `error` first becomes true.
+ * Resets via onAnimationEnd so it can re-fire on the next invalid attempt.
+ */
+type ShakeInputProps = React.ComponentProps<typeof Input>;
+function ShakeInput({ error, className, ...props }: ShakeInputProps) {
+  const [shaking, setShaking] = useState(false);
+  const prevError = useRef(false);
+
+  useEffect(() => {
+    if (error && !prevError.current) setShaking(true);
+    prevError.current = !!error;
+  }, [error]);
+
+  return (
+    <Input
+      {...props}
+      error={error}
+      shake={shaking}
+      className={className}
+      onAnimationEnd={() => setShaking(false)}
+    />
+  );
+}
 
 const passwordRules = [
   { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -33,22 +56,13 @@ export default function ResetPasswordPage() {
   const { token } = useParams<{ token: string }>();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { resetPassword } = useAuth();
+  const { resetPassword, verifyResetToken } = useAuth();
   
-  const verifyTokenQuery = useQuery({
-    queryKey: ['verify-reset-token', token],
-    queryFn: async () => {
-      if (!token) throw new Error("No token");
-      const { data } = await apiClient.get(`/auth/verify-reset-token/${token}`);
-      return data;
-    },
-    enabled: !!token,
-    retry: false,
-  });
+  const verifyTokenQuery = verifyResetToken(token);
 
   if (!token || verifyTokenQuery.isError) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900 relative overflow-hidden">
+      <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-900 via-[#0F172A] to-slate-900 relative overflow-hidden">
         {/* Decorative Background Elements */}
         <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 rounded-full bg-white opacity-5 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-48 h-48 rounded-full bg-blue-400 opacity-20 blur-2xl"></div>
@@ -69,14 +83,14 @@ export default function ResetPasswordPage() {
 
   if (verifyTokenQuery.isLoading) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900">
+      <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-900 via-[#0F172A] to-slate-900">
          <Spinner size="lg" className="text-white" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900 relative overflow-hidden">
+    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-900 via-[#0F172A] to-slate-900 relative overflow-hidden">
       {/* Decorative Background Elements */}
       <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 rounded-full bg-white opacity-5 blur-3xl"></div>
       <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-48 h-48 rounded-full bg-blue-400 opacity-20 blur-2xl"></div>
@@ -124,10 +138,10 @@ export default function ResetPasswordPage() {
                   <div>
                 <Label htmlFor="newPassword">New Password</Label>
                 <Field name="newPassword">
-                  {({ field, meta }: any) => (
+                  {({ field, meta, form }: any) => (
                     <>
                       <div className="relative">
-                        <Input
+                        <ShakeInput
                           {...field}
                           id="newPassword"
                           type={showPassword ? "text" : "password"}
@@ -135,6 +149,7 @@ export default function ResetPasswordPage() {
                           disabled={resetPassword.isPending || status?.success}
                           error={meta.touched && !!meta.error}
                           className="pr-10"
+                          onFocus={() => form.setFieldTouched(field.name, false)}
                         />
                         <button
                           type="button"
@@ -166,9 +181,9 @@ export default function ResetPasswordPage() {
               <div>
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Field name="confirmPassword">
-                  {({ field, meta }: any) => (
+                  {({ field, meta, form }: any) => (
                     <div className="relative">
-                      <Input
+                      <ShakeInput
                         {...field}
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
@@ -176,6 +191,7 @@ export default function ResetPasswordPage() {
                         disabled={resetPassword.isPending || status?.success}
                         error={meta.touched && !!meta.error}
                         className="pr-10"
+                        onFocus={() => form.setFieldTouched(field.name, false)}
                       />
                       <button
                         type="button"

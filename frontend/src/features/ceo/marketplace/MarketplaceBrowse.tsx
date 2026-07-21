@@ -5,13 +5,17 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { formatVND } from '@/lib/utils';
 
 export default function MarketplaceBrowse() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'SERVICES' | 'EXPERTS' | 'PURCHASES'>('SERVICES');
+  const [activeTab, setActiveTab] = useState<'SERVICES' | 'EXPERTS' | 'PURCHASES'>(() => {
+    if (location.state?.tab === 'PURCHASES') return 'PURCHASES';
+    return 'SERVICES';
+  });
   
   const { data: services, isLoading: isLoadingServices } = useGetServices();
   const { data: experts, isLoading: isLoadingExperts } = useExpertSearch();
@@ -70,7 +74,7 @@ export default function MarketplaceBrowse() {
           <button
             onClick={() => setActiveTab('PURCHASES')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'PURCHASES' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              activeTab === 'PURCHASES' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Clock className="w-4 h-4" /> My Purchases
@@ -169,7 +173,7 @@ export default function MarketplaceBrowse() {
       {isClient && activeTab === 'PURCHASES' && (
         <div className="animate-in fade-in duration-300">
           {isLoadingPurchases ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>
+            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
           ) : purchases?.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {purchases.map((purchase: any) => {

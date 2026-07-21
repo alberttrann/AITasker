@@ -130,11 +130,15 @@ export interface DisputeEvalRequest {
   criterion_text:          string;
   deliverable_description: string;
   files?:                  string[];
+  project_archetype?:      string;
+  milestone_context?:      string;
+  prior_revision_count?:   number;
 }
 
 export interface DisputeEvalResponse {
   confidence_score: number;
   finding:          'expert_wins' | 'client_wins';
+  reasoning:        string;
 }
 
 export interface CriterionCheckRequest {

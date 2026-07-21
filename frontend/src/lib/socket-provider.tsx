@@ -9,6 +9,7 @@ import {
 import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@store/auth.store';
 import { formatSeamCode } from '@/lib/utils';
+import { formatResolutionNotification } from '@/lib/dispute-resolution';
 import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,6 +39,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
   const user        = useAuthStore((s) => s.user);
+  const activeRole  = useAuthStore((s) => s.activeRole);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
@@ -48,6 +50,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socketRef.current?.disconnect();
       socketRef.current = null;
       setActiveSocket(null);
+      useEngagementStore.getState().clearAllUnread();
       return;
     }
 
@@ -79,14 +82,18 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('newMessage', (data: any) => {
-      const engagementId = data.engagementId || data.projectId;
-      if (!engagementId) return;
+    const engagementId = data.engagementId || data.projectId;
+    if (!engagementId) return;
 
-      // Ignore if the current user sent the message
-      if (data.senderId === user?.id || data.sender?.id === user?.id) return;
+    if (data.senderId === user?.id || data.sender?.id === user?.id) return;
 
-      incrementUnread(engagementId);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    // Dùng getState() thay vì closure để luôn đọc activeEngagementId mới nhất
+    const currentActive = useEngagementStore.getState().activeEngagementId;
+    if (currentActive !== engagementId) {
+    incrementUnread(engagementId);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
       
       // Only show notification if user is not currently in that conversation
       // Note: We no longer call addNotification here to prevent direct chat messages from
@@ -131,6 +138,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       if (data.title.includes('New Expert Bid') || data.title.includes('Tech Review Passed')) {
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
         queryClient.invalidateQueries({ queryKey: ['bids'] });
+      }
+
+      // 4. Service purchase paid/confirmed -> Refresh purchases list & engagements
+      if (data.title === 'Payment Confirmed!' || data.title === 'Service Purchased!') {
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['engagements'] });
       }
     });
 
@@ -185,6 +198,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         link:  `/engagements/${data.engagement_id}/milestones`,
         meta:  { engagement_id: data.engagement_id },
       });
+      // Invalidate queries to instantly update UI state
+      queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
     });
 
     socket.on('dispute:filed', (data: { engagement_id: string }) => {
@@ -199,14 +216,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     socket.on('dispute:resolved', (data: {
       engagement_id: string;
+      dispute_id?:   string;
+      milestone_id?: string | null;
       resolution:    string;
     }) => {
       addNotification({
         type:  'dispute',
         title: 'Dispute resolved',
-        body:  `Resolution: ${data.resolution}`,
+        body:  formatResolutionNotification(
+          data.resolution,
+          activeRole === 'EXPERT' ? 'EXPERT' : 'CLIENT',
+        ),
         link:  `/engagements/${data.engagement_id}`,
-        meta:  { engagement_id: data.engagement_id },
+        meta:  {
+          engagement_id: data.engagement_id,
+          ...(data.dispute_id ? { dispute_id: data.dispute_id } : {}),
+          ...(data.milestone_id ? { milestone_id: data.milestone_id } : {}),
+        },
       });
     });
 
@@ -230,7 +256,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     return () => {
       socket.disconnect();
     };
-  }, [accessToken]);
+  }, [accessToken, activeRole]);
 
   return (
     <SocketContext.Provider value={activeSocket}>

@@ -146,7 +146,6 @@ export default function TechTeamMilestoneDetail() {
                       <StatusBadge
                         label={m.state.replace(/_/g, " ")}
                         variant={variantFromStatus(m.state)}
-                        size="xs"
                       />
                     </span>
                   </button>
@@ -477,7 +476,7 @@ export default function TechTeamMilestoneDetail() {
           engagementId={engagementId || ""}
           clientId={engagement.clientId}
           expertId={engagement.expertId}
-          projectName={engagement.project?.projectName}
+          projectName={(engagement as any).project?.projectName}
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
         />

@@ -25,14 +25,13 @@ const PROJECT_SUMMARY_SELECT = {
 
 const CURRENT_MILESTONE_INCLUDE = {
   milestones: {
-    where: { state: { notIn: ['RELEASED', 'APPROVED'] } }, // Get the active/pending ones
     orderBy: { milestoneNumber: 'asc' },
-    take: 1, // Only grab the very next actionable milestone
     select: {
       id: true,
       milestoneNumber: true,
       state: true,
-      deliverableStatement: true
+      deliverableStatement: true,
+      paymentAmountVnd: true
     }
   }
 } as any;
@@ -80,7 +79,7 @@ export class EngagementsService {
         include: { 
           project: PROJECT_SUMMARY_SELECT, 
           capabilityBid: true,
-          service: { select: { id: true, title: true } },
+          service: { select: { id: true, title: true, priceVnd: true } },
           client: { select: { id: true, fullName: true } },
           ...CURRENT_MILESTONE_INCLUDE 
         },
@@ -95,7 +94,7 @@ export class EngagementsService {
         include: { 
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
-          service: { select: { id: true, title: true } },
+          service: { select: { id: true, title: true, priceVnd: true } },
           expert: { select: { fullName: true } },
           ...CURRENT_MILESTONE_INCLUDE 
         },
@@ -443,7 +442,15 @@ export class EngagementsService {
       where: { milestone: { engagementId } },
       orderBy: { filedAt: 'desc' },
       include: {
-        milestone: { select: { milestoneNumber: true, deliverableStatement: true } },
+        criterion: { select: { criterionText: true } },
+        milestone: {
+          select: {
+            milestoneNumber: true,
+            deliverableStatement: true,
+            paymentAmountVnd: true,
+          },
+        },
+        escrowAccount: { select: { status: true, amount: true } },
       },
     });
   }

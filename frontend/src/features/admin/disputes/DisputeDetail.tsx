@@ -14,7 +14,8 @@ import {
   Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatVND } from "@/lib/utils";
+import { formatConfidencePercent, formatVND } from "@/lib/utils";
+import { formatDisputeResolution } from "@/lib/dispute-resolution";
 
 function StateBadge({ state }: { state: string }) {
   const configs: Record<string, { bg: string; text: string }> = {
@@ -22,7 +23,7 @@ function StateBadge({ state }: { state: string }) {
     AUTO_RESOLVED: { bg: "bg-emerald-100", text: "text-emerald-700" },
     RESOLVED: { bg: "bg-slate-100", text: "text-slate-700" },
     PENDING: { bg: "bg-amber-100", text: "text-amber-700" },
-    LAYER_1_EVAL: { bg: "bg-indigo-100", text: "text-indigo-700" },
+    LAYER_1_EVAL: { bg: "bg-blue-100", text: "text-blue-700" },
   };
   const config = configs[state] || {
     bg: "bg-slate-100",
@@ -69,15 +70,24 @@ export default function DisputeDetail() {
   }
 
   const criterionText =
-    dispute.criterion?.criterion_text || "No criterion text available";
+    dispute.criterion?.criterionText ||
+    dispute.criterion?.criterion_text ||
+    "No criterion text available";
   const deliverableStatement =
+    dispute.milestone?.deliverableStatement ||
     dispute.milestone?.deliverable_statement ||
     "No deliverable statement available";
-  const paymentAmount = dispute.milestone?.payment_amount_vnd || 0;
-  const escrowAmount = dispute.escrowAccount?.amount || 0;
+  const paymentAmount = Number(
+    dispute.milestone?.paymentAmountVnd ||
+    dispute.milestone?.payment_amount_vnd ||
+    0,
+  );
+  const escrowAmount = Number(dispute.escrowAccount?.amount || 0);
   const escrowStatus = dispute.escrowAccount?.status || "N/A";
   const llmConfidence =
     dispute.llm_confidence ?? dispute.llmConfidence ?? null;
+  const llmReasoning = dispute.llmReasoning ?? dispute.llm_reasoning ?? null;
+  const resolvedAt = dispute.resolvedAt ?? dispute.resolved_at ?? null;
   const isManualReview = dispute.state === "MANUAL_REVIEW";
 
   return (
@@ -125,7 +135,7 @@ export default function DisputeDetail() {
           {/* Deliverable */}
           <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2 mb-4">
-              <FileText className="h-5 w-5 text-indigo-600" />
+              <FileText className="h-5 w-5 text-blue-600" />
               Deliverable Statement
             </h2>
             <div className="bg-slate-50 border border-slate-100 rounded-lg p-4">
@@ -145,24 +155,34 @@ export default function DisputeDetail() {
 
           {/* LLM Evaluation */}
           {llmConfidence !== null && (
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 border border-indigo-900 shadow-sm rounded-xl p-6 text-white">
-              <h2 className="text-lg font-semibold text-indigo-200 flex items-center gap-2 mb-4">
-                <BrainCircuit className="h-5 w-5 text-indigo-400" />
+            <div className="bg-gradient-to-br from-slate-900 to-blue-950 border border-blue-900 shadow-sm rounded-xl p-6 text-white">
+              <h2 className="text-lg font-semibold text-blue-200 flex items-center gap-2 mb-4">
+                <BrainCircuit className="h-5 w-5 text-blue-400" />
                 AI Layer-1 Evaluation
               </h2>
               <div className="flex items-end gap-4">
                 <span className="text-5xl font-black tracking-tighter">
-                  {Math.round(llmConfidence)}%
+                  {formatConfidencePercent(llmConfidence)}
                 </span>
-                <span className="text-sm text-indigo-200 pb-2 mb-1">
+                <span className="text-sm text-blue-200 pb-2 mb-1">
                   confidence score
                 </span>
               </div>
-              <p className="mt-3 text-indigo-200 text-sm">
+              <p className="mt-3 text-blue-200 text-sm">
                 The AI evaluated this dispute's alignment with the criterion and
                 the defined deliverable. This score informed whether automatic
                 resolution was possible or manual review was required.
               </p>
+              {llmReasoning && (
+                <div className="mt-4 border-t border-blue-800 pt-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-300">
+                    AI reasoning
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-blue-100">
+                    {llmReasoning}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -188,6 +208,14 @@ export default function DisputeDetail() {
                   {escrowStatus}
                 </span>
               </div>
+              {dispute.resolution && (
+                <div>
+                  <p className="text-xs text-slate-400">Resolution</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {formatDisputeResolution(dispute.resolution)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -213,12 +241,12 @@ export default function DisputeDetail() {
                   ).toLocaleDateString()}
                 </span>
               </div>
-              {dispute.resolved_at && (
+              {resolvedAt && (
                 <div className="flex items-center gap-2 text-sm">
                   <Clock className="h-4 w-4 text-slate-400" />
                   <span className="text-slate-500">Resolved at:</span>
                   <span className="text-slate-700">
-                    {new Date(dispute.resolved_at).toLocaleDateString()}
+                    {new Date(resolvedAt).toLocaleDateString()}
                   </span>
                 </div>
               )}
@@ -235,9 +263,10 @@ export default function DisputeDetail() {
           {/* Resolve button */}
           {isManualReview && (
             <Button
+              id={`btn-resolve-dispute-${id}`}
               variant="primary"
               size="lg"
-              className="w-full bg-rose-600 hover:bg-rose-700"
+              className="w-full bg-rose-600 hover:bg-rose-700 cursor-pointer"
               onClick={() => navigate(`/admin/disputes/${id}/resolve`)}
             >
               <AlertTriangle className="h-5 w-5 mr-2" />
@@ -245,7 +274,7 @@ export default function DisputeDetail() {
             </Button>
           )}
 
-          {dispute.state === "RESOLVED" && (
+          {(dispute.state === "RESOLVED" || dispute.state === "AUTO_RESOLVED") && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
               <p className="text-emerald-700 font-semibold text-sm">
                 ✓ This dispute has been resolved

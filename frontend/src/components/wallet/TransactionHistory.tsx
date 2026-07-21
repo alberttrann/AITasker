@@ -48,6 +48,10 @@ export function TransactionHistory() {
         return { label: 'Escrow Locked', color: 'text-yellow-600', icon: <Lock size={20} strokeWidth={2.5} />, bg: 'bg-yellow-100' };
       case 'ESCROW_RELEASE':
         return { label: 'Escrow Released', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'ESCROW_REFUND':
+        return { label: 'Dispute Refund', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'ESCROW_SPLIT':
+        return { label: 'Dispute Settlement (Split)', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       case 'WITHDRAWAL':
         return { label: 'Withdrawal', color: 'text-red-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-red-100' };
       default:
@@ -63,22 +67,27 @@ export function TransactionHistory() {
       <div className="divide-y divide-slate-100">
         {transactions.map((tx) => {
           const config = getTxConfig(tx.transactionType);
-          const isPositive = ['TOP_UP', 'ESCROW_RELEASE'].includes(tx.transactionType);
+          const isPositive = ['TOP_UP', 'ESCROW_RELEASE', 'ESCROW_REFUND', 'ESCROW_SPLIT'].includes(tx.transactionType);
           
           return (
-            <div key={tx.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-full ${config.bg} ${config.color}`}>
+             <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className={`p-2 rounded-full ${config.bg} ${config.color} shrink-0`}>
                   {config.icon}
                 </div>
-                <div>
-                  <p className="font-semibold text-slate-900">{config.label}</p>
-                  <p className="text-sm text-slate-500 font-mono mt-0.5">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900 truncate">{config.label}</p>
+                  {tx.details && (
+                    <p className="text-xs text-slate-500 mt-1 break-words font-medium leading-relaxed">
+                      {tx.details}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-400 font-mono mt-1">
                     {format(new Date(tx.createdAt), 'MMM d, yyyy • HH:mm')}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <p className={`font-bold ${isPositive ? 'text-emerald-600' : 'text-slate-900'}`}>
                   {isPositive ? '+' : '-'} {formatVND(tx.amount)}
                 </p>

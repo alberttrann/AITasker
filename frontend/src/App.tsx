@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react";
 import { Route, createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet } from "react-router-dom";
 import { AuthProvider } from '@lib/auth-context';
 import { SocketProvider } from '@lib/socket-provider';
+import { ToastProvider } from '@lib/toast-context';
+import { ToastContainer } from '@components/ui/ToastContainer';
 
 // Guards
 import { ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
@@ -69,6 +71,7 @@ const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickT
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
 const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
 const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
+const ExpertOrdersPage = lazy(() => import("@features/expert/services/ExpertOrdersPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
@@ -85,13 +88,17 @@ const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestone
 
 function RootLayout() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Suspense fallback={<AuthGate />}>
-          <Outlet />
-        </Suspense>
-      </SocketProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <Suspense fallback={<AuthGate />}>
+            <Outlet />
+          </Suspense>
+        </SocketProvider>
+      </AuthProvider>
+      {/* Global toast notifications — rendered outside router subtree */}
+      <ToastContainer />
+    </ToastProvider>
   );
 }
 
@@ -146,6 +153,7 @@ const router = createBrowserRouter(
             <Route path="service" element={<ExpertServicesPage />} />
             <Route path="service/:id" element={<ServiceDetail />} />
             <Route path="service/projects" element={<ExpertProjectsPage />} />
+            <Route path="service/orders" element={<ExpertOrdersPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="service/expert-profile" element={<ExpertProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />

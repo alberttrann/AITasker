@@ -262,9 +262,10 @@ def _build_stage5_prompt(request: Stage5Request) -> str:
         "\n".join(f"- {s}" for s in request.stage1_symptoms)
         if request.stage1_symptoms else "(no symptoms captured)"
     )
+    unresolved_voids = [v for v in request.void_list_json if not v.get("injected")]
     voids_block = (
-        "\n".join(f"- [{v.get('severity','LOW')}] {v.get('void_code','UNKNOWN')}" for v in request.void_list_json)
-        if request.void_list_json else "(no voids detected)"
+        "\n".join(f"- [{v.get('severity','LOW')}] {v.get('void_code','UNKNOWN')}" for v in unresolved_voids)
+        if unresolved_voids else "(no unresolved voids)"
     )
     probes_block = (
         "\n".join(f"  Q: {k}\n  A: {v}" for k, v in request.stage3_probes.items())
@@ -299,7 +300,10 @@ def _build_stage5_prompt(request: Stage5Request) -> str:
         artifacts_block = ""
 
     # Determine missing critical artifacts
-    submitted_keys = set(technical_artifacts.keys())
+    submitted_keys = {
+        key for key, content in technical_artifacts.items()
+        if content and str(content).strip()
+    }
     missing_artifacts = [
         a for a in request.critical_artifacts_required
         if a.get("artifact_key") and a["artifact_key"] not in submitted_keys
@@ -408,7 +412,7 @@ def _validate_stage5_response(raw: dict, request: Stage5Request) -> Stage5Respon
         artifact_a_json=artifact_a,
         artifact_b_json=artifact_b,
         completeness_score=round(completeness, 4),
-        flagged_void=str(raw.get("flagged_void")) if raw.get("flagged_void") else None, 
+        flagged_void=str(raw.get("flagged_void")) if raw.get("flagged_void") else None,
         estimated_total_cost_vnd=total_cost if total_cost > 0 else None,
         estimated_total_duration_days=total_days if total_days > 0 else None,
     )

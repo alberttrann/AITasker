@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import apiClient from '@/lib/api-client';
 import { useAdminConfigItems, useSaveAdminConfigItem } from '@/hooks/use-admin';
 import { useDomains } from '@/hooks/use-config';
 import { Plus, Edit2, Trash2, ArrowLeft, Globe, Network, Check, GripVertical, Save } from 'lucide-react';
@@ -128,7 +127,8 @@ export default function DomainSeamConfigPage() {
     try {
       // Fire sequential updates
       for (const item of changedItems) {
-        await apiClient.put(`/admin/config/${activeTab}/${item.id}`, {
+        await saveMutation.mutateAsync({
+          id: item.id,
           name: item.name,
           description: item.description,
           sortOrder: item.sortOrder,

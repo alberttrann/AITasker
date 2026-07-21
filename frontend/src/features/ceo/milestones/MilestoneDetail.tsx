@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMilestone } from "@/hooks/use-milestones";
 import { useEngagement } from "@/hooks/use-engagements";
+import { useMilestoneSettlement } from "@/hooks/use-disputes";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
+import { getSettlementCopy } from "@/lib/dispute-resolution";
 import CriteriaVerify from "./CriteriaVerify";
 import RevisionRequest from "./RevisionRequest";
 import { ArrowLeft, Check, RotateCcw, AlertTriangle, FileText, Calendar, CheckCircle2, Scale, MessageSquare } from "lucide-react";
@@ -21,6 +23,11 @@ export default function MilestoneDetail() {
   // Fetch milestone detail (including acceptanceCriteria and dodItems nested)
   const { data: milestone, isLoading: isLoadingMilestone, error: milestoneError, refetch } = useMilestone(milestoneId);
   const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
+  const {
+    settlementOutcome,
+    isLoading: isLoadingSettlement,
+    isError: isSettlementError,
+  } = useMilestoneSettlement(milestoneId);
 
   // States for verification and revision modals
   const [selectedCriterion, setSelectedCriterion] = useState<{ id: string; text: string } | null>(null);
@@ -28,7 +35,7 @@ export default function MilestoneDetail() {
   // State for workspace chat drawer (additive — does not affect existing modals)
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const isLoading = isLoadingMilestone || isLoadingEngagement;
+  const isLoading = isLoadingMilestone || isLoadingEngagement || isLoadingSettlement;
   const error = milestoneError;
 
   if (isLoading) {
@@ -61,6 +68,43 @@ export default function MilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
+  const isServiceOrder = engagement?.type === "SERVICE_PURCHASE" || engagement?.type === "TECH_DISCOVERY";
+  const approvedSettlement = isSettlementError
+    ? "UNKNOWN"
+    : settlementOutcome ?? "EXPERT_RELEASED";
+  const settlementText = getSettlementCopy(approvedSettlement, "CLIENT");
+  const settlementCopy = approvedSettlement === "CLIENT_REFUNDED"
+    ? {
+        ...settlementText,
+        wrapperClass: "bg-emerald-50 border-emerald-100 text-emerald-900",
+        iconClass: "text-emerald-600",
+        bodyClass: "text-emerald-800",
+        icon: RotateCcw,
+      }
+    : approvedSettlement === "SPLIT"
+      ? {
+          ...settlementText,
+          wrapperClass: "bg-amber-50 border-amber-200 text-amber-900",
+          iconClass: "text-amber-600",
+          bodyClass: "text-amber-800",
+          icon: Scale,
+        }
+      : approvedSettlement === "UNKNOWN" || approvedSettlement === "FUNDS_HELD" || approvedSettlement === "FUNDS_FROZEN"
+        ? {
+            ...settlementText,
+            wrapperClass: "bg-slate-50 border-slate-200 text-slate-900",
+            iconClass: "text-slate-500",
+            bodyClass: "text-slate-700",
+            icon: AlertTriangle,
+          }
+        : {
+            ...settlementText,
+            wrapperClass: "bg-emerald-50 border-emerald-100 text-emerald-900",
+            iconClass: "text-emerald-600",
+            bodyClass: "text-emerald-800",
+            icon: CheckCircle2,
+          };
+  const SettlementIcon = settlementCopy.icon;
 
   // List of milestones to switch between
   const milestones = engagement?.milestones ?? [];
@@ -138,13 +182,15 @@ export default function MilestoneDetail() {
                   >
                     <div className="min-w-0">
                       <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Milestone #{m.milestoneNumber}</p>
-                      <p className="text-sm truncate font-medium">{m.deliverableStatement || "No deliverable statement"}</p>
+                      <p className="text-sm truncate font-medium">
+                        {m.deliverableStatement || (engagement?.service?.title ? `Full Delivery for Service: "${engagement.service.title}"` : "No deliverable statement")}
+                      </p>
                     </div>
                     <span className="shrink-0 ml-2">
                       <StatusBadge
                         label={m.state.replace(/_/g, " ")}
                         variant={variantFromStatus(m.state)}
-                        size="xs"
+                        className="px-2 py-0.5 text-[10px]"
                       />
                     </span>
                   </button>
@@ -168,7 +214,9 @@ export default function MilestoneDetail() {
                       variant={variantFromStatus(milestone.state)}
                     />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900 leading-snug">{milestone.deliverableStatement || "No deliverables specified."}</h2>
+                  <h2 className="text-xl font-bold text-slate-900 leading-snug">
+                    {milestone.deliverableStatement || (engagement?.service?.title ? `Full Delivery & Implementation for Service: "${engagement.service.title}"` : "No deliverables specified.")}
+                  </h2>
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> Registered: <strong>{new Date(milestone.updatedAt).toLocaleDateString()}</strong>
@@ -209,6 +257,31 @@ export default function MilestoneDetail() {
                 </div>
               )}
 
+              {isSubmitted && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-900">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-bold">Awaiting Your Sign-off</p>
+                      <p className="text-amber-800">
+                        {isServiceOrder
+                          ? "The Expert has submitted the service deliverables for your review. Please review their submission below."
+                          : "The Expert has submitted the deliverables for review. Please review the checklist criteria below and sign off on each item."}
+                      </p>
+                    </div>
+                  </div>
+                  {isServiceOrder && milestone.acceptanceCriteria && milestone.acceptanceCriteria.length > 0 && (
+                    <Button
+                      variant="primary"
+                      onClick={() => handleOpenVerify(milestone.acceptanceCriteria[0].id, milestone.acceptanceCriteria[0].criterionText)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-semibold"
+                    >
+                      Approve & Release Escrow
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {isRevisionPhase && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-900">
                   <RotateCcw className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
@@ -222,13 +295,11 @@ export default function MilestoneDetail() {
               )}
 
               {isApproved && (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3 text-emerald-900">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
+                <div className={`${settlementCopy.wrapperClass} border rounded-xl p-4 flex gap-3`}>
+                  <SettlementIcon className={`w-5 h-5 shrink-0 mt-0.5 ${settlementCopy.iconClass}`} />
                   <div className="text-sm">
-                    <p className="font-bold">Milestone Approved & Released</p>
-                    <p className="text-emerald-800">
-                      All criteria have been signed off. Escrow funds have been disbursed to the Expert's wallet.
-                    </p>
+                    <p className="font-bold">{settlementCopy.title}</p>
+                    <p className={settlementCopy.bodyClass}>{settlementCopy.body}</p>
                   </div>
                 </div>
               )}
@@ -458,7 +529,7 @@ export default function MilestoneDetail() {
           engagementId={engagementId || ""}
           clientId={engagement.clientId}
           expertId={engagement.expertId}
-          projectName={engagement.project?.projectName}
+          projectName={(engagement as any).project?.projectName}
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
         />

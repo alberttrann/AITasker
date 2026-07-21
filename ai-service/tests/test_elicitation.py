@@ -192,6 +192,68 @@ async def test_stage5_returns_all_six_keys(client):
     assert "completeness_score"       in body
 
 
+async def test_stage5_prompt_does_not_repeat_resolved_artifact_void(client):
+    payload = {
+        **VALID_STAGE5_PAYLOAD,
+        "void_list_json": [
+            {
+                "void_code": "MISSING_TECHNICAL_ARTIFACT",
+                "severity": "HIGH",
+                "injected": True,
+            },
+        ],
+        "stage4_tech_inputs": {
+            **VALID_STAGE5_PAYLOAD["stage4_tech_inputs"],
+            "technical_artifacts": {
+                "api_documentation": "GET /products returns the product catalog.",
+            },
+        },
+        "critical_artifacts_required": [
+            {
+                "artifact_key": "api_documentation",
+                "label": "API Documentation",
+                "reason": "The new service must use the existing API.",
+            },
+        ],
+    }
+    mock = AsyncMock(return_value=FULL_STAGE5_LLM_RESPONSE)
+
+    with patch("app.services.llm_client.call_llm_json_with_system", new=mock):
+        res = await client.post("/llm/elicitation/stage5-synthesize", json=payload)
+
+    assert res.status_code == 200
+    prompt = mock.call_args.kwargs["prompt"]
+    assert "MISSING_TECHNICAL_ARTIFACT" not in prompt
+    assert "GET /products returns the product catalog." in prompt
+    assert "MISSING CRITICAL ARTIFACTS" not in prompt
+
+
+async def test_stage5_prompt_treats_blank_artifact_as_missing(client):
+    payload = {
+        **VALID_STAGE5_PAYLOAD,
+        "stage4_tech_inputs": {
+            **VALID_STAGE5_PAYLOAD["stage4_tech_inputs"],
+            "technical_artifacts": {"api_documentation": "   "},
+        },
+        "critical_artifacts_required": [
+            {
+                "artifact_key": "api_documentation",
+                "label": "API Documentation",
+                "reason": "The new service must use the existing API.",
+            },
+        ],
+    }
+    mock = AsyncMock(return_value=FULL_STAGE5_LLM_RESPONSE)
+
+    with patch("app.services.llm_client.call_llm_json_with_system", new=mock):
+        res = await client.post("/llm/elicitation/stage5-synthesize", json=payload)
+
+    assert res.status_code == 200
+    prompt = mock.call_args.kwargs["prompt"]
+    assert "MISSING CRITICAL ARTIFACTS" in prompt
+    assert "API Documentation" in prompt
+
+
 async def test_stage5_seams_shape_correct(client):
     with patch("app.services.llm_client.call_llm_json_with_system",
                new=AsyncMock(return_value=FULL_STAGE5_LLM_RESPONSE)):

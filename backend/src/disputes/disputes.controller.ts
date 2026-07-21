@@ -10,7 +10,7 @@ import { CreateDisputeDto } from './dto/create-dispute.dto';
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
 @ApiTags('Disputes')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT')
 @Controller('disputes')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DisputesController {
@@ -39,5 +39,5 @@ export class DisputesController {
   async findById(@Param('id') id: string, @CurrentUser() user: ActorUser) {
     return this.disputesService.findById(id, user);
   }
-
 }
+

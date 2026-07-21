@@ -25,12 +25,12 @@ export default function TechTeamProjectsPage() {
                     {activeProject.state.replace(/_/g, ' ')}
                   </span>
                   {activeProject.tier && (
-                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[11px] font-semibold uppercase rounded-md border border-purple-100">
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-semibold uppercase rounded-md border border-blue-100">
                       {activeProject.tier.replace(/_/g, ' ')}
                     </span>
                   )}
                   {activeProject.selfTechnical && (
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-semibold uppercase rounded-md border border-indigo-100">
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-semibold uppercase rounded-md border border-blue-100">
                       Self-Managed Tech
                     </span>
                   )}

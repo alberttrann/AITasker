@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useConversations } from '@/hooks/use-messages';
+import { useConversations, groupConversationsByPartner, PartnerConversationSummary } from '@/hooks/use-messages';
 import { useAuth } from '@/hooks/use-auth';
 import { Search, MessageSquare } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
@@ -16,15 +16,19 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
   const { data: conversationsResponse, isLoading } = useConversations();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const conversations = conversationsResponse?.data || [];
+  const rawConversations = conversationsResponse?.data || [];
+  const groupedConversations = useMemo(
+    () => groupConversationsByPartner(rawConversations),
+    [rawConversations]
+  );
 
   // Determine correct base path (/ceo or /expert) based on active role
   const isClient = user?.activeRole === 'CLIENT' || user?.activeRole?.startsWith('CLIENT');
   const dashboardRoute = isClient ? '/ceo' : '/expert';
 
-  // Filter conversations by contact name or project title
-  const filteredConversations = conversations.filter((conv: any) => {
-    const name = conv.otherParty?.fullName || 'Partner';
+  // Filter grouped conversations by contact name or project title
+  const filteredConversations = groupedConversations.filter((conv: PartnerConversationSummary) => {
+    const name = conv.partnerName || 'Partner';
     const project = conv.projectName || '';
     return (
       name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -33,10 +37,9 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
   });
 
   return (
-    <div className="w-full md:w-80 border-r border-slate-200 bg-white flex flex-col h-full shrink-0">
+    <div className="w-full md:w-80 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex flex-col h-full shrink-0 p-4 overflow-hidden">
       {/* Search Header */}
-      <div className="p-4 border-b border-slate-100 flex flex-col gap-3 shrink-0">
-        <h2 className="text-lg font-bold text-slate-900">Direct Messages</h2>
+      <div className="pb-3 border-b border-slate-100 flex flex-col gap-3 shrink-0">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
           <input
@@ -44,13 +47,13 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
             placeholder="Search conversations..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all text-slate-800"
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all text-slate-800 shadow-sm"
           />
         </div>
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-100/60 min-h-0 pt-3">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-400">
             <Spinner size="md" />
@@ -65,76 +68,91 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
             </p>
           </div>
         ) : (
-          filteredConversations.map((conv: any) => {
-            const isSelected = activeEngagementId === conv.id;
+          filteredConversations.map((conv: PartnerConversationSummary) => {
+            const isSelected = activeEngagementId
+              ? conv.allEngagements.some((e: any) => e.id === activeEngagementId)
+              : false;
             const hasUnread = conv.unreadCount > 0;
-            const otherPartyName = conv.otherParty?.fullName || 'Partner';
-            const lastMsgContent = conv.lastMessage?.content 
-              ? (conv.lastMessage.content.length > 50 
-                  ? conv.lastMessage.content.substring(0, 50) + '...' 
-                  : conv.lastMessage.content)
+            const otherPartyName = conv.partnerName || 'Partner';
+            const lastMsgContent = conv.lastMessage?.content
+              ? conv.lastMessage.content.length > 50
+                ? conv.lastMessage.content.substring(0, 50) + '...'
+                : conv.lastMessage.content
               : 'No messages yet';
 
-            const timeStr = conv.lastMessage?.timestamp 
-              ? new Date(conv.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            const timeStr = conv.lastMessage?.timestamp
+              ? new Date(conv.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : '';
 
             return (
               <div
-                key={conv.id}
-                onClick={() => navigate(`${dashboardRoute}/engagements/${conv.id}/messages`)}
-                className={`p-4 cursor-pointer transition-all flex gap-3 select-none ${
-                  isSelected 
-                    ? 'bg-slate-900 text-white hover:bg-slate-900' 
-                    : 'bg-white hover:bg-slate-50 text-slate-700'
+                key={conv.partnerId}
+                onClick={() => {
+                  const targetId = isSelected && activeEngagementId ? activeEngagementId : conv.primaryEngagementId;
+                  navigate(`${dashboardRoute}/engagements/${targetId}/messages`);
+                }}
+                className={`p-3.5 rounded-xl cursor-pointer transition-all flex gap-3 select-none mb-1 border ${
+                  isSelected
+                    ? 'bg-slate-100 text-slate-900 font-bold border-slate-200/80 shadow-sm'
+                    : 'bg-transparent hover:bg-slate-50 text-slate-700 border-transparent'
                 }`}
               >
                 {/* Avatar Bubble */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 border transition-colors shadow-sm ${
-                  isSelected 
-                    ? 'bg-slate-800 text-white border-slate-700' 
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 border transition-colors shadow-sm ${
+                    isSelected
+                      ? 'bg-slate-200 text-slate-900 border-slate-300'
+                      : 'bg-slate-50 text-slate-700 border-slate-200/80'
+                  }`}
+                >
                   {otherPartyName.charAt(0).toUpperCase()}
                 </div>
 
                 {/* Text Metadata */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <div className="flex justify-between items-baseline mb-0.5">
-                    <span className={`text-sm truncate ${
-                      isSelected 
-                        ? 'font-bold text-white' 
-                        : hasUnread 
-                        ? 'font-bold text-slate-900' 
-                        : 'font-semibold text-slate-700'
-                    }`}>
+                    <span
+                      className={`text-sm truncate ${
+                        isSelected
+                          ? 'font-bold text-slate-900'
+                          : hasUnread
+                          ? 'font-bold text-slate-900'
+                          : 'font-semibold text-slate-700'
+                      }`}
+                    >
                       {otherPartyName}
                     </span>
                     {timeStr && (
-                      <span className={`text-[10px] shrink-0 ml-2 ${
-                        isSelected ? 'text-slate-400' : 'text-slate-400 font-medium'
-                      }`}>
+                      <span
+                        className={`text-[10px] shrink-0 ml-2 ${
+                          isSelected ? 'text-slate-500 font-medium' : 'text-slate-400 font-medium'
+                        }`}
+                      >
                         {timeStr}
                       </span>
                     )}
                   </div>
-                  <p className={`text-xs truncate mb-0.5 ${
-                    isSelected ? 'text-slate-300' : 'text-slate-400 font-medium'
-                  }`}>
+                  <p
+                    className={`text-xs truncate mb-0.5 ${
+                      isSelected ? 'text-slate-700 font-semibold' : 'text-slate-400 font-medium'
+                    }`}
+                  >
                     {conv.projectName}
                   </p>
-                  <p className={`text-xs truncate ${
-                    isSelected 
-                      ? 'text-slate-400' 
-                      : hasUnread 
-                      ? 'text-slate-900 font-bold' 
-                      : 'text-slate-500'
-                  }`}>
+                  <p
+                    className={`text-xs truncate ${
+                      isSelected
+                        ? 'text-slate-600 font-medium'
+                        : hasUnread
+                        ? 'text-slate-900 font-bold'
+                        : 'text-slate-500'
+                    }`}
+                  >
                     {lastMsgContent}
                   </p>
                 </div>
 
-                {/* Red/Green Unread dot */}
+                {/* Red Unread dot */}
                 {hasUnread && !isSelected && (
                   <span className="w-2.5 h-2.5 bg-rose-500 rounded-full shrink-0 self-center shadow-sm" />
                 )}
@@ -146,3 +164,4 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
     </div>
   );
 }
+

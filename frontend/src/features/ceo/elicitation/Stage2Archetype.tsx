@@ -50,7 +50,7 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
   }, [session, initialized]);
 
   const voidList = (session?.voidListJson as VoidItem[]) ?? [];
-  const recommended = (session?.recommendedArchetypesJson as string[]) || [];
+  const recommended = (session?.recommendedArchetypesJson as Array<string | number>) || [];
   
   const allVoidsAcknowledged = voidList.length === 0 || voidList.every(v => acknowledged.has(v.void_code));
 
@@ -91,8 +91,9 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
             <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
           </div>
         ) : (archetypesList || []).map((a) => {
-          const isSelected = selected === a.code;
-          const isRecommended = recommended.length === 0 || recommended.includes(a.code);
+          const isSelected = String(selected) === String(a.code);
+          const isRecommended = recommended.length === 0
+            || recommended.some((code) => String(code) === String(a.code));
           
           let cardClasses = 'relative rounded-xl border-2 p-5 text-left transition-all duration-200 ';
           if (isSelected) {

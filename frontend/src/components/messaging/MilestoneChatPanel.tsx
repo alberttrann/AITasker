@@ -7,7 +7,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
-import { Send, X, MessageSquare } from 'lucide-react';
+import { Send, X, MessageSquare, Inbox } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface Message {
   id: string;
@@ -50,6 +51,9 @@ export default function MilestoneChatPanel({
 
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const isClient = activeRole === 'CLIENT' || activeRole?.startsWith('CLIENT');
+  const dashboardRoute = isClient ? '/ceo' : '/expert';
 
   type MessageAction =
     | { type: 'MERGE_FETCHED'; messages: Message[] }
@@ -188,16 +192,26 @@ export default function MilestoneChatPanel({
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-250">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-900 text-white rounded-tl-xl">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <MessageSquare className="w-5 h-5 text-emerald-400 shrink-0" />
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold truncate font-headline">Workspace Chat</h3>
-            <p className="text-[11px] text-slate-400 truncate">
-              {projectName || 'Service Workspace'}
-            </p>
-          </div>
+    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-900 text-white rounded-tl-xl">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <MessageSquare className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold truncate font-headline">Workspace Chat</h3>
+          <p className="text-[11px] text-slate-400 truncate">
+            {projectName || 'Service Workspace'}
+          </p>
         </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Nút navigate sang Inbox đầy đủ */}
+        <button
+          onClick={() => { onClose(); navigate(`${dashboardRoute}/inbox/${engagementId}`); }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-700 hover:border-emerald-500 hover:text-emerald-400 transition-colors text-slate-400 text-[11px] font-semibold"
+          title="Open in Messenger"
+        >
+          <Inbox className="w-3.5 h-3.5" />
+          <span>Open Chat</span>
+        </button>
         <button
           onClick={onClose}
           className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
@@ -206,6 +220,7 @@ export default function MilestoneChatPanel({
           <X className="w-5 h-5" />
         </button>
       </div>
+    </div>
 
       {/* Messages list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFC]">
