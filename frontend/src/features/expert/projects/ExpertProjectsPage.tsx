@@ -13,13 +13,14 @@ import { Button } from "@/components/ui/button";
 
 // Unified type combining Invitation and Engagement logic
 type UnifiedProject = {
-  id: string; // use projectId as the unique key
+  id: string;
   projectId: string;
   projectName: string;
   ceoName: string;
   companyName: string | null;
   status: 'INVITED' | 'BID_SENT' | 'COUNTER_OFFER' | 'NDA_PENDING' | 'IN_PROGRESS' | 'DECLINED' | 'EXPIRED';
-  updatedAt: number; // for sorting
+  negotiationState?: string; 
+  updatedAt: number;
   invitation?: InvitationDto;
   engagement?: EngagementDto;
 };
@@ -73,27 +74,38 @@ export default function ExpertProjectsPage() {
         if (!eng.project) return;
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
-        if ((eng.state as string) === 'PENDING') {
-          const negotiationState = (eng as any).capabilityBid?.negotiationState;
+
+        // 1. Check if the bid or engagement is dead first
+        if (
+          eng.state === 'DECLINED' || 
+          eng.state === 'CANCELLED' || 
+          eng.capabilityBid?.state === 'DECLINED' || 
+          eng.capabilityBid?.state === 'WITHDRAWN'
+        ) {
+          status = 'DECLINED';
+        } 
+        // 2. Check if waiting for NDA
+        else if (eng.state === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
+          status = 'NDA_PENDING';
+        } 
+        // 3. Alive and pending negotiation
+        else if (eng.state === 'PENDING') {
+          const negotiationState = eng.capabilityBid?.negotiationState;
           if (eng.termsLocked || negotiationState === 'TERMS_ACCEPTED') {
              status = 'NDA_PENDING';
           } else if (
-            (eng as any).capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
+            eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
             negotiationState === 'AWAITING_EXPERT'
           ) {
              status = 'COUNTER_OFFER';
           } else {
              status = 'BID_SENT';
           }
-        } else if ((eng.state as string) === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
-          status = 'NDA_PENDING';
-        } else if ((eng.state as string) === 'DECLINED') {
-          status = 'DECLINED';
         }
 
         const projectId = eng.projectId || eng.id;
-        const projectName = eng.project?.projectName || (eng as any).service?.title || 'Service Order';
-        const ceoName = (eng as any).client?.fullName || (eng as any).client_id || 'Client';
+        const projectName = eng.project?.projectName || eng.service?.title || 'Service Order';
+        const ceoName = eng.client?.fullName || (eng as any).client_id || 'Client';
 
         projectMap.set(projectId, {
           id: projectId,
@@ -102,7 +114,8 @@ export default function ExpertProjectsPage() {
           ceoName,
           companyName: null,
           status,
-          updatedAt: getSafeTime((eng as any).updatedAt || (eng as any).connectedAt || Date.now()),
+          negotiationState: eng.capabilityBid?.negotiationState, 
+          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || Date.now()),
           engagement: eng
         });
       });
@@ -339,12 +352,37 @@ export default function ExpertProjectsPage() {
                   let chipText = "Unknown";
                   
                   switch (project.status) {
-                    case 'INVITED': chipColor = "bg-amber-100 text-amber-700"; chipText = "New Invite"; break;
-                    case 'BID_SENT': chipColor = "bg-blue-100 text-blue-700"; chipText = "Bid Sent"; break;
-                    case 'COUNTER_OFFER': chipColor = "bg-sky-100 text-sky-700"; chipText = "Counter Offer"; break;
-                    case 'IN_PROGRESS': chipColor = "bg-emerald-100 text-emerald-700"; chipText = "In Progress"; break;
-                    case 'DECLINED': chipColor = "bg-slate-100 text-slate-600"; chipText = "Declined"; break;
-                    case 'EXPIRED': chipColor = "bg-rose-100 text-rose-700"; chipText = "Expired"; break;
+                    case 'INVITED': 
+                      chipColor = "bg-amber-100 text-amber-700"; 
+                      chipText = "New Invite"; 
+                      break;
+                    case 'BID_SENT': 
+                      chipColor = "bg-blue-100 text-blue-700"; 
+                      // Đổi chữ linh hoạt theo Negotiate Step ở đây!
+                      if (project.negotiationState === 'AWAITING_TECH_REVIEW') chipText = "Tech Review";
+                      else if (project.negotiationState === 'AWAITING_CEO') chipText = "Under CEO Review";
+                      else chipText = "Bid Sent"; 
+                      break;
+                    case 'COUNTER_OFFER': 
+                      chipColor = "bg-sky-100 text-sky-700"; 
+                      chipText = "Counter Offer"; 
+                      break;
+                    case 'NDA_PENDING': 
+                      chipColor = "bg-indigo-100 text-indigo-700"; 
+                      chipText = "Sign NDA"; 
+                      break;
+                    case 'IN_PROGRESS': 
+                      chipColor = "bg-emerald-100 text-emerald-700"; 
+                      chipText = "In Progress"; 
+                      break;
+                    case 'DECLINED': 
+                      chipColor = "bg-slate-100 text-slate-600"; 
+                      chipText = "Declined"; 
+                      break;
+                    case 'EXPIRED': 
+                      chipColor = "bg-rose-100 text-rose-700"; 
+                      chipText = "Expired"; 
+                      break;
                   }
                   
                   return (
