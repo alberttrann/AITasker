@@ -1,6 +1,6 @@
 import { useReducer, useEffect, useMemo } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/input';
 import { submitStage3, handleElicitationError, revertSession, useElicitation } from '@/hooks/use-elicitation';
 import { useArchetypes, useProbeQuestions } from '@/hooks/use-config';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ interface Stage3Props {
 }
 
 type State = {
+  answers: Record<string, string>;
   vagueAnswers: Array<{question: string; reason: string}>;
   irrelevantAnswers: Array<{question: string; issue: string}>;
   isSubmitting: boolean;
@@ -130,7 +131,8 @@ export default function Stage3Probes({ sessionId, onComplete, onError, onBack }:
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
-      onComplete({});
+      // Pass the target stage to the wizard so it doesn't jump prematurely
+      onComplete({ nextStage: data.currentStage || 4 });
     } catch (err: any) {
       onError(handleElicitationError(err).message || 'Failed to submit probe answers.');
     } finally {

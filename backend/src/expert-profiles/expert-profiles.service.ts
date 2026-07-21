@@ -177,7 +177,9 @@ export class ExpertProfileService {
   }
 
   async searchExperts(filters: { domain?: string; seam?: string; archetype?: string; limit?: number }) {
-    const where: any = {};
+    const where: any = {
+      expertProfile: { isNot: null }, // Only return users who actually have an expert profile
+    };
     if (filters.domain) {
       where.expertDomainDepths = { some: { domainCode: filters.domain } };
     }
@@ -185,16 +187,27 @@ export class ExpertProfileService {
       where.expertSeamClaims = { some: { seamCode: filters.seam } };
     }
 
-    const experts = await this.prisma.expertProfile.findMany({
+    const users = await this.prisma.user.findMany({
       where,
       take: Math.min(filters.limit ?? 20, 50),
       include: {
-        user: { select: { id: true, fullName: true } },
+        expertProfile: true, // Needed to return the bio and engagementModel
         expertDomainDepths: { select: { domainCode: true, depthLevel: true } },
         expertSeamClaims: { select: { seamCode: true, verificationTier: true } },
       },
     });
-    return experts;
+    
+    // Map to the flat structure the frontend expects
+    return users.map(u => ({
+      userId: u.id,
+      id: u.id,
+      bio: u.expertProfile?.bio,
+      engagementModel: u.expertProfile?.engagementModel,
+      stackTagsJson: u.expertProfile?.stackTagsJson,
+      user: { id: u.id, fullName: u.fullName },
+      expertDomainDepths: u.expertDomainDepths,
+      expertSeamClaims: u.expertSeamClaims,
+    }));
   }
 
   async getPublicExpertProfile(expertUserId: string) {

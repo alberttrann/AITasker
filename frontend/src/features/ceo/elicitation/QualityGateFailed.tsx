@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { AlertTriangle, AlertCircle, RefreshCcw, Users, Clock } from 'lucide-react';
-import { ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/modal";
 
 interface QualityGateFailedProps {
   advisoryNote: string;
   flaggedVoid: string | null;
   returnToStage: number;
+  completenessScore: number;
   onReturnToStage: (stage: number) => void;
   onStartOver: () => void;
 }
