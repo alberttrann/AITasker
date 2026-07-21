@@ -4,8 +4,8 @@ import { useSocket } from '@/hooks/use-socket';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { useProject } from '@/hooks/use-projects';
 import { usePublicProfile } from '@/hooks/use-user';
-import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/Spinner';
 import { CheckCircle, Send } from 'lucide-react';
 
