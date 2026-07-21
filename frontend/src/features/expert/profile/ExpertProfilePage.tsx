@@ -3,7 +3,7 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import ProfileBuilder from './ProfileBuilder';
 import PortfolioSubmitForm from '../verification/PortfolioSubmitForm';
 import { ArrowUpCircle, X, Lock, AlertTriangle, ArrowLeft, CheckCircle, Edit3, History } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/Spinner';
 import TooltipIcon from '@/components/ui/TooltipIcon';
 import { useNavigate } from 'react-router-dom';

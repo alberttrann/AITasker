@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/Button';
-import { Input, Label } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
 import { Eye, EyeOff, XCircle, X } from 'lucide-react';
 
 const passwordRules = [

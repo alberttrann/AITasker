@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { ConfirmModal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/modal';
 import { AlertTriangle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 import { useTechReview } from '@/hooks/use-bids';

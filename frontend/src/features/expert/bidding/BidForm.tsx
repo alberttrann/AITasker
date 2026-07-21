@@ -8,7 +8,7 @@ import { useCreateBid } from '@/hooks/use-bids';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { ConfirmModal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/modal';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
 import FootprintAlignment, { type FootprintAlignmentData } from './FootprintAlignment';
