@@ -61,7 +61,7 @@ export function Modal({
             )}
           </div>
         )}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {children}
         </div>
       </div>
