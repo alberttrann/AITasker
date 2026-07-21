@@ -632,7 +632,10 @@ export default function MessageThread({
                 msg.senderId === user?.id || msg.sender?.id === user?.id;
               const senderName = msg.sender?.fullName || "User";
               const senderInitial = senderName.charAt(0).toUpperCase();
-              const senderRole = msg.sender?.activeRole || "";
+              let senderRole = msg.sender?.activeRole || "";
+              if (senderRole === "CLIENT" && engagement && (msg.senderId || msg.sender?.id) !== engagement.clientId) {
+                senderRole = "TECH_TEAM";
+              }
 
               return (
                 <div

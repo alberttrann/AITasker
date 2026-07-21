@@ -10,10 +10,12 @@ import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
+import { useToastActions } from '@/lib/toast-context';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToastActions();
   const { projects, isLoadingProjects } = useProjects();
 
   const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
@@ -54,7 +56,11 @@ export default function ProjectDetailPage() {
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
   const [editedMilestones, setEditedMilestones] = useState<any[]>([]);
 
-  const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const rawJsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const jsonMilestones = rawJsonMilestones.map((m: any) => ({
+    ...m,
+    payment_amount_vnd: m.payment_amount_vnd || m.estimated_cost_vnd || 0
+  }));
   const acceptedMilestones = selectedEngagement?.milestones ?? [];
   const displayMilestones = termsLocked && acceptedMilestones.length > 0
     ? acceptedMilestones
@@ -67,6 +73,7 @@ export default function ProjectDetailPage() {
       deliverable_statement: pm.deliverableStatement,
       payment_amount_vnd: pm.paymentAmountVnd,
       estimated_duration_days: pm.estimatedDurationDays,
+      estimated_cost_vnd: pm.estimatedCostVnd,
     })) : jsonMilestones;
 
     setEditedMilestones(JSON.parse(JSON.stringify(toEdit)));
@@ -81,6 +88,7 @@ export default function ProjectDetailPage() {
         deliverable_statement: "",
         payment_amount_vnd: 0,
         estimated_duration_days: 0,
+        estimated_cost_vnd: 0,
       }
     ]);
   };
@@ -106,16 +114,27 @@ export default function ProjectDetailPage() {
       deliverable_statement: m.deliverable_statement || '',
       payment_amount_vnd: m.payment_amount_vnd || 0,
       estimated_duration_days: m.estimated_duration_days || 0,
+      estimated_cost_vnd: m.estimated_cost_vnd || 0,
       criteria: m.criteria || m.acceptanceCriteria || m.acceptance_criteria,
       tech_stack: m.tech_stack || m.techStack,
       condition: m.condition,
     }));
+
+    // Validation to match backend DTO (@Min(1) for payment_amount_vnd)
+    const hasZeroPayment = cleanMilestones.some(m => !m.payment_amount_vnd || m.payment_amount_vnd <= 0);
+    if (hasZeroPayment) {
+      toast.error("Please ensure all milestones have a Payment Amount greater than 0 before saving changes.");
+      return;
+    }
 
     updateProjectMilestones.mutate(
       { id: project.id, milestones: cleanMilestones },
       {
         onSuccess: () => {
           setIsEditingMilestones(false);
+        },
+        onError: (err: any) => {
+          toast.error("Failed to save milestones: " + (err.response?.data?.message || err.message));
         }
       }
     );
@@ -473,13 +492,13 @@ export default function ProjectDetailPage() {
                                 Payment Amount
                               </p>
                               <p className="text-lg font-bold text-emerald-600">
-                                {m.paymentAmountVnd !== undefined ? (m.paymentAmountVnd).toLocaleString('vi-VN') + ' ₫' : (m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—')}
+                                {m.paymentAmountVnd !== undefined ? Number(m.paymentAmountVnd).toLocaleString('vi-VN') + ' ₫' : (m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—')}
                               </p>
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-center">

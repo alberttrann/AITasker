@@ -123,7 +123,7 @@ export default function SpotlightSearch({ user, isAuthenticated }: SpotlightSear
             title: title,
             subtitle: s.expert?.fullName ? `By ${s.expert.fullName}` : 'Pre-packaged Service',
             badge: s.priceVnd ? `${Number(s.priceVnd).toLocaleString('vi-VN')} ₫` : 'Service',
-            route: `/ceo/services/${s.id}`,
+            route: `/ceo/marketplace/service/${s.id}`,
           });
         }
       });
@@ -167,7 +167,7 @@ export default function SpotlightSearch({ user, isAuthenticated }: SpotlightSear
             category: 'Services',
             title: title,
             subtitle: 'Service package',
-            route: `/expert/services/${s.id}`,
+            route: `/expert/service/${s.id}`,
           });
         }
       });
