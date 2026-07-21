@@ -352,7 +352,7 @@ export class BidsService {
           conditionalPricingJson: envelope as any,
           techStatus: dto.action,
           techFeedback: dto.action === 'REVISION_REQUESTED' ? dto.tech_feedback : null,
-          state: dto.action === 'APPROVED' ? 'SUBMITTED' : 'TECH_REVIEW',
+          state: dto.action === 'APPROVED' ? 'SUBMITTED' : 'REVISION_REQUESTED',
         },
       });
       return {
@@ -633,11 +633,16 @@ export class BidsService {
           data: {
             state: 'DECLINED',
             ceoStatus: 'DECLINED',
-            ...(siblingEnvelope
-              ? { conditionalPricingJson: siblingEnvelope as any }
-              : {}),
+            ...(siblingEnvelope ? { conditionalPricingJson: siblingEnvelope as any } : {}),
           },
         });
+
+        //  Đánh rớt các hợp đồng đối thủ
+        await tx.engagement.update({
+          where: { id: sibling.engagementId },
+          data: { state: 'DECLINED' as any },
+        });
+        // 
       }
 
       return {
@@ -698,6 +703,14 @@ export class BidsService {
           ceoStatus: 'DECLINED',
         },
       });
+
+      // Đồng bộ giết chết Engagement
+      await tx.engagement.update({
+        where: { id: bid.engagementId },
+        data: { state: 'DECLINED' as any },
+      });
+      // 
+
       return { engagement: bid.engagement };
     });
 
@@ -929,6 +942,10 @@ export class BidsService {
           ? { conditionalPricingJson: bid.conditionalPricingJson as any }
           : {}),
       },
+    });
+    await this.prisma.engagement.update({
+      where: { id: bid.engagementId },
+      data: { state: 'DECLINED' as any },
     });
     return { withdrawn: true, bidId };
   }

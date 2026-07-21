@@ -103,7 +103,7 @@ export default function Stage4Form() {
     isReverting: false
   });
 
-  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (cooldown > 0) {

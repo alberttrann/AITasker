@@ -36,8 +36,14 @@ export type ServiceState = 'DRAFT' | 'PUBLISHED' | 'SUSPENDED';
 export type ServiceType  = 'AI_SERVICE' | 'TECH_DISCOVERY';
 
 export type EngagementType  = 'PROJECT_BASED' | 'SERVICE_PURCHASE' | 'TECH_DISCOVERY';
-export type EngagementState = 'PENDING' | 'CONNECTED' | 'ACTIVE' | 'CLOSED' | 'DISPUTED';
-
+export type EngagementState = 
+  | 'PENDING' 
+  | 'CONNECTED' 
+  | 'ACTIVE' 
+  | 'CLOSED' 
+  | 'DISPUTED' 
+  | 'DECLINED' 
+  | 'CANCELLED';
 export type BidState =
   | 'DRAFT'
   | 'SUBMITTED'
@@ -46,7 +52,9 @@ export type BidState =
   | 'TECH_APPROVED'
   | 'CEO_REVIEW'
   | 'SELECTED'
-  | 'DECLINED';
+  | 'DECLINED'
+  | 'WITHDRAWN'
+  | 'TECH_REVIEW_PASSED';
 
 export type TechStatus = 'PENDING' | 'APPROVED' | 'REVISION_REQUESTED';
 export type CeoStatus  = 'PENDING' | 'APPROVED' | 'DECLINED';

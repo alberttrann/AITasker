@@ -1,3 +1,4 @@
+import ArtifactBView from '../vault/ArtifactBView';
 import { useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useProjectMilestones } from "@/hooks/use-projects";
@@ -229,6 +230,10 @@ export default function TechTeamProjectDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+          {/* Artifact B (Technical Vault) */}
+          <div className="mt-8">
+            <ArtifactBView projectId={project.id} />
           </div>
         </div>
 

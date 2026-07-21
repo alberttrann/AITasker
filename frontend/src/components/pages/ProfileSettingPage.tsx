@@ -14,10 +14,10 @@ export default function ProfileSettingPage() {
     fullName: user?.fullName || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    companyName: user?.activeRoleProfile?.companyName || '',
-    industry: user?.activeRoleProfile?.industry || '',
-    ceoName: user?.activeRoleProfile?.ceoName || '',
-    bio: user?.activeRoleProfile?.bio || '',
+    companyName: (user?.activeRoleProfile as any)?.companyName || '',
+    industry: (user?.activeRoleProfile as any)?.industry || '',
+    ceoName: (user?.activeRoleProfile as any)?.ceoName || '',
+    bio: (user?.activeRoleProfile as any)?.bio || '',
   });
 
   const [formValues, setFormValues] = useState({ ...originalValues });
@@ -57,10 +57,10 @@ export default function ProfileSettingPage() {
         fullName: user.fullName || '', 
         email: user.email || '', 
         phone: user.phone || '',
-        companyName: user.activeRoleProfile?.companyName || '',
-        industry: user.activeRoleProfile?.industry || '',
-        ceoName: user.activeRoleProfile?.ceoName || '',
-        bio: user.activeRoleProfile?.bio || '',
+        companyName: (user.activeRoleProfile as any)?.companyName || '',
+        industry: (user.activeRoleProfile as any)?.industry || '',
+        ceoName: (user.activeRoleProfile as any)?.ceoName || '',
+        bio: (user.activeRoleProfile as any)?.bio || '',
       };
       setOriginalValues(newVals);
       setFormValues(newVals);

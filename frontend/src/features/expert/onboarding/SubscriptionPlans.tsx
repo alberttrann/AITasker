@@ -125,10 +125,11 @@ export default function SubscriptionPlans() {
                           variant="primary"
                           onClick={() => handleActivate(pkg.id)}
                           disabled={activateSubscription.isPending}
-                          isLoading={activateSubscription.isPending}
                         >
-                          Select Plan
-                          <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                          {activateSubscription.isPending ? 'Activating...' : 'Select Plan'}
+                          {!activateSubscription.isPending && (
+                            <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                          )}
                         </Button>
                       ) : (
                         <Button
