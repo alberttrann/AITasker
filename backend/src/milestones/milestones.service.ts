@@ -10,6 +10,11 @@ import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { BulkInitializeMilestonesDto } from './dto/bulk-initialize-milestones.dto';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
 import { deriveMilestoneReviewAuthority } from './milestone-review-flow';
+import {
+  assertEngagementMilestoneTermsEditable,
+  assertMilestoneTermsEditable,
+  bidHasAcceptedTerms,
+} from './milestone-terms-lock';
 
 type MilestoneActor = Pick<AuthUser, 'id' | 'activeRole' | 'clientSubtype'>;
 type EngagementAccess = {
@@ -90,6 +95,7 @@ export class MilestonesService {
 
     const engagement = await this.getEngagementAccess(dto.engagement_id);
     this.assertCeoOwner(user, engagement);
+    await assertEngagementMilestoneTermsEditable(this.prisma, dto.engagement_id);
     await this.assertReviewFlowReady(engagement);
     const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
 
@@ -177,6 +183,30 @@ export class MilestonesService {
     }
     this.assertCeoOwner(user, milestone.engagement);
 
+    if (milestone.state !== 'DEFINED') {
+      throw new UnprocessableEntityException(
+        `Funding requires a DEFINED milestone; current state is ${milestone.state}.`,
+      );
+    }
+    if (milestone.engagement.type === 'PROJECT_BASED') {
+      const engagement = await this.prisma.engagement.findUnique({
+        where: { id: milestone.engagementId },
+        include: { capabilityBid: true },
+      });
+      if (
+        !engagement ||
+        engagement.state !== 'CONNECTED' ||
+        !engagement.clientNdaAcceptedAt ||
+        !engagement.expertNdaAcceptedAt ||
+        !bidHasAcceptedTerms(engagement.capabilityBid)
+      ) {
+        throw new UnprocessableEntityException({
+          error: 'ACCEPTED_CONTRACT_AND_NDA_REQUIRED',
+          message: 'Accepted terms and both NDA signatures are required before funding.',
+        });
+      }
+    }
+
     const vaNumber = generateVaNumber(VAEntityType.MILESTONE);
 
     await this.prisma.virtualAccount.create({
@@ -212,6 +242,7 @@ export class MilestonesService {
     if (milestone.engagement.clientId !== userId) {
       throw new ForbiddenException('Only the project CEO can edit milestones.');
     }
+    await assertMilestoneTermsEditable(this.prisma, milestoneId);
     if (milestone.state !== 'DEFINED') {
       throw new UnprocessableEntityException(
         `Cannot edit a milestone in state '${milestone.state}'. Only DEFINED milestones can be edited.`,
@@ -269,6 +300,7 @@ export class MilestonesService {
     if (milestone.engagement.clientId !== userId) {
       throw new ForbiddenException('Only the project CEO can delete milestones.');
     }
+    await assertMilestoneTermsEditable(this.prisma, milestoneId);
     if (milestone.state !== 'DEFINED') {
       throw new UnprocessableEntityException(
         `Cannot delete a milestone in state '${milestone.state}'. Only DEFINED milestones can be deleted.`,
@@ -328,6 +360,7 @@ export class MilestonesService {
 
     if (!engagement) throw new NotFoundException('Engagement not found.');
     this.assertCeoOwner(user, engagement);
+    await assertEngagementMilestoneTermsEditable(this.prisma, dto.engagementId);
     await this.assertReviewFlowReady(engagement);
     const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
 

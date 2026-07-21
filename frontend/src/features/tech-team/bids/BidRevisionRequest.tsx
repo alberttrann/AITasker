@@ -55,6 +55,7 @@ export default function BidRevisionRequest() {
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6">
       <button
+        id="btn-back-from-tech-bid-revision"
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
       >
@@ -84,8 +85,8 @@ export default function BidRevisionRequest() {
                   Provide Feedback
                 </h3>
                 <p className="mt-0.5 text-[13px] text-secondary">
-                  Explain what needs to be revised. The expert will see this
-                  feedback and can update their bid.
+                  Explain what needs to be revised. The current offer proposer
+                  will receive the feedback and can update the technical scope.
                 </p>
               </div>
             </div>
@@ -137,6 +138,7 @@ export default function BidRevisionRequest() {
             </div>
 
             <Button
+              id={`btn-open-tech-revision-confirm-${bidId}`}
               variant="destructive"
               className="w-full"
               onClick={handleSubmit}
@@ -156,7 +158,7 @@ export default function BidRevisionRequest() {
         confirmText="Send Feedback"
         isDestructive
       >
-        The expert will be notified and can revise their bid. This action
+        The current proposer will be notified and can revise the offer. This action
         cannot be undone.
       </ConfirmModal>
     </div>

@@ -73,11 +73,14 @@ export default function ExpertProjectsPage() {
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
         if (eng.state === 'PENDING') {
-          // It's in bidding
-          if (eng.capabilityBid?.tech_status === 'REVISION_REQUESTED' || eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' || eng.capabilityBid?.ceo_status === 'NEGOTIATING' || eng.capabilityBid?.ceoStatus === 'NEGOTIATING') {
-             status = 'COUNTER_OFFER';
-          } else if (eng.capabilityBid?.ceo_status === 'APPROVED' || eng.capabilityBid?.ceoStatus === 'APPROVED' || (eng as any).clientNdaAcceptedAt) {
+          const negotiationState = eng.capabilityBid?.negotiationState;
+          if (eng.termsLocked || negotiationState === 'TERMS_ACCEPTED') {
              status = 'NDA_PENDING';
+          } else if (
+            eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
+            negotiationState === 'AWAITING_EXPERT'
+          ) {
+             status = 'COUNTER_OFFER';
           } else {
              status = 'BID_SENT';
           }
@@ -438,13 +441,13 @@ export default function ExpertProjectsPage() {
                       </>
                     )}
                     {selectedProject.status === 'BID_SENT' && (
-                      <Button variant="outline" onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
+                      <Button variant="outline" onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/bid`)}>
                         View Bid
                       </Button>
                     )}
 
                     {selectedProject.status === 'COUNTER_OFFER' && (
-                      <Button onClick={() => navigate(`/expert/bids/${selectedProject.projectId}?engagementId=${selectedProject.engagement?.id}`)}>
+                      <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/bid`)}>
                         Review Offer
                       </Button>
                     )}

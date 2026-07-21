@@ -44,7 +44,19 @@ export default function BidForm() {
   useEffect(() => {
     if (bid) {
       if ((bid as any).approachSummary || (bid as any).approach_summary) setApproach((bid as any).approachSummary || (bid as any).approach_summary);
-      if ((bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json) setPricing((bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json);
+      const currentTerms = (bid as any).currentOffer?.milestones;
+      const legacyTerms = (bid as any).conditionalPricingJson || (bid as any).conditional_pricing_json;
+      const pricingTerms = Array.isArray(currentTerms)
+        ? currentTerms.map((term: any) => ({
+            milestone_number: term.milestone_number,
+            price_vnd: term.price_vnd,
+            condition: term.condition || term.deliverable_statement,
+            estimated_duration_days: term.estimated_duration_days,
+          }))
+        : Array.isArray(legacyTerms)
+          ? legacyTerms
+          : [];
+      setPricing(pricingTerms);
     }
   }, [bid]);
 

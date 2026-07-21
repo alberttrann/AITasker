@@ -16,6 +16,7 @@ import {
   deriveMilestoneReviewAuthority,
   requiresTechReview,
 } from './milestone-review-flow';
+import { assertMilestoneTermsEditable } from './milestone-terms-lock';
 
 type Reviewer = Pick<AuthUser, 'id' | 'activeRole' | 'clientSubtype'>;
 
@@ -241,6 +242,7 @@ export class CriteriaService {
     });
     if (!milestone) throw new NotFoundException('Milestone not found.');
     this.assertCeoOwner(milestone.engagement, user);
+    await assertMilestoneTermsEditable(this.prisma, milestoneId);
     if (milestone.state !== 'DEFINED') {
       throw new UnprocessableEntityException(
         'Acceptance criteria can only be added while the milestone is DEFINED.',
@@ -261,6 +263,7 @@ export class CriteriaService {
   async deleteCriterion(id: string, user: Reviewer) {
     const criterion = await this.getCriterionContext(id);
     this.assertCeoOwner(criterion.milestone.engagement, user);
+    await assertMilestoneTermsEditable(this.prisma, criterion.milestoneId);
     if (criterion.milestone.state !== 'DEFINED') {
       throw new UnprocessableEntityException(
         'Acceptance criteria can only be deleted while the milestone is DEFINED.',

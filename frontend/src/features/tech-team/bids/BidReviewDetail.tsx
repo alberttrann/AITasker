@@ -1,11 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBid } from '@/hooks/use-bids';
-import { formatVND, formatSeamCode } from '@/lib/utils';
+import { formatSeamCode } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { AlertTriangle, ArrowLeft, CheckCircle2, AlertCircle, Clock, DollarSign } from 'lucide-react';
-import type { CapabilityBidDto, EngagementDto } from '@/types/api.types';
+import { AlertTriangle, ArrowLeft, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 
 
@@ -57,10 +56,9 @@ export default function BidReviewDetail() {
   const StatusIcon = style.icon;
 
   const footprint = bidAny.footprintAlignmentJson || bidAny.footprint_alignment_json;
-  const pricing: any[] = bidAny.conditionalPricingJson || bidAny.conditional_pricing_json || [];
-  const totalPrice = pricing.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0);
+  const technicalMilestones: any[] = bid.currentOffer?.milestones || bidAny.conditionalPricingJson || [];
 
-  const canReview = techStatus === 'PENDING' || techStatus === 'REVISION_REQUESTED';
+  const canReview = techStatus === 'PENDING';
 
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6">
@@ -150,37 +148,28 @@ export default function BidReviewDetail() {
         </Card>
       )}
 
-      {/* Conditional Pricing */}
-      {pricing.length > 0 && (
+      {/* Technical milestone scope — commercial fields are intentionally excluded. */}
+      {technicalMilestones.length > 0 && (
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-headline text-[14px] font-semibold text-primary">
-                Conditional Pricing
-              </h3>
-              <span className="font-headline text-[16px] font-bold text-primary">
-                {formatVND(totalPrice)}
-              </span>
-            </div>
+            <h3 className="font-headline text-[14px] font-semibold text-primary mb-4">Technical Milestone Scope</h3>
             <div className="space-y-2">
-              {pricing.map((m: any, i: number) => (
+              {technicalMilestones.map((m: any, i: number) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-[6px] bg-[#F8FAFC] px-4 py-3"
+                  className="rounded-[6px] bg-[#F8FAFC] px-4 py-3"
                 >
                   <div>
                     <span className="text-[13px] font-medium text-primary block">
-                      M{m.milestone_number}: {m.condition}
+                      M{m.milestone_number}: {m.deliverable_statement || 'No deliverable provided'}
                     </span>
                     {m.estimated_duration_days && (
                       <span className="text-[12px] text-secondary mt-0.5 block flex items-center gap-1">
                         <Clock size={12} /> {m.estimated_duration_days} days
                       </span>
                     )}
+                    {m.criteria?.length > 0 ? <ul className="mt-2 list-disc pl-5 text-[12px] text-secondary">{m.criteria.map((criterion: any) => <li key={criterion.criterion_text}>{criterion.criterion_text}</li>)}</ul> : null}
                   </div>
-                  <span className="font-headline text-[14px] font-semibold text-primary shrink-0">
-                    {formatVND(m.price_vnd)}
-                  </span>
                 </div>
               ))}
             </div>
@@ -202,6 +191,7 @@ export default function BidReviewDetail() {
       {canReview && (
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
           <Button
+            id={`btn-request-tech-revision-${bidId}`}
             variant="destructive"
             onClick={() =>
               navigate(`/tech-team/bids/${bidId}/revision`)
@@ -210,6 +200,7 @@ export default function BidReviewDetail() {
             Request Revision
           </Button>
           <Button
+            id={`btn-approve-tech-bid-${bidId}`}
             variant="primary"
             onClick={() => navigate(`/tech-team/bids/${bidId}/approve`)}
           >

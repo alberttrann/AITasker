@@ -15,6 +15,7 @@ import {
 import type { EngagementDto } from '@/types/api.types';
 
 import { useEngagement, useAcceptConnect } from '@/hooks/use-engagements';
+import AcceptedOfferSummary from '@/components/bids/AcceptedOfferSummary';
 
 // ── NDA text ─────────────────────────────────────────────────────
 
@@ -211,6 +212,11 @@ export default function ExpertNdaClickThrough() {
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
+
+      <AcceptedOfferSummary
+        offer={engagement.capabilityBid?.acceptedOffer}
+        termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
+      />
 
       {/* NDA text */}
       <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">

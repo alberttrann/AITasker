@@ -66,8 +66,9 @@ const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/Elicitati
 const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView"));
 const ProjectsPage = lazy(() => import("@features/ceo/pages/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("@features/ceo/pages/ProjectDetailPage"));
-const CeoBidList = lazy(() => import("@features/ceo/bids/CeoBidList"));
-const CeoDecision = lazy(() => import("@features/ceo/bids/CeoDecision"));
+const BidList = lazy(() => import("@features/ceo/bids/BidList"));
+const BidDetail = lazy(() => import("@features/ceo/bids/BidDetail"));
+const BidDecisionConfirm = lazy(() => import("@features/ceo/bids/BidDecisionConfirm"));
 const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage"));
 const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
 const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
@@ -77,6 +78,8 @@ const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertPr
 const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
 const ExpertOrdersPage = lazy(() => import("@features/expert/services/ExpertOrdersPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
+const CounterOfferReceived = lazy(() => import("@features/expert/bidding/CounterOfferReceived"));
+const BidRevision = lazy(() => import("@features/expert/bidding/BidRevision"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
 const BidApprove = lazy(() => import("@features/tech-team/bids/BidApprove"));
@@ -135,9 +138,9 @@ const router = createBrowserRouter(
             <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
             <Route path="marketplace/service/:id/purchase" element={<CeoServicePurchase />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
-            <Route path="projects/:projectId/bids" element={<CeoBidList />} />
-            <Route path="project/:projectId/bids/:bidId" element={<CeoDecision />} />
-            <Route path="projects/:projectId/bids/:bidId" element={<CeoDecision />} />
+            <Route path="projects/:projectId/bids" element={<BidList />} />
+            <Route path="projects/:projectId/bids/:bidId" element={<BidDetail />} />
+            <Route path="projects/:projectId/bids/:bidId/decision" element={<BidDecisionConfirm />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<CeoNdaClickThrough />}
@@ -207,6 +210,8 @@ const router = createBrowserRouter(
               element={<ExpertSubscriptionPlans />}
             />
             <Route path="bids/:projectId" element={<BidForm />} />
+            <Route path="engagements/:engagementId/bid" element={<CounterOfferReceived />} />
+            <Route path="engagements/:engagementId/bid/revision" element={<BidRevision />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}

@@ -205,6 +205,45 @@ export interface EngagementDto {
   capabilityBid?: CapabilityBidDto | null;
   milestones?: MilestoneDto[];
   project?: Pick<ProjectDto, 'id' | 'projectName' | 'state' | 'archetype' | 'tier'> | null;
+  termsLocked?: boolean;
+  ndaComplete?: boolean;
+}
+
+export type BidNegotiationState =
+  | 'AWAITING_TECH_REVIEW'
+  | 'AWAITING_CEO'
+  | 'AWAITING_EXPERT'
+  | 'TERMS_ACCEPTED'
+  | 'DECLINED';
+
+export type BidNextActionBy = 'CEO' | 'EXPERT' | 'TECH_TEAM' | 'NONE';
+
+export interface MilestoneOfferCriterionDto {
+  criterion_text: string;
+  is_required: boolean;
+}
+
+export interface MilestoneOfferTermDto {
+  milestone_number: number;
+  deliverable_statement: string;
+  criteria: MilestoneOfferCriterionDto[];
+  price_vnd?: number;
+  estimated_duration_days?: number;
+  condition?: string;
+  tech_stack?: string[];
+}
+
+export interface BidOfferDto {
+  id: string;
+  version: number;
+  proposerUserId?: string;
+  proposerRole: 'CEO' | 'EXPERT';
+  recipientRole: 'CEO' | 'EXPERT';
+  milestones: MilestoneOfferTermDto[];
+  state: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'SUPERSEDED';
+  createdAt: string;
+  respondedAt?: string;
+  technicalScopeVersion: number;
 }
 
 export interface CapabilityBidDto {
@@ -212,13 +251,40 @@ export interface CapabilityBidDto {
   engagementId: string;
   footprintAlignmentJson: FootprintAlignment | null;
   approachSummary: string | null;
-  conditionalPricingJson: ConditionalPricingItem[] | null;
+  conditionalPricingJson: unknown;
   state: BidState;
   techStatus: TechStatus;
   ceoStatus: CeoStatus;
   techFeedback: string | null;
   negotiatedPriceVnd: number | null;
   versionNumber: number;
+  currentOffer?: BidOfferDto;
+  acceptedOffer?: BidOfferDto;
+  offerHistory?: BidOfferDto[];
+  negotiationState?: BidNegotiationState;
+  nextActionBy?: BidNextActionBy;
+  termsLocked?: boolean;
+  ndaComplete?: boolean;
+  termsAcceptedAt?: string;
+  technicalReview?: {
+    scopeVersion: number;
+    status: 'PENDING' | 'APPROVED' | 'REVISION_REQUESTED';
+    intendedRecipient: 'CEO' | 'EXPERT';
+    reviewedAt?: string;
+    feedback?: string;
+  };
+  engagement?: {
+    id: string;
+    projectId: string | null;
+    clientId: string;
+    expertId: string;
+    clientNdaAcceptedAt: string | null;
+    expertNdaAcceptedAt: string | null;
+    state: EngagementState;
+    expert?: { id: string; fullName: string };
+    project?: Pick<ProjectDto, 'id' | 'projectName' | 'state'>;
+    milestones?: Array<MilestoneDto & { acceptanceCriteria?: AcceptanceCriterionDto[] }>;
+  };
 }
 
 export interface MilestoneDto {
@@ -502,6 +568,30 @@ export interface CounterOfferDto {
 export interface CounterOfferVariables {
   bidId: string;
   body: CounterOfferDto;
+}
+
+export interface CreateOfferDto {
+  respondingToVersion: number;
+  milestones: MilestoneOfferTermDto[];
+}
+
+export interface CreateOfferVariables {
+  bidId: string;
+  body: CreateOfferDto;
+}
+
+export interface OfferDecisionVariables {
+  bidId: string;
+  offerId: string;
+}
+
+export interface BidFinalizationResponse {
+  bidId: string;
+  engagementId: string;
+  projectId: string;
+  acceptedOffer: BidOfferDto;
+  milestonesCreated: number;
+  nextStep: 'NDA';
 }
 
 // ── Elicitation API DTOs (from use-elicitation.ts) ──────────────────────────

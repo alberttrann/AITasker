@@ -32,6 +32,7 @@ export default function BidApprove() {
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6">
       <button
+        id="btn-back-from-tech-bid-approval"
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
       >
@@ -66,7 +67,7 @@ export default function BidApprove() {
           <div className="space-y-4">
             <p className="text-body text-[#334155] leading-[1.7]">
               You are about to <strong>approve</strong> this bid. The CEO will be
-              notified and can proceed to accept or decline the bid.
+              notified when they are the current offer recipient.
             </p>
 
             <div className="rounded-DEFAULT bg-[#F0FDF4] border border-[#BBF7D0] p-4">
@@ -75,12 +76,13 @@ export default function BidApprove() {
               </h4>
               <ul className="space-y-1 text-[13px] text-[#166534]">
                 <li>• The bid status changes to TECH_APPROVED</li>
-                <li>• The CEO can now review and accept/decline the bid</li>
+                <li>• The intended CEO/Expert recipient can review the offer</li>
                 <li>• This action cannot be undone</li>
               </ul>
             </div>
 
             <Button
+              id={`btn-open-tech-bid-approval-confirm-${bidId}`}
               variant="primary"
               className="w-full"
               onClick={() => setShowConfirm(true)}

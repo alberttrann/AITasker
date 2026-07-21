@@ -100,7 +100,11 @@ export class ProjectsController {
     @Body() dto: UpdateProjectMilestonesDto,
     @Request() req: any,
   ) {
-    return this.projectsService.updateProjectMilestones(projectId, req.user.id, dto.milestones);
+    return this.projectsService.updateProjectMilestones(
+      projectId,
+      req.user.id,
+      dto.milestones ?? dto.milestoneFramework ?? [],
+    );
   }
 
   // Milestone contextual chatbot
@@ -150,19 +154,6 @@ export class ProjectsController {
     @Request() req: any,
   ) {
     return this.projectsService.getMilestoneChatSession(projectId, sessionId, req.user.id);
-  }
-
-  @Put(':id/milestones')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('CLIENT')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: "Update the project's milestone framework JSON array (CEO only)" })
-  async updateMilestoneFramework(
-    @Param('id') projectId: string,
-    @Body('milestoneFramework') milestoneFramework: any[],
-    @Request() req: any,
-  ) {
-    return this.projectsService.updateMilestoneFramework(projectId, req.user.id, milestoneFramework);
   }
 
 }

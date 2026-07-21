@@ -10,8 +10,6 @@ import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
-import AcceptanceCriteriaEditor from "@/features/ceo/milestones/AcceptanceCriteriaEditor";
-import DoDEditor from "@/features/ceo/milestones/DoDEditor";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,24 +21,23 @@ export default function ProjectDetailPage() {
 
   const { data: engagements } = useEngagements();
 
-  const activeBidsCount = useMemo(() => {
-    if (!engagements || !project) return 0;
+  const projectBids = useMemo(() => {
+    if (!engagements || !project) return [];
     return engagements.filter(
       (e: any) =>
         (e.projectId === project.id || e.project_id === project.id) &&
-        e.capabilityBid &&
-        (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
-    ).length;
-  }, [engagements, project]);
-
-  const activeEngagement = useMemo(() => {
-    if (!engagements || !project) return null;
-    return engagements.find(
-      (e: any) =>
-        (e.projectId === project.id || e.project_id === project.id) &&
-        !['CLOSED', 'CANCELLED', 'DECLINED'].includes(e.state)
+        e.capabilityBid
     );
   }, [engagements, project]);
+
+  const activeBidsCount = Array.isArray(projectBids) ? projectBids.length : 0;
+  const selectedEngagement = Array.isArray(projectBids)
+    ? projectBids.find((engagement: any) => engagement.termsLocked || engagement.capabilityBid?.state === 'SELECTED')
+    : null;
+  const connectedEngagement = selectedEngagement && ['CONNECTED', 'ACTIVE', 'DISPUTED'].includes(selectedEngagement.state)
+    ? selectedEngagement
+    : null;
+  const termsLocked = Boolean(selectedEngagement?.termsLocked);
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -58,7 +55,10 @@ export default function ProjectDetailPage() {
   const [editedMilestones, setEditedMilestones] = useState<any[]>([]);
 
   const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
-  const displayMilestones = (projectMilestones && projectMilestones.length > 0) ? projectMilestones : jsonMilestones;
+  const acceptedMilestones = selectedEngagement?.milestones ?? [];
+  const displayMilestones = termsLocked && acceptedMilestones.length > 0
+    ? acceptedMilestones
+    : (projectMilestones && projectMilestones.length > 0) ? projectMilestones : jsonMilestones;
 
   const handleEditMilestones = () => {
     // When editing in bulk, we edit the JSON structure. If projectMilestones exist, we convert them back to the JSON structure for the bulk edit endpoint.
@@ -106,6 +106,9 @@ export default function ProjectDetailPage() {
       deliverable_statement: m.deliverable_statement || '',
       payment_amount_vnd: m.payment_amount_vnd || 0,
       estimated_duration_days: m.estimated_duration_days || 0,
+      criteria: m.criteria || m.acceptanceCriteria || m.acceptance_criteria,
+      tech_stack: m.tech_stack || m.techStack,
+      condition: m.condition,
     }));
 
     updateProjectMilestones.mutate(
@@ -237,35 +240,42 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-          {activeEngagement ? (
+          <div className="flex flex-wrap items-center gap-3">
+          {selectedEngagement ? (
             <div className="flex items-center gap-3">
-              {activeEngagement.state === 'PENDING' ? (
+              {!connectedEngagement ? (
                 <Link
-                  to={`/ceo/engagements/${activeEngagement.id}/nda`}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
+                  id="link-review-selected-bid-nda"
+                  to={`/ceo/engagements/${selectedEngagement.id}/nda`}
+                  className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
                 >
                   Review & Sign NDA
                 </Link>
               ) : (
                 <Link
-                  to={`/ceo/engagements/${activeEngagement.id}/milestones`}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
+                  id="link-open-selected-engagement-workspace"
+                  to={`/ceo/engagements/${connectedEngagement.id}/milestones`}
+                  className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
                 >
                   <Target size={18} /> Go to Workspace
                 </Link>
               )}
             </div>
-          ) : (
-            <div className="flex items-center gap-3">
+          ) : null}
+            {!selectedEngagement ? (
               <Link
+                id="link-project-match-shortlist"
                 to={`/ceo/projects/${project.id}/shortlist`}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
               >
                 Match Shortlist
               </Link>
+            ) : null}
+            {activeBidsCount > 0 ? (
               <Link
+                id="link-view-expert-bids"
                 to={`/ceo/projects/${project.id}/bids`}
-                className="relative flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-600/20"
+                className="relative flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
               >
                 View Experts bids
                 {activeBidsCount > 0 && (
@@ -274,8 +284,8 @@ export default function ProjectDetailPage() {
                   </span>
                 )}
               </Link>
-            </div>
-          )}
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -391,10 +401,11 @@ export default function ProjectDetailPage() {
                 <h3 className="text-lg font-bold text-slate-900">Project Milestones</h3>
               </div>
 
-              {!isEditingMilestones && !activeEngagement && (
+              {!isEditingMilestones && !termsLocked && (
                 <button
+                  id="btn-edit-project-milestones"
                   onClick={handleEditMilestones}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"
+                  className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"
                 >
                   <Edit2 className="w-4 h-4" /> Edit Milestones
                 </button>
@@ -430,11 +441,11 @@ export default function ProjectDetailPage() {
                           <div className="flex-1 space-y-2">
                             <div className="flex items-center gap-3 flex-wrap">
                               <span className="text-sm font-bold text-slate-400 tracking-wider">
-                                MILESTONE #{m.milestone_number}
+                                MILESTONE #{m.milestone_number || m.milestoneNumber}
                               </span>
                             </div>
                             <h3 className="text-lg font-bold text-slate-800">
-                              {m.deliverable_statement || "No deliverable statement provided."}
+                              {m.deliverable_statement || m.deliverableStatement || "No deliverable statement provided."}
                             </h3>
                             <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
                               <span>
@@ -445,11 +456,11 @@ export default function ProjectDetailPage() {
                                     : 'Tech Team review → CEO final approval'}
                                 </strong>
                               </span>
-                              {m.estimated_duration_days !== undefined && m.estimated_duration_days > 0 && (
+                              {(m.estimated_duration_days || m.estimatedDurationDays) > 0 && (
                                 <span>
                                   Duration:{" "}
                                   <strong className="text-slate-700">
-                                    {m.estimated_duration_days} Days
+                                    {m.estimated_duration_days || m.estimatedDurationDays} Days
                                   </strong>
                                 </span>
                               )}
@@ -467,13 +478,6 @@ export default function ProjectDetailPage() {
                             </div>
                           </div>
                         </div>
-                        {/* Inline Editors for Relational Milestones */}
-                        {m.id && (
-                          <div className="px-6 pb-6 pt-2 bg-slate-50 border-t border-slate-100 rounded-b-xl">
-                            <AcceptanceCriteriaEditor milestoneId={m.id} />
-                            <DoDEditor milestoneId={m.id} />
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -484,14 +488,15 @@ export default function ProjectDetailPage() {
                     </div>
                     <h4 className="text-lg font-semibold text-slate-700 mb-2">No Milestones Defined</h4>
                     <p className="text-slate-500 max-w-sm mb-6">This project currently has no milestone framework. You can add them before opening the project for bids.</p>
-                    {(
+                    {!termsLocked ? (
                       <button
+                        id="btn-create-project-milestones"
                         onClick={handleEditMilestones}
-                        className="px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                        className="cursor-pointer px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                       >
                         Create Milestones
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 )
               ) : (
@@ -564,10 +569,10 @@ export default function ProjectDetailPage() {
 
       </div>
 
-      <MilestoneChatAssistant
+      {!termsLocked ? <MilestoneChatAssistant
         projectId={project.id}
         currentMilestones={isEditingMilestones ? editedMilestones : undefined}
-      />
+      /> : null}
     </div>
   );
 }

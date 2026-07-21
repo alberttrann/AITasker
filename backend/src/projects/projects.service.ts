@@ -10,6 +10,7 @@ import { MatchingService } from './matching.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { deriveMilestoneReviewAuthority } from '../milestones/milestone-review-flow';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { assertProjectMilestoneTermsEditable } from '../milestones/milestone-terms-lock';
 
 @Injectable()
 export class ProjectsService {
@@ -384,6 +385,7 @@ export class ProjectsService {
     if (project.clientId !== userId) {
       throw new ForbiddenException('Only the project owner can update project milestones');
     }
+    await assertProjectMilestoneTermsEditable(this.prisma, projectId);
 
     const signOffAuthority = deriveMilestoneReviewAuthority(project);
     const normalizedMilestones = milestones.map((milestone) => ({
@@ -612,6 +614,7 @@ export class ProjectsService {
     if (project.clientId !== userId) {
       throw new ForbiddenException('Only the project owner can update the milestone framework.');
     }
+    await assertProjectMilestoneTermsEditable(this.prisma, projectId);
     if (project.state !== 'PUBLISHED' && project.state !== 'DRAFT') {
       throw new UnprocessableEntityException('Can only edit milestone framework for active projects.');
     }

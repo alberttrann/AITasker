@@ -7,6 +7,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { bidHasAcceptedTerms } from '../milestones/milestone-terms-lock';
+import {
+  acceptedOffer,
+  currentOffer,
+  deriveNegotiationState,
+  isNegotiationEnvelope,
+} from '../bids/bid-negotiation';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype: string | null };
 
@@ -65,16 +72,17 @@ export class EngagementsService {
         where.connectedAt = { gte: new Date(filters.connectedAt) };
       }
 
-      return this.prisma.engagement.findMany({
+      const engagements = await this.prisma.engagement.findMany({
         where,
-        include: { project: PROJECT_SUMMARY_SELECT },
+        include: { project: PROJECT_SUMMARY_SELECT, capabilityBid: true },
         orderBy: { id: 'desc' },
       });
+      return engagements.map((engagement) => this.withContractFlags(engagement));
     }
 
     // 2. EXPERT — engagements where they are the expert.
     if (user.activeRole === 'EXPERT') {
-      return this.prisma.engagement.findMany({
+      const engagements = await this.prisma.engagement.findMany({
         where: { expertId: user.id },
         include: { 
           project: PROJECT_SUMMARY_SELECT, 
@@ -85,11 +93,12 @@ export class EngagementsService {
         },
         orderBy: { id: 'desc' }, // Sort by newest IDs first
       });
+      return engagements.map((engagement) => this.withContractFlags(engagement));
     }
 
     // 3. CEO — engagements where they are the client.
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
-      return this.prisma.engagement.findMany({
+      const engagements = await this.prisma.engagement.findMany({
         where:   { clientId: user.id },
         include: { 
           project: PROJECT_SUMMARY_SELECT,
@@ -100,6 +109,7 @@ export class EngagementsService {
         },
         orderBy: { id: 'desc' },
       });
+      return engagements.map((engagement) => this.withContractFlags(engagement));
     }
 
     // 4. TECH_TEAM — engagements on the single project they are linked to.
@@ -113,7 +123,7 @@ export class EngagementsService {
         return [];
       }
 
-      return this.prisma.engagement.findMany({
+      const engagements = await this.prisma.engagement.findMany({
         where: { projectId: techProfile.linkedProjectId },
         include: {
           project: PROJECT_SUMMARY_SELECT,
@@ -123,6 +133,7 @@ export class EngagementsService {
         },
         orderBy: { id: 'desc' },
       });
+      return engagements.map((engagement) => this.withContractFlags(engagement, true));
     }
 
     // Unreachable — class-level guard prevents unmatched roles.
@@ -151,7 +162,7 @@ export class EngagementsService {
 
     // 2. ADMIN sees everything — skip party check.
     if (user.activeRole === 'ADMIN') {
-      return engagement;
+      return this.withContractFlags(engagement);
     }
 
     // 3. EXPERT — must be the engagement's expert.
@@ -159,7 +170,7 @@ export class EngagementsService {
       if (engagement.expertId !== user.id) {
         throw new ForbiddenException('You are not a party to this engagement.');
       }
-      return engagement;
+      return this.withContractFlags(engagement);
     }
 
     // 4. CLIENT roles — must be the client (CEO) or linked TECH_TEAM.
@@ -167,7 +178,7 @@ export class EngagementsService {
       if (engagement.clientId !== user.id) {
         throw new ForbiddenException('You are not a party to this engagement.');
       }
-      return engagement;
+      return this.withContractFlags(engagement);
     }
 
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM') {
@@ -181,7 +192,7 @@ export class EngagementsService {
       if (techProfile?.linkedProjectId !== engagement.projectId) {
         throw new ForbiddenException('You are not a party to this engagement.');
       }
-      return engagement;
+      return this.withContractFlags(engagement, true);
     }
 
     throw new ForbiddenException('You are not a party to this engagement.');
@@ -195,6 +206,10 @@ export class EngagementsService {
     // 1. Fetch engagement fields needed for guards + update.
     const engagement = await this.prisma.engagement.findUnique({
       where: { id },
+      include: {
+        capabilityBid: true,
+        milestones: { select: { id: true } },
+      },
     });
 
     if (!engagement) {
@@ -206,6 +221,12 @@ export class EngagementsService {
       throw new UnprocessableEntityException(
         'NDA acceptance only applies to project-based engagements.',
       );
+    }
+    if (!bidHasAcceptedTerms(engagement.capabilityBid) || engagement.milestones.length === 0) {
+      throw new UnprocessableEntityException({
+        error: 'ACCEPTED_CONTRACT_REQUIRED',
+        message: 'The bid must be accepted and its milestones finalized before NDA signing.',
+      });
     }
 
     // 3. Verify user is the CEO who owns this engagement.
@@ -228,10 +249,28 @@ export class EngagementsService {
       throw new ConflictException('NDA has already been accepted by the client.');
     }
 
-    // 6. Set client_nda_accepted_at. If expert has also accepted, transition to CONNECTED.
-    const bothAccepted = engagement.expertNdaAcceptedAt !== null;
+    // 6. Persist the signature, then derive CONNECTED from both stored timestamps.
+    const ndaResult = await this.prisma.$transaction(async (tx) => {
+      await tx.engagement.update({
+        where: { id },
+        data: { clientNdaAcceptedAt: new Date() },
+      });
+      const transition = await tx.engagement.updateMany({
+        where: {
+          id,
+          state: 'PENDING',
+          clientNdaAcceptedAt: { not: null },
+          expertNdaAcceptedAt: { not: null },
+        },
+        data: { state: 'CONNECTED', connectedAt: new Date() },
+      });
+      return {
+        engagement: await tx.engagement.findUnique({ where: { id } }),
+        transitioned: transition.count === 1,
+      };
+    });
 
-    if (bothAccepted) {
+    if (ndaResult.transitioned) {
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.expertId,
         event: 'notification:generic',
@@ -243,17 +282,52 @@ export class EngagementsService {
         },
       });
     }
+    return ndaResult.engagement;
+  }
 
-    return this.prisma.engagement.update({
-      where: { id },
-      data: {
-        clientNdaAcceptedAt: new Date(),
-        ...(bothAccepted && {
-          state: 'CONNECTED',
-          connectedAt: new Date(),
-        }),
-      },
-    });
+  private withContractFlags<T extends {
+    capabilityBid?: { conditionalPricingJson: unknown; negotiatedPriceVnd?: bigint | null } | null;
+    clientNdaAcceptedAt: Date | null;
+    expertNdaAcceptedAt: Date | null;
+  }>(engagement: T, restrictedTechnicalView = false) {
+    const capabilityBid = engagement.capabilityBid;
+    const envelope = capabilityBid && isNegotiationEnvelope(capabilityBid.conditionalPricingJson)
+      ? capabilityBid.conditionalPricingJson
+      : undefined;
+    const accepted = envelope ? acceptedOffer(envelope) : undefined;
+    const current = envelope ? currentOffer(envelope) : undefined;
+    const negotiation = envelope ? deriveNegotiationState(envelope) : undefined;
+    return {
+      ...engagement,
+      ...(capabilityBid
+        ? {
+            capabilityBid: {
+              ...capabilityBid,
+              conditionalPricingJson: restrictedTechnicalView
+                ? undefined
+                : capabilityBid.conditionalPricingJson,
+              negotiatedPriceVnd: restrictedTechnicalView
+                ? undefined
+                : capabilityBid.negotiatedPriceVnd === null || capabilityBid.negotiatedPriceVnd === undefined
+                  ? null
+                  : Number(capabilityBid.negotiatedPriceVnd),
+              acceptedOffer: restrictedTechnicalView ? undefined : accepted,
+              currentOffer: restrictedTechnicalView ? undefined : current,
+              negotiationState: negotiation?.negotiationState,
+              nextActionBy: negotiation?.nextActionBy,
+              termsLocked: Boolean(accepted),
+              ndaComplete: Boolean(
+                engagement.clientNdaAcceptedAt && engagement.expertNdaAcceptedAt,
+              ),
+              termsAcceptedAt: restrictedTechnicalView ? undefined : envelope?.termsAcceptedAt,
+            },
+          }
+        : {}),
+      termsLocked: bidHasAcceptedTerms(capabilityBid),
+      ndaComplete: Boolean(
+        engagement.clientNdaAcceptedAt && engagement.expertNdaAcceptedAt,
+      ),
+    };
   }
 
   // PUT /engagements/:id/connect — expert accepts connection + NDA.
@@ -263,10 +337,26 @@ export class EngagementsService {
   // Non-blocking: if expert has no linked bank account, returns prompt_bank_link: true.
   async acceptConnect(id: string, user: ActorUser) {
     // 1. Fetch engagement — no project include needed (expert check uses engagement.expertId).
-    const engagement = await this.prisma.engagement.findUnique({ where: { id } });
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id },
+      include: {
+        capabilityBid: true,
+        milestones: { select: { id: true } },
+      },
+    });
 
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
+    }
+
+    if (
+      engagement.projectId &&
+      (!bidHasAcceptedTerms(engagement.capabilityBid) || engagement.milestones.length === 0)
+    ) {
+      throw new UnprocessableEntityException({
+        error: 'ACCEPTED_CONTRACT_REQUIRED',
+        message: 'The bid must be accepted and its milestones finalized before NDA signing.',
+      });
     }
 
     // 2. Verify user is the expert of this engagement.
@@ -289,25 +379,32 @@ export class EngagementsService {
       throw new ConflictException('Connection has already been accepted by the expert.');
     }
 
-    // 5. Set expert_nda_accepted_at. If client has also accepted, transition to CONNECTED.
-    const bothAccepted = engagement.clientNdaAcceptedAt !== null;
-
-    const updated = await this.prisma.engagement.update({
-      where: { id },
-      data: {
-        expertNdaAcceptedAt: new Date(),
-        ...(bothAccepted && {
-          state: 'CONNECTED',
-          connectedAt: new Date(),
-        }),
-      },
+    // 5. Persist the signature, then derive CONNECTED from both stored timestamps.
+    const ndaResult = await this.prisma.$transaction(async (tx) => {
+      await tx.engagement.update({
+        where: { id },
+        data: { expertNdaAcceptedAt: new Date() },
+      });
+      const transition = await tx.engagement.updateMany({
+        where: {
+          id,
+          state: 'PENDING',
+          clientNdaAcceptedAt: { not: null },
+          expertNdaAcceptedAt: { not: null },
+        },
+        data: { state: 'CONNECTED', connectedAt: new Date() },
+      });
+      return {
+        engagement: await tx.engagement.findUnique({ where: { id } }),
+        transitioned: transition.count === 1,
+      };
     });
 
     // 6. Non-blocking bank-link prompt (docs/03 §BR-ART-07).
     //    If the expert has no linked bank account, surface a prompt so they
     //    know they'll need it before withdrawal.
 
-    if (bothAccepted) {
+    if (ndaResult.transitioned) {
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.clientId,
         event: 'notification:generic',
@@ -325,10 +422,10 @@ export class EngagementsService {
     });
 
     if (!expert?.sepayBankAccountXid) {
-      return { ...updated, prompt_bank_link: true };
+      return { ...ndaResult.engagement, prompt_bank_link: true };
     }
 
-    return updated;
+    return ndaResult.engagement;
   }
 
   // PUT /engagements/:id/decline — expert declines a connection request.

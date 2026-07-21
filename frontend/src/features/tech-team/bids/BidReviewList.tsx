@@ -4,9 +4,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';
 import { AlertTriangle, FileText, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import type { EngagementDto, CapabilityBidDto } from '@/types/api.types';
-
-import { useTechTeamEngagements } from '@/hooks/use-engagements';
+import { useBids } from '@/hooks/use-bids';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -16,30 +14,11 @@ const TECH_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   REVISION_REQUESTED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Revision Requested', icon: AlertCircle },
 };
 
-function formatVND(n: number) {
-  return n ? n.toLocaleString('vi-VN') + ' ₫' : '—';
-}
-
-function formatDate(d: string) {
-  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-}
-
-type BidWithEngagement = CapabilityBidDto & { engagementId: string; expertName?: string };
-
 // ── Component ────────────────────────────────────────────────────
 
 export default function BidReviewList() {
   const navigate = useNavigate();
-  const { data: engagements, isLoading, error, refetch } = useTechTeamEngagements();
-
-  // Extract bids from engagements
-  const bids: BidWithEngagement[] = (engagements || [])
-    .flatMap((eng: any) => {
-      const bid = eng.capabilityBid;
-      if (!bid) return [];
-      return [{ ...bid, engagementId: eng.id, expertName: eng.expert?.fullName || 'Expert' }];
-    })
-    .sort((a: any, b: any) => new Date(b.createdAt || b.submitted_at || 0).getTime() - new Date(a.createdAt || a.submitted_at || 0).getTime());
+  const { data: bids = [], isLoading, error, refetch } = useBids();
 
   // ── Loading ────────────────────────────────────────────────────
 
@@ -108,14 +87,9 @@ export default function BidReviewList() {
 
       <div className="space-y-3">
         {bids.map((bid) => {
-          const techStatus = (bid as any).tech_status || 'PENDING';
+          const techStatus = bid.techStatus || 'PENDING';
           const style = TECH_STATUS_STYLES[techStatus] || TECH_STATUS_STYLES.PENDING;
           const StatusIcon = style.icon;
-          const totalPrice =
-            (bid as any).conditional_pricing_json
-              ? ((bid as any).conditional_pricing_json as any[])
-                  ?.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0) || 0
-              : 0;
 
           return (
             <Card
@@ -127,17 +101,15 @@ export default function BidReviewList() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-headline text-[16px] font-semibold text-primary truncate">
-                      {bid.expertName}
+                      {bid.engagement?.expert?.fullName || 'Expert'}
                     </h3>
                     <p className="mt-1 text-[13px] text-secondary line-clamp-2">
-                      {(bid as any).approach_summary || 'No summary provided'}
+                      {bid.approachSummary || 'No summary provided'}
                     </p>
                     <div className="mt-3 flex items-center gap-3 text-[12px] text-primary-light">
-                      <span>Submitted {formatDate((bid as any).createdAt || (bid as any).submitted_at)}</span>
+                      <span>Technical scope v{bid.technicalReview?.scopeVersion ?? bid.versionNumber}</span>
                       <span>·</span>
-                      <span className="font-headline font-semibold text-primary">
-                        {formatVND(totalPrice)}
-                      </span>
+                      <span>{bid.currentOffer?.milestones.length ?? 0} milestones</span>
                     </div>
                   </div>
                   <div className="shrink-0">

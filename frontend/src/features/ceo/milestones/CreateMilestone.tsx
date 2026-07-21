@@ -96,6 +96,46 @@ export default function CreateMilestone() {
   const draftFramework = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
   const requiresTechReview = project?.selfTechnical === false;
 
+  if (engagement.termsLocked) {
+    return (
+      <div className="mx-auto w-full max-w-[900px] space-y-6 px-6 py-8 font-body">
+        <button
+          id="btn-back-from-locked-milestones"
+          onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)}
+          className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900"
+        >
+          <ArrowLeft size={16} /> Back to Milestones
+        </button>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+            <div>
+              <h1 className="font-headline text-xl font-semibold text-emerald-900">Accepted Contract Milestones</h1>
+              <p className="mt-1 text-sm text-emerald-700">These terms were finalized during bid acceptance and cannot be edited or recreated.</p>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {instantiatedMilestones.map((milestone: any) => (
+            <Card key={milestone.id}>
+              <CardContent className="p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Milestone {milestone.milestoneNumber}</p>
+                    <h2 className="mt-1 font-semibold text-slate-900">{milestone.deliverableStatement}</h2>
+                    <p className="mt-2 text-xs text-slate-500">State: {milestone.state}</p>
+                  </div>
+                  <strong className="font-mono text-emerald-700">{formatVND(Number(milestone.paymentAmountVnd))}</strong>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Button id="btn-open-accepted-milestone-list" variant="primary" onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)} className="cursor-pointer">Open milestone workspace</Button>
+      </div>
+    );
+  }
+
   const pendingDrafts = draftFramework.filter((draft: any) => {
     const num = draft.milestone_number || draft.milestoneNumber;
     return !instantiatedMilestones.some(
