@@ -90,7 +90,6 @@ const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
 const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
 const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
-const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/TechTeamMilestoneDetail"));
 
 function RootLayout() {
   return (
