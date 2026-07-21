@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdminUsers, useSuspendUser, useReactivateUser } from "@/hooks/use-admin";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/modal";
+import { useAdminUsers, useSuspendUser, useReactivateUser, useAdminUser } from "@/hooks/use-admin";
 import {
   Users,
   Search,
@@ -33,7 +33,8 @@ export default function UserList() {
     email: string;
     action: "suspend" | "reactivate";
   } | null>(null);
-
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const { data: userDetail, isLoading: isLoadingDetail } = useAdminUser(detailUserId);
   const {
     data,
     isLoading,
@@ -332,7 +333,13 @@ export default function UserList() {
                             : "—"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setDetailUserId(user.id)}
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                          Details
+                        </button>
                         {isActive ? (
                           <button
                             onClick={() =>
@@ -393,6 +400,59 @@ export default function UserList() {
             : `Are you sure you want to reactivate ${confirmTarget?.email}? They will regain full platform access.`}
         </p>
       </ConfirmModal>
+
+      {/* User Details Modal */}
+      <Modal
+        isOpen={!!detailUserId}
+        onClose={() => setDetailUserId(null)}
+        title="User Details"
+      >
+        {isLoadingDetail ? (
+          <div className="flex justify-center p-8"><Spinner size="md" /></div>
+        ) : userDetail ? (
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <span className="text-xs text-slate-500 font-bold uppercase block mb-1">Role / Subtype</span>
+                <span className="font-semibold text-slate-900">{userDetail.activeRole} {userDetail.clientSubtype ? `(${userDetail.clientSubtype})` : ''}</span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <span className="text-xs text-slate-500 font-bold uppercase block mb-1">Status</span>
+                <span className={`font-semibold ${userDetail.isActive ? 'text-emerald-600' : 'text-rose-600'}`}>{userDetail.isActive ? 'Active' : 'Suspended'}</span>
+              </div>
+            </div>
+            
+            {userDetail.wallet && (
+              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                <h4 className="font-bold text-emerald-800 mb-2">Wallet Balances</h4>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Available: <strong className="text-slate-900">{Number(userDetail.wallet.availableBalance).toLocaleString('vi-VN')} ₫</strong></span>
+                  <span className="text-slate-600">Locked: <strong className="text-slate-900">{Number(userDetail.wallet.lockedBalance).toLocaleString('vi-VN')} ₫</strong></span>
+                </div>
+              </div>
+            )}
+            
+            {userDetail.clientProfile && (
+              <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+                <h4 className="font-bold text-blue-800 mb-2">Client Profile</h4>
+                <p><span className="text-slate-500">Company:</span> {userDetail.clientProfile.companyName || 'N/A'}</p>
+                <p><span className="text-slate-500">Industry:</span> {userDetail.clientProfile.industry || 'N/A'}</p>
+              </div>
+            )}
+
+            {userDetail.expertProfile && (
+              <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-xl">
+                <h4 className="font-bold text-purple-800 mb-2">Expert Profile</h4>
+                <p><span className="text-slate-500">Model:</span> {userDetail.expertProfile.engagementModel || 'N/A'}</p>
+                <p className="text-xs text-slate-600 mt-2 italic whitespace-pre-wrap">{userDetail.expertProfile.bio || 'No bio provided.'}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center p-4 text-rose-500">Failed to load details.</div>
+        )}
+      </Modal>
+
     </div>
   );
 }

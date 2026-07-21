@@ -322,3 +322,181 @@ export function useFailWithdrawal() {
     },
   });
 }
+
+// Admin Void Codes 
+export function useAdminVoidCodes() {
+  return useQuery({
+    queryKey: ['admin-config', 'void-codes'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/config/void-codes');
+      return res.data;
+    }
+  });
+}
+
+export function useSaveAdminVoidCode(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      if (data.id) {
+        return apiClient.put(`/admin/config/void-codes/${data.id}`, {
+          name: data.name, description: data.description, severity: data.severity,
+          isActive: data.isActive, sortOrder: data.sortOrder
+        });
+      } else {
+        return apiClient.post('/admin/config/void-codes', {
+          code: data.code, name: data.name, description: data.description,
+          severity: data.severity, sortOrder: data.sortOrder
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-config', 'void-codes'] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useDeleteAdminVoidCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/admin/config/void-codes/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-config', 'void-codes'] })
+  });
+}
+
+// Admin Prompts 
+export function useAdminPrompts() {
+  return useQuery({
+    queryKey: ['admin-prompts'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/prompts');
+      return res.data;
+    }
+  });
+}
+
+export function useAdminPrompt(stage: string | null) {
+  return useQuery({
+    queryKey: ['admin-prompts', stage],
+    queryFn: async () => {
+      if (!stage) return null;
+      const res = await apiClient.get(`/admin/prompts/${stage}`);
+      return res.data;
+    },
+    enabled: !!stage,
+    retry: false // It will 404 if it relies on fallback .txt, which is fine
+  });
+}
+
+export function useUpsertAdminPrompt(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ stage, templateText, description }: { stage: string; templateText: string; description?: string }) => {
+      return apiClient.put(`/admin/prompts/${stage}`, { templateText, description });
+    },
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin-prompts'] });
+      qc.invalidateQueries({ queryKey: ['admin-prompts', variables.stage] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useResetAdminPrompt(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (stage: string) => apiClient.delete(`/admin/prompts/${stage}`),
+    onSuccess: (_, stage) => {
+      qc.invalidateQueries({ queryKey: ['admin-prompts'] });
+      qc.invalidateQueries({ queryKey: ['admin-prompts', stage] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+// Admin Decisions & Transactions 
+export function useAdminDecisions(filters?: { decisionType?: string; entityType?: string }) {
+  return useQuery({
+    queryKey: ['admin-decisions', filters],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/decisions', { params: filters });
+      return res.data;
+    }
+  });
+}
+
+export function useAdminTransactions(filters?: { type?: string; userId?: string }) {
+  return useQuery({
+    queryKey: ['admin-transactions', filters],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/transactions', { params: filters });
+      return res.data;
+    }
+  });
+}
+
+// Admin Oversight (Projects, Engagements, Experts)
+export function useAdminProjects(filters?: { state?: string; archetype?: string }) {
+  return useQuery({
+    queryKey: ['admin-projects', filters],
+    queryFn: () => apiClient.get('/admin/projects', { params: filters }).then(r => r.data)
+  });
+}
+
+export function useAdminProjectDetail(id: string) {
+  return useQuery({
+    queryKey: ['admin-projects', id],
+    queryFn: () => apiClient.get(`/admin/projects/${id}`).then(r => r.data),
+    enabled: !!id
+  });
+}
+
+export function useSuspendProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.put(`/admin/projects/${id}/suspend-spec`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-projects'] })
+  });
+}
+
+export function useReopenProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.put(`/admin/projects/${id}/reopen`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-projects'] })
+  });
+}
+
+export function useAdminEngagements(filters?: { state?: string; projectId?: string }) {
+  return useQuery({
+    queryKey: ['admin-engagements', filters],
+    queryFn: () => apiClient.get('/admin/engagements', { params: filters }).then(r => r.data)
+  });
+}
+
+export function useAdminExperts(limit: number = 50) {
+  return useQuery({
+    queryKey: ['admin-experts', limit],
+    queryFn: () => apiClient.get('/admin/experts', { params: { limit } }).then(r => r.data)
+  });
+}
+
+// Admin Config DELETE Hooks
+export function useDeleteAdminConfigItem(type: 'domains' | 'seams' | 'archetypes' | 'probe-questions') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/admin/config/${type}/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-config'] });
+    }
+  });
+}
+
+export function useAdminUser(id: string | null) {
+  return useQuery({
+    queryKey: ['admin-user', id],
+    queryFn: () => apiClient.get(`/admin/users/${id}`).then(r => r.data),
+    enabled: !!id
+  });
+}

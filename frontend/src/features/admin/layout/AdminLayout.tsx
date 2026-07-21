@@ -10,10 +10,13 @@ import {
   Wrench,
   ChevronLeft,
   Menu,
+  ShieldCheck, 
+  Award,
+  Briefcase,
+  Handshake,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
 const NAV_ITEMS = [
   {
     label: "Overview",
@@ -32,9 +35,29 @@ const NAV_ITEMS = [
     icon: Shield,
   },
   {
+    label: "Integrity Log", 
+    path: "/admin/integrity",
+    icon: ShieldCheck,
+  },
+  {
     label: "Users",
     path: "/admin/users",
     icon: Users,
+  },
+  {
+    label: "Projects",
+    path: "/admin/oversight/projects",
+    icon: Briefcase,
+  },
+  {
+    label: "Engagements",
+    path: "/admin/oversight/engagements",
+    icon: Handshake, // Note: import Handshake from lucide-react
+  },
+  {
+    label: "Expert Verification",
+    path: "/admin/oversight/experts",
+    icon: Award, // Note: import Award from lucide-react
   },
   {
     label: "Platform Settings",

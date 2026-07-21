@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { useAdminArchetypes, useSaveAdminArchetype, useAdminProbeQuestions, useSaveAdminProbeQuestion } from '@/hooks/use-admin';
+import { useAdminArchetypes, useSaveAdminArchetype, useAdminProbeQuestions, useSaveAdminProbeQuestion, useDeleteAdminConfigItem } from '@/hooks/use-admin';
 import { Plus, Edit2, Trash2, ArrowLeft, Layers, MessageSquare, ChevronRight, GripVertical, Check, Save } from 'lucide-react';
-import { ConfirmModal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
+import { ConfirmModal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
 
 export default function ArchetypeConfigPage() {
   const queryClient = useQueryClient();
@@ -72,6 +72,9 @@ export default function ArchetypeConfigPage() {
       setEditingProbeId(null);
     }
   });
+
+  const deleteArchMutation = useDeleteAdminConfigItem('archetypes');
+  const deleteProbeMutation = useDeleteAdminConfigItem('probe-questions');
 
   const handleSaveProbe = () => {
     if (isCreatingProbe) {
@@ -348,6 +351,7 @@ export default function ArchetypeConfigPage() {
                       <div className="flex flex-col items-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="flex gap-1">
                           <button onClick={(e) => handleEditArch(e, arch)} className="p-1.5 text-slate-400 hover:text-primary bg-white rounded shadow-sm border border-slate-100"><Edit2 size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteArchId(arch.id); }} className="p-1.5 text-slate-400 hover:text-red-600 bg-white rounded shadow-sm border border-slate-100"><Trash2 size={14} /></button>
                         </div>
                         <ChevronRight size={16} className={`mt-2 ${isSelected ? 'text-primary' : 'text-slate-300'}`} />
                       </div>
@@ -466,6 +470,7 @@ export default function ArchetypeConfigPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleEditProbe(probe)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                            <button onClick={() => setDeleteProbeId(probe.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                           </div>
                         </div>
                       );
@@ -477,6 +482,34 @@ export default function ArchetypeConfigPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteArchId}
+        onClose={() => setDeleteArchId(null)}
+        onConfirm={() => {
+          if (deleteArchId) deleteArchMutation.mutate(deleteArchId);
+          setDeleteArchId(null);
+        }}
+        title="Delete Archetype"
+        confirmText="Delete"
+        isDestructive
+      >
+        Are you sure you want to delete this archetype? If projects are using this archetype, consider setting it to "Inactive" instead to preserve history.
+      </ConfirmModal>
+
+      <ConfirmModal
+        isOpen={!!deleteProbeId}
+        onClose={() => setDeleteProbeId(null)}
+        onConfirm={() => {
+          if (deleteProbeId) deleteProbeMutation.mutate(deleteProbeId);
+          setDeleteProbeId(null);
+        }}
+        title="Delete Probe Question"
+        confirmText="Delete"
+        isDestructive
+      >
+        Are you sure you want to delete this question? It will no longer appear in the elicitation wizard for this archetype.
+      </ConfirmModal>
 
     </div>
   );

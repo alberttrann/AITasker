@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { useAdminConfigItems, useSaveAdminConfigItem } from '@/hooks/use-admin';
+import { useAdminConfigItems, useSaveAdminConfigItem, useDeleteAdminConfigItem } from '@/hooks/use-admin';
 import { useDomains } from '@/hooks/use-config';
 import { Plus, Edit2, Trash2, ArrowLeft, Globe, Network, Check, GripVertical, Save } from 'lucide-react';
-import { ConfirmModal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/modal';
 
 export default function DomainSeamConfigPage() {
   const queryClient = useQueryClient();
@@ -28,7 +28,7 @@ export default function DomainSeamConfigPage() {
   const { data: domainsList } = useDomains();
 
   const { data: items, isLoading } = useAdminConfigItems(activeTab);
-
+  const deleteMutation = useDeleteAdminConfigItem(activeTab);
   // Sync local items when API data loads
   useEffect(() => {
     if (items) {
@@ -387,6 +387,7 @@ export default function DomainSeamConfigPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => handleEdit(item)} className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded transition-colors" title="Edit"><Edit2 size={15} /></button>
+                          <button onClick={() => setDeleteId(item.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={15} /></button>
                         </div>
                       </td>
                     </tr>
@@ -397,6 +398,20 @@ export default function DomainSeamConfigPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => {
+          if (deleteId) deleteMutation.mutate(deleteId);
+          setDeleteId(null);
+        }}
+        title={`Delete ${activeTab === 'domains' ? 'Domain' : 'Seam'}`}
+        confirmText="Delete"
+        isDestructive
+      >
+        Are you sure you want to delete this {activeTab === 'domains' ? 'domain' : 'seam'}? This action cannot be undone. If it is actively used, consider setting it to "Inactive" instead.
+      </ConfirmModal>
     </div>
   );
 }

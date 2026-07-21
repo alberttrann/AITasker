@@ -8,7 +8,9 @@ import { ToastContainer } from '@components/ui/ToastContainer';
 // Guards
 import { GuestRoute, ProtectedRoute, RoleRoute, AuthGate } from "@lib/route-guards";
 import ServicePurchase from "./features/ceo/marketplace/ServicePurchase";
-
+const PromptConfigPage = lazy(() => import("@features/admin/config/PromptConfigPage"));
+const VoidCodesConfigPage = lazy(() => import("@features/admin/config/VoidCodesConfigPage"));
+const IntegrityMonitor = lazy(() => import("@features/admin/integrity/IntegrityMonitor"));
 // Public pages
 const LandingPage = lazy(() => import("@/components/pages/landingPage"));
 const ErrorPage = lazy(() => import("@components/pages/ErrorPage"));
@@ -91,6 +93,9 @@ const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
 const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
 const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
+const AdminProjectsPage = lazy(() => import("@features/admin/oversight/AdminProjectsPage"));
+const AdminEngagementsPage = lazy(() => import("@features/admin/oversight/AdminEngagementsPage"));
+const AdminExpertsPage = lazy(() => import("@features/admin/oversight/AdminExpertsPage"));
 
 function RootLayout() {
   return (
@@ -277,11 +282,21 @@ const router = createBrowserRouter(
             <Route path="config/packages" element={<SubscriptionPackagesPage />} />
             <Route path="config/domain-seam" element={<DomainSeamConfigPage />} />
             <Route path="config/archetypes" element={<ArchetypeConfigPage />} />
+
+            <Route path="config/prompts" element={<PromptConfigPage />} />
+            <Route path="config/void-codes" element={<VoidCodesConfigPage />} />
+            <Route path="integrity" element={<IntegrityMonitor />} />
+
             <Route path="disputes" element={<DisputeMonitor />} />
             <Route path="disputes/:id" element={<DisputeDetail />} />
             <Route path="disputes/:id/resolve" element={<ResolutionConfirm />} />
             <Route path="users" element={<UserList />} />
             <Route path="settings" element={<PlatformSettings />} />
+
+            <Route path="oversight/projects" element={<AdminProjectsPage />} />
+            <Route path="oversight/engagements" element={<AdminEngagementsPage />} />
+            <Route path="oversight/experts" element={<AdminExpertsPage />} />
+          
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />
           </Route>

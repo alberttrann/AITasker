@@ -29,6 +29,12 @@ export class AdminController {
     return this.adminService.suspendUser(id);
   }
 
+  @Put('users/:id/reactivate')
+  @ApiOperation({ summary: 'Reactivate a suspended account' })
+  async reactivateUser(@Param('id') id: string) {
+    return this.adminService.reactivateUser(id);
+  }
+
   @Get('disputes')
   @ApiOperation({ summary: 'Disputes queue, optionally filtered by state' })
   async getDisputesQueue(@CurrentUser() user: ActorUser, @Query('state') state?: string) {
