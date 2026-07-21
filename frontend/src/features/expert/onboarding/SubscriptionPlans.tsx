@@ -81,7 +81,6 @@ export default function SubscriptionPlans() {
           </div>
         ) : (
           <div className="flex flex-wrap justify-center gap-8 w-full">
-            {/* Changed clientPackages to expertPackages */}
             {expertPackages.map((pkg) => {
               const priceNum = Number(pkg.priceVnd);
               const canAfford = availableBalance >= priceNum;
@@ -126,7 +125,6 @@ export default function SubscriptionPlans() {
                           variant="primary"
                           onClick={() => handleActivate(pkg.id)}
                           disabled={activateSubscription.isPending}
-                          {/* Removed unsupported isLoading prop */}
                         >
                           {activateSubscription.isPending ? 'Activating...' : 'Select Plan'}
                           {!activateSubscription.isPending && (
