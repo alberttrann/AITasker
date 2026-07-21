@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEngagement, useEngagementMilestones } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
@@ -8,8 +9,9 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import { ArrowLeft, Plus, CheckCircle } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle, MessageSquare } from "lucide-react";
 import MilestoneChatAssistant from "./MilestoneChatAssistant";
+import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -32,6 +34,9 @@ export default function MilestoneList() {
 
   const projectId = engagement?.projectId || (engagement as any)?.project_id;
   const { data: project, isLoading: isLoadingProject } = useProject(projectId);
+
+  // State for workspace chat drawer (additive)
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const isLoading = isLoadingEngagement || isLoadingMilestones || isLoadingProject;
   const error = engagementError || milestonesError;
@@ -126,19 +131,30 @@ export default function MilestoneList() {
           </div>
         </div>
 
-        {/* Create Milestone action - Only for project-based engagements */}
-        {engagement.type === "PROJECT_BASED" && (
+        {/* Group actions together on the right side of header row */}
+        <div className="flex items-center gap-3 shrink-0">
           <Button
-            variant="primary"
-            onClick={() =>
-              navigate(`/ceo/engagements/${engagementId}/milestones/create`)
-            }
+            variant="outline"
+            onClick={() => setIsChatOpen(true)}
             className="inline-flex items-center gap-2"
             id="btn-create-new-milestone"
           >
-            <Plus size={16} /> Create New Milestone
+            <MessageSquare size={16} /> Discuss with Team
           </Button>
-        )}
+
+          {/* Create Milestone action - Only for project-based engagements */}
+          {engagement.type === "PROJECT_BASED" && (
+            <Button
+              variant="primary"
+              onClick={() =>
+                navigate(`/ceo/engagements/${engagementId}/milestones/create`)
+              }
+              className="inline-flex items-center gap-2"
+            >
+              <Plus size={16} /> Create New Milestone
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main List Layout */}
@@ -188,8 +204,11 @@ export default function MilestoneList() {
                       />
                     </div>
                     <h3 className="text-lg font-bold text-slate-800">
-                      {m.deliverableStatement || m.deliverable_statement ||
-                        "No deliverable statement provided."}
+                      {m.deliverableStatement ||
+                        m.deliverable_statement ||
+                        (engagement.service?.title || (engagement as any)?.service_title
+                          ? `Full Delivery & Implementation for Service: "${engagement.service?.title || (engagement as any)?.service_title}"`
+                          : "No deliverable statement provided.")}
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       <span>
@@ -281,6 +300,18 @@ export default function MilestoneList() {
       )}
       {projectId && (
         <MilestoneChatAssistant projectId={projectId} engagementId={engagementId} />
+      )}
+
+      {/* Workspace Chat Drawer — additive */}
+      {engagement && (
+        <MilestoneChatPanel
+          engagementId={engagementId || ""}
+          clientId={engagement.clientId}
+          expertId={engagement.expertId}
+          projectName={(engagement as any).project?.projectName || project?.projectName}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
       )}
     </div>
   );

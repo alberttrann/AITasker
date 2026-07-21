@@ -83,14 +83,18 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('newMessage', (data: any) => {
-      const engagementId = data.engagementId || data.projectId;
-      if (!engagementId) return;
+    const engagementId = data.engagementId || data.projectId;
+    if (!engagementId) return;
 
-      // Ignore if the current user sent the message
-      if (data.senderId === user?.id || data.sender?.id === user?.id) return;
+    if (data.senderId === user?.id || data.sender?.id === user?.id) return;
 
-      incrementUnread(engagementId);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    // Dùng getState() thay vì closure để luôn đọc activeEngagementId mới nhất
+    const currentActive = useEngagementStore.getState().activeEngagementId;
+    if (currentActive !== engagementId) {
+    incrementUnread(engagementId);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
       
       // Only show notification if user is not currently in that conversation
       // Note: We no longer call addNotification here to prevent direct chat messages from

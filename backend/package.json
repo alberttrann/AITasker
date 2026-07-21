@@ -29,7 +29,8 @@
     "db:studio": "prisma studio",
     "db:seed": "psql $DATABASE_URL -f prisma/migrations/010_seed_dev_ready.sql",
     "db:setup": "npm run db:push && npm run db:seed && npm run db:generate",
-    "db:reset": "prisma db push --force-reset && npm run db:seed && npm run db:generate"
+    "db:reset": "prisma db push --force-reset && npm run db:seed && npm run db:generate",
+    "simulate:ipn": "ts-node -r tsconfig-paths/register scripts/simulate_sepay_ipn.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.2",

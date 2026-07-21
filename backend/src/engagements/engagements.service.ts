@@ -463,19 +463,38 @@ export class EngagementsService {
     });
   }
 
+  /**
+   * Additive helper: checks if a user is a party to the given engagement.
+   * Extends the original CEO/Expert-only check to also include TECH_TEAM
+   * members whose linkedProjectId matches the engagement's projectId.
+   * The original inline checks in other methods are left untouched.
+   */
+  private async isPartyToEngagement(
+    engagement: { clientId: string; expertId: string; projectId: string | null },
+    user: ActorUser,
+  ): Promise<boolean> {
+    if (user.activeRole === 'ADMIN') return true;
+    if (engagement.clientId === user.id) return true;
+    if (engagement.expertId === user.id) return true;
+
+    // Tech Team: check linkedProjectId
+    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && engagement.projectId) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+        select: { linkedProjectId: true },
+      });
+      if (techProfile?.linkedProjectId === engagement.projectId) return true;
+    }
+
+    return false;
+  }
+
   async getEngagementMilestones(engagementId: string, user: ActorUser) {
     const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
     if (!engagement) throw new NotFoundException('Engagement not found.');
-    const isLinkedTechTeam = await this.isLinkedTechTeam(
-      engagement.projectId,
-      user,
-    );
-    if (
-      user.activeRole !== 'ADMIN' &&
-      engagement.expertId !== user.id &&
-      engagement.clientId !== user.id &&
-      !isLinkedTechTeam
-    ) {
+    // Use the new helper that includes Tech Team support
+    const allowed = await this.isPartyToEngagement(engagement, user);
+    if (!allowed) {
       throw new ForbiddenException('Not a party to this engagement.');
     }
     return this.prisma.milestone.findMany({

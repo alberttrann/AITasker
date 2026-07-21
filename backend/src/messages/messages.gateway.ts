@@ -154,6 +154,70 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
+  // New helper method to notify all parties in the engagement workspace including Tech Team
+  async notifyWorkspaceParties(engagementId: string, senderId: string, savedMessage: any) {
+    try {
+      const engagement = await this.prisma.engagement.findUnique({
+        where: { id: engagementId },
+      });
+      if (!engagement) return;
+
+      const recipientIds = new Set<string>();
+      if (engagement.clientId !== senderId) recipientIds.add(engagement.clientId);
+      if (engagement.expertId !== senderId) recipientIds.add(engagement.expertId);
+
+      if (engagement.projectId) {
+        const techProfiles = await this.prisma.techTeamProfile.findMany({
+          where: { linkedProjectId: engagement.projectId },
+          select: { userId: true },
+        });
+        for (const profile of techProfiles) {
+          if (profile.userId !== senderId) {
+            recipientIds.add(profile.userId);
+          }
+        }
+      }
+
+      for (const recipientId of recipientIds) {
+        this.server.to(recipientId).emit('newMessage', savedMessage);
+      }
+    } catch (err) {
+      this.logger.error('Failed to notify workspace parties', err);
+    }
+  }
+
+  @SubscribeMessage('sendMessageWorkspace')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleSendMessageWorkspace(@ConnectedSocket() client: Socket, @MessageBody() dto: CreateMessageDto) {
+    const user = client.data.user;
+    if (!user) {
+      client.emit('error', { message: 'Unauthorized socket connection.' });
+      return;
+    }
+
+    try {
+      const savedMessage = await this.messagesService.createMessage(
+        { id: user.sub, activeRole: user.activeRole },
+        dto,
+      );
+      const room = dto.engagement_id || dto.project_id;
+      this.server.to(room!).emit('newMessage', savedMessage);
+
+      if (dto.engagement_id) {
+        await this.notifyWorkspaceParties(dto.engagement_id, user.sub, savedMessage);
+      } else if (dto.project_id) {
+        const project = await this.prisma.project.findUnique({
+          where: { id: dto.project_id },
+        });
+        if (project && project.clientId !== user.sub) {
+          this.server.to(project.clientId).emit('newMessage', savedMessage);
+        }
+      }
+    } catch (err: any) {
+      client.emit('error', { message: err.message || 'Failed to send message.' });
+    }
+  }
+
   @SubscribeMessage('inviteExpert')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleInviteExpert(
