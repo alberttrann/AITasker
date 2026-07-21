@@ -54,7 +54,8 @@ export default function ExpertOrdersPage() {
     });
     
     return filtered
-      .map((eng) => {
+      .map((e) => {
+        const eng = e as any;
         const milestones = eng.milestones || [];
         const totalMilestonesPrice = milestones.reduce((sum: number, m: any) => sum + Number(m.paymentAmountVnd), 0);
         

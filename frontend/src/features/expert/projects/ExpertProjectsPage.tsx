@@ -72,27 +72,27 @@ export default function ExpertProjectsPage() {
         if (!eng.project) return;
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
-        if (eng.state === 'PENDING') {
-          const negotiationState = eng.capabilityBid?.negotiationState;
+        if ((eng.state as string) === 'PENDING') {
+          const negotiationState = (eng as any).capabilityBid?.negotiationState;
           if (eng.termsLocked || negotiationState === 'TERMS_ACCEPTED') {
              status = 'NDA_PENDING';
           } else if (
-            eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
+            (eng as any).capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
             negotiationState === 'AWAITING_EXPERT'
           ) {
              status = 'COUNTER_OFFER';
           } else {
              status = 'BID_SENT';
           }
-        } else if (eng.state === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
+        } else if ((eng.state as string) === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
           status = 'NDA_PENDING';
-        } else if (eng.state === 'DECLINED') {
+        } else if ((eng.state as string) === 'DECLINED') {
           status = 'DECLINED';
         }
 
         const projectId = eng.projectId || eng.id;
-        const projectName = eng.project?.projectName || eng.service?.title || 'Service Order';
-        const ceoName = eng.client?.fullName || eng.client_id || 'Client';
+        const projectName = eng.project?.projectName || (eng as any).service?.title || 'Service Order';
+        const ceoName = (eng as any).client?.fullName || (eng as any).client_id || 'Client';
 
         projectMap.set(projectId, {
           id: projectId,
@@ -101,7 +101,7 @@ export default function ExpertProjectsPage() {
           ceoName,
           companyName: null,
           status,
-          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || Date.now()),
+          updatedAt: getSafeTime((eng as any).updatedAt || (eng as any).connectedAt || Date.now()),
           engagement: eng
         });
       });
@@ -170,7 +170,7 @@ export default function ExpertProjectsPage() {
     if (!invitations && !engagements) return false;
     const projectMap = new Map<string, boolean>();
     engagements?.forEach(eng => {
-      if (eng.project) projectMap.set(eng.projectId, true);
+      if (eng.project && eng.projectId) projectMap.set(eng.projectId, true);
     });
     invitations?.forEach(inv => {
       if (!deletedInvites.has(inv.id) && !projectMap.has(inv.projectId)) {
@@ -182,7 +182,7 @@ export default function ExpertProjectsPage() {
 
   // Auto-select first project
   if (unifiedProjects.length > 0 && !selectedProjectId) {
-    setSelectedProjectId(unifiedProjects[0].projectId);
+    setSelectedProjectId(unifiedProjects[0].projectId as string);
   }
 
   // Reset phase to 1 when selected project changes

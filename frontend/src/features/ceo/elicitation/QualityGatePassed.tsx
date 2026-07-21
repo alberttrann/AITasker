@@ -41,7 +41,7 @@ export default function QualityGatePassed({
           </div>
           <div className="sm:text-right mt-2 sm:mt-0">
             <Button 
-              variant="link" 
+              variant="ghost" 
               className="text-primary p-0 h-auto font-medium group" 
               onClick={() => navigate(`/ceo/projects/${projectId}`)}
             >

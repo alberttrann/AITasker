@@ -94,7 +94,7 @@ export function HandoffRegister() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await claimHandoff.mutateAsync({ invite_token: token });
+      await claimHandoff.mutateAsync({ invite_token: token || '' });
       navigate('/tech-team', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to claim invite. This link might be invalid or used.');

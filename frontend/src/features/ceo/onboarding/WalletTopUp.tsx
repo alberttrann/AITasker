@@ -62,9 +62,8 @@ export default function WalletTopUp({ showContinue = true }: WalletTopUpProps) {
             variant="primary"
             onClick={handleGenerate}
             disabled={!amountInput || amountInput < 1000 || topUpMutation.isPending}
-            isLoading={topUpMutation.isPending}
           >
-            Generate QR Code
+            {topUpMutation.isPending ? 'Generating...' : 'Generate QR Code'}
           </Button>
         </div>
       ) : (

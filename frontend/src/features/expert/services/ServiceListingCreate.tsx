@@ -4,7 +4,7 @@ import { useCreateService } from '@/hooks/use-services';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Loader2, DollarSign, Clock, Tags, X, ArrowLeft, Send } from 'lucide-react';
-import { DomainCode, SeamCode } from '@/types/api.types';
+import { DomainCode, SeamCode } from '@/types/enums';
 
 export default function ServiceListingCreate() {
   const navigate = useNavigate();
