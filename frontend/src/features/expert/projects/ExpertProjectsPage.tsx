@@ -8,7 +8,7 @@ import { useExpertProfile } from "@/hooks/use-expert-profile";
 import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2 } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 // Unified type combining Invitation and Engagement logic
 type UnifiedProject = {

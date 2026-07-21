@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGetDodItems, useCreateDodItem, useDeleteDodItem } from '@/hooks/use-dod';
 import { Plus, Trash2, Loader2, ListTodo } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 
 export default function DoDEditor({ milestoneId }: { milestoneId: string }) {
   const { data: dodItems, isLoading } = useGetDodItems(milestoneId);

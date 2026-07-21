@@ -11,7 +11,7 @@ import { useInvitations } from '@/hooks/use-invitations';
 import { useMyServices } from '@/hooks/use-services';
 import { useEngagements } from '@/hooks/use-engagements';
 import Widget, { WidgetMetric } from '@/components/dashboard/Widget';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Briefcase, PlusCircle, ArrowRight } from 'lucide-react';
 import { ServiceCreateModal } from './services/ServiceCreateModal';

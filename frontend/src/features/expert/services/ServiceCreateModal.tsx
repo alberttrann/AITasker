@@ -3,8 +3,8 @@ import { useCreateService, useUpdateService } from '@/hooks/use-services';
 import { useNavigate } from 'react-router-dom';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/Button';
-import { Modal, ConfirmModal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/button';
+import { Modal, ConfirmModal } from '@/components/ui/modal';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Loader2, DollarSign, Clock, Tags, X, Send, Wand2, CheckCircle, ChevronDown } from 'lucide-react';
 

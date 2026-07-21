@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGetService, usePublishService, useUnpublishService, useDeleteService } from '@/hooks/use-services';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, DollarSign, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
-import { ConfirmModal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/modal';
 import { useState } from 'react';
 
 export default function ServiceDetail() {

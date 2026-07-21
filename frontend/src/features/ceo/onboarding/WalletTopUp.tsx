@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useWallet, useTopUpWallet } from '@/hooks/use-wallet';
 import { VietQRPanel } from '@/components/wallet/VietQRPanel';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';

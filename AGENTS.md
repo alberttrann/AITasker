@@ -1,7 +1,0 @@
-<!-- OPENWIKI:START -->
-
-## OpenWiki
-
-UNVAILABLE FOR NOW
-
-<!-- OPENWIKI:END -->

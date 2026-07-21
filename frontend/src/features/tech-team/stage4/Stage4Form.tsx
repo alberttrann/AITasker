@@ -2,7 +2,7 @@ import React, { useReducer, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitStage4Handoff, getSession, saveStage4Draft } from '../../../hooks/use-elicitation';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 
 type FormState = {
