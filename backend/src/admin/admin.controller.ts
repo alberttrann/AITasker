@@ -29,7 +29,6 @@ export class AdminController {
     return this.adminService.suspendUser(id);
   }
 
-
   @Get('disputes')
   @ApiOperation({ summary: 'Disputes queue, optionally filtered by state' })
   async getDisputesQueue(@CurrentUser() user: ActorUser, @Query('state') state?: string) {
@@ -45,7 +44,6 @@ export class AdminController {
   ) {
     return this.adminService.resolveDispute(id, dto, user.id);
   }
-
 
   @Get('decisions')
   @ApiOperation({ summary: 'Platform decisions log (LLM confidence, advisory notes, entity refs)' })
@@ -71,7 +69,6 @@ export class AdminController {
     return this.adminService.getAnalytics();
   }
 
-
   @Get('withdrawals')
   @ApiOperation({ summary: 'Withdrawal requests queue, optionally filtered by status' })
   async getWithdrawalsQueue(@Query('status') status?: string) {
@@ -88,6 +85,21 @@ export class AdminController {
   @ApiOperation({ summary: 'Mark a withdrawal as failed — refunds the wallet' })
   async failWithdrawal(@Param('id') id: string) {
     return this.adminService.failWithdrawal(id);
+  }
+
+  // Platform Settings Endpoints
+  @Get('platform-settings')
+  @ApiOperation({ summary: 'Get platform-wide settings' })
+  async getPlatformSettings() {
+    return this.adminService.getPlatformSettings();
+  }
+
+  @Put('platform-settings')
+  @ApiOperation({ summary: 'Update platform-wide settings' })
+  async updatePlatformSettings(
+    @Body() dto: { platform_fee_pct?: number; platform_wallet_id?: string }
+  ) {
+    return this.adminService.updatePlatformSettings(dto);
   }
 
   // Subscription Package Management 
