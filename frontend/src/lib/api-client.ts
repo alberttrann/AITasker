@@ -11,7 +11,24 @@ export const apiClient = axios.create({
 
 //  Request interceptor — attach Bearer token 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = useAuthStore.getState().accessToken;
+  // Read DIRECTLY from localStorage as a fallback to ensure we never use a stale in-memory token
+  // during rapid state transitions (like Role Switching or Pro Activation).
+  let token = useAuthStore.getState().accessToken;
+  
+  if (!token) {
+    try {
+      const rawStore = localStorage.getItem('aitasker-auth');
+      if (rawStore) {
+        const parsedStore = JSON.parse(rawStore);
+        if (parsedStore.state?.accessToken) {
+          token = parsedStore.state.accessToken;
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+  }
+
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
