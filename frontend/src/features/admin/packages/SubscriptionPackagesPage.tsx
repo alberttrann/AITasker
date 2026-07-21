@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Edit2, Check, X, Package, Trash2, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
-import { ConfirmModal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/modal';
 import { DataList } from '@/components/layout/Table';
 import { useAdminSubscriptionPackages, useCreateSubscriptionPackage, useUpdateSubscriptionPackage, useDeleteSubscriptionPackage } from '@/hooks/use-admin';
 

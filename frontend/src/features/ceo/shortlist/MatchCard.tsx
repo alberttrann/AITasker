@@ -64,7 +64,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
     const expertDomains: Array<{ domainCode: string; depthLevel: string }> =
       profile?.domainDepths || [];
     const projectDomains: Array<any> =
-      fullProject?.requiredDomainsJson ||
+      fullProject?.required_domains_json ||
       fullProject?.required_domains_json ||
       [];
 
