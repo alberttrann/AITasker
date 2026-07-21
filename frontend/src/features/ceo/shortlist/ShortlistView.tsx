@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { useShortlist } from '@/hooks/use-matching';
 import { useProjects } from '@/hooks/use-projects';
 import { Spinner } from '@/components/ui/Spinner';
