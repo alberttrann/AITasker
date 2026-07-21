@@ -1,3 +1,4 @@
+import ArtifactBView from '../../tech-team/vault/ArtifactBView';
 import { useState } from 'react';
 import { useAdminProjects, useAdminProjectDetail, useSuspendProject, useReopenProject } from '@/hooks/use-admin';
 import { DataTable } from '@/components/layout/Table';
@@ -101,14 +102,8 @@ export default function AdminProjectsPage() {
               <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{projectDetail.artifactAJson?.business_intent || 'No intent recorded.'}</p>
             </div>
 
-            <div>
-              <h4 className="font-bold text-slate-800 mb-2 border-b pb-2">Technical Constraints (Artifact B)</h4>
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-700 whitespace-pre-wrap">
-                <span className="font-semibold text-slate-900 block mb-1">Integration Method:</span>
-                {projectDetail.artifactBJson?.integration_method || 'N/A'}
-                <span className="font-semibold text-slate-900 block mt-3 mb-1">Legacy Volume:</span>
-                {projectDetail.artifactBJson?.legacy_volume || 'N/A'}
-              </div>
+            <div className="pt-4 border-t border-slate-200 mt-6">
+              <ArtifactBView projectId={projectDetail.id} />
             </div>
           </div>
         ) : (

@@ -1,3 +1,4 @@
+import ArtifactBView from '../connection/ArtifactBView';
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInvitations, useDeclineInvitation } from "@/hooks/use-invitations";
@@ -667,6 +668,15 @@ export default function ExpertProjectsPage() {
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* ARTIFACT B */}
+                  <div className="mb-8">
+                    <ArtifactBView 
+                      projectId={selectedProject.projectId} 
+                      // Expert is only authorized if engagement is ACTIVE/CONNECTED (mapped to IN_PROGRESS in this UI)
+                      isAuthorized={selectedProject.status === 'IN_PROGRESS'} 
+                    />
                   </div>
 
                   {/* Milestone Framework */}
