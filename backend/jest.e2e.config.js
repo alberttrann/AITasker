@@ -18,7 +18,7 @@ module.exports = {
 
   // CRITICAL: sequential execution — do NOT remove for financial/ledger tests.
   // Parallel workers would cause race conditions on wallet balances and escrow state.
-  runInBand: true,
+  maxWorkers: 1,
 
   // Mirror tsconfig paths so src/ imports resolve in tests.
   moduleNameMapper: {

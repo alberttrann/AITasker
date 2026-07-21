@@ -42,7 +42,7 @@ RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/services" -H "Content-Typ
   -d '{
     "serviceType":"AI_SERVICE",
     "domainsJson":["A"],
-    "seamsJson":["A<->C"],
+    "seamsJson":["A↔C"],
     "useAiGenerator":true,
     "capabilities":["RAG pipeline construction","Zendesk knowledge base integration","Confidence-based human escalation"],
     "targetUseCases":["Customer support chatbots needing accuracy improvements","Knowledge-base-grounded Q&A systems"]

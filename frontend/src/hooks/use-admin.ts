@@ -1,0 +1,502 @@
+import type { DomainDefinition, SeamDefinition, ArchetypeDefinition, ProbeQuestion, SubPackage } from '@/types/api.types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+export type AdminDisputeDecision =
+  | "EXPERT_WINS"
+  | "CLIENT_WINS"
+  | "SPLIT";
+
+// GET /admin/analytics
+export function useAdminAnalytics() {
+  return useQuery({
+    queryKey: ["admin", "analytics"],
+    queryFn: () => apiClient.get("/admin/analytics").then((r) => r.data),
+  });
+}
+
+// GET /admin/disputes
+export function useAdminDisputes(state?: string) {
+  return useQuery({
+    queryKey: ["admin", "disputes", state],
+    queryFn: () => {
+      const params = state ? { state } : undefined;
+      return apiClient.get("/admin/disputes", { params }).then((r) => r.data);
+    },
+  });
+}
+
+// PUT /admin/disputes/:id/resolve
+export function useResolveDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      decision,
+    }: {
+      id: string;
+      decision: AdminDisputeDecision;
+    }) =>
+      apiClient
+        .put(`/admin/disputes/${id}/resolve`, { decision })
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "disputes"] });
+      qc.invalidateQueries({ queryKey: ["disputes"] });
+      // Invalidate ledger/transactions if needed
+      qc.invalidateQueries({ queryKey: ["admin", "transactions"] });
+    },
+  });
+}
+
+// ── Users ──────────────────────────────────────────────────────────────
+// GET /admin/users
+export function useAdminUsers(
+  page = 1,
+  limit = 20,
+  filters?: { role?: string; isActive?: boolean; search?: string }
+) {
+  return useQuery({
+    queryKey: ["admin", "users", page, limit, filters],
+    queryFn: () =>
+      apiClient
+        .get("/admin/users", {
+          params: {
+            page,
+            limit,
+            role: filters?.role || undefined,
+            isActive: filters?.isActive !== undefined ? filters.isActive : undefined,
+            search: filters?.search || undefined,
+          },
+        })
+        .then((r) => r.data),
+  });
+}
+
+// PUT /admin/users/:id/suspend
+export function useSuspendUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/users/${id}/suspend`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+// PUT /admin/users/:id/reactivate
+export function useReactivateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/users/${id}/reactivate`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+// ── Platform Settings ──────────────────────────────────────────────────
+// GET /admin/platform-settings
+export function usePlatformSettings() {
+  return useQuery({
+    queryKey: ["admin", "platform-settings"],
+    queryFn: () =>
+      apiClient.get("/admin/platform-settings").then((r) => r.data),
+  });
+}
+
+// PUT /admin/platform-settings
+export function useUpdatePlatformSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { platform_fee_pct: number }) =>
+      apiClient.put("/admin/platform-settings", body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "platform-settings"] });
+    },
+  });
+}
+
+// ── Admin Config Hooks ──────────────────────────────────────────
+
+export function useAdminConfigItems(activeTab: 'domains' | 'seams') {
+  return useQuery<(DomainDefinition | SeamDefinition)[]>({
+    queryKey: ['admin-config', activeTab],
+    queryFn: async () => {
+      const res = await apiClient.get(`/admin/config/${activeTab}`);
+      return res.data;
+    }
+  });
+}
+
+export function useSaveAdminConfigItem(activeTab: 'domains' | 'seams', options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      if (data.id) {
+        // Update
+        const payload = {
+          name: data.name,
+          description: data.description,
+          sortOrder: data.sortOrder,
+          isActive: data.isActive
+        };
+        return apiClient.put(`/admin/config/${activeTab}/${data.id}`, payload);
+      } else {
+        // Create
+        const payload = {
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          sortOrder: data.sortOrder
+        };
+        return apiClient.post(`/admin/config/${activeTab}`, payload);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-config', activeTab] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useAdminArchetypes() {
+  return useQuery<ArchetypeDefinition[]>({
+    queryKey: ['admin-config', 'archetypes'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/config/archetypes');
+      return res.data;
+    }
+  });
+}
+
+export function useSaveAdminArchetype(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      if (data.id) {
+        // Update
+        const payload = {
+          name: data.name,
+          description: data.description,
+          sortOrder: data.sortOrder,
+          isActive: data.isActive
+        };
+        return apiClient.put(`/admin/config/archetypes/${data.id}`, payload);
+      } else {
+        // Create
+        const payload = {
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          sortOrder: data.sortOrder
+        };
+        return apiClient.post('/admin/config/archetypes', payload);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-config', 'archetypes'] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useAdminProbeQuestions(archetypeCode: string | null) {
+  return useQuery<ProbeQuestion[]>({
+    queryKey: ['admin-config', 'probe-questions', archetypeCode],
+    queryFn: async () => {
+      if (!archetypeCode) return [];
+      const res = await apiClient.get(`/admin/config/probe-questions?archetypeCode=${archetypeCode}`);
+      return res.data;
+    },
+    enabled: !!archetypeCode
+  });
+}
+
+export function useSaveAdminProbeQuestion(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      if (data.id) {
+        const payload = {
+          questionText: data.questionText,
+          displayOrder: data.displayOrder,
+          isActive: data.isActive
+        };
+        return apiClient.put(`/admin/config/probe-questions/${data.id}`, payload);
+      } else {
+        const payload = {
+          archetypeCode: data.archetypeCode,
+          questionText: data.questionText,
+          displayOrder: data.displayOrder
+        };
+        return apiClient.post('/admin/config/probe-questions', payload);
+      }
+    },
+    onSuccess: (res, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin-config', 'probe-questions', variables.archetypeCode] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+// ── Admin Packages Hooks ────────────────────────────────────────
+
+export function useAdminSubscriptionPackages() {
+  return useQuery<SubPackage[]>({
+    queryKey: ['admin-subscription-packages'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/subscriptions/packages');
+      return res.data;
+    }
+  });
+}
+
+export function useCreateSubscriptionPackage(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<SubPackage>) => apiClient.post('/admin/subscriptions/packages', data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subscription-packages'] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useUpdateSubscriptionPackage(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<SubPackage> }) => 
+      apiClient.put(`/admin/subscriptions/packages/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subscription-packages'] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useDeleteSubscriptionPackage(options?: { onSuccess?: () => void; onError?: (error: any) => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/admin/subscriptions/packages/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subscription-packages'] });
+      options?.onSuccess?.();
+    },
+    onError: (error) => {
+      options?.onError?.(error);
+    }
+  });
+}
+
+export function useAdminWithdrawals(status?: string) {
+  return useQuery({
+    queryKey: ["admin", "withdrawals", status],
+    queryFn: () => {
+      const params = status ? { status } : undefined;
+      return apiClient.get("/admin/withdrawals", { params }).then((r) => r.data);
+    },
+  });
+}
+
+export function useCompleteWithdrawal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/withdrawals/${id}/complete`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "withdrawals"] });
+    },
+  });
+}
+
+export function useFailWithdrawal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put(`/admin/withdrawals/${id}/fail`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "withdrawals"] });
+    },
+  });
+}
+
+// Admin Void Codes 
+export function useAdminVoidCodes() {
+  return useQuery({
+    queryKey: ['admin-config', 'void-codes'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/config/void-codes');
+      return res.data;
+    }
+  });
+}
+
+export function useSaveAdminVoidCode(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      if (data.id) {
+        return apiClient.put(`/admin/config/void-codes/${data.id}`, {
+          name: data.name, description: data.description, severity: data.severity,
+          isActive: data.isActive, sortOrder: data.sortOrder
+        });
+      } else {
+        return apiClient.post('/admin/config/void-codes', {
+          code: data.code, name: data.name, description: data.description,
+          severity: data.severity, sortOrder: data.sortOrder
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-config', 'void-codes'] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useDeleteAdminVoidCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/admin/config/void-codes/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-config', 'void-codes'] })
+  });
+}
+
+// Admin Prompts 
+export function useAdminPrompts() {
+  return useQuery({
+    queryKey: ['admin-prompts'],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/prompts');
+      return res.data;
+    }
+  });
+}
+
+export function useAdminPrompt(stage: string | null) {
+  return useQuery({
+    queryKey: ['admin-prompts', stage],
+    queryFn: async () => {
+      if (!stage) return null;
+      const res = await apiClient.get(`/admin/prompts/${stage}`);
+      return res.data;
+    },
+    enabled: !!stage,
+    retry: false // It will 404 if it relies on fallback .txt, which is fine
+  });
+}
+
+export function useUpsertAdminPrompt(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ stage, templateText, description }: { stage: string; templateText: string; description?: string }) => {
+      return apiClient.put(`/admin/prompts/${stage}`, { templateText, description });
+    },
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin-prompts'] });
+      qc.invalidateQueries({ queryKey: ['admin-prompts', variables.stage] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+export function useResetAdminPrompt(options?: { onSuccess?: () => void }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (stage: string) => apiClient.delete(`/admin/prompts/${stage}`),
+    onSuccess: (_, stage) => {
+      qc.invalidateQueries({ queryKey: ['admin-prompts'] });
+      qc.invalidateQueries({ queryKey: ['admin-prompts', stage] });
+      options?.onSuccess?.();
+    }
+  });
+}
+
+// Admin Decisions & Transactions 
+export function useAdminDecisions(filters?: { decisionType?: string; entityType?: string }) {
+  return useQuery({
+    queryKey: ['admin-decisions', filters],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/decisions', { params: filters });
+      return res.data;
+    }
+  });
+}
+
+export function useAdminTransactions(filters?: { type?: string; userId?: string }) {
+  return useQuery({
+    queryKey: ['admin-transactions', filters],
+    queryFn: async () => {
+      const res = await apiClient.get('/admin/transactions', { params: filters });
+      return res.data;
+    }
+  });
+}
+
+// Admin Oversight (Projects, Engagements, Experts)
+export function useAdminProjects(filters?: { state?: string; archetype?: string }) {
+  return useQuery({
+    queryKey: ['admin-projects', filters],
+    queryFn: () => apiClient.get('/admin/projects', { params: filters }).then(r => r.data)
+  });
+}
+
+export function useAdminProjectDetail(id: string) {
+  return useQuery({
+    queryKey: ['admin-projects', id],
+    queryFn: () => apiClient.get(`/admin/projects/${id}`).then(r => r.data),
+    enabled: !!id
+  });
+}
+
+export function useSuspendProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.put(`/admin/projects/${id}/suspend-spec`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-projects'] })
+  });
+}
+
+export function useReopenProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.put(`/admin/projects/${id}/reopen`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-projects'] })
+  });
+}
+
+export function useAdminEngagements(filters?: { state?: string; projectId?: string }) {
+  return useQuery({
+    queryKey: ['admin-engagements', filters],
+    queryFn: () => apiClient.get('/admin/engagements', { params: filters }).then(r => r.data)
+  });
+}
+
+export function useAdminExperts(limit: number = 50) {
+  return useQuery({
+    queryKey: ['admin-experts', limit],
+    queryFn: () => apiClient.get('/admin/experts', { params: { limit } }).then(r => r.data)
+  });
+}
+
+// Admin Config DELETE Hooks
+export function useDeleteAdminConfigItem(type: 'domains' | 'seams' | 'archetypes' | 'probe-questions') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/admin/config/${type}/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-config'] });
+    }
+  });
+}
+
+export function useAdminUser(id: string | null) {
+  return useQuery({
+    queryKey: ['admin-user', id],
+    queryFn: () => apiClient.get(`/admin/users/${id}`).then(r => r.data),
+    enabled: !!id
+  });
+}

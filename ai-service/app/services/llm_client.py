@@ -54,3 +54,30 @@ async def call_llm_text(prompt: str, temperature: float | None = None) -> str:
         max_completion_tokens=settings.llm_max_output_tokens
     )
     return response.choices[0].message.content or ""
+async def call_llm_with_system_and_messages(
+    system: str,
+    messages: list[dict],
+    max_output_tokens: int = 1024,
+) -> str:
+    """
+    Multi-turn chat: prepends a system message then sends the full conversation
+    history to the model.
+
+    Uses the same AsyncOpenAI client and settings as every other function
+    in this module — no separate SDK needed.
+
+    messages: list of {"role": "user"|"assistant", "content": "..."} dicts,
+              in chronological order. The most recent user message should be
+              the last entry.
+    """
+    client = get_client()
+
+    full_messages = [{"role": "system", "content": system}] + messages
+
+    response = await client.chat.completions.create(
+        model=settings.llm_model,
+        messages=full_messages,
+        temperature=settings.llm_temperature,
+        max_completion_tokens=max_output_tokens,
+    )
+    return response.choices[0].message.content or ""

@@ -2,17 +2,18 @@ import * as React from "react"
 import { cn } from "@lib/utils"
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive' | 'outline';
   size?: 'sm' | 'md' | 'lg';
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
-    const baseClasses = "inline-flex items-center justify-center font-headline rounded transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:pointer-events-none";
+    const baseClasses = "inline-flex items-center justify-center font-headline rounded-[6px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:pointer-events-none";
     
     const variants = {
-      primary: "bg-primary text-white border-none hover:bg-primary-dark shadow-sm",
+      primary: "bg-primary text-white border-none hover:bg-primary-dark hover:-translate-y-[1px] shadow-sm",
       secondary: "bg-transparent text-primary border border-primary hover:bg-primary/5",
+      outline: "bg-transparent text-primary border border-primary hover:bg-primary/5",
       ghost: "bg-transparent text-secondary border-none hover:bg-primary-bg",
       destructive: "bg-error text-white border-none hover:bg-red-600 shadow-sm",
     };

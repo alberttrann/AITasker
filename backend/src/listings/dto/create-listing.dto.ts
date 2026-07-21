@@ -12,50 +12,34 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-
+// ServiceType is kept as enum — it's a fixed product type, not admin-configurable.
 enum ServiceType {
-  AI_SERVICE = 'AI_SERVICE',
+  AI_SERVICE     = 'AI_SERVICE',
   TECH_DISCOVERY = 'TECH_DISCOVERY',
 }
 
-enum DomainCode {
-  A = 'A',
-  B = 'B',
-  C = 'C',
-  D = 'D',
-  E = 'E',
-  F = 'F',
-}
-
-enum SeamCode {
-  A_C = 'A<->C',
-  A_F = 'A<->F',
-  A_D = 'A<->D',
-  D_E = 'D<->E',
-  D_F = 'D<->F',
-  C_F = 'C<->F',
-  E_F = 'E<->F',
-  A_B = 'A<->B',
-  B_E = 'B<->E',
-  C_E = 'C<->E',
-}
-
+// Filter DTO for GET /services?domain=...&seam=...
+// DomainCode and SeamCode are removed — any string is now valid.
 export class ListServicesFilterDto {
   @IsOptional()
   @IsEnum(ServiceType)
   serviceType?: ServiceType;
 
+  // Domain filter — any active domain code e.g. "A", "B", "G"
   @IsOptional()
   @IsArray()
-  @IsEnum(DomainCode, { each: true })
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true, message: 'each domain code must not be empty' })
   @Type(() => String)
-  domains?: DomainCode[];
+  domains?: string[];
 
+  // Seam filter — use ↔ arrow format e.g. "A↔C", "A↔D"
   @IsOptional()
   @IsArray()
-  @IsEnum(SeamCode, { each: true })
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true, message: 'each seam code must not be empty' })
   @Type(() => String)
-  seams?: SeamCode[];
+  seams?: string[];
 
   @IsOptional()
   @Type(() => Number)
@@ -72,19 +56,23 @@ export class ListServicesFilterDto {
 
 export class CreateListingDto {
   @IsEnum(ServiceType)
-  serviceType!: ServiceType;
+  serviceType: ServiceType;
 
+  // Domain codes the listing targets — any string validated against DB at service layer
   @IsOptional()
   @IsArray()
-  @IsEnum(DomainCode, { each: true })
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @Type(() => String)
-  domainsJson?: DomainCode[];
+  domainsJson?: string[];
 
+  // Seam codes the listing covers — use ↔ arrow format
   @IsOptional()
   @IsArray()
-  @IsEnum(SeamCode, { each: true })
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @Type(() => String)
-  seamsJson?: SeamCode[];
+  seamsJson?: string[];
 
   @IsOptional()
   @IsBoolean()

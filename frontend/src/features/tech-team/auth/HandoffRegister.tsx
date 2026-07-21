@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Input';
-import { Loader2, Copyright, UserCheck, LogOut } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/input';
+import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
+
+const passwordRules = [
+  { id: 'min', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { id: 'lower', label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+  { id: 'upper', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { id: 'num', label: 'One number', test: (p: string) => /[0-9]/.test(p) },
+  { id: 'special', label: 'One special character', test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
+];
 
 const loginSchema = Yup.object({
   password: Yup.string().required('Password is required.'),
@@ -18,8 +24,10 @@ const registerSchema = Yup.object({
     .min(2, 'Full name must be at least 2 characters.')
     .required('Full name is required.'),
   password: Yup.string()
-    .min(6, 'Password must be at least 6 characters.')
-    .required('Password is required.'),
+    .required('Password is required.')
+    .test('strong-password', 'Please satisfy all password rules.', value => {
+      return passwordRules.every(r => r.test(value || ''));
+    }),
   phone: Yup.string()
     .matches(/^[0-9+\-\s()]*$/, 'Please enter a valid phone number.')
     .nullable(),
@@ -41,14 +49,20 @@ function decodeJwt(token: string) {
 export function HandoffRegister() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, logout, user, setTokens, setUser } = useAuthStore();
-  const { registerHandoff } = useAuth();
+  const { isAuthenticated, logout, user, registerHandoff, loginNoRedirect, claimHandoff, verifyOtp, resendOtp } = useAuth();
   
   const [isLoginMode, setIsLoginMode] = useState(false);
+  const [isOtpMode, setIsOtpMode] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isSubmittingOtp, setIsSubmittingOtp] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -80,11 +94,7 @@ export function HandoffRegister() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const { data } = await apiClient.post('/auth/claim-handoff', {
-        invite_token: token,
-      });
-      setTokens(data.access_token, '');
-      setUser(data.user);
+      await claimHandoff.mutateAsync({ invite_token: token });
       navigate('/tech-team', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to claim invite. This link might be invalid or used.');
@@ -93,7 +103,40 @@ export function HandoffRegister() {
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length !== 6) {
+      setError('Please enter a valid 6-digit verification code.');
+      return;
+    }
+    setIsSubmittingOtp(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await verifyOtp.mutateAsync({ email, otp: otpCode });
+      // verifyOtp.onSuccess in use-auth.ts handles setTokens, setUser, and redirectByRole -> /tech-team
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      setError(typeof msg === 'string' ? msg : 'Invalid or expired verification code.');
+    } finally {
+      setIsSubmittingOtp(false);
+    }
+  };
 
+  const handleResendOtp = async () => {
+    setIsResending(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await resendOtp.mutateAsync({ email });
+      setSuccessMsg(`A fresh verification code has been sent to ${email}`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      setError(typeof msg === 'string' ? msg : 'Failed to resend verification code.');
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -104,11 +147,11 @@ export function HandoffRegister() {
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-indigo-900 via-[#1E1B4B] to-slate-900">
+    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-900 via-[#0F172A] to-slate-900">
       <div className="relative w-full max-w-4xl bg-white sm:rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in zoom-in-95 duration-200 flex flex-col md:flex-row overflow-hidden">
         
         {/* Left Side - Tech Team Visual */}
-        <div className="hidden md:flex md:w-1/2 relative bg-gradient-to-br from-blue-600 to-indigo-800 p-12 flex-col justify-between overflow-hidden">
+        <div className="hidden md:flex md:w-1/2 relative bg-gradient-to-br from-blue-600 to-blue-900 p-12 flex-col justify-between overflow-hidden">
           {/* Decorative shapes */}
           <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 rounded-full bg-white opacity-5 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-48 h-48 rounded-full bg-blue-400 opacity-20 blur-2xl"></div>
@@ -142,6 +185,11 @@ export function HandoffRegister() {
           {error && (
             <div className="mb-6 rounded-lg border border-error/20 bg-error/5 p-3 text-sm text-error text-center">
               {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="mb-6 rounded-lg border border-emerald-500/20 bg-emerald-50 p-3 text-sm text-emerald-700 text-center font-medium">
+              {successMsg}
             </div>
           )}
 
@@ -201,6 +249,75 @@ export function HandoffRegister() {
                 </button>
               </div>
             </div>
+          ) : isOtpMode ? (
+            /* OTP Verification Screen */
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <ShieldCheck size={32} />
+              </div>
+              
+              <div>
+                <h2 className="font-headline text-2xl font-bold text-slate-900 mb-2">
+                  Verify Your Email
+                </h2>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  We sent a 6-digit verification code to <strong className="text-slate-900">{email}</strong>. Enter it below to complete registration.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyOtp} className="space-y-4 text-left">
+                <div className="space-y-2">
+                  <Label htmlFor="otpCode">Verification Code</Label>
+                  <input
+                    id="otpCode"
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    className="w-full rounded-lg border bg-white px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors border-slate-200"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full py-3 font-bold"
+                  disabled={isSubmittingOtp || otpCode.length !== 6}
+                >
+                  {isSubmittingOtp ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Verifying...
+                    </span>
+                  ) : (
+                    'Verify & Complete Registration'
+                  )}
+                </Button>
+
+                <div className="flex flex-col items-center justify-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={isResending}
+                    onClick={handleResendOtp}
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors disabled:opacity-50"
+                  >
+                    {isResending ? 'Resending code...' : "Didn't receive code? Resend OTP"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOtpMode(false);
+                      setError(null);
+                      setSuccessMsg(null);
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-900 underline mt-1"
+                  >
+                    Back to registration
+                  </button>
+                </div>
+              </form>
+            </div>
           ) : (
             <>
               <div className="text-center md:text-left mb-8">
@@ -218,28 +335,35 @@ export function HandoffRegister() {
                 validationSchema={isLoginMode ? loginSchema : registerSchema}
                 onSubmit={async (values, { setSubmitting }) => {
                   setError(null);
+                  setSuccessMsg(null);
                   try {
                     if (isLoginMode) {
-                      const { data } = await apiClient.post('/auth/login', { email: values.email, password: values.password });
-                      setTokens(data.access_token, data.refresh_token ?? '');
-                      const { data: userData } = await apiClient.get('/users/me');
-                      setUser(userData);
+                      await loginNoRedirect.mutateAsync({ email: values.email, password: values.password });
                     } else {
-                      await registerHandoff.mutateAsync({
+                      const res = await registerHandoff.mutateAsync({
                         invite_token: token || '',
                         email: values.email,
                         fullName: values.fullName,
                         password: values.password,
                       });
+                      if (res?.message === 'OTP_SENT') {
+                        setIsOtpMode(true);
+                      }
                     }
                   } catch (err: any) {
-                    setError(err.response?.data?.message || `Failed to ${isLoginMode ? 'log in' : 'register'}. Please try again.`);
+                    const msg = err.response?.data?.message;
+                    if (msg === 'EMAIL_UNVERIFIED' || (typeof msg === 'object' && msg?.message === 'EMAIL_UNVERIFIED')) {
+                      setIsOtpMode(true);
+                      setError('Your email is not verified yet. A new verification code has been sent to your email.');
+                    } else {
+                      setError(typeof msg === 'string' ? msg : `Failed to ${isLoginMode ? 'log in' : 'register'}. Please try again.`);
+                    }
                   } finally {
                     setSubmitting(false);
                   }
                 }}
               >
-                {({ isSubmitting }) => (
+                {({ isSubmitting, resetForm }) => (
                   <Form className="space-y-4" noValidate>
                     <div className="space-y-2 text-left">
                       <Label htmlFor="email">Email</Label>
@@ -260,12 +384,16 @@ export function HandoffRegister() {
                       <div className="space-y-2 text-left">
                         <Label htmlFor="fullName">Full Name</Label>
                         <Field name="fullName">
-                          {({ field, meta }: any) => (
+                          {({ field, meta, form }: any) => (
                             <input
                               {...field}
                               id="fullName"
                               type="text"
                               placeholder="e.g. John Doe"
+                              onFocus={() => {
+                                setError(null);
+                                form.setFieldTouched(field.name, false);
+                              }}
                               className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
                             />
                           )}
@@ -277,29 +405,73 @@ export function HandoffRegister() {
                     <div className="space-y-2 text-left">
                       <Label htmlFor="password">Password</Label>
                       <Field name="password">
-                        {({ field, meta }: any) => (
-                          <input
-                            {...field}
-                            id="password"
-                            type="password"
-                            placeholder={isLoginMode ? 'Enter your password' : 'Create a password'}
-                            className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
-                          />
+                        {({ field, meta, form }: any) => (
+                          <>
+                          <div className="relative">
+                            <input
+                              {...field}
+                              id="password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder={isLoginMode ? 'Enter your password' : 'Create a password'}
+                              onFocus={() => {
+                                setError(null);
+                                form.setFieldTouched(field.name, false);
+                              }}
+                              className={`w-full rounded-lg border bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-5 w-5" />
+                              ) : (
+                                <Eye className="h-5 w-5" />
+                              )}
+                            </button>
+                          </div>
+                            {!isLoginMode && (
+                              (meta.touched && !!meta.error && !field.value) ? (
+                                <div className="mt-1 text-xs font-semibold text-error text-red-600">{meta.error}</div>
+                              ) : (
+                                field.value && !!meta.error ? (
+                                  <div className="mt-2 grid grid-cols-1 gap-1.5 px-1">
+                                    {passwordRules.filter(rule => !rule.test(field.value || '')).map(rule => (
+                                      <div key={rule.id} className="flex items-center gap-2 text-xs text-slate-500">
+                                        <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                        <span className="font-medium">
+                                          {rule.label}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null
+                              )
+                            )}
+                            {isLoginMode && (
+                              <ErrorMessage name="password" component="p" className="mt-1 text-xs font-semibold text-error text-red-600" />
+                            )}
+                          </>
                         )}
                       </Field>
-                      <ErrorMessage name="password" component="p" className="mt-1 text-xs font-semibold text-error text-red-600" />
                     </div>
 
                     {!isLoginMode && (
                       <div className="space-y-2 text-left">
                         <Label htmlFor="phone">Phone (Optional)</Label>
                         <Field name="phone">
-                          {({ field, meta }: any) => (
+                          {({ field, meta, form }: any) => (
                             <input
                               {...field}
                               id="phone"
                               type="tel"
                               placeholder="+84..."
+                              onFocus={() => {
+                                setError(null);
+                                form.setFieldTouched(field.name, false);
+                              }}
                               className={`w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors ${meta.touched && meta.error ? 'border-error' : 'border-slate-200'}`}
                             />
                           )}
@@ -329,6 +501,8 @@ export function HandoffRegister() {
                         onClick={() => {
                           setIsLoginMode(!isLoginMode);
                           setError(null);
+                          setSuccessMsg(null);
+                          resetForm();
                         }}
                         className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                       >

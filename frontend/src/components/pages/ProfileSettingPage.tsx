@@ -3,13 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Pencil, X, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
-import { useAuthStore } from '@/store/auth.store';
-import apiClient from '@/lib/api-client';
 
 export default function ProfileSettingPage() {
   const { user } = useAuth();
-  const { updateProfile, verifyTaxCode } = useUser();
-  const store = useAuthStore();
+  const { updateProfile, updateExpertProfile, verifyTaxCode } = useUser();
   const navigate = useNavigate();
 
   // ── State Management ──
@@ -88,11 +85,11 @@ export default function ProfileSettingPage() {
     setErrorMsg(null);
     try {
       if (field === 'companyName') {
-        await updateProfile.mutateAsync({ companyName: newValue, taxCode: '' });
+        await updateProfile.mutateAsync({ companyName: newValue });
         setOriginalValues((prev) => ({ ...prev, companyName: newValue }));
         setFormValues((prev) => ({ ...prev, companyName: newValue }));
       } else if (field === 'bio') {
-        await apiClient.put('/expert-profile/me', { bio: newValue });
+        await updateExpertProfile.mutateAsync({ bio: newValue });
         setOriginalValues((prev) => ({ ...prev, bio: newValue }));
         setFormValues((prev) => ({ ...prev, bio: newValue }));
       } else {
@@ -222,7 +219,7 @@ export default function ProfileSettingPage() {
     
     setErrorMsg(null);
     try {
-      await updateProfile.mutateAsync({ companyName: taxStatus.companyName, taxCode: taxStatus.taxCodeValue });
+      await updateProfile.mutateAsync({ companyName: taxStatus.companyName });
       setOriginalValues((prev) => ({ ...prev, companyName: taxStatus.companyName! }));
       setFormValues((prev) => ({ ...prev, companyName: taxStatus.companyName! }));
       setTaxStatus({ verified: false, companyName: null, taxCodeValue: null, loading: false, error: false });
@@ -234,14 +231,14 @@ export default function ProfileSettingPage() {
   };
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
         
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => navigate(-1)}
-              className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+              className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
               aria-label="Go back"
             >
               <ArrowLeft size={20} />
@@ -267,7 +264,7 @@ export default function ProfileSettingPage() {
             {renderEditableRow("Phone Number", "phone", "tel")}
           </div>
 
-          {user?.activeRole === 'CLIENT' && (
+          {user?.activeRole === 'CLIENT' && user?.clientSubtype !== 'TECH_TEAM' && (
             <>
               <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
                 <h2 className="text-sm font-semibold text-slate-900">Company Information</h2>
@@ -293,7 +290,7 @@ export default function ProfileSettingPage() {
             </>
           )}
 
-          {user?.activeRole === 'CLIENT' && (
+          {user?.activeRole === 'CLIENT' && user?.clientSubtype !== 'TECH_TEAM' && (
             <>
               <div className="px-6 py-4 border-y border-slate-200 bg-slate-50 mt-4">
                 <h2 className="text-sm font-semibold text-slate-900">Tax Verification</h2>

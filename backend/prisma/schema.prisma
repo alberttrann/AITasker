@@ -10,48 +10,59 @@ datasource db {
 }
 
 model User {
-  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                  String    @unique
-  passwordHash           String    @map("password_hash")
-  fullName               String    @map("full_name")
-  phone                  String?
-  roles                  Json      @default("[]")
-  activeRole             String    @default("CLIENT") @map("active_role")
-  clientSubtype          String?   @map("client_subtype")
-  subscriptionClientTier String    @default("free") @map("subscription_client_tier")
-  subscriptionExpertTier String    @default("free") @map("subscription_expert_tier")
-  subClientExpiresAt     DateTime? @map("sub_client_expires_at") @db.Timestamptz(6)
-  subExpertExpiresAt     DateTime? @map("sub_expert_expires_at") @db.Timestamptz(6)
-  sepayBankAccountXid    String?   @map("sepay_bank_account_xid")
-  bankAccountHolderName  String?   @map("bank_account_holder_name")
-  bankLinkedAt           DateTime? @map("bank_linked_at") @db.Timestamptz(6)
-  selfTechnical          Boolean   @default(false) @map("self_technical")
-  selfTechnicalProjects  Json      @default("[]") @map("self_technical_projects")
-  isActive               Boolean   @default(true) @map("is_active")
-  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                       String    @unique
+  passwordHash                String    @map("password_hash")
+  fullName                    String    @map("full_name")
+  phone                       String?
+  roles                       Json      @default("[]")
+  activeRole                  String    @default("CLIENT") @map("active_role")
+  clientSubtype               String?   @map("client_subtype")
+  subscriptionClientTier      String    @default("free") @map("subscription_client_tier")
+  subscriptionExpertTier      String    @default("free") @map("subscription_expert_tier")
+  subClientExpiresAt          DateTime? @map("sub_client_expires_at") @db.Timestamptz(6)
+  subExpertExpiresAt          DateTime? @map("sub_expert_expires_at") @db.Timestamptz(6)
+  sepayBankAccountXid         String?   @map("sepay_bank_account_xid")
+  bankAccountHolderName       String?   @map("bank_account_holder_name")
+  bankLinkedAt                DateTime? @map("bank_linked_at") @db.Timestamptz(6)
+  selfTechnical               Boolean   @default(false) @map("self_technical")
+  selfTechnicalProjects       Json      @default("[]") @map("self_technical_projects")
+  isActive                    Boolean   @default(true) @map("is_active")
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  passwordResetToken          String?   @map("password_reset_token")
+  passwordResetTokenExpiresAt DateTime? @map("password_reset_token_expires_at") @db.Timestamptz(6)
 
+  isEmailVerified          Boolean                   @default(false) @map("is_email_verified")
+  emailOtp                 String?                   @map("email_otp")
+  emailOtpExpiresAt        DateTime?                 @map("email_otp_expires_at") @db.Timestamptz(6)
   // Relations
-  clientProfile        ClientProfile?
-  expertProfile        ExpertProfile?
-  techTeamProfile      TechTeamProfile?
-  wallet               Wallet?
-  elicitationSessions  ElicitationSession[]
-  clientProjects       Project[]             @relation("ClientProjects")
-  expertEngagements    Engagement[]          @relation("ExpertEngagements")
-  clientEngagements    Engagement[]          @relation("ClientEngagements")
-  expertServices       Service[]
-  expertDomainDepths   ExpertDomainDepth[]
-  expertSeamClaims     ExpertSeamClaim[]
-  portfolioSubmissions PortfolioSubmission[]
-  withdrawalRequests   WithdrawalRequest[]
-  linkedTechTeams      TechTeamProfile[]     @relation("LinkedClient")
-  sentMessages         Message[]
-  messageReads         MessageRead[]
-  reviewsWritten       Review[]              @relation("ReviewsWritten")
-  reviewsReceived      Review[]              @relation("ReviewsReceived")
-  milestonesSubmitted  MilestoneSubmission[]
-  disputesFiled    Dispute[] @relation("DisputeFiler")
-  disputesResolved  Dispute[] @relation("DisputeResolver")
+  clientProfile            ClientProfile?
+  expertProfile            ExpertProfile?
+  techTeamProfile          TechTeamProfile?
+  wallet                   Wallet?
+  elicitationSessions      ElicitationSession[]
+  clientProjects           Project[]                 @relation("ClientProjects")
+  expertEngagements        Engagement[]              @relation("ExpertEngagements")
+  clientEngagements        Engagement[]              @relation("ClientEngagements")
+  expertServices           Service[]
+  expertDomainDepths       ExpertDomainDepth[]
+  expertSeamClaims         ExpertSeamClaim[]
+  portfolioSubmissions     PortfolioSubmission[]
+  withdrawalRequests       WithdrawalRequest[]
+  linkedTechTeams          TechTeamProfile[]         @relation("LinkedClient")
+  sentMessages             Message[]
+  messageReads             MessageRead[]
+  reviewsWritten           Review[]                  @relation("ReviewsWritten")
+  reviewsReceived          Review[]                  @relation("ReviewsReceived")
+  milestonesSubmitted      MilestoneSubmission[]
+  disputesFiled            Dispute[]                 @relation("DisputeFiler")
+  disputesResolved         Dispute[]                 @relation("DisputeResolver")
+  subscriptionPurchaseLogs SubscriptionPurchaseLog[]
+  milestoneChatSessions    MilestoneChatSession[]
+  invitationsReceived      Invitation[]              @relation("InvitationExpert")
+  invitationsSent          Invitation[]              @relation("InvitationCeo")
+  notifications            Notification[]
+  refreshTokenHash         String?                   @map("refresh_token_hash")
 
   @@index([activeRole])
   @@map("users")
@@ -135,18 +146,18 @@ model VirtualAccount {
 }
 
 model WithdrawalRequest {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expertId       String    @map("expert_id") @db.Uuid
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expertId       String     @map("expert_id") @db.Uuid
   type           String
   amount         BigInt
-  bankAccountXid String    @map("bank_account_xid")
-  disbursementId String?   @map("disbursement_id")
-  status         String    @default("PENDING")
-  requestedAt    DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
-  confirmedAt    DateTime? @map("confirmed_at") @db.Timestamptz(6)
-  milestoneId    String?   @map("milestone_id") @db.Uuid
+  bankAccountXid String     @map("bank_account_xid")
+  disbursementId String?    @map("disbursement_id")
+  status         String     @default("PENDING")
+  requestedAt    DateTime   @default(now()) @map("requested_at") @db.Timestamptz(6)
+  confirmedAt    DateTime?  @map("confirmed_at") @db.Timestamptz(6)
+  milestoneId    String?    @map("milestone_id") @db.Uuid
   milestone      Milestone? @relation(fields: [milestoneId], references: [id])
-  expert         User      @relation(fields: [expertId], references: [id])
+  expert         User       @relation(fields: [expertId], references: [id])
 
   @@index([expertId])
   @@index([status])
@@ -164,27 +175,30 @@ model PlatformSettings {
 }
 
 model ElicitationSession {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  currentStage Int      @default(1) @map("current_stage")
-  archetype    String?
-  scenarioType String?  @map("scenario_type")
-  voidListJson Json     @default("[]") @map("void_list_json")
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                    String    @map("user_id") @db.Uuid
+  currentStage              Int       @default(1) @map("current_stage")
+  archetype                 String?
+  scenarioType              String?   @map("scenario_type")
+  voidListJson              Json      @default("[]") @map("void_list_json")
   // Stage payload columns — persisted per stage, assembled for Stage 5 
-  stage1SymptomsJson   Json?    @map("stage1_symptoms_json")   
-  stage3ProbesJson     Json?    @map("stage3_probes_json")     
-  stage4TechInputsJson Json?    @map("stage4_tech_inputs_json") 
-  state        String   @default("IN_PROGRESS")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  stage1SymptomsJson        Json?     @map("stage1_symptoms_json")
+  stage3ProbesJson          Json?     @map("stage3_probes_json")
+  stage4TechInputsJson      Json?     @map("stage4_tech_inputs_json")
+  state                     String    @default("IN_PROGRESS")
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   handoffTokenJti           String?   @map("handoff_token_jti")
   handoffConsumedAt         DateTime? @map("handoff_consumed_at") @db.Timestamptz(6)
   recommendedArchetypesJson Json?     @map("recommended_archetypes_json")
   symptomTextDraft          String?   @map("symptom_text_draft")
+  stage1OriginalInput       String?   @map("stage1_original_input")
+  stage4DraftJson           Json?     @map("stage4_draft_json")
+  estimatedBudgetVnd        BigInt?   @map("estimated_budget_vnd")
+  criticalArtifactsJson     Json?     @map("critical_artifacts_json")
 
   user    User     @relation(fields: [userId], references: [id])
   project Project?
-  
 
   @@index([userId])
   @@index([state])
@@ -192,27 +206,31 @@ model ElicitationSession {
 }
 
 model Project {
-  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientId               String              @map("client_id") @db.Uuid
-  elicitationSessionId   String?             @unique @map("elicitation_session_id") @db.Uuid
-  projectName            String?             @map("project_name")
-  state                  String              @default("PUBLISHED")
-  archetype              String?
-  tier                   String?
-  selfTechnical          Boolean  @default(false) @map("self_technical")
-  requiredSeamsJson      Json     @default("[]") @map("required_seams_json")
-  requiredDomainsJson    Json     @default("[]") @map("required_domains_json")
-  milestoneFrameworkJson Json     @default("[]") @map("milestone_framework_json")
-  artifactAJson          Json?    @map("artifact_a_json")
-  artifactBJson          Json?    @map("artifact_b_json")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId                   String   @map("client_id") @db.Uuid
+  elicitationSessionId       String?  @unique @map("elicitation_session_id") @db.Uuid
+  projectName                String?  @map("project_name")
+  state                      String   @default("PUBLISHED")
+  archetype                  String?
+  tier                       String?
+  selfTechnical              Boolean  @default(false) @map("self_technical")
+  requiredSeamsJson          Json     @default("[]") @map("required_seams_json")
+  requiredDomainsJson        Json     @default("[]") @map("required_domains_json")
+  milestoneFrameworkJson     Json     @default("[]") @map("milestone_framework_json")
+  artifactAJson              Json?    @map("artifact_a_json")
+  artifactBJson              Json?    @map("artifact_b_json")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  estimatedTotalCostVnd      BigInt?  @map("estimated_total_cost_vnd")
+  estimatedTotalDurationDays Int?     @map("estimated_total_duration_days")
 
-  client             User                @relation("ClientProjects", fields: [clientId], references: [id])
-  elicitationSession ElicitationSession? @relation(fields: [elicitationSessionId], references: [id])
-  techTeamProfiles   TechTeamProfile[]
-  engagements        Engagement[]
-  messages           Message[]
-  shortlistCache     ProjectShortlistCache?
+  client                User                   @relation("ClientProjects", fields: [clientId], references: [id])
+  elicitationSession    ElicitationSession?    @relation(fields: [elicitationSessionId], references: [id])
+  techTeamProfiles      TechTeamProfile[]
+  engagements           Engagement[]
+  messages              Message[]
+  shortlistCache        ProjectShortlistCache?
+  milestoneChatSessions MilestoneChatSession[]
+  invitations           Invitation[]
 
   @@index([clientId])
   @@index([state])
@@ -279,8 +297,8 @@ model PortfolioSubmission {
 }
 
 model Service {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expertId    String       @map("expert_id") @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expertId    String   @map("expert_id") @db.Uuid
   title       String
   description String?
   domainsJson Json     @default("[]") @map("domains_json")
@@ -353,19 +371,25 @@ model CapabilityBid {
 }
 
 model Milestone {
-  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  engagementId         String    @map("engagement_id") @db.Uuid
-  milestoneNumber      Int       @map("milestone_number")
-  deliverableStatement String?   @map("deliverable_statement")
-  signOffAuthority     String    @map("sign_off_authority")
-  paymentAmountVnd     BigInt    @map("payment_amount_vnd")
-  state                String    @default("DEFINED")
-  vaNumber             String?   @map("va_number")
-  vaExpiresAt          DateTime? @map("va_expires_at") @db.Timestamptz(6)
-  fundedAt             DateTime? @map("funded_at") @db.Timestamptz(6)
-  submittedAt          DateTime? @map("submitted_at") @db.Timestamptz(6)
-  approvedAt           DateTime? @map("approved_at") @db.Timestamptz(6)
-  releasedAt           DateTime? @map("released_at") @db.Timestamptz(6)
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  engagementId          String    @map("engagement_id") @db.Uuid
+  milestoneNumber       Int       @map("milestone_number")
+  deliverableStatement  String?   @map("deliverable_statement")
+  signOffAuthority      String    @map("sign_off_authority")
+  paymentAmountVnd      BigInt    @map("payment_amount_vnd")
+  state                 String    @default("DEFINED")
+  vaNumber              String?   @map("va_number")
+  vaExpiresAt           DateTime? @map("va_expires_at") @db.Timestamptz(6)
+  fundedAt              DateTime? @map("funded_at") @db.Timestamptz(6)
+  submittedAt           DateTime? @map("submitted_at") @db.Timestamptz(6)
+  approvedAt            DateTime? @map("approved_at") @db.Timestamptz(6)
+  releasedAt            DateTime? @map("released_at") @db.Timestamptz(6)
+  title                 String?
+  estimatedDurationDays Int?      @map("estimated_duration_days")
+  techStackJson         Json      @default("[]") @map("tech_stack_json")
+  estimatedCostVnd      BigInt?   @map("estimated_cost_vnd")
+  isAiGenerated         Boolean   @default(false) @map("is_ai_generated")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   engagement         Engagement            @relation(fields: [engagementId], references: [id])
   acceptanceCriteria AcceptanceCriterion[]
@@ -375,6 +399,7 @@ model Milestone {
   escrowAccounts     EscrowAccount[]       @relation("MilestoneEscrow")
   disputes           Dispute[]
   withdrawalRequests WithdrawalRequest[]
+
   @@unique([engagementId, milestoneNumber])
   @@index([engagementId])
   @@index([state])
@@ -382,16 +407,19 @@ model Milestone {
 }
 
 model AcceptanceCriterion {
-  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  milestoneId    String             @map("milestone_id") @db.Uuid
-  criterionText  String             @map("criterion_text")
-  isRequired     Boolean            @default(true) @map("is_required")
-  verifiedByRole String             @map("verified_by_role")
-  verifiedAt     DateTime?          @map("verified_at") @db.Timestamptz(6)
-  revisionNote   String?            @map("revision_note")
-  milestone      Milestone          @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
-  disputes       Dispute[]
-  dodItems       MilestoneDodItem[]
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  milestoneId             String             @map("milestone_id") @db.Uuid
+  criterionText           String             @map("criterion_text")
+  isRequired              Boolean            @default(true) @map("is_required")
+  verifiedByRole          String             @map("verified_by_role")
+  verifiedAt              DateTime?          @map("verified_at") @db.Timestamptz(6)
+  techVerifiedAt          DateTime?          @map("tech_verified_at") @db.Timestamptz(6)
+  ceoVerifiedAt           DateTime?          @map("ceo_verified_at") @db.Timestamptz(6)
+  revisionNote            String?            @map("revision_note")
+  revisionRequestedByRole String?            @map("revision_requested_by_role")
+  milestone               Milestone          @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  disputes                Dispute[]
+  dodItems                MilestoneDodItem[]
 
   @@index([milestoneId])
   @@map("acceptance_criteria")
@@ -474,6 +502,8 @@ model Dispute {
   filedBy         String    @map("filed_by") @db.Uuid
   state           String    @default("PENDING")
   llmConfidence   Float?    @map("llm_confidence")
+  resolution      String?   @map("resolution")
+  llmReasoning    String?   @map("llm_reasoning")
   filedAt         DateTime  @default(now()) @map("filed_at") @db.Timestamptz(6)
   resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
   resolvedBy      String?   @map("resolved_by") @db.Uuid
@@ -484,7 +514,6 @@ model Dispute {
   milestone     Milestone?          @relation(fields: [milestoneId], references: [id])
   criterion     AcceptanceCriterion @relation(fields: [criterionId], references: [id])
   escrowAccount EscrowAccount       @relation(fields: [escrowAccountId], references: [id])
-  
 
   @@index([engagementId])
   @@index([state])
@@ -493,16 +522,16 @@ model Dispute {
 }
 
 model Message {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  engagementId  String?  @map("engagement_id") @db.Uuid    
-  projectId     String?  @map("project_id") @db.Uuid         
-  senderId      String   @map("sender_id") @db.Uuid
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  engagementId  String?       @map("engagement_id") @db.Uuid
+  projectId     String?       @map("project_id") @db.Uuid
+  senderId      String        @map("sender_id") @db.Uuid
   content       String
-  attachmentUrl String?  @map("attachment_url")
-  timestamp     DateTime @default(now()) @db.Timestamptz(6)
-  project       Project?    @relation(fields: [projectId], references: [id])
-  engagement    Engagement? @relation(fields: [engagementId], references: [id])
-  sender        User        @relation(fields: [senderId], references: [id])
+  attachmentUrl String?       @map("attachment_url")
+  timestamp     DateTime      @default(now()) @db.Timestamptz(6)
+  project       Project?      @relation(fields: [projectId], references: [id])
+  engagement    Engagement?   @relation(fields: [engagementId], references: [id])
+  sender        User          @relation(fields: [senderId], references: [id])
   reads         MessageRead[]
 
   @@index([engagementId, timestamp(sort: Asc)])
@@ -558,4 +587,194 @@ model PlatformDecision {
   @@index([createdAt(sort: Desc)])
   @@index([entityType, entityId])
   @@map("platform_decisions")
+}
+
+// CMS / Config Tables
+
+model DomainDefinition {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String           @unique
+  name           String
+  description    String?
+  isActive       Boolean          @default(true) @map("is_active")
+  sortOrder      Int              @default(0) @map("sort_order")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  seamsAsDomain1 SeamDefinition[] @relation("SeamDomain1")
+  seamsAsDomain2 SeamDefinition[] @relation("SeamDomain2")
+
+  @@map("domain_definitions")
+}
+
+model SeamDefinition {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String           @unique
+  domainCode1 String           @map("domain_code_1") // Foreign Key to DomainDefinition.code
+  domainCode2 String           @map("domain_code_2") // Foreign Key to DomainDefinition.code
+  name        String
+  description String?
+  isActive    Boolean          @default(true) @map("is_active")
+  sortOrder   Int              @default(0) @map("sort_order")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // Enforced relations at the DB level
+  domain1     DomainDefinition @relation("SeamDomain1", fields: [domainCode1], references: [code])
+  domain2     DomainDefinition @relation("SeamDomain2", fields: [domainCode2], references: [code])
+
+  // Composite unique constraint ensures no duplicate inverse seams (e.g. blocking "C↔A" if "A↔C" exists)
+  @@unique([domainCode1, domainCode2])
+  @@index([domainCode1])
+  @@index([domainCode2])
+  @@map("seam_definitions")
+}
+
+model ArchetypeDefinition {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String          @unique
+  name           String
+  description    String?
+  isActive       Boolean         @default(true) @map("is_active")
+  sortOrder      Int             @default(0) @map("sort_order")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  probeQuestions ProbeQuestion[]
+
+  @@map("archetype_definitions")
+}
+
+model ProbeQuestion {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  archetypeCode String              @map("archetype_code")
+  questionText  String              @map("question_text")
+  displayOrder  Int                 @default(0) @map("display_order")
+  isActive      Boolean             @default(true) @map("is_active")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archetype     ArchetypeDefinition @relation(fields: [archetypeCode], references: [code])
+
+  @@index([archetypeCode])
+  @@map("probe_questions")
+}
+
+// Admin-configurable subscription packages
+model SubscriptionPackage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role           String // 'CLIENT' | 'EXPERT'
+  name           String // e.g. "Client Pro"
+  priceVnd       BigInt   @map("price_vnd")
+  durationMonths Int      @map("duration_months")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  purchaseLogs SubscriptionPurchaseLog[]
+
+  @@map("subscription_packages")
+}
+
+model VoidCodeDefinition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique // e.g. "NO_GROUND_TRUTH"
+  name        String // short human-readable label
+  description String
+  severity    String   @default("MEDIUM") // HIGH | MEDIUM | LOW
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("void_code_definitions")
+}
+
+// Falls back to .txt files on disk if no DB record exists for a stage.
+model PromptTemplate {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stage        String   @unique // e.g. "stage1_extract", "stage5_synthesize"
+  templateText String   @map("template_text")
+  description  String? // human-readable note for admin UI
+  version      Int      @default(1)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("prompt_templates")
+}
+
+// History of subscription purchases per user
+model SubscriptionPurchaseLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  packageId     String   @map("package_id") @db.Uuid
+  role          String
+  amountPaidVnd BigInt   @map("amount_paid_vnd")
+  purchasedAt   DateTime @default(now()) @map("purchased_at") @db.Timestamptz(6)
+  expiresAt     DateTime @map("expires_at") @db.Timestamptz(6)
+  paymentMethod String   @default("WALLET") @map("payment_method")
+
+  user    User                @relation(fields: [userId], references: [id])
+  package SubscriptionPackage @relation(fields: [packageId], references: [id])
+
+  @@index([userId])
+  @@map("subscription_purchase_logs")
+}
+
+// E-3: Persistent multi-turn milestone chat sessions
+model MilestoneChatSession {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId    String   @map("project_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  // Auto-generated title e.g. "Chat · 08/07/2026" — editable later
+  title        String?
+  // Stored as [{role:"user"|"assistant", content:"..."}]
+  messagesJson Json     @default("[]") @map("messages_json")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("milestone_chat_sessions")
+}
+
+model Invitation {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String    @map("project_id") @db.Uuid
+  expertId    String    @map("expert_id") @db.Uuid
+  ceoId       String    @map("ceo_id") @db.Uuid
+  // Optional personal message the CEO typed when inviting
+  message     String?
+  status      String    @default("PENDING")
+  invitedAt   DateTime  @default(now()) @map("invited_at") @db.Timestamptz(6)
+  // Set when expert accepts (bids) or declines
+  respondedAt DateTime? @map("responded_at") @db.Timestamptz(6)
+  // 7-day window; background job or query-time check marks as EXPIRED
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  expert  User    @relation("InvitationExpert", fields: [expertId], references: [id])
+  ceo     User    @relation("InvitationCeo", fields: [ceoId], references: [id])
+
+  // One invitation per (project, expert) pair - re-inviting resets it via upsert
+  @@unique([projectId, expertId], name: "projectId_expertId")
+  @@index([expertId])
+  @@index([projectId])
+  @@map("invitations")
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String // "bid_update", "system", "milestone_update"
+  title     String
+  body      String?
+  link      String?
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
 }

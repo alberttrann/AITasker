@@ -14,7 +14,7 @@ describe('T17: WebSocket Frontend-Backend Contract (Safety Lock)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let eventEmitter: EventEmitter2;
-  
+
   let elicitationService: ElicitationService;
   let engagementsService: EngagementsService;
   let bidsService: BidsService;
@@ -59,7 +59,7 @@ describe('T17: WebSocket Frontend-Backend Contract (Safety Lock)', () => {
 
     prisma = module.get<PrismaService>(PrismaService);
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
-    
+
     elicitationService = module.get<ElicitationService>(ElicitationService);
     engagementsService = module.get<EngagementsService>(EngagementsService);
     bidsService = module.get<BidsService>(BidsService);
@@ -92,7 +92,7 @@ describe('T17: WebSocket Frontend-Backend Contract (Safety Lock)', () => {
 
     // Seed Tech Team
     const techRes = await DbSeeder.seedUser(prisma as any, {
-      id: '00000000-0000-0000-0000-111100000017', 
+      id: '00000000-0000-0000-0000-111100000017',
       email: 'tech-ws@test.com',
       activeRole: 'CLIENT',
       clientSubtype: 'TECH_TEAM',
@@ -110,7 +110,7 @@ describe('T17: WebSocket Frontend-Backend Contract (Safety Lock)', () => {
         state: 'IN_PROGRESS',
         stage1SymptomsJson: ['dummy'],
         archetype: '1',
-        stage3ProbesJson: { 'q': 'a' },
+        stage3ProbesJson: { q: 'a' },
       },
     });
     sessionId = session.id;
@@ -189,7 +189,7 @@ describe('T17: WebSocket Frontend-Backend Contract (Safety Lock)', () => {
     await bidsService.techReview(
       bidId,
       { id: techId, activeRole: 'CLIENT', clientSubtype: 'TECH_TEAM' },
-      { action: 'APPROVED' as any }, 
+      { action: 'APPROVED' as any },
     );
 
     expect(emitSpy).toHaveBeenCalledWith(
@@ -211,17 +211,21 @@ describe('T17: WebSocket Frontend-Backend Contract (Safety Lock)', () => {
     await bidsService.ceoDecision(
       bidId,
       { id: ceoId, activeRole: 'CLIENT', clientSubtype: 'CEO' },
-      { decision: 'APPROVED' as any }, 
+      { decision: 'APPROVED' as any },
     );
 
     // Expert connects
     await engagementsService.acceptConnect(engagementId, {
-      id: expertId, activeRole: 'EXPERT', clientSubtype: null,
+      id: expertId,
+      activeRole: 'EXPERT',
+      clientSubtype: null,
     });
 
     // CEO signs NDA -> Triggers full connection
     await engagementsService.acceptNda(engagementId, {
-      id: ceoId, activeRole: 'CLIENT', clientSubtype: 'CEO',
+      id: ceoId,
+      activeRole: 'CLIENT',
+      clientSubtype: 'CEO',
     });
 
     expect(emitSpy).toHaveBeenCalledWith(

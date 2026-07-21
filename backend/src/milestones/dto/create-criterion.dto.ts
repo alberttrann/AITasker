@@ -1,6 +1,4 @@
-import {
-  IsString, IsNotEmpty, IsBoolean, IsOptional,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
 
 export class CreateCriterionDto {
   @IsString({ message: 'criterion_text must be a valid string.' })

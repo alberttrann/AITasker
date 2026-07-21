@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { TransactionType } from '@common/enums/transaction-type.enum';
@@ -71,5 +71,39 @@ export class WithdrawalsService {
       orderBy: { requestedAt: 'desc' },
     });
     return requests.map((r) => ({ ...r, amount: Number(r.amount) }));
+  }
+
+  async cancelWithdrawal(withdrawalId: string, expertUserId: string) {
+    const request = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: withdrawalId },
+    });
+    if (!request) throw new NotFoundException('Withdrawal request not found.');
+    if (request.expertId !== expertUserId) throw new ForbiddenException('Not your withdrawal.');
+    if (request.status !== 'PENDING') {
+      throw new UnprocessableEntityException(
+        `Cannot cancel a withdrawal in status '${request.status}'.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.withdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: { status: 'CANCELLED' },
+      });
+      // Refund wallet
+      await tx.wallet.update({
+        where: { userId: expertUserId },
+        data: { availableBalance: { increment: BigInt(request.amount) } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: (await tx.wallet.findUnique({ where: { userId: expertUserId }, select: { id: true } }))!.id,
+          amount: BigInt(request.amount),
+          transactionType: 'WITHDRAWAL_REFUND' as any,
+          referenceId: `WD-CANCEL-${withdrawalId}`,
+        },
+      });
+      return { cancelled: true, refundedAmount: Number(request.amount) };
+    });
   }
 }

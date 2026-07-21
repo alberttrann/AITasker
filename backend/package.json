@@ -18,6 +18,7 @@
     "test:unit": "jest --config jest.unit.config.js --passWithNoTests",
     "test:all": "npm run test:unit && npm run test:e2e",
     "validate": "bash ../scripts/validate.sh",
+    "simulate:webhook": "npx tsx simulate_milestone_payment.ts",
     "swagger:gen": "ts-node -e \"require('./src/swagger-gen').generate()\" > swagger.json",
     "test:e2e": "dotenv -e .env.test -- jest --config jest.e2e.config.js --forceExit --runInBand --passWithNoTests",
     "test:e2e:watch": "dotenv -e .env.test -- jest --config jest.e2e.config.js --watch --forceExit --runInBand --passWithNoTests",
@@ -28,7 +29,8 @@
     "db:studio": "prisma studio",
     "db:seed": "psql $DATABASE_URL -f prisma/migrations/010_seed_dev_ready.sql",
     "db:setup": "npm run db:push && npm run db:seed && npm run db:generate",
-    "db:reset": "prisma db push --force-reset && npm run db:seed && npm run db:generate"
+    "db:reset": "prisma db push --force-reset && npm run db:seed && npm run db:generate",
+    "simulate:ipn": "ts-node -r tsconfig-paths/register scripts/simulate_sepay_ipn.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.2",
@@ -51,6 +53,8 @@
     "date-fns": "^4.4.0",
     "jsonwebtoken": "^9.0.3",
     "nanoid": "^3.3.12",
+    "node-email-verifier": "^4.0.0",
+    "nodemailer": "^9.0.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "redis": "^4.6.10",
@@ -68,6 +72,7 @@
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.43",
+    "@types/nodemailer": "^8.0.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^7.4.0",

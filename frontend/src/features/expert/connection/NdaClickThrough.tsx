@@ -1,7 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -16,38 +14,8 @@ import {
 } from 'lucide-react';
 import type { EngagementDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements/:id */
-function useEngagement(id: string | undefined) {
-  return useQuery({
-    queryKey: ['engagements', id],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto>(`/engagements/${id}`);
-      return data;
-    },
-    enabled: !!id,
-    staleTime: 15_000,
-    refetchInterval: 5_000, // Poll for CEO's signature
-  });
-}
-
-/** POST /engagements/:id/connect — NO body */
-function useAcceptConnect() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (engagementId: string) => {
-      const { data } = await apiClient.post(
-        `/engagements/${engagementId}/connect`
-      );
-      return data;
-    },
-    onSuccess: (_, engagementId) => {
-      qc.invalidateQueries({ queryKey: ['engagements', engagementId] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useEngagement, useAcceptConnect } from '@/hooks/use-engagements';
+import AcceptedOfferSummary from '@/components/bids/AcceptedOfferSummary';
 
 // ── NDA text ─────────────────────────────────────────────────────
 
@@ -92,13 +60,25 @@ export default function ExpertNdaClickThrough() {
 
   // ── Scroll detection ───────────────────────────────────────────
 
-  const handleScroll = useCallback(() => {
+  const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 50) {
+    const contentFits = el.scrollHeight <= el.clientHeight + 1;
+    if (contentFits || el.scrollHeight - el.scrollTop - el.clientHeight < 50) {
       setHasScrolledToBottom(true);
     }
   }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    updateScrollState();
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(el);
+
+    return () => resizeObserver.disconnect();
+  }, [engagement, updateScrollState]);
 
   // ── Sign handler ───────────────────────────────────────────────
 
@@ -164,8 +144,9 @@ export default function ExpertNdaClickThrough() {
         </p>
         <Button
           variant="primary"
+          className="cursor-pointer"
           onClick={() =>
-            navigate(`/engagements/${engagementId}/messages`)
+            navigate(`/expert/engagements/${engagementId}/messages`)
           }
         >
           Open Messages
@@ -194,16 +175,15 @@ export default function ExpertNdaClickThrough() {
   // ── Render: CEO signed, expert needs to sign ───────────────────
 
   return (
-    <div className="mx-auto max-w-[640px] space-y-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button>
-
-      <div>
+    <div className="mx-auto max-w-[768px] space-y-4 pb-8">
+      <div className="shrink-0">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer mb-2"
+          aria-label="Go back"
+        >
+          <ArrowLeft size={20} />
+        </button>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
           Non-Disclosure Agreement
         </h1>
@@ -214,7 +194,7 @@ export default function ExpertNdaClickThrough() {
 
       {/* Already signed by Expert */}
       {alreadySigned && (
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3 shrink-0">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
           <div>
             <p className="text-[14px] font-medium text-[#16A34A]">
@@ -239,19 +219,27 @@ export default function ExpertNdaClickThrough() {
 
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3 shrink-0">
           <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
 
+      <AcceptedOfferSummary
+        offer={engagement.capabilityBid?.acceptedOffer}
+        termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
+      />
+
       {/* NDA text */}
-      <Card>
-        <CardContent className="p-0">
+      <Card className="flex h-[clamp(320px,45vh,480px)] flex-col overflow-hidden">
+        <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
           <div
+            id="nda-agreement-scroll-expert"
             ref={scrollRef}
-            onScroll={handleScroll}
-            className="max-h-[360px] overflow-y-auto p-6"
+            onScroll={updateScrollState}
+            tabIndex={0}
+            aria-label="Non-disclosure agreement text"
+            className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
           >
             <div className="flex items-center gap-2 mb-4">
               <Shield className="h-5 w-5 text-[#0F172A]" />
@@ -264,7 +252,7 @@ export default function ExpertNdaClickThrough() {
             </pre>
           </div>
           {!hasScrolledToBottom && !alreadySigned && (
-            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3">
+            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3 shrink-0">
               <p className="text-[12px] text-[#94A3B8] text-center">
                 Scroll to the bottom to enable signing
               </p>
@@ -275,7 +263,7 @@ export default function ExpertNdaClickThrough() {
 
       {/* Bank link prompt */}
       {promptBank && (
-        <div className="rounded-[8px] border border-[#FED7AA] bg-[#FFF7ED] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#FED7AA] bg-[#FFF7ED] p-4 flex items-start gap-3 shrink-0">
           <Banknote className="h-5 w-5 shrink-0 text-[#EA580C] mt-0.5" />
           <div>
             <p className="text-[14px] font-medium text-[#C2410C]">
@@ -298,10 +286,11 @@ export default function ExpertNdaClickThrough() {
 
       {/* Sign button */}
       {!alreadySigned && (
-        <div className="space-y-3">
+        <div className="space-y-3 shrink-0">
           <Button
+            id="btn-sign-expert-nda"
             variant="primary"
-            className="w-full"
+            className="w-full cursor-pointer disabled:cursor-not-allowed"
             disabled={!hasScrolledToBottom || acceptConnect.isPending}
             onClick={() => setShowSignConfirm(true)}
           >

@@ -1,24 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-import { Button } from '@/components/ui/Button';
+import { useBid } from '@/hooks/use-bids';
+import { formatSeamCode } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { AlertTriangle, ArrowLeft, CheckCircle2, AlertCircle, Clock, DollarSign } from 'lucide-react';
-import type { CapabilityBidDto, EngagementDto } from '@/types/api.types';
+import { AlertTriangle, ArrowLeft, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
-// ── Inline hook: GET /bids/:id ───────────────────────────────────
 
-function useBidDetail(bidId: string | undefined) {
-  return useQuery({
-    queryKey: ['bids', bidId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<CapabilityBidDto>(`/bids/${bidId}`);
-      return data;
-    },
-    enabled: !!bidId,
-  });
-}
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -28,15 +16,13 @@ const TECH_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   REVISION_REQUESTED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Revision Requested', icon: AlertCircle },
 };
 
-function formatVND(n: number) {
-  return n ? n.toLocaleString('vi-VN') + ' ₫' : '—';
-}
+
 
 export default function BidReviewDetail() {
   const { bidId } = useParams<{ bidId: string }>();
   const navigate = useNavigate();
 
-  const { data: bid, isLoading, error, refetch } = useBidDetail(bidId);
+  const { data: bid, isLoading, error, refetch } = useBid(bidId as string);
 
   // ── Loading ────────────────────────────────────────────────────
 
@@ -54,8 +40,8 @@ export default function BidReviewDetail() {
     const msg = (error as any)?.response?.data?.message || 'Bid not found.';
     return (
       <div className="py-24 text-center space-y-4">
-        <AlertTriangle className="mx-auto h-8 w-8 text-[#EAB308]" />
-        <p className="text-body-lg font-headline text-[#EF4444]">{msg}</p>
+        <AlertTriangle className="mx-auto h-8 w-8 text-warning" />
+        <p className="text-body-lg font-headline text-error">{msg}</p>
         <div className="flex items-center justify-center gap-3">
           <Button variant="secondary" onClick={() => refetch()}>Retry</Button>
           <Button variant="ghost" onClick={() => navigate('/tech-team/bids')}>Back to List</Button>
@@ -70,28 +56,27 @@ export default function BidReviewDetail() {
   const StatusIcon = style.icon;
 
   const footprint = bidAny.footprintAlignmentJson || bidAny.footprint_alignment_json;
-  const pricing: any[] = bidAny.conditionalPricingJson || bidAny.conditional_pricing_json || [];
-  const totalPrice = pricing.reduce((s: number, m: any) => s + (m.price_vnd || 0), 0);
+  const technicalMilestones: any[] = bid.currentOffer?.milestones || bidAny.conditionalPricingJson || [];
 
-  const canReview = techStatus === 'PENDING' || techStatus === 'REVISION_REQUESTED';
+  const canReview = techStatus === 'PENDING';
 
   return (
-    <div className="mx-auto max-w-[800px] space-y-6">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6">
       {/* Back + Header */}
       <div>
         <button
           onClick={() => navigate('/tech-team/bids')}
-          className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
         >
-          <ArrowLeft size={14} />
-          Back to Bid List
+          <ArrowLeft size={16} />
+          <span>Back to Bid List</span>
         </button>
         <div className="flex items-start justify-between gap-4">
-          <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+          <h1 className="font-headline text-[24px] font-semibold text-primary">
             Bid Review
           </h1>
           <span
-            className={`inline-flex items-center gap-1.5 rounded-[4px] px-[12px] py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${style.bg} ${style.text}`}
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${style.bg} ${style.text}`}
           >
             <StatusIcon size={12} />
             {style.label}
@@ -102,7 +87,7 @@ export default function BidReviewDetail() {
       {/* Approach Summary */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="font-headline text-[14px] font-semibold text-[#0F172A] mb-3">
+          <h3 className="font-headline text-[14px] font-semibold text-primary mb-3">
             Approach Summary
           </h3>
           <p className="text-body text-[#334155] leading-[1.7] whitespace-pre-wrap">
@@ -115,21 +100,21 @@ export default function BidReviewDetail() {
       {footprint && (
         <Card>
           <CardContent className="p-6">
-            <h3 className="font-headline text-[14px] font-semibold text-[#0F172A] mb-4">
+            <h3 className="font-headline text-[14px] font-semibold text-primary mb-4">
               Footprint Alignment
             </h3>
 
             {/* Domains */}
             {footprint.domains?.length > 0 && (
               <div className="mb-4">
-                <h4 className="text-[12px] font-medium uppercase tracking-[0.5px] text-[#64748B] mb-2">
+                <h4 className="text-[12px] font-medium uppercase tracking-[0.5px] text-secondary mb-2">
                   Domains
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {footprint.domains.map((d: any) => (
                     <span
                       key={d.code}
-                      className="inline-flex items-center rounded-[4px] bg-[#0F172A]/5 px-3 py-1 text-[13px] font-medium text-[#0F172A]"
+                      className="inline-flex items-center rounded-sm bg-primary/5 px-3 py-1 text-[13px] font-medium text-primary"
                     >
                       {d.code}: {d.depth?.charAt(0)}{d.depth?.slice(1).toLowerCase()}
                     </span>
@@ -141,16 +126,16 @@ export default function BidReviewDetail() {
             {/* Seams */}
             {footprint.seams?.length > 0 && (
               <div>
-                <h4 className="text-[12px] font-medium uppercase tracking-[0.5px] text-[#64748B] mb-2">
+                <h4 className="text-[12px] font-medium uppercase tracking-[0.5px] text-secondary mb-2">
                   Seams
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {footprint.seams.map((s: any) => (
                     <span
                       key={s.code}
-                      className="inline-flex items-center gap-1.5 rounded-[4px] bg-[#059669]/5 px-3 py-1 text-[13px] font-medium text-[#059669]"
+                      className="inline-flex items-center gap-1.5 rounded-sm bg-tertiary/5 px-3 py-1 text-[13px] font-medium text-tertiary"
                     >
-                      {s.code}
+                      {formatSeamCode(s.code)}
                       <span className="text-[11px] opacity-70">
                         ({s.tier?.replace('_', ' ').toLowerCase()})
                       </span>
@@ -163,32 +148,28 @@ export default function BidReviewDetail() {
         </Card>
       )}
 
-      {/* Conditional Pricing */}
-      {pricing.length > 0 && (
+      {/* Technical milestone scope — commercial fields are intentionally excluded. */}
+      {technicalMilestones.length > 0 && (
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-headline text-[14px] font-semibold text-[#0F172A]">
-                Conditional Pricing
-              </h3>
-              <span className="font-headline text-[16px] font-bold text-[#0F172A]">
-                {formatVND(totalPrice)}
-              </span>
-            </div>
+            <h3 className="font-headline text-[14px] font-semibold text-primary mb-4">Technical Milestone Scope</h3>
             <div className="space-y-2">
-              {pricing.map((m: any, i: number) => (
+              {technicalMilestones.map((m: any, i: number) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-[6px] bg-[#F8FAFC] px-4 py-3"
+                  className="rounded-[6px] bg-[#F8FAFC] px-4 py-3"
                 >
                   <div>
-                    <span className="text-[13px] font-medium text-[#0F172A]">
-                      M{m.milestone_number}: {m.condition}
+                    <span className="text-[13px] font-medium text-primary block">
+                      M{m.milestone_number}: {m.deliverable_statement || 'No deliverable provided'}
                     </span>
+                    {m.estimated_duration_days && (
+                      <span className="text-[12px] text-secondary mt-0.5 block flex items-center gap-1">
+                        <Clock size={12} /> {m.estimated_duration_days} days
+                      </span>
+                    )}
+                    {m.criteria?.length > 0 ? <ul className="mt-2 list-disc pl-5 text-[12px] text-secondary">{m.criteria.map((criterion: any) => <li key={criterion.criterion_text}>{criterion.criterion_text}</li>)}</ul> : null}
                   </div>
-                  <span className="font-headline text-[14px] font-semibold text-[#0F172A]">
-                    {formatVND(m.price_vnd)}
-                  </span>
                 </div>
               ))}
             </div>
@@ -198,7 +179,7 @@ export default function BidReviewDetail() {
 
       {/* Tech Feedback (if revision) */}
       {bidAny.techFeedback && (
-        <div className="rounded-[8px] border border-[#FED7AA] bg-[#FFF7ED] p-4">
+        <div className="rounded-DEFAULT border border-[#FED7AA] bg-[#FFF7ED] p-4">
           <h4 className="text-[13px] font-semibold text-[#C2410C] mb-1">
             Previous Feedback
           </h4>
@@ -210,6 +191,7 @@ export default function BidReviewDetail() {
       {canReview && (
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
           <Button
+            id={`btn-request-tech-revision-${bidId}`}
             variant="destructive"
             onClick={() =>
               navigate(`/tech-team/bids/${bidId}/revision`)
@@ -218,6 +200,7 @@ export default function BidReviewDetail() {
             Request Revision
           </Button>
           <Button
+            id={`btn-approve-tech-bid-${bidId}`}
             variant="primary"
             onClick={() => navigate(`/tech-team/bids/${bidId}/approve`)}
           >

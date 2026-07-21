@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -9,36 +7,8 @@ import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2, Shield, ArrowLeft, Clock } from 'lucide-react';
 import type { EngagementDto } from '@/types/api.types';
 
-// ── Inline hooks ─────────────────────────────────────────────────
-
-/** GET /engagements/:id */
-function useEngagement(id: string | undefined) {
-  return useQuery({
-    queryKey: ['engagements', id],
-    queryFn: async () => {
-      const { data } = await apiClient.get<EngagementDto>(`/engagements/${id}`);
-      return data;
-    },
-    enabled: !!id,
-    staleTime: 15_000,
-    refetchInterval: 5_000, // Poll for expert's signature
-  });
-}
-
-/** PUT /engagements/:id/accept-nda — NO body */
-function useAcceptNda() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (engagementId: string) => {
-      const { data } = await apiClient.put(`/engagements/${engagementId}/accept-nda`);
-      return data;
-    },
-    onSuccess: (_, engagementId) => {
-      qc.invalidateQueries({ queryKey: ['engagements', engagementId] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useEngagement, useAcceptNda } from '@/hooks/use-engagements';
+import AcceptedOfferSummary from '@/components/bids/AcceptedOfferSummary';
 
 // ── Mock NDA text ────────────────────────────────────────────────
 
@@ -81,12 +51,24 @@ export default function CeoNdaClickThrough() {
 
   // ── Scroll detection ───────────────────────────────────────────
 
-  const handleScroll = useCallback(() => {
+  const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
+    const contentFits = el.scrollHeight <= el.clientHeight + 1;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-    if (atBottom) setHasScrolledToBottom(true);
+    if (contentFits || atBottom) setHasScrolledToBottom(true);
   }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    updateScrollState();
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(el);
+
+    return () => resizeObserver.disconnect();
+  }, [engagement, updateScrollState]);
 
   // ── Sign handler ───────────────────────────────────────────────
 
@@ -142,8 +124,9 @@ export default function CeoNdaClickThrough() {
         </p>
         <Button
           variant="primary"
+          className="cursor-pointer"
           onClick={() =>
-            navigate(`/engagements/${engagementId}/messages`)
+            navigate(`/ceo/engagements/${engagementId}/messages`)
           }
         >
           Open Messages
@@ -155,16 +138,15 @@ export default function CeoNdaClickThrough() {
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-[640px] space-y-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button>
-
-      <div>
+    <div className="mx-auto max-w-[768px] space-y-4 pb-8">
+      <div className="shrink-0">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer mb-2"
+        >
+          <ArrowLeft size={16} />
+          <span>Back</span>
+        </button>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
           Non-Disclosure Agreement
         </h1>
@@ -175,7 +157,7 @@ export default function CeoNdaClickThrough() {
 
       {/* Already signed by CEO */}
       {alreadySigned && (
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3 shrink-0">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
           <div>
             <p className="text-[14px] font-medium text-[#16A34A]">
@@ -197,19 +179,27 @@ export default function CeoNdaClickThrough() {
 
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3 shrink-0">
           <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
 
+      <AcceptedOfferSummary
+        offer={engagement.capabilityBid?.acceptedOffer}
+        termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
+      />
+
       {/* NDA text */}
-      <Card>
-        <CardContent className="p-0">
+      <Card className="flex h-[clamp(320px,45vh,480px)] flex-col overflow-hidden">
+        <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
           <div
+            id="nda-agreement-scroll-ceo"
             ref={scrollRef}
-            onScroll={handleScroll}
-            className="max-h-[360px] overflow-y-auto p-6"
+            onScroll={updateScrollState}
+            tabIndex={0}
+            aria-label="Non-disclosure agreement text"
+            className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
           >
             <div className="flex items-center gap-2 mb-4">
               <Shield className="h-5 w-5 text-[#0F172A]" />
@@ -222,7 +212,7 @@ export default function CeoNdaClickThrough() {
             </pre>
           </div>
           {!hasScrolledToBottom && !alreadySigned && (
-            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3">
+            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3 shrink-0">
               <p className="text-[12px] text-[#94A3B8] text-center">
                 Scroll to the bottom to enable signing
               </p>
@@ -233,10 +223,11 @@ export default function CeoNdaClickThrough() {
 
       {/* Sign button / Waiting state */}
       {!alreadySigned ? (
-        <div className="space-y-3">
+        <div className="space-y-3 shrink-0">
           <Button
+            id="btn-sign-ceo-nda"
             variant="primary"
-            className="w-full"
+            className="w-full cursor-pointer disabled:cursor-not-allowed"
             disabled={!hasScrolledToBottom || acceptNda.isPending}
             onClick={() => setShowSignConfirm(true)}
           >
@@ -256,16 +247,16 @@ export default function CeoNdaClickThrough() {
         </div>
       ) : expertSigned ? (
         /* Both signed — connected */
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center">
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center shrink-0">
           <CheckCircle2 className="mx-auto h-6 w-6 text-[#22C55E]" />
           <p className="mt-2 text-[14px] font-medium text-[#16A34A]">
             Both parties have signed! You are now connected.
           </p>
           <Button
             variant="primary"
-            className="mt-3"
+            className="mt-3 cursor-pointer"
             onClick={() =>
-              navigate(`/engagements/${engagementId}/messages`)
+              navigate(`/ceo/engagements/${engagementId}/messages`)
             }
           >
             Open Messages
@@ -273,7 +264,7 @@ export default function CeoNdaClickThrough() {
         </div>
       ) : (
         /* CEO signed, waiting for expert */
-        <div className="rounded-[8px] border border-[#BFDBFE] bg-[#EFF6FF] p-4 text-center">
+        <div className="rounded-[8px] border border-[#BFDBFE] bg-[#EFF6FF] p-4 text-center shrink-0">
           <Clock className="mx-auto h-6 w-6 text-[#0EA5E9] animate-pulse" />
           <p className="mt-2 text-[14px] font-medium text-[#1E40AF]">
             Waiting for expert to sign…

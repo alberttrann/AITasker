@@ -1,14 +1,11 @@
-import { IsArray, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-// archetype must be one of the 6 valid codes from the blueprint
-// (see ai-service TECHNICAL_DOC.md §3 — Archetype codes 1-6).
 export class Stage2Dto {
-  @IsEnum(['1', '2', '3', '4', '5', '6'], {
-    message: 'archetype must be one of: 1 (RAG/Search), 2 (Recommendation), ' +
-              '3 (Classification), 4 (Generation), 5 (Prediction), 6 (Multimodal)',
-  })
+  // Archetype code validated dynamically against DB in ElicitationService.processStage2()
+  // (no hardcoded enum here — valid codes come from archetype_definitions table)
+  @IsString()
   @IsNotEmpty()
-  archetype: '1' | '2' | '3' | '4' | '5' | '6';
+  archetype: string;
 
   @IsOptional()
   @IsArray()

@@ -152,13 +152,19 @@ export class UserService {
     }
 
     // Using aggreaget to perform mathematical operations such as sum, average, min, max...
-    const reputation = await this.prisma.review.aggregate({
-      where: {
-        targetId: user.id,
-      },
-      _avg: { rating: true },
-      _count: true,
-    });
+    const [reputation, activeListings] = await Promise.all([
+      this.prisma.review.aggregate({
+        where: { targetId: user.id },
+        _avg: { rating: true },
+        _count: true,
+      }),
+      // Fetch the expert's active marketplace listings
+      this.prisma.service.findMany({
+        where: { expertId: user.id, state: 'PUBLISHED' },
+        select: { id: true, title: true, priceVnd: true, serviceType: true },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
 
     return {
       fullName: user.fullName,
@@ -170,6 +176,7 @@ export class UserService {
       seamClaims: user.expertSeamClaims,
       avgRating: reputation._avg.rating,
       reviewCount: reputation._count,
+      activeListings: activeListings.map(s => ({ ...s, priceVnd: s.priceVnd.toString() })) 
     };
   }
 
@@ -215,5 +222,41 @@ export class UserService {
       verified: false,
       companyName: null,
     };
+  }
+
+  async browseExperts(filters: {
+    stackTag?: string; archetype?: string; limit?: number;
+  }) {
+    const experts = await this.prisma.user.findMany({
+      where: {
+        roles: { array_contains: 'EXPERT' },
+        isActive: true,
+        expertProfile: { isNot: null },
+      },
+      take: Math.min(filters.limit ?? 20, 50),
+      include: {
+        expertProfile: {
+          select: {
+            bio: true, engagementModel: true, stackTagsJson: true, archetypeHistoryJson: true,
+          },
+        },
+        expertDomainDepths: { select: { domainCode: true, depthLevel: true } },
+        expertSeamClaims: {
+          select: { seamCode: true, verificationTier: true },
+          where: { verificationTier: { not: 'SELF_DECLARED' } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return experts.map(e => ({
+      id:              e.id,
+      fullName:        e.fullName,
+      bio:             e.expertProfile?.bio,
+      engagementModel: e.expertProfile?.engagementModel,
+      stackTags:       e.expertProfile?.stackTagsJson ?? [],
+      domainDepths:    e.expertDomainDepths,
+      verifiedSeams:   e.expertSeamClaims,
+    }));
   }
 }

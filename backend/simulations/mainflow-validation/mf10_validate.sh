@@ -23,7 +23,7 @@ RES=$(curl -s -X POST "${BASE_URL}/auth/register" -H "Content-Type: application/
 EXPERT_TOKEN=$(echo "$RES" | jq -r '.access_token')
 EXPERT_AUTH=(-H "Authorization: Bearer ${EXPERT_TOKEN}")
 RES=$(curl -s -X POST "${BASE_URL}/services" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
-  -d '{"serviceType":"AI_SERVICE","title":"RAG Chatbot Accuracy Package","description":"Fixed-price RAG integration.","priceVnd":8000000,"domainsJson":["A"],"seamsJson":["A<->C"]}')
+  -d '{"serviceType":"AI_SERVICE","title":"RAG Chatbot Accuracy Package","description":"Fixed-price RAG integration.","priceVnd":8000000,"domainsJson":["A"],"seamsJson":["A↔C"]}')
 SERVICE_ID=$(echo "$RES" | jq -r '.id')
 curl -s -X PUT "${BASE_URL}/services/${SERVICE_ID}" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" -d '{"state":"PUBLISHED"}' > /dev/null
 echo "  Service published: ${SERVICE_ID} (8,000,000 VND fixed price)"

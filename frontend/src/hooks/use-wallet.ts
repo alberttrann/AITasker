@@ -81,4 +81,37 @@ export function useUserProfile() {
     enabled: isAuthenticated,
   });
 }
+
+export function useCreateWithdrawal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { amount: number; bank_account_xid: string }) => {
+      const { data } = await apiClient.post<import('@t/api.types').WithdrawalRequestDto>(
+        '/withdrawals',
+        payload
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
+    },
+  });
+}
+
+export function useWithdrawalHistory() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  return useQuery({
+    queryKey: ['withdrawals'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<import('@t/api.types').WithdrawalRequestDto[]>(
+        '/withdrawals'
+      );
+      return data;
+    },
+    enabled: isAuthenticated,
+  });
+}
 

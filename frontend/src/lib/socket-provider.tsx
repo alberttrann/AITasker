@@ -8,9 +8,12 @@ import {
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@store/auth.store';
+import { formatSeamCode } from '@/lib/utils';
+import { formatResolutionNotification } from '@/lib/dispute-resolution';
 import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
+import { updateProjectNameInCache } from '@/hooks/use-projects';
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:3001';
 
 const SocketContext = createContext<Socket | null>(null);
@@ -36,6 +39,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const socketRef   = useRef<Socket | null>(null);
   const [activeSocket, setActiveSocket] = useState<Socket | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const user        = useAuthStore((s) => s.user);
+  const activeRole  = useAuthStore((s) => s.activeRole);
   const queryClient = useQueryClient(); 
   const addNotification  = useNotificationsStore((s) => s.addNotification);
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
@@ -46,6 +51,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socketRef.current?.disconnect();
       socketRef.current = null;
       setActiveSocket(null);
+      useEngagementStore.getState().clearAllUnread();
       return;
     }
 
@@ -77,22 +83,31 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('newMessage', (data: any) => {
-      const engagementId = data.engagementId || data.projectId;
-      if (!engagementId) return;
+    const engagementId = data.engagementId || data.projectId;
+    if (!engagementId) return;
 
-      // Ignore if the current user sent the message
-      if (data.senderId === currentUser?.id || data.sender?.id === currentUser?.id) return;
+    if (data.senderId === user?.id || data.sender?.id === user?.id) return;
 
-      incrementUnread(engagementId);
+    // Dùng getState() thay vì closure để luôn đọc activeEngagementId mới nhất
+    const currentActive = useEngagementStore.getState().activeEngagementId;
+    if (currentActive !== engagementId) {
+    incrementUnread(engagementId);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
       // Only show notification if user is not currently in that conversation
+      // Note: We no longer call addNotification here to prevent direct chat messages from
+      // cluttering the Bell icon notification list. Unread state is tracked separately
+      // via incrementUnread and shown under the Messages/Chat icon.
       if (activeEngagement !== engagementId) {
-        addNotification({
-          type:  'message',
-          title: `New message from ${data.sender?.fullName || 'someone'}`,
-          body:  data.content ? (data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content) : 'Attachment',
-          link:  data.engagementId ? `/engagements/${engagementId}/messages` : `/projects/${engagementId}`,
-          meta:  { engagement_id: engagementId },
-        });
+        // addNotification({
+        //   type:  'message',
+        //   title: `New message from ${data.sender?.fullName || 'someone'}`,
+        //   body:  data.content ? (data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content) : 'Attachment',
+        //   link:  data.engagementId ? `/engagements/${engagementId}/messages` : `/projects/${engagementId}`,
+        //   meta:  { engagement_id: engagementId },
+        // });
       }
     });
 
@@ -125,6 +140,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
         queryClient.invalidateQueries({ queryKey: ['bids'] });
       }
+
+      // 4. Service purchase paid/confirmed -> Refresh purchases list & engagements
+      if (data.title === 'Payment Confirmed!' || data.title === 'Service Purchased!') {
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      }
     });
 
     socket.on('bid:updated', (data: {
@@ -141,6 +162,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       // Refresh bids and engagements when a bid is updated
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
       queryClient.invalidateQueries({ queryKey: ['bids'] });
+    });
+
+    socket.on('project:updated', (data: { project_id: string; project_name: string }) => {
+      updateProjectNameInCache(queryClient, data.project_id, data.project_name);
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
     });
 
     queryClient.invalidateQueries({ queryKey: ['engagements'] });
@@ -160,7 +187,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       });
       // Refresh milestones and engagements when a milestone is updated
       queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
     });
     
     queryClient.invalidateQueries({ queryKey: ['milestones'] });
@@ -178,6 +207,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         link:  `/engagements/${data.engagement_id}/milestones`,
         meta:  { engagement_id: data.engagement_id },
       });
+      // Invalidate queries to instantly update UI state
+      queryClient.invalidateQueries({ queryKey: ['milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone'] });
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
     });
 
     socket.on('dispute:filed', (data: { engagement_id: string }) => {
@@ -192,14 +227,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     socket.on('dispute:resolved', (data: {
       engagement_id: string;
+      dispute_id?:   string;
+      milestone_id?: string | null;
       resolution:    string;
     }) => {
       addNotification({
         type:  'dispute',
         title: 'Dispute resolved',
-        body:  `Resolution: ${data.resolution}`,
+        body:  formatResolutionNotification(
+          data.resolution,
+          activeRole === 'EXPERT' ? 'EXPERT' : 'CLIENT',
+        ),
         link:  `/engagements/${data.engagement_id}`,
-        meta:  { engagement_id: data.engagement_id },
+        meta:  {
+          engagement_id: data.engagement_id,
+          ...(data.dispute_id ? { dispute_id: data.dispute_id } : {}),
+          ...(data.milestone_id ? { milestone_id: data.milestone_id } : {}),
+        },
       });
     });
 
@@ -211,8 +255,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         type:  'portfolio_eval',
         title: 'Portfolio evaluation complete',
         body:  data.passed
-          ? `${data.seam_code} — Tier 2 verified ✓`
-          : `${data.seam_code} — did not meet the threshold`,
+          ? `${formatSeamCode(data.seam_code)} — Tier 2 verified ✓`
+          : `${formatSeamCode(data.seam_code)} — did not meet the threshold`,
         link:  '/profile/seams',
       });
     });
@@ -223,7 +267,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     return () => {
       socket.disconnect();
     };
-  }, [accessToken]);
+  }, [accessToken, activeRole]);
 
   return (
     <SocketContext.Provider value={activeSocket}>

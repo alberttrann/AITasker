@@ -21,7 +21,7 @@ export function RegisterRoleSwitcher({ value, onChange }: RegisterRoleSwitcherPr
         onClick={(e) => handleSwitch(e, 'CLIENT_CEO')}
         className={cn(
           "relative flex-1 py-3 text-center rounded-md font-headline text-sm transition-all duration-300 z-10 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30",
-          value === 'CLIENT_CEO' ? "text-white bg-tertiary shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
+          value === 'CLIENT_CEO' ? "text-white bg-blue-600 shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
         )}
       >
         <b><span className="relative z-10">CLIENT</span></b>
@@ -32,7 +32,7 @@ export function RegisterRoleSwitcher({ value, onChange }: RegisterRoleSwitcherPr
         onClick={(e) => handleSwitch(e, 'EXPERT')}
         className={cn(
           "relative flex-1 py-3 text-center rounded-md font-headline text-sm transition-all duration-300 z-10 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30",
-          value === 'EXPERT' ? "text-white bg-tertiary shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
+          value === 'EXPERT' ? "text-white bg-emerald-600 shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
         )}
       >
         <b><span className="relative z-10">EXPERT</span></b>
@@ -55,7 +55,7 @@ export function RoleSwitcher() {
         onClick={(e) => handleSwitch(e, 'CLIENT' as ActiveRole)}
         className={cn(
           "relative flex-1 py-3 text-center rounded-lg font-headline text-sm transition-all duration-300 z-10 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30",
-          activeRole === 'CLIENT' ? "text-white bg-tertiary shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
+          activeRole === 'CLIENT' ? "text-white bg-blue-600 shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
         )}
       >
         <b><span className="relative z-10">Client</span></b>
@@ -66,7 +66,7 @@ export function RoleSwitcher() {
         onClick={(e) => handleSwitch(e, 'EXPERT' as ActiveRole)}
         className={cn(
           "relative flex-1 py-3 text-center rounded-lg font-headline text-sm transition-all duration-300 z-10 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30",
-          activeRole === 'EXPERT' ? "text-white bg-tertiary shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
+          activeRole === 'EXPERT' ? "text-white bg-emerald-600 shadow-md" : "text-primary-dark/60 hover:text-primary-dark hover:bg-white/50"
         )}
       >
         <b><span className="relative z-10">Expert</span></b>

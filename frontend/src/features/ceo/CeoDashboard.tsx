@@ -3,19 +3,22 @@ import { Outlet, useNavigate, Link } from "react-router-dom";
 import TopNav from "@/components/layout/TopNav";
 import DashboardGreeting from "@/components/layout/DashboardGreeting";
 import { useProjects, useElicitationSessions } from "@/hooks/use-projects";
-import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock } from "lucide-react";
-import { DashboardBanner } from "@/components/ui/DashboardBanner";
+import { useEngagements } from "@/hooks/use-engagements";
+import { Sparkles, Bot, FileText, ArrowRight, Loader2, PlayCircle, Clock, Building } from "lucide-react";
+import { SuggestBox } from "@/components/ui/SuggestBox";
+import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscriptionStatus } from "@/hooks/use-subscription";
-//import { getActiveSession } from "@/hooks/use-elicitation"; // <-- Import cai nay de cap nhat ne
 
 export function CeoOverview() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [dismissCompanySuggest, setDismissCompanySuggest] = useState(false);
 
   const { projects, isLoadingProjects } = useProjects();
   const { sessions, isLoadingSessions } = useElicitationSessions();
+  const { data: engagements, isLoading: isLoadingEngagements } = useEngagements();
 
   const activeSessions = sessions.filter(s => s.state === 'IN_PROGRESS').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   
@@ -27,19 +30,7 @@ export function CeoOverview() {
   };
 
   const allProjects = projects.sort((a, b) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
-/*
-  useEffect(() => {
-      // DO NOT USE LOCAL STORAGE. Check the actual database.
-      if (hasSubscription) {
-        getActiveSession()
-          .then((session) => {
-            setHasActiveSession(!!session);
-          })
-//        .catch(() => setHasActiveSession(false));
-//      }
-//    }, [hasSubscription]);
-//*/
-  const { data: subStatus } = useSubscriptionStatus();
+  const { data: subStatus, isLoading: isLoadingSub } = useSubscriptionStatus();
   const hasSubscription = subStatus?.tier === "pro";
 
   const getStageName = (stage: number) => {
@@ -53,45 +44,101 @@ export function CeoOverview() {
     }
   };
 
+
+
+  const newBidsCount = (engagements || []).filter((e: any) => e.capabilityBid && (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')).length;
+
+  const dashboardMetrics: WidgetMetric[] = [
+    {
+      id: 'elicitation',
+      label: 'Elicitation Engine',
+      value: mostRecentSession ? `Stage ${(mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1}` : 'Ready',
+      subValue: mostRecentSession ? getStageName((mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1) : 'Generate a PRD',
+      icon: <Bot size={20} />,
+      href: '/ceo/projects'
+    },
+    {
+      id: 'projects',
+      label: 'Active Projects',
+      value: `${projects.length}`,
+      subValue: `${newBidsCount} new bids to review`,
+      icon: <FileText size={20} />,
+      href: '/ceo/projects'
+    }
+  ];
+
   return (
     <div className="w-full">
       <DashboardGreeting />
       {/* Subscription Banner */}
-      {!hasSubscription && (
-        <div className="mb-8">
-          <DashboardBanner
+      {isLoadingSub ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <div className="lg:col-span-4 h-[140px] bg-white border border-slate-200 rounded-[24px] p-6 flex flex-col justify-between animate-pulse">
+            <div className="flex justify-between items-start">
+              <div className="space-y-4">
+                <div className="h-7 w-64 bg-slate-200 rounded-md"></div>
+                <div className="h-4 w-3/4 max-w-lg bg-slate-100 rounded-md"></div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-slate-100"></div>
+            </div>
+            <div className="h-10 w-36 bg-slate-200 rounded-lg mt-4"></div>
+          </div>
+        </div>
+      ) : !hasSubscription && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <SuggestBox
             title="Upgrade to Client Pro"
             description="Supercharge your workflow with AI-powered PRD generation, priority matchmaking with elite Tech Teams, and 0% platform fees on all milestones."
             icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
             buttonText="Upgrade now"
-            onButtonClick={() => navigate('/ceo/subscription')}
+            onButtonClick={() => navigate('/ceo/subscriptions/plans')}
+            className="lg:col-span-4"
           />
+        </div>
+      )}
+
+      {/* FOR YOU Section */}
+      {user && !user.companyName && !dismissCompanySuggest && (
+        <div className="mb-8">
+          <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">For You</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <SuggestBox
+              topLabel="Recommended for you"
+              title="Update Company Information"
+              description="Add your company details to help us match you with the right tech experts."
+              icon={<Building className="h-6 w-6" />}
+              buttonText="Edit Profile"
+              theme="outline"
+              className=""
+              onButtonClick={() => navigate('/ceo/profile')}
+              onDismiss={() => setDismissCompanySuggest(true)}
+            />
+          </div>
         </div>
       )}
 
       {/* Workspace / Quick Actions Section */}
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <DashboardBanner
-            topLabel="Create a project"
-            title="AI Elicitation Engine"
-            description={
-              mostRecentSession ? (
-                <span className="block">
-                  Stage {(mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1} of 5 — {getStageName((mostRecentSession as any).currentStage || mostRecentSession.current_stage || 1)}
-                </span>
-              ) : (
-                "Generate a PRD & match with experts."
-              )
-            }
-            icon={<Bot className="h-6 w-6" />}
-            buttonText="Go to projects"
-            theme={mostRecentSession ? "outline-purple" : "outline"}
-            className="lg:col-span-2"
-            onButtonClick={() => navigate("/ceo/projects")}
-          />
-        </div>
+        {isLoadingSessions || isLoadingProjects || isLoadingEngagements ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="h-auto bg-white border border-slate-200 rounded-[20px] p-6 flex flex-col justify-between animate-pulse min-h-[160px]">
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-3">
+                  <div className="h-3 w-24 bg-slate-200 rounded"></div>
+                  <div className="h-6 w-56 bg-slate-200 rounded"></div>
+                  <div className="h-4 w-48 bg-slate-100 rounded"></div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-slate-100 shrink-0"></div>
+              </div>
+              <div className="h-10 w-32 bg-slate-200 rounded-lg"></div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <Widget metrics={dashboardMetrics} variant="slate" />
+          </div>
+        )}
       </div>
 
 
@@ -102,13 +149,11 @@ export function CeoOverview() {
 
 export default function CeoDashboard() {
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <TopNav />
-      <div className="bg-background min-h-screen">
-        <div className="w-full max-w-[1440px] mx-auto px-6 py-6 sm:py-8">
-          <Outlet />
-        </div>
-      </div>
-    </>
+      <main className="flex-grow w-full max-w-[1440px] mx-auto px-6 py-6 sm:py-8">
+        <Outlet />
+      </main>
+    </div>
   );
 }

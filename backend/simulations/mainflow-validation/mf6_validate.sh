@@ -67,9 +67,15 @@ INVITE_TOKEN=$(echo "$RES" | jq -r '.invite_link' | sed -n 's/.*token=\(.*\)/\1/
 TECH_EMAIL="mf6-tech-$(date +%s)@aitasker.test"
 RES=$(curl -s -X POST "${BASE_URL}/auth/register/handoff" -H "Content-Type: application/json" \
   -d "{\"invite_token\":\"${INVITE_TOKEN}\",\"email\":\"${TECH_EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF6 Test Tech\"}")
+REAL_OTP=$(run_db_script "
+  const u = await prisma.user.findUnique({ where: { email: '${TECH_EMAIL}' }});
+  console.log(u ? u.emailOtp : '');
+")
+RES=$(curl -s -X POST "${BASE_URL}/auth/verify-otp" -H "Content-Type: application/json" \
+  -d "{\"email\":\"${TECH_EMAIL}\",\"otp\":\"${REAL_OTP}\"}")
 TECH_TOKEN=$(echo "$RES" | jq -r '.access_token')
 TECH_AUTH=(-H "Authorization: Bearer ${TECH_TOKEN}")
-echo "  Tech team registered and linked via handoff."
+echo "  Tech team registered, verified, and linked via handoff."
 
 RES=$(curl -s -X PUT "${BASE_URL}/elicitation/sessions/${SESSION_ID}/stage4-handoff" -H "Content-Type: application/json" "${TECH_AUTH[@]}" \
   -d '{"current_stack":"Python FastAPI, PostgreSQL, AWS ECS","data_available":"200k Zendesk conversation logs, 50k SKU catalogue","latency_requirement":"Under 3 seconds end-to-end"}' \
@@ -114,7 +120,7 @@ step_header "POST /bids — submit the 3-component bid (steps 5-6)"
 RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/bids" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
   -d "{
     \"projectId\":\"${PROJECT_ID}\",
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
     \"approach_summary\":\"We will build a RAG pipeline grounded in your Zendesk KB with confidence-based escalation to human agents.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery and architecture sign-off\"}]
   }")
@@ -129,7 +135,7 @@ ENGAGEMENT_ID=$(echo "$BODY" | jq -r '.engagement.id')
 
 step_header "PUT /bids/:id/tech-review — TECH_TEAM requests revision (steps 7-8a)"
 RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/bids/${BID_ID}/tech-review" -H "Content-Type: application/json" "${TECH_AUTH[@]}" \
-  -d '{"action":"REVISION_REQUESTED","tech_feedback":"Approach does not address the A<->C seam directly enough."}')
+  -d '{"action":"REVISION_REQUESTED","tech_feedback":"Approach does not address the A↔C seam directly enough."}')
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
 check_status "200" "$CODE" "Revision request accepted"
@@ -138,8 +144,8 @@ check_field_equals "$BODY" ".techStatus" "REVISION_REQUESTED" "techStatus update
 step_header "PUT /bids/:id — expert edits the bid in place (step 9a)"
 RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/bids/${BID_ID}" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
   -d "{
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
-    \"approach_summary\":\"Updated: RAG pipeline explicitly maps the A<->C seam via a dedicated retrieval-grounding step before escalation logic runs.\",
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
+    \"approach_summary\":\"Updated: RAG pipeline explicitly maps the A↔C seam via a dedicated retrieval-grounding step before escalation logic runs.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery and architecture sign-off\"}]
   }")
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')

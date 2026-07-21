@@ -1,41 +1,24 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-import { Button } from '@/components/ui/Button';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
-// ── Inline hook: PUT /bids/:id/tech-review ───────────────────────
-
-function useApproveBid() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (bidId: string) => {
-      const { data } = await apiClient.put(`/bids/${bidId}/tech-review`, {
-        action: 'APPROVED',
-      });
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bids'] });
-      qc.invalidateQueries({ queryKey: ['engagements'] });
-    },
-  });
-}
+import { useTechReview } from '@/hooks/use-bids';
 
 export default function BidApprove() {
   const { bidId } = useParams<{ bidId: string }>();
   const navigate = useNavigate();
-  const approveBid = useApproveBid();
+  const approveBid = useTechReview();
   const [showConfirm, setShowConfirm] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const handleApprove = () => {
     if (!bidId) return;
     setServerError(null);
-    approveBid.mutate(bidId, {
+    approveBid.mutate({ bidId, body: { action: 'APPROVED', tech_feedback: '' } }, {
       onSuccess: () => {
         navigate('/tech-team/bids', { replace: true });
       },
@@ -47,31 +30,32 @@ export default function BidApprove() {
   };
 
   return (
-    <div className="mx-auto max-w-[560px] space-y-6">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6">
       <button
+        id="btn-back-from-tech-bid-approval"
         onClick={() => navigate(`/tech-team/bids/${bidId}`)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0F172A] transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
       >
-        <ArrowLeft size={14} />
-        Back to Bid
+        <ArrowLeft size={16} />
+        <span>Back to Bid</span>
       </button>
 
-      <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+      <h1 className="font-headline text-[24px] font-semibold text-primary">
         Approve Bid
       </h1>
 
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
+        <div className="rounded-DEFAULT border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-error mt-0.5" />
           <p className="text-[14px] text-[#DC2626]">{serverError}</p>
         </div>
       )}
 
       {/* Success */}
       {approveBid.isSuccess && (
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
+        <div className="rounded-DEFAULT border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-success mt-0.5" />
           <p className="text-[14px] text-[#16A34A]">
             Bid approved! Redirecting…
           </p>
@@ -83,21 +67,22 @@ export default function BidApprove() {
           <div className="space-y-4">
             <p className="text-body text-[#334155] leading-[1.7]">
               You are about to <strong>approve</strong> this bid. The CEO will be
-              notified and can proceed to accept or decline the bid.
+              notified when they are the current offer recipient.
             </p>
 
-            <div className="rounded-[8px] bg-[#F0FDF4] border border-[#BBF7D0] p-4">
+            <div className="rounded-DEFAULT bg-[#F0FDF4] border border-[#BBF7D0] p-4">
               <h4 className="text-[13px] font-semibold text-[#16A34A] mb-1">
                 What happens next?
               </h4>
               <ul className="space-y-1 text-[13px] text-[#166534]">
                 <li>• The bid status changes to TECH_APPROVED</li>
-                <li>• The CEO can now review and accept/decline the bid</li>
+                <li>• The intended CEO/Expert recipient can review the offer</li>
                 <li>• This action cannot be undone</li>
               </ul>
             </div>
 
             <Button
+              id={`btn-open-tech-bid-approval-confirm-${bidId}`}
               variant="primary"
               className="w-full"
               onClick={() => setShowConfirm(true)}

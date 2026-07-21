@@ -9,12 +9,13 @@ import {
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { EngagementsService } from './engagements.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
+type ActorUser = { id: string; activeRole: string; clientSubtype: string | null }; // ← Type defined
 
 @ApiTags('Engagements')
 @Controller('engagements')
@@ -74,5 +75,55 @@ export class EngagementsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.engagementsService.decline(id, user);
+  }
+
+  @Get(':id/milestones')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List milestones for a specific engagement' })
+  async getEngagementMilestones(
+    @Param('id') engagementId: string,
+    @CurrentUser() user: ActorUser,
+  ) {
+    return this.engagementsService.getEngagementMilestones(engagementId, user);
+  }
+
+  @Get(':id/submissions')
+  @Roles('CLIENT', 'EXPERT', 'ADMIN')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'List all milestone submissions for an engagement' })
+  async getEngagementSubmissions(
+    @Param('id') engagementId: string,
+    @CurrentUser() user: ActorUser,
+  ) {
+    return this.engagementsService.getEngagementSubmissions(engagementId, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get(':id/bid')
+  async getEngagementBid(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.engagementsService.getEngagementBid(id, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get(':id/disputes')
+  async getEngagementDisputes(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.engagementsService.getEngagementDisputes(id, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Put(':id/cancel')
+  @ApiOperation({ summary: 'Cancel an engagement (no active funded milestones allowed)' })
+  async cancelEngagement(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype: string | null },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.engagementsService.cancelEngagement(id, user);
   }
 }

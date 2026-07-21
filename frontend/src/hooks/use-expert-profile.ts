@@ -14,6 +14,7 @@ export function useExpertProfile() {
   });
 
   const getPublicProfile = async (expertId: string) => {
+    // Left for backwards compatibility if needed, but we prefer the hook below
     const { data } = await apiClient.get(`/users/${expertId}/public-profile`);
     return data;
   };
@@ -41,7 +42,7 @@ export function useExpertProfile() {
   });
 
   const saveStackAndModel = useMutation({
-    mutationFn: async (payload: { engagementModel: string; stackTagsJson: string[]; archetypeHistoryJson: any[]; bio: string }) => {
+    mutationFn: async (payload: { engagementModel?: string; stackTagsJson?: string[]; archetypeHistoryJson?: any[]; bio?: string }) => {
       await apiClient.put('/expert-profile/me', payload);
     },
     onSuccess: () => {
@@ -70,5 +71,28 @@ export function useUpdateDomainDepth() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });
     },
+  });
+}
+
+// ── Phase 6 Hooks: CEO Browsing Experts ────────────────────────────────────────
+
+export function useExpertSearch(queryParams?: Record<string, any>) {
+  return useQuery({
+    queryKey: ['expert-profile', 'search', queryParams],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/expert-profile/search', { params: queryParams });
+      return Array.isArray(data) ? data : (data as any)?.data ?? [];
+    },
+  });
+}
+
+export function usePublicExpertProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['expert-profile', 'public', userId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/expert-profile/${userId}`);
+      return data;
+    },
+    enabled: !!userId,
   });
 }
