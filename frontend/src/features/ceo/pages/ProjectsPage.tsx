@@ -261,12 +261,12 @@ export default function ProjectsPage() {
                             className="flex-1 px-3 py-1 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium"
                             autoFocus
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveName(project.id, false);
+                              if (e.key === "Enter") handleSaveName(project.id);
                               if (e.key === "Escape") setEditingProjectId(null);
                             }}
                           />
                           <button
-                            onClick={() => handleSaveName(project.id, false)}
+                            onClick={() => handleSaveName(project.id)}
                             disabled={updateProjectName.isPending}
                             className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors shrink-0"
                             title="Save name"
