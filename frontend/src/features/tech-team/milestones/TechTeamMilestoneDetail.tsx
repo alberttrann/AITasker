@@ -2,40 +2,34 @@ import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMilestone } from "@/hooks/use-milestones";
 import { useEngagement } from "@/hooks/use-engagements";
-import { useMilestoneSettlement } from "@/hooks/use-disputes";
+import { useDownloadDocument } from "@/hooks/use-submissions";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import { getSettlementCopy } from "@/lib/dispute-resolution";
-import CriteriaVerify from "./CriteriaVerify";
-import RevisionRequest from "./RevisionRequest";
-import { ArrowLeft, Check, RotateCcw, AlertTriangle, FileText, Calendar, CheckCircle2, Scale, MessageSquare } from "lucide-react";
-import { cn } from "@/lib/utils";
+import CriteriaVerify from "@/features/ceo/milestones/CriteriaVerify";
+import RevisionRequest from "@/features/ceo/milestones/RevisionRequest";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
+import { ArrowLeft, Check, RotateCcw, FileText, Calendar, CheckCircle2, MessageSquare, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function MilestoneDetail() {
+export default function TechTeamMilestoneDetail() {
   const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
   const navigate = useNavigate();
 
   // Fetch milestone detail (including acceptanceCriteria and dodItems nested)
   const { data: milestone, isLoading: isLoadingMilestone, error: milestoneError, refetch } = useMilestone(milestoneId);
   const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
-  const {
-    settlementOutcome,
-    isLoading: isLoadingSettlement,
-    isError: isSettlementError,
-  } = useMilestoneSettlement(milestoneId);
+  const { data: paygatedDocs } = useDownloadDocument(milestoneId || "");
 
-  // States for verification and revision modals
+  // States for verification, revision, and chat drawer
   const [selectedCriterion, setSelectedCriterion] = useState<{ id: string; text: string } | null>(null);
   const [activeModal, setActiveModal] = useState<"VERIFY" | "REVISION" | null>(null);
-  // State for workspace chat drawer (additive — does not affect existing modals)
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const isLoading = isLoadingMilestone || isLoadingEngagement || isLoadingSettlement;
+  const isLoading = isLoadingMilestone || isLoadingEngagement;
   const error = milestoneError;
 
   if (isLoading) {
@@ -68,60 +62,12 @@ export default function MilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
-  const isServiceOrder = engagement?.type === "SERVICE_PURCHASE" || engagement?.type === "TECH_DISCOVERY";
-  const techReviewRequired = milestone.signOffAuthority === "JOINT";
-  const requiredCriteria = (milestone.acceptanceCriteria ?? []).filter(
-    (criterion) => criterion.isRequired,
-  );
-  const techReviewComplete =
-    !techReviewRequired ||
-    requiredCriteria.every((criterion) => Boolean(criterion.techVerifiedAt));
-  const ceoReviewComplete = requiredCriteria.every((criterion) =>
-    Boolean(criterion.ceoVerifiedAt || criterion.verifiedAt),
-  );
-  const isReviewerTurn = techReviewComplete && !ceoReviewComplete;
-  const approvedSettlement = isSettlementError
-    ? "UNKNOWN"
-    : settlementOutcome ?? "EXPERT_RELEASED";
-  const settlementText = getSettlementCopy(approvedSettlement, "CLIENT");
-  const settlementCopy = approvedSettlement === "CLIENT_REFUNDED"
-    ? {
-        ...settlementText,
-        wrapperClass: "bg-emerald-50 border-emerald-100 text-emerald-900",
-        iconClass: "text-emerald-600",
-        bodyClass: "text-emerald-800",
-        icon: RotateCcw,
-      }
-    : approvedSettlement === "SPLIT"
-      ? {
-          ...settlementText,
-          wrapperClass: "bg-amber-50 border-amber-200 text-amber-900",
-          iconClass: "text-amber-600",
-          bodyClass: "text-amber-800",
-          icon: Scale,
-        }
-      : approvedSettlement === "UNKNOWN" || approvedSettlement === "FUNDS_HELD" || approvedSettlement === "FUNDS_FROZEN"
-        ? {
-            ...settlementText,
-            wrapperClass: "bg-slate-50 border-slate-200 text-slate-900",
-            iconClass: "text-slate-500",
-            bodyClass: "text-slate-700",
-            icon: AlertTriangle,
-          }
-        : {
-            ...settlementText,
-            wrapperClass: "bg-emerald-50 border-emerald-100 text-emerald-900",
-            iconClass: "text-emerald-600",
-            bodyClass: "text-emerald-800",
-            icon: CheckCircle2,
-          };
-  const SettlementIcon = settlementCopy.icon;
 
   // List of milestones to switch between
   const milestones = engagement?.milestones ?? [];
 
   const handleMilestoneSwitch = (id: string) => {
-    navigate(`/ceo/engagements/${engagementId}/milestones/${id}`);
+    navigate(`/tech-team/engagements/${engagementId}/milestones/${id}`);
   };
 
   const handleOpenVerify = (id: string, text: string) => {
@@ -146,28 +92,24 @@ export default function MilestoneDetail() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones`)}
+            onClick={() => navigate(`/tech-team/projects`)}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-            aria-label="Back to milestones"
-            id="btn-back-to-milestone-list"
+            aria-label="Back to projects"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 font-headline">
-              Review Milestone Workspace
-            </h1>
-            <p className="text-sm text-slate-500">
-              Verify deliverables, manage acceptance criteria, and release escrow funds.
-            </p>
+            <h1 className="text-2xl font-bold text-slate-900 font-headline">Review Milestone Workspace</h1>
+            <p className="text-sm text-slate-500">Sign off technical deliverables and collaborate with the project team.</p>
           </div>
         </div>
-        {/* Workspace Chat Trigger — additive, placed alongside existing header actions */}
-        <div className="flex items-center shrink-0">
+
+        {/* Workspace Chat Trigger */}
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
             onClick={() => setIsChatOpen(true)}
-            className="inline-flex items-center gap-2 font-semibold"
+            className="inline-flex items-center gap-2 font-semibold hover:bg-slate-50"
           >
             <MessageSquare size={16} className="text-slate-600" />
             Discuss with Team
@@ -189,9 +131,8 @@ export default function MilestoneDetail() {
                   <button
                     key={m.id}
                     onClick={() => handleMilestoneSwitch(m.id)}
-                    id={`btn-switch-milestone-${m.id}`}
                     className={cn(
-                      "w-full text-left p-3 rounded-lg flex items-center justify-between transition-all border cursor-pointer",
+                      "w-full text-left p-3 rounded-lg flex items-center justify-between transition-all border",
                       isActive
                         ? "bg-primary-bg border-primary/20 text-primary font-semibold"
                         : "bg-white border-transparent hover:bg-slate-50 text-slate-700"
@@ -199,15 +140,12 @@ export default function MilestoneDetail() {
                   >
                     <div className="min-w-0">
                       <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Milestone #{m.milestoneNumber}</p>
-                      <p className="text-sm truncate font-medium">
-                        {m.deliverableStatement || (engagement?.service?.title ? `Full Delivery for Service: "${engagement.service.title}"` : "No deliverable statement")}
-                      </p>
+                      <p className="text-sm truncate font-medium">{m.deliverableStatement || "No deliverable statement"}</p>
                     </div>
                     <span className="shrink-0 ml-2">
                       <StatusBadge
                         label={m.state.replace(/_/g, " ")}
                         variant={variantFromStatus(m.state)}
-                        className="px-2 py-0.5 text-[10px]"
                       />
                     </span>
                   </button>
@@ -231,20 +169,13 @@ export default function MilestoneDetail() {
                       variant={variantFromStatus(milestone.state)}
                     />
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900 leading-snug">
-                    {milestone.deliverableStatement || (engagement?.service?.title ? `Full Delivery & Implementation for Service: "${engagement.service.title}"` : "No deliverables specified.")}
-                  </h2>
+                  <h2 className="text-xl font-bold text-slate-900 leading-snug">{milestone.deliverableStatement || "No deliverables specified."}</h2>
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> Registered: <strong>{new Date(milestone.updatedAt).toLocaleDateString()}</strong>
                     </span>
                     <span>•</span>
-                    <span>
-                      Review flow:{" "}
-                      <strong className="text-slate-700">
-                        {techReviewRequired ? "Tech Team → CEO" : "CEO"}
-                      </strong>
-                    </span>
+                    <span>Sign-off Authority: <strong className="text-slate-700">{milestone.signOffAuthority.replace(/_/g, " ")}</strong></span>
                   </div>
                 </div>
 
@@ -257,11 +188,10 @@ export default function MilestoneDetail() {
               {/* Status Alert Banners */}
               {!isFunded && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex gap-3 text-slate-800">
-                  <AlertTriangle className="w-5 h-5 shrink-0 text-slate-400 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-bold">Awaiting Escrow Funding</p>
                     <p className="text-slate-500">
-                      The Expert cannot submit deliverables yet because this milestone is not funded. Go to the fund screen to initiate bank payments.
+                      This milestone is currently awaiting payment from the CEO. Work will begin once funded.
                     </p>
                   </div>
                 </div>
@@ -273,41 +203,9 @@ export default function MilestoneDetail() {
                   <div className="text-sm">
                     <p className="font-bold">Expert Executing Work</p>
                     <p className="text-slate-500">
-                      This milestone is currently funded. The Expert is working on deliverables and checking off their DoD requirements checklist.
+                      The Expert is currently working on deliverables and compiling their checklist of DoD requirements.
                     </p>
                   </div>
-                </div>
-              )}
-
-              {isSubmitted && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-900">
-                  <div className="flex gap-3">
-                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-bold">
-                        {isReviewerTurn
-                          ? "Awaiting Your Sign-off"
-                          : "Awaiting Tech Team Sign-off"}
-                      </p>
-                      <p className="text-amber-800">
-                        {isReviewerTurn
-                          ? isServiceOrder
-                            ? "The Expert has submitted the service deliverables for your review."
-                            : "Review the Tech Team-approved submission and give final CEO sign-off."
-                          : "The linked Tech Team must sign off all required criteria before CEO review is unlocked."}
-                      </p>
-                    </div>
-                  </div>
-                  {isReviewerTurn && isServiceOrder && milestone.acceptanceCriteria && milestone.acceptanceCriteria.length > 0 && (
-                    <Button
-                      variant="primary"
-                      onClick={() => handleOpenVerify(milestone.acceptanceCriteria[0].id, milestone.acceptanceCriteria[0].criterionText)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-semibold cursor-pointer"
-                      id="btn-approve-service-milestone"
-                    >
-                      Approve & Release Escrow
-                    </Button>
-                  )}
                 </div>
               )}
 
@@ -317,44 +215,32 @@ export default function MilestoneDetail() {
                   <div className="text-sm">
                     <p className="font-bold">Awaiting Expert Re-submission</p>
                     <p className="text-amber-800">
-                      You requested revisions on this milestone. The Expert has been notified of the feedback and must re-submit their deliverables once corrected.
+                      Revisions have been requested for this milestone. The Expert is resolving the feedback before re-submitting.
                     </p>
                   </div>
                 </div>
               )}
 
               {isApproved && (
-                <div className={`${settlementCopy.wrapperClass} border rounded-xl p-4 flex gap-3`}>
-                  <SettlementIcon className={`w-5 h-5 shrink-0 mt-0.5 ${settlementCopy.iconClass}`} />
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3 text-emerald-900">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-bold">{settlementCopy.title}</p>
-                    <p className={settlementCopy.bodyClass}>{settlementCopy.body}</p>
+                    <p className="font-bold">Milestone Approved & Released</p>
+                    <p className="text-emerald-800">
+                      All criteria have been signed off. Escrow funds have been successfully disbursed to the Expert.
+                    </p>
                   </div>
                 </div>
               )}
 
               {isDisputed && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-red-900">
-                  <div className="flex gap-3">
-                    <Scale className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-bold">Dispute File Pending Review</p>
-                      <p className="text-red-800 font-body">
-                        This milestone has an open dispute. Escrow funds are frozen. The system AI or platform administrator is resolving the dispute.
-                      </p>
-                    </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 text-red-900">
+                  <div className="text-sm">
+                    <p className="font-bold">Dispute Pending Review</p>
+                    <p className="text-red-800">
+                      This milestone has an open dispute. Escrow funds are locked while system arbitration resolves the issue.
+                    </p>
                   </div>
-                  {(
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute/result`)}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 shrink-0 h-8 font-headline cursor-pointer"
-                      id="btn-view-milestone-dispute-status"
-                    >
-                      View Dispute Status
-                    </Button>
-                  )}
                 </div>
               )}
 
@@ -397,32 +283,45 @@ export default function MilestoneDetail() {
                 );
               })()}
 
+              {/* Paygated technical documents released to Tech Team */}
+              {isApproved && paygatedDocs && paygatedDocs.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Technical Deliverables & Code</h3>
+                  <div className="bg-emerald-50/30 border border-emerald-200/50 rounded-xl p-5 space-y-4">
+                    <p className="text-xs text-slate-500">
+                      These technical documents were released upon milestone approval.
+                    </p>
+                    <div className="space-y-2">
+                      {paygatedDocs.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText size={16} className="text-emerald-600 shrink-0" />
+                            <span className="text-xs font-medium text-slate-700 truncate">{doc.documentUrl}</span>
+                          </div>
+                          <a
+                            href={doc.documentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded transition-colors"
+                          >
+                            <Download size={12} /> Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Acceptance Criteria Sign Off Sheet */}
               <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria</h3>
-                  
-                  {/* File Dispute Button */}
-                  {(isSubmitted || isRevisionPhase) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/ceo/engagements/${engagementId}/milestones/${milestoneId}/dispute`)}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 inline-flex items-center gap-1 h-8 cursor-pointer"
-                      id="btn-file-milestone-dispute"
-                    >
-                      <Scale size={14} /> File Dispute
-                    </Button>
-                  )}
-                </div>
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria</h3>
 
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
                   {milestone.acceptanceCriteria && milestone.acceptanceCriteria.map((c, idx) => {
-                    const techVerified = Boolean(c.techVerifiedAt);
-                    const ceoVerified = Boolean(c.ceoVerifiedAt || c.verifiedAt);
-                    const canReviewCriterion =
-                      isSubmitted &&
-                      techReviewComplete && !ceoVerified;
+                    const isVerified = c.verifiedAt !== null;
+                    const canSignOff = c.verifiedByRole === "TECH_TEAM" || milestone.signOffAuthority === "TECH_TEAM" || milestone.signOffAuthority === "JOINT";
+
                     return (
                       <div
                         key={c.id}
@@ -437,47 +336,32 @@ export default function MilestoneDetail() {
                             {c.isRequired && <span className="text-red-500 ml-1 font-bold">*</span>}
                           </p>
 
-                          <div className="flex flex-wrap gap-2">
-                            {techReviewRequired && (
-                              <span className={cn(
-                                "text-xs font-semibold px-2 py-0.5 rounded border",
-                                techVerified
-                                  ? "text-emerald-600 bg-emerald-50 border-emerald-100"
-                                  : "text-slate-500 bg-slate-50 border-slate-200",
-                              )}>
-                                Tech Team: {techVerified ? "Signed off" : "Pending"}
-                              </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isVerified && c.verifiedAt && (
+                              <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-max">
+                                Signed off on {new Date(c.verifiedAt).toLocaleDateString()}
+                              </p>
                             )}
-                            <span className={cn(
-                              "text-xs font-semibold px-2 py-0.5 rounded border",
-                              ceoVerified
-                                ? "text-emerald-600 bg-emerald-50 border-emerald-100"
-                                : "text-slate-500 bg-slate-50 border-slate-200",
-                            )}>
-                              CEO: {ceoVerified ? "Signed off" : "Pending"}
+                            <span className="text-[9px] font-black bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded tracking-wide uppercase">
+                              Authority: {c.verifiedByRole}
                             </span>
                           </div>
 
                           {c.revisionNote && (
                             <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200/50 rounded-lg p-2.5 mt-2 italic font-medium break-words">
-                              <strong>
-                                {c.revisionRequestedByRole === "TECH_TEAM"
-                                  ? "Tech Team revision feedback:"
-                                  : "CEO revision feedback:"}
-                              </strong>{" "}{c.revisionNote}
+                              <strong>Revision Feedback:</strong> {c.revisionNote}
                             </div>
                           )}
                         </div>
 
                         {/* Sign-off Actions */}
-                        {canReviewCriterion && (
+                        {isSubmitted && !isVerified && canSignOff && (
                           <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleOpenRevision(c.id, c.criterionText)}
-                              className="text-[12px] h-8 px-2.5 text-amber-600 border-amber-200 hover:bg-amber-50 inline-flex items-center gap-1 cursor-pointer"
-                              id={`btn-request-criterion-revision-${c.id}`}
+                              className="text-[12px] h-8 px-2.5 text-amber-600 border-amber-200 hover:bg-amber-50 inline-flex items-center gap-1"
                             >
                               <RotateCcw size={13} /> Request Revision
                             </Button>
@@ -485,17 +369,22 @@ export default function MilestoneDetail() {
                               variant="primary"
                               size="sm"
                               onClick={() => handleOpenVerify(c.id, c.criterionText)}
-                              className="text-[12px] bg-emerald-600 hover:bg-emerald-700 border-none h-8 px-2.5 inline-flex items-center gap-1 text-white cursor-pointer"
-                              id={`btn-verify-criterion-${c.id}`}
+                              className="text-[12px] bg-emerald-600 hover:bg-emerald-700 border-none h-8 px-2.5 inline-flex items-center gap-1 text-white"
                             >
                               <Check size={14} /> Verify & Approve
                             </Button>
                           </div>
                         )}
 
-                        {isSubmitted && ceoVerified && (
+                        {isSubmitted && !isVerified && !canSignOff && (
+                          <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded border border-slate-200 shrink-0">
+                            Awaiting {c.verifiedByRole} Sign-off
+                          </span>
+                        )}
+
+                        {isSubmitted && isVerified && (
                           <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 shrink-0">
-                            Your sign-off is complete
+                            Verified
                           </span>
                         )}
                       </div>
@@ -581,7 +470,7 @@ export default function MilestoneDetail() {
         />
       )}
 
-      {/* Workspace Chat Drawer — additive, does not replace any existing functionality */}
+      {/* Embedded Workspace Chat Drawer */}
       {engagement && (
         <MilestoneChatPanel
           engagementId={engagementId || ""}

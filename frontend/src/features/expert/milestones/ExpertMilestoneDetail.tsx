@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useMilestone } from "@/hooks/use-milestones";
@@ -12,12 +12,16 @@ import { formatVND } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
-import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 
 export default function ExpertMilestoneDetail() {
   const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
   const navigate = useNavigate();
+
+  // State for workspace chat drawer (additive — keeps existing inbox navigation intact)
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Fetch data
   const { data: engagement, isLoading: isLoadingEngagement, error: engagementError } = useEngagement(engagementId);
@@ -109,7 +113,7 @@ export default function ExpertMilestoneDetail() {
 
   const handleMilestoneSwitch = (id: string) => {
     navigate(`/expert/engagements/${engagementId}/milestones/${id}`);
-  };
+  }   
 
   return (
     <div className="w-full max-w-[1440px] px-6 mx-auto py-8">
@@ -128,6 +132,18 @@ export default function ExpertMilestoneDetail() {
             <h1 className="text-2xl font-bold text-slate-900 font-headline">Milestone Workspace</h1>
             <p className="text-sm text-slate-500">Track DoD checklist requirements, submit deliverables, and review sign-offs.</p>
           </div>
+        </div>
+
+        {/* Group expert's actions together on the right side of heading line */}
+        <div className="flex items-center gap-3 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => setIsChatOpen(true)}
+            className="inline-flex items-center gap-2 font-semibold"
+          >
+            <MessageSquare size={16} className="text-slate-600" />
+            Discuss with Team
+          </Button>
         </div>
       </div>
 
@@ -189,7 +205,7 @@ export default function ExpertMilestoneDetail() {
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> Registered: <strong>{new Date(milestone.updatedAt).toLocaleDateString()}</strong>
                     </span>
-                    <span>•</span>
+                    <span>ΓÇó</span>
                     <span>Sign-off Authority: <strong className="text-slate-700">{milestone.signOffAuthority.replace(/_/g, " ")}</strong></span>
                   </div>
                 </div>
@@ -413,6 +429,16 @@ export default function ExpertMilestoneDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Workspace Chat Drawer — additive, does not affect existing inbox navigation */}
+      <MilestoneChatPanel
+        engagementId={engagementId || ""}
+        clientId={engagement.clientId}
+        expertId={engagement.expertId}
+        projectName={engagement.project?.projectName}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 }

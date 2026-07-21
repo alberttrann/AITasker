@@ -53,6 +53,10 @@ export function TransactionHistory() {
         return isClient
           ? { label: 'Escrow Released', color: 'text-blue-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-blue-100' }
           : { label: 'Escrow Released', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'ESCROW_REFUND':
+        return { label: 'Dispute Refund', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'ESCROW_SPLIT':
+        return { label: 'Dispute Settlement (Split)', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       case 'WITHDRAWAL':
         return { label: 'Withdrawal', color: 'text-red-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-red-100' };
       default:
@@ -69,8 +73,8 @@ export function TransactionHistory() {
         {transactions.map((tx) => {
           const config = getTxConfig(tx.transactionType);
           const isPositive = isClient
-            ? tx.transactionType === 'TOP_UP'
-            : ['TOP_UP', 'ESCROW_RELEASE'].includes(tx.transactionType);
+            ? ['TOP_UP', 'ESCROW_REFUND'].includes(tx.transactionType)
+            : ['TOP_UP', 'ESCROW_RELEASE', 'ESCROW_REFUND', 'ESCROW_SPLIT'].includes(tx.transactionType);
           
           return (
              <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">

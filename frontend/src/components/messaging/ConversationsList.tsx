@@ -4,7 +4,7 @@ import { MessageCircle } from 'lucide-react';
 
 export default function ConversationsList() {
   return (
-    <div className="w-full max-w-[1440px] px-6 mx-auto py-6 flex h-[calc(100vh-140px)] min-h-[600px] bg-transparent border-0 gap-6 overflow-hidden select-none">
+    <div className="w-full max-w-[1440px] px-6 mx-auto py-6 flex h-[calc(100vh-160px)] min-h-[500px] bg-transparent border-0 gap-6 overflow-hidden select-none">
       {/* Conversations List Left Panel */}
       <ChatSidebar activeEngagementId={null} />
 

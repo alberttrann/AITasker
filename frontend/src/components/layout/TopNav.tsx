@@ -10,6 +10,8 @@ import { useNotificationsStore } from '@/store/notifications.store';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
 import SpotlightSearch from '@/components/layout/SpotlightSearch';
 import { useEngagementStore } from '@store/engagement.store';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import { useConversations } from '@/hooks/use-messages';
 
 export default function TopNav() {
@@ -17,7 +19,7 @@ export default function TopNav() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ── Dropdown State ──
+  // ΓöÇΓöÇ Dropdown State ΓöÇΓöÇ
   type DropdownType = 'wallet' | 'profile' | 'notifications' | 'messages' | 'mobile' | null;
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -33,7 +35,7 @@ export default function TopNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ── Modal State ──
+  // ΓöÇΓöÇ Modal State ΓöÇΓöÇ
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
@@ -77,13 +79,40 @@ export default function TopNav() {
   // Notifications store
   const { notifications, markRead, markAllRead } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
+  const queryClient = useQueryClient();
   const unreadCounts = useEngagementStore((s) => s.unreadCounts);
-  const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
-  const conversations = conversationsResponse?.data || [];
-  const unreadMessages = conversations.length === 0 
-    ? 0 
-    : conversations.reduce((acc: number, conv: any) => acc + (unreadCounts[conv.id] ?? conv.unreadCount ?? 0), 0);
+
+  const rawThreads = conversationsResponse?.data || [];
+  const filteredThreads = rawThreads.filter((t: any) => !!t.lastMessage && !!t.lastMessage.content);
+  
+  // Calculate total unread messages using store counts or fallback counts
+  const unreadMessages = filteredThreads.reduce(
+  (sum: number, t: any) => sum + (t.unreadCount ?? unreadCounts[t.id] ?? 0),
+  0
+);
+  // Show top 5 conversations in the dropdown
+  const conversations = filteredThreads.slice(0, 5);
+
+  const handleConversationClick = async (id: string) => {
+    setActiveDropdown(null);
+    try {
+      await apiClient.post(`/conversations/${id}/read`);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    } catch (err) {
+      console.error("Failed to mark conversation as read:", err);
+    }
+    navigate(`${dashboardRoute}/inbox/${id}`);
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await apiClient.post('/conversations/read-all');
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  };
 
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
@@ -158,7 +187,7 @@ const RoleIcon =
         {/* Right: Auth-Aware Controls (Desktop) */}
         <div className="hidden md:flex flex-row items-center gap-4">
           {!isAuthenticated ? (
-            // ── Unauthenticated State ──
+            // ΓöÇΓöÇ Unauthenticated State ΓöÇΓöÇ
             <>
               <button 
                 onClick={() => openModal('signin')} 
@@ -175,7 +204,7 @@ const RoleIcon =
               </button>
             </>
           ) : (
-            // ── Authenticated State ──
+            // ΓöÇΓöÇ Authenticated State ΓöÇΓöÇ
             <>
               {/* Wallet Menu */}
               {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
@@ -294,6 +323,9 @@ const RoleIcon =
                   <div className="absolute right-0 top-full mt-3 w-96 bg-surface border border-primary/10 shadow-md rounded-xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
                       <span className="font-semibold text-primary">Messages {unreadMessages > 0 ? `(${unreadMessages})` : ''}</span>
+                      {unreadMessages > 0 && (
+                        <button onClick={handleMarkAllRead} className="text-xs font-semibold text-[#059669] hover:underline bg-transparent border-none cursor-pointer">Mark all read</button>
+                      )}
                     </div>
                     <div className="max-h-80 overflow-y-auto bg-white">
                       {conversations.length === 0 ? (
@@ -318,10 +350,7 @@ const RoleIcon =
                           return (
                             <div
                               key={conv.id}
-                              onClick={() => {
-                                navigate(`${dashboardRoute}/engagements/${conv.id}/messages`);
-                                setActiveDropdown(null);
-                              }}
+                              onClick={() => handleConversationClick(conv.id)}
                               className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors flex gap-3 ${hasUnread ? 'bg-primary/5' : ''}`}
                             >
                               {/* Avatar Bubble */}
@@ -350,7 +379,7 @@ const RoleIcon =
                     </div>
                     {conversations.length > 0 && (
                       <Link
-                        to={`${dashboardRoute}/messages`}
+                        to={`${dashboardRoute}/inbox`}
                         onClick={() => setActiveDropdown(null)}
                         className="p-3 text-center text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100/80 border-t border-slate-100 block transition-all"
                       >
@@ -676,13 +705,13 @@ const RoleIcon =
               </Link>
             )}
 
-            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+            {rawRole !== 'ADMIN' && (
               <Link 
-                to={`${dashboardRoute}/messages`} 
-                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/messages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                to={`${dashboardRoute}/inbox`} 
+                className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/inbox') || location.pathname.includes('/messages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               >
                 Messages
-                {location.pathname.includes('/messages') && (
+                {(location.pathname.includes('/inbox') || location.pathname.includes('/messages')) && (
                   <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                 )}
               </Link>
@@ -691,7 +720,7 @@ const RoleIcon =
         </div>
       )}
     </header>
-    {/* ── Render the Modal ── */}
+    {/* ΓöÇΓöÇ Render the Modal ΓöÇΓöÇ */}
     <AuthModal 
       isOpen={isAuthModalOpen} 
       onClose={() => setIsAuthModalOpen(false)} 

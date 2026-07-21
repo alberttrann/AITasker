@@ -54,6 +54,18 @@ export function useConversations() {
   });
 }
 
+export function useSendWorkspaceMessage() {
+  const socket = useSocket();
+
+  return (payload: {
+    engagement_id?: string;
+    project_id?: string;
+    content: string;
+  }) => {
+    socket?.emit("sendMessageWorkspace", payload);
+  };
+}
+
 export interface PartnerConversationSummary {
   partnerId: string;
   partnerName: string;

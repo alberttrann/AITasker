@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -98,7 +98,9 @@ export class MessagesController {
   @ApiOperation({ summary: 'List all active conversation threads for the current user' })
   async getConversations(@CurrentUser() user: AuthUser) {
     return this.messagesService.getConversations({
-      id: user.id, activeRole: user.activeRole,
+      id: user.id,
+      activeRole: user.activeRole,
+      clientSubtype: user.clientSubtype,
     });
   }
   @Get('projects/:id/messages/unread-count')
@@ -109,5 +111,16 @@ export class MessagesController {
   ) {
     const count = await this.messagesService.projectUnreadCount(projectId, user.id);
     return { unread_count: count };
+  }
+
+  @Post('conversations/:engagementId/read')
+  async readEngagement(@Param('engagementId') engagementId: string, @CurrentUser() user: AuthUser) {
+    return this.messagesService.markEngagementAsRead(engagementId, user.id);
+  } 
+
+
+  @Post('conversations/read-all')
+  async readAll(@CurrentUser() user: AuthUser) {
+    return this.messagesService.markAllAsRead(user.id);
   }
 }
