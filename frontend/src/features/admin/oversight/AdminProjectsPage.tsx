@@ -1,18 +1,73 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAdminProjects, useAdminProjectDetail, useSuspendProject, useReopenProject } from '@/hooks/use-admin';
-import { DataTable } from '@/components/layout/Table';
+import { DataTable, Column } from '@/components/layout/Table';
 import { Spinner } from '@/components/ui/Spinner';
 import { Modal, ConfirmModal } from '@/components/ui/modal';
 import { Briefcase, Ban, CheckCircle2 } from 'lucide-react';
+import { AdminTableToolbar } from '@/features/admin/layout/AdminTableToolbar';
+
+const ROWS_PER_PAGE = 15;
 
 export default function AdminProjectsPage() {
   const [filterState, setFilterState] = useState('');
-  const { data: projects, isLoading } = useAdminProjects({ state: filterState || undefined });
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [sortColumn, setSortColumn] = useState<string>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc'|'desc'>('desc');
+
+  const { data, isLoading } = useAdminProjects({ state: filterState || undefined });
   const suspendProject = useSuspendProject();
   const reopenProject = useReopenProject();
+  
   const [confirmTarget, setConfirmTarget] = useState<{ id: string, action: 'suspend' | 'reopen' } | null>(null);
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null);
   const { data: projectDetail, isLoading: isLoadingDetail } = useAdminProjectDetail(detailProjectId || '');
+
+  const projects: any[] = Array.isArray(data) ? data : data?.data ?? [];
+
+  const filteredAndSorted = useMemo(() => {
+    let result = projects.filter(p => {
+      if (search) {
+        const query = search.toLowerCase();
+        const name = (p.projectName || '').toLowerCase();
+        const id = (p.id || '').toLowerCase();
+        return name.includes(query) || id.includes(query);
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+      switch (sortColumn) {
+        case 'projectName':
+          valA = a.projectName || '';
+          valB = b.projectName || '';
+          break;
+        case 'tier':
+          valA = a.tier || '';
+          valB = b.tier || '';
+          break;
+        case 'state':
+          valA = a.state || '';
+          valB = b.state || '';
+          break;
+        case 'createdAt':
+          valA = new Date(a.createdAt || 0).getTime();
+          valB = new Date(b.createdAt || 0).getTime();
+          break;
+      }
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [projects, search, sortColumn, sortDirection]);
+
+  const total = filteredAndSorted.length;
+  const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
+  const paginatedData = filteredAndSorted.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
 
@@ -23,12 +78,21 @@ export default function AdminProjectsPage() {
     setConfirmTarget(null);
   };
 
-  const columns = [
-    { key: 'projectName', label: 'Project', render: (p: any) => <div className="font-bold text-slate-900">{p.projectName || `Project ${p.id.slice(0,8)}`}</div> },
-    { key: 'tier', label: 'Tier', render: (p: any) => <span className="text-xs font-bold text-slate-500 uppercase">{p.tier?.replace('_', ' ') || '—'}</span> },
-    { key: 'state', label: 'State', render: (p: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${p.state === 'SUSPENDED' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{p.state}</span> },
-    { key: 'createdAt', label: 'Created At', render: (p: any) => <span className="text-xs text-slate-500">{new Date(p.createdAt).toLocaleDateString()}</span> },
-    { key: 'actions', label: '', render: (p: any) => (
+  const handleSort = (key: string) => {
+    if (sortColumn === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const columns: Column<any>[] = [
+    { key: 'projectName', label: 'Project', sortable: true, render: (p: any) => <div className="font-bold text-slate-900">{p.projectName || `Project ${p.id.slice(0,8)}`}</div> },
+    { key: 'tier', label: 'Tier', sortable: true, render: (p: any) => <span className="text-xs font-bold text-slate-500 uppercase">{p.tier?.replace('_', ' ') || '—'}</span> },
+    { key: 'state', label: 'State', sortable: true, render: (p: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${p.state === 'SUSPENDED' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{p.state}</span> },
+    { key: 'createdAt', label: 'Created At', sortable: true, render: (p: any) => <span className="text-xs text-slate-500">{new Date(p.createdAt).toLocaleDateString()}</span> },
+    { key: 'actions', label: '', sortable: false, render: (p: any) => (
       <div className="flex justify-end gap-2">
         <button onClick={() => setDetailProjectId(p.id)} className="px-3 py-1 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50">Details</button>
 
@@ -42,20 +106,40 @@ export default function AdminProjectsPage() {
   ];
 
   return (
-    <div className="max-w-[1440px] mx-auto space-y-6">
+    <div className="max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2"><Briefcase className="h-8 w-8 text-blue-600"/> Projects Oversight</h1>
           <p className="text-slate-500 mt-2">Monitor all published projects. Suspend malicious or non-compliant specs.</p>
         </div>
-        <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm">
-          <option value="">All States</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="SUSPENDED">Suspended</option>
-        </select>
       </div>
 
-      <DataTable columns={columns} data={projects || []} keyExtractor={(p: any) => p.id} />
+      <AdminTableToolbar 
+        searchQuery={search}
+        onSearchChange={(val) => { setSearch(val); setPage(1); }}
+        searchPlaceholder="Search by project name or ID..."
+        tabs={[
+          { label: "All States", value: "" },
+          { label: "Published", value: "PUBLISHED" },
+          { label: "Suspended", value: "SUSPENDED" },
+        ]}
+        activeTab={filterState}
+        onTabChange={(val) => { setFilterState(val); setPage(1); }}
+        itemCount={total}
+        itemLabel="project"
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
+
+      <DataTable 
+        columns={columns} 
+        data={paginatedData} 
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+        keyExtractor={(p: any) => p.id} 
+      />
 
       <ConfirmModal
         isOpen={!!confirmTarget}

@@ -155,7 +155,6 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
-    clearAllUnread();
     logout(); // Clears Zustand state
     navigate('/');
   };

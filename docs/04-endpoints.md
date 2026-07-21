@@ -100,6 +100,9 @@
 | `GET` | `/projects/:id` | CEO (owner), TECH_TEAM (linked), EXPERT (shortlisted), ADMIN | `[None]` | not in project member list → 403 | — (R: `projects`) | Returns `artifact_a_json`, `state`, `archetype`, `tier`. Does NOT return `artifact_b_json` here — that has its own guarded route. |
 | `GET` | `/projects/:id/artifact-a` | Any matched EXPERT, CEO (owner), TECH_TEAM (linked) | `[None]` | `projects.state != PUBLISHED` → 403 | — (R: `projects`) | Returns `projects.artifact_a_json`. Public within platform for shortlisted experts. |
 | `GET` | `/projects/:id/artifact-b` | EXPERT (in connected engagement), TECH_TEAM (linked, engagement ≥ CONNECTED) | `[Pro-C]` (implicit — only exists post-Pro-elicitation) | `engagement.state < CONNECTED` → 403 · `client_nda_accepted_at IS NULL` → 403 · `expert_nda_accepted_at IS NULL` → 403 · `requester.active_role = CLIENT/CEO` → 403 **permanent** | — (R: `projects`, `engagements`) | **FastAPI route** — all 4 guard conditions must pass simultaneously. CEO requests always return 403 regardless of any other condition. |
+| `POST` | `/projects/:id/milestone-chat` | CEO, TECH_TEAM | `[None]` | — | `milestone_chat_sessions` | Create or interact with a milestone chat session for AI-assisted milestone generation. |
+| `GET` | `/projects/:id/milestone-chat/sessions` | CEO, TECH_TEAM | `[None]` | — | — (R: `milestone_chat_sessions`) | List milestone chat sessions for a project. |
+| `GET` | `/projects/:id/milestone-chat/sessions/:sessionId` | CEO, TECH_TEAM | `[None]` | — | — (R: `milestone_chat_sessions`) | Get a specific milestone chat session. |
 | `POST` | `/matching/:projectId` | System-internal (auto-triggered on project PUBLISHED) | Internal | — | — (R: `expert_seam_claims`, `expert_domain_depths`, `expert_profiles`; W: match cache) | Calls FastAPI `/llm/matching`. Scores all eligible experts. Writes ranked shortlist. **Not directly callable by frontend.** |
 | `GET` | `/matching/:projectId/shortlist` | CEO (owner) | `[Pro-C]` | `projects.state != PUBLISHED` → 422 · subscription expired → 403 | — (R: match shortlist cache) | Returns 3–5 ranked expert cards: strength label, seam gap map colors (Amber/Yellow/Red), domains, `expert_profiles`. Numeric composite scores NOT returned — labels only. |
 
@@ -155,11 +158,17 @@
 | Method | Path | Actor | Gate | Guard → Error | W Tables | Notes |
 |---|---|---|---|---|---|---|
 | `POST` | `/bids` | EXPERT | `[Pro-E]` for Tier 2–3 projects | subscription not active (Tier 2–3 project) → 403 · `footprint_alignment_json` OR `approach_summary` OR `conditional_pricing_json` NULL → 422 `MISSING_BID_COMPONENT` · self-exclusion (`expert.user_id = project.client_id`) → 403 · expert not in shortlist → 403 | `engagements`, `capability_bids` | Creates `engagement {PROJECT_BASED, PENDING}` + `capability_bids {SUBMITTED, tech_status: PENDING, ceo_status: PENDING}`. `UNIQUE(engagement_id)` on `capability_bids` enforced. |
+| `GET` | `/bids` | EXPERT, CEO | `[None]` | — | — (R: `capability_bids`) | List bids - experts see own bids; CEOs see bids for their projects. |
 | `GET` | `/bids/:id` | TECH_TEAM (linked), CEO (of project), EXPERT (owner), ADMIN | `[None]` | not a party → 403 | — (R: `capability_bids`) | Full bid detail including `tech_feedback`, `version_number`, `negotiated_price_vnd`. |
 | `PUT` | `/bids/:id` | EXPERT (owner) | `[Pro-E]` | `tech_status != REVISION_REQUESTED` → 422 `REVISION_NOT_REQUESTED` · any of 3 components NULL after update → 422 | `capability_bids` | In-place mutable revision. Updates components, sets `tech_status → PENDING`, increments `version_number`. No `bid_versions` table — mutable row only. |
+| `DELETE` | `/bids/:id` | EXPERT (owner) | `[None]` | — | `capability_bids` | Deletes a bid. |
 | `PUT` | `/bids/:id/tech-review` | TECH_TEAM (linked to this project) | `[None]` | `active_role != CLIENT` OR `client_subtype != TECH_TEAM` → 403 · not linked to this project → 403 · `bid.state` not in reviewable states → 422 | `capability_bids` | TECH_TEAM sets `tech_status = APPROVED` or `REVISION_REQUESTED`. If `REVISION_REQUESTED`: `tech_feedback` text required. If `APPROVED`: CEO_REVIEW unlocks. |
 | `PUT` | `/bids/:id/ceo-decision` | CEO (of this project) | `[None]` | `capability_bids.tech_status != APPROVED` → 422 `TECH_REVIEW_INCOMPLETE` · `ceo_status` already set → 409 | `capability_bids`, `engagements` | CEO sets `ceo_status = APPROVED` or `DECLINED`. If `APPROVED`: `capability_bids.state → SELECTED`, all other bids for project → `DECLINED`, connection flow auto-initiated. |
 | `PUT` | `/bids/:id/counter-offer` | CEO (of this project) | `[None]` | `tech_status != APPROVED` → 422 · `negotiated_price_vnd` already set (not NULL) → 409 `COUNTER_OFFER_ALREADY_SET` | `capability_bids` | One-round only. Sets `negotiated_price_vnd` (BIGINT). Immutable after first write. |
+| `POST` | `/bids/:id/offers` | EXPERT, CEO | `[None]` | — | `bid_offers` | Counter or revise the current offer with full per-milestone terms. |
+| `POST` | `/bids/:id/offers/:offerId/accept` | EXPERT, CEO | `[None]` | — | `capability_bids`, `milestones` | Accept the current offer and atomically finalize its milestones. |
+| `POST` | `/bids/:id/offers/:offerId/decline` | EXPERT, CEO | `[None]` | — | `bid_offers` | Decline the current offer. |
+| `POST` | `/bids/:id/reconcile` | SYSTEM/ADMIN | `[None]` | — | `capability_bids`, `bid_offers` | Idempotently convert a legacy bid into the versioned offer contract. |
 
 ---
 
@@ -168,8 +177,11 @@
 | Method | Path | Actor | Gate | Guard → Error | W Tables | Notes |
 |---|---|---|---|---|---|---|
 | `POST` | `/milestones` | CEO (of this engagement) | `[None]` | `engagement.state < CONNECTED` → 422 · `sign_off_authority` not in `SIGN_OFF_AUTH` domain → 422 · `payment_amount_vnd <= 0` → 422 | `milestones` | Creates milestone at `state: DEFINED`. `milestone_number` auto-assigned; `UNIQUE(engagement_id, milestone_number)` enforced. |
+| `POST` | `/milestones/bulk` | CEO | `[None]` | — | `milestones` | Bulk initialize all contract milestones from the CEO final template. |
 | `GET` | `/milestones` | All parties to engagement | `[None]` | not a party → 403 | — (R: `milestones`) | List all milestones for an engagement. |
 | `GET` | `/milestones/:id` | All parties to engagement | `[None]` | not a party → 403 | — (R: `milestones`, `escrow_accounts`, `milestone_submissions`) | Full milestone detail including `state`, `va_number` (if AWAITING_PAYMENT), escrow status. |
+| `PATCH` | `/milestones/:id` | CEO | `[None]` | — | `milestones` | Partially update milestone fields. |
+| `DELETE` | `/milestones/:id` | CEO | `[None]` | — | `milestones` | Delete a milestone. |
 | `PUT` | `/milestones/:id/fund` | CEO (of this engagement) | `[None]` | `milestones.state != DEFINED` → 422 · `engagement.state < CONNECTED` → 422 | `milestones`, `virtual_accounts` | Creates per-milestone VA (`entity_type: MILESTONE`, `fixed_amount`, `expires_at: +24h`). Sets `milestones.state → AWAITING_PAYMENT`. Returns `{ va_number, vietqr_string, expires_at }`. Actual funding happens on IPN (E: `/webhooks/sepay/ipn` MILESTONE branch). |
 
 ---
@@ -201,7 +213,10 @@
 |---|---|---|---|---|---|---|
 | `POST` | `/milestones/:id/submit` | EXPERT (in engagement) | `[None]` | DoD gate: `SELECT COUNT(*) FROM milestone_dod_items WHERE is_required=true AND status != 'COMPLETED'` > 0 → 422 `DOD_INCOMPLETE` with blocking item list · `milestones.state != IN_PROGRESS` → 422 | `milestone_submissions`, `milestones` | Creates `milestone_submissions` row. Sets `milestones.state → SUBMITTED`. Sign-off authority notified. |
 | `GET` | `/milestones/:id/submissions` | All parties, ADMIN | `[None]` | not a party → 403 | — (R: `milestone_submissions`) | Returns submission history (description, files_json, submitted_at). |
+| `GET` | `/milestones/:id/submissions/latest` | All parties, ADMIN | `[None]` | not a party → 403 | — (R: `milestone_submissions`) | Returns the latest submission for the milestone. |
+| `DELETE` | `/milestones/:id/submissions/latest` | EXPERT | `[None]` | — | `milestone_submissions` | Delete the latest submission. |
 | `POST` | `/milestones/:id/paygated-docs` | EXPERT (in engagement) | `[None]` | `engagement.state < CONNECTED` → 422 · `active_role != EXPERT` → 403 | `paygated_documents` | Uploads document, tags to `milestone_id`. Sets `release_state: STAGED`. Document stays STAGED until IPN MILESTONE FUNDED fires and atomically flips to RELEASED. |
+| `POST` | `/milestones/:id/paygated-docs/bulk` | EXPERT (in engagement) | `[None]` | — | `paygated_documents` | Bulk upload paygated documents. |
 | `GET` | `/milestones/:id/paygated-docs` | TECH_TEAM (linked, engagement ≥ CONNECTED) | `[None]` | `active_role = CLIENT AND client_subtype = CEO` → 403 **permanent** · `release_state != RELEASED` → filtered out (not returned) · `engagement.state < CONNECTED` → 403 | — (R: `paygated_documents`) | CEO permanently excluded at route level. Returns only `release_state = RELEASED` documents. |
 
 ---
@@ -219,9 +234,15 @@
 
 | Method | Path | Actor | Gate | Guard → Error | W Tables | Notes |
 |---|---|---|---|---|---|---|
+| `GET` | `/conversations` | CEO, TECH_TEAM, EXPERT (parties) | `[None]` | — | — (R: `messages`, `engagements`) | List all active conversation threads for the current user. |
 | `GET` | `/engagements/:id/messages` | CEO, TECH_TEAM, EXPERT (parties), ADMIN | `[None]` | not a party and not ADMIN → 403 | — (R: `messages`, `message_reads`) | Returns thread ordered by `timestamp ASC`. Includes `unread_count` per user. ADMIN read-only (no unread tracking for admin). |
+| `GET` | `/projects/:id/messages` | CEO, TECH_TEAM, EXPERT (parties), ADMIN | `[None]` | — | — (R: `messages`) | Retrieve pre-bid project Q&A thread with cursor-based pagination. |
 | `POST` | `/engagements/:id/messages` | CEO, TECH_TEAM, EXPERT (parties only) | `[None]` | `active_role = ADMIN` → 403 `ADMIN_CANNOT_SEND` · not a party → 403 · engagement not active enough for messaging → 422 | `messages` | Creates message row. Broadcasts via Socket.io room (keyed by `engagement_id`). One `attachment_url` per message (MVP). |
 | `POST` | `/messages/:id/read` | Any party to the message's engagement | `[None]` | not a party → 403 · already read by this user → 200 no-op (`UNIQUE(message_id, user_id)` idempotent) | `message_reads` | Sets `read_at = now()`. Idempotent. |
+| `GET` | `/engagements/:id/messages/unread-count` | CEO, TECH_TEAM, EXPERT | `[None]` | — | — (R: `message_reads`) | Get total count of unread messages for current user in an engagement. |
+| `GET` | `/projects/:id/messages/unread-count` | CEO, TECH_TEAM, EXPERT | `[None]` | — | — (R: `message_reads`) | Get unread count for pre-bid project Q&A thread. |
+| `POST` | `/conversations/:engagementId/read` | CEO, TECH_TEAM, EXPERT | `[None]` | — | `message_reads` | Mark all messages in a specific engagement conversation as read. |
+| `POST` | `/conversations/read-all` | CEO, TECH_TEAM, EXPERT | `[None]` | — | `message_reads` | Mark all messages across all conversations as read. |
 
 ---
 

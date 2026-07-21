@@ -1,33 +1,97 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAdminEngagements } from '@/hooks/use-admin';
 import { useEngagement } from '@/hooks/use-engagements';
-import { DataTable } from '@/components/layout/Table';
+import { DataTable, Column } from '@/components/layout/Table';
 import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/modal';
 import { Handshake } from 'lucide-react';
+import { AdminTableToolbar } from '@/features/admin/layout/AdminTableToolbar';
+
+const ROWS_PER_PAGE = 15;
 
 export default function AdminEngagementsPage() {
   const [filterState, setFilterState] = useState('');
-  const { data: engagements, isLoading } = useAdminEngagements({ state: filterState || undefined });
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [sortColumn, setSortColumn] = useState<string>('id');
+  const [sortDirection, setSortDirection] = useState<'asc'|'desc'>('asc');
+
+  const { data, isLoading } = useAdminEngagements({ state: filterState || undefined });
+  const engagements: any[] = Array.isArray(data) ? data : data?.data ?? [];
 
   // Detail Modal State
   const [detailEngagementId, setDetailEngagementId] = useState<string | null>(null);
   const { data: engagementDetail, isLoading: isLoadingDetail } = useEngagement(detailEngagementId || undefined);
 
+  const filteredAndSorted = useMemo(() => {
+    let result = engagements.filter(e => {
+      if (search) {
+        const query = search.toLowerCase();
+        const id = (e.id || '').toLowerCase();
+        const clientEmail = (e.client?.email || '').toLowerCase();
+        const expertEmail = (e.expert?.email || '').toLowerCase();
+        const projName = (e.project?.projectName || e.service?.title || '').toLowerCase();
+        return id.includes(query) || clientEmail.includes(query) || expertEmail.includes(query) || projName.includes(query);
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+      switch (sortColumn) {
+        case 'id':
+          valA = a.id || '';
+          valB = b.id || '';
+          break;
+        case 'type':
+          valA = a.type || '';
+          valB = b.type || '';
+          break;
+        case 'state':
+          valA = a.state || '';
+          valB = b.state || '';
+          break;
+        case 'project':
+          valA = a.project?.projectName || a.service?.title || '';
+          valB = b.project?.projectName || b.service?.title || '';
+          break;
+      }
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [engagements, search, sortColumn, sortDirection]);
+
+  const total = filteredAndSorted.length;
+  const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
+  const paginatedData = filteredAndSorted.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
 
-  const columns = [
-    { key: 'id', label: 'ID', render: (e: any) => <span className="text-xs font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">{e.id.slice(0,8)}</span> },
-    { key: 'type', label: 'Type', render: (e: any) => <span className="text-xs font-bold text-slate-700">{e.type.replace('_', ' ')}</span> },
-    { key: 'state', label: 'State', render: (e: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${e.state === 'ACTIVE' || e.state === 'CONNECTED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{e.state}</span> },
-    { key: 'parties', label: 'Parties', render: (e: any) => (
+  const handleSort = (key: string) => {
+    if (sortColumn === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const columns: Column<any>[] = [
+    { key: 'id', label: 'ID', sortable: true, render: (e: any) => <span className="text-xs font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">{e.id.slice(0,8)}</span> },
+    { key: 'type', label: 'Type', sortable: true, render: (e: any) => <span className="text-xs font-bold text-slate-700">{e.type.replace('_', ' ')}</span> },
+    { key: 'state', label: 'State', sortable: true, render: (e: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${e.state === 'ACTIVE' || e.state === 'CONNECTED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{e.state}</span> },
+    { key: 'parties', label: 'Parties', sortable: false, render: (e: any) => (
       <div className="text-xs">
         <div className="text-blue-700"><span className="font-semibold">C:</span> {e.client?.email || e.clientId.slice(0,8)}</div>
         <div className="text-emerald-700 mt-0.5"><span className="font-semibold">E:</span> {e.expert?.email || e.expertId.slice(0,8)}</div>
       </div>
     )},
-    { key: 'project', label: 'Project/Service', render: (e: any) => <span className="text-xs font-medium text-slate-800">{e.project?.projectName || e.service?.title || '—'}</span> },
-    { key: 'actions', label: '', render: (e: any) => (
+    { key: 'project', label: 'Project/Service', sortable: true, render: (e: any) => <span className="text-xs font-medium text-slate-800">{e.project?.projectName || e.service?.title || '—'}</span> },
+    { key: 'actions', label: '', sortable: false, render: (e: any) => (
       <div className="flex justify-end">
         <button onClick={() => setDetailEngagementId(e.id)} className="px-3 py-1 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50">Details</button>
       </div>
@@ -35,23 +99,44 @@ export default function AdminEngagementsPage() {
   ];
 
   return (
-    <div className="max-w-[1440px] mx-auto space-y-6">
+    <div className="max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2"><Handshake className="h-8 w-8 text-emerald-600"/> Engagements Oversight</h1>
           <p className="text-slate-500 mt-2">Monitor all active contracts and service purchases.</p>
         </div>
-        <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm">
-          <option value="">All States</option>
-          <option value="PENDING">Pending</option>
-          <option value="CONNECTED">Connected</option>
-          <option value="ACTIVE">Active</option>
-          <option value="DISPUTED">Disputed</option>
-          <option value="CLOSED">Closed</option>
-        </select>
       </div>
 
-      <DataTable columns={columns} data={engagements || []} keyExtractor={(e: any) => e.id} emptyState={<div className="text-center p-12 text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No engagements found.</div>} />
+      <AdminTableToolbar 
+        searchQuery={search}
+        onSearchChange={(val) => { setSearch(val); setPage(1); }}
+        searchPlaceholder="Search by ID, email, or project..."
+        tabs={[
+          { label: "All States", value: "" },
+          { label: "Pending", value: "PENDING" },
+          { label: "Connected", value: "CONNECTED" },
+          { label: "Active", value: "ACTIVE" },
+          { label: "Disputed", value: "DISPUTED" },
+          { label: "Closed", value: "CLOSED" },
+        ]}
+        activeTab={filterState}
+        onTabChange={(val) => { setFilterState(val); setPage(1); }}
+        itemCount={total}
+        itemLabel="engagement"
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
+
+      <DataTable 
+        columns={columns} 
+        data={paginatedData} 
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+        keyExtractor={(e: any) => e.id} 
+        emptyState={<div className="text-center p-12 text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No engagements found.</div>} 
+      />
 
       {/* Detail Modal */}
       <Modal

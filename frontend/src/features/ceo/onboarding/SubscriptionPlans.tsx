@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 import { useSubscription, useSubscriptionHistory, useSubscriptionStatus } from '@/hooks/use-subscription';
 import { useSubscriptionPackages } from '@/hooks/use-config';
+import { useToastActions } from '@/lib/toast-context';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -17,8 +18,7 @@ export default function SubscriptionPlans() {
   const { data: wallet } = useWallet();
   const { activateSubscription: activateMutation } = useSubscription();
   const { data: packages, isLoading: isLoadingPackages } = useSubscriptionPackages();
-
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const toast = useToastActions();
   const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
 
   const { data: subStatus } = useSubscriptionStatus();
@@ -29,7 +29,6 @@ export default function SubscriptionPlans() {
     : [];
 
   const handleActivate = (packageId: string) => {
-    setErrorMsg(null);
     activateMutation.mutate(
       { activeRole: user?.activeRole || 'CLIENT', packageId },
       {
@@ -38,7 +37,7 @@ export default function SubscriptionPlans() {
         },
         onError: (error: any) => {
           const msg = error.response?.data?.message || 'Failed to activate subscription.';
-          setErrorMsg(Array.isArray(msg) ? msg[0] : msg);
+          toast.error(Array.isArray(msg) ? msg[0] : msg);
         }
       }
     );
@@ -63,12 +62,6 @@ export default function SubscriptionPlans() {
             Choose the perfect plan to elevate your project management with AI-driven elicitation, priority expert matching, and secure milestone tracking.
           </p>
         </div>
-
-        {errorMsg && (
-          <div className="p-4 bg-red-50 text-red-700 text-sm font-medium rounded-xl border border-red-100 shadow-sm max-w-2xl w-full text-center">
-            {errorMsg}
-          </div>
-        )}
 
         {isLoadingPackages ? (
           <div className="flex justify-center mt-8">

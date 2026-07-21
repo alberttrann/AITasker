@@ -5,9 +5,11 @@ import { useAdminConfigItems, useSaveAdminConfigItem, useDeleteAdminConfigItem }
 import { useDomains } from '@/hooks/use-config';
 import { Plus, Edit2, Trash2, ArrowLeft, Globe, Network, Check, GripVertical, Save } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/modal';
+import { useToastActions } from '@/lib/toast-context';
 
 export default function DomainSeamConfigPage() {
   const queryClient = useQueryClient();
+  const toast = useToastActions();
   const [activeTab, setActiveTab] = useState<'domains'|'seams'>('domains');
   
   // Form states for inline editing
@@ -46,6 +48,11 @@ export default function DomainSeamConfigPage() {
     onSuccess: () => {
       setIsCreating(false);
       setEditingId(null);
+      toast.success(`${activeTab === 'domains' ? 'Domain' : 'Seam'} saved successfully.`);
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || 'Failed to save config item.';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     }
   });
 
@@ -153,7 +160,7 @@ export default function DomainSeamConfigPage() {
           {activeTab === 'domains' ? (
             <input 
               value={formData.code} 
-              onChange={e => setFormData(f => ({...f, code: e.target.value}))} 
+              onChange={e => setFormData(f => ({...f, code: e.target.value.toUpperCase()}))} 
               className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs uppercase font-mono" 
               placeholder="e.g. HEALTHCARE" 
               disabled={mode === 'edit'} 
@@ -164,28 +171,32 @@ export default function DomainSeamConfigPage() {
                 value={formData.code.split('↔')[0] || ''} 
                 onChange={e => {
                   const parts = formData.code.split('↔');
-                  setFormData(f => ({...f, code: `${e.target.value.toUpperCase()}↔${parts[1] || ''}`}));
+                  setFormData(f => ({...f, code: `${e.target.value}↔${parts[1] || ''}`}));
                 }} 
                 className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs uppercase" 
                 disabled={mode === 'edit'}
               >
                 <option value="" disabled>Domain 1...</option>
-                {(domainsList || []).map(d => (
+                {(domainsList || [])
+                  .filter(d => d.code !== formData.code.split('↔')[1])
+                  .map(d => (
                   <option key={d.code} value={d.code}>{d.code}</option>
                 ))}
               </select>
-              <div className="text-slate-400 font-bold text-center text-[10px] leading-none">↕</div>
+              <div className="text-slate-400 font-bold text-center text-[10px] leading-none">↔</div>
               <select 
                 value={formData.code.split('↔')[1] || ''} 
                 onChange={e => {
                   const parts = formData.code.split('↔');
-                  setFormData(f => ({...f, code: `${parts[0] || ''}↔${e.target.value.toUpperCase()}`}));
+                  setFormData(f => ({...f, code: `${parts[0] || ''}↔${e.target.value}`}));
                 }} 
                 className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs uppercase" 
                 disabled={mode === 'edit'}
               >
                 <option value="" disabled>Domain 2...</option>
-                {(domainsList || []).map(d => (
+                {(domainsList || [])
+                  .filter(d => d.code !== formData.code.split('↔')[0])
+                  .map(d => (
                   <option key={d.code} value={d.code}>{d.code}</option>
                 ))}
               </select>

@@ -52,6 +52,14 @@ export default function ExpertProjectsPage() {
   const { data: archetypes } = useArchetypes();
   const { profile } = useExpertProfile();
 
+  const isProfileComplete = profile && !!(
+    profile.profile?.bio || 
+    profile.profile?.engagementModel || 
+    (profile.profile?.stackTagsJson && profile.profile.stackTagsJson.length > 0) ||
+    (profile.domainDepths && profile.domainDepths.length > 0) ||
+    (profile.seamClaims && profile.seamClaims.length > 0)
+  );
+
   // Filter out locally deleted invitations
   const [deletedInvites, setDeletedInvites] = useState<Set<string>>(new Set());
 
@@ -68,7 +76,8 @@ export default function ExpertProjectsPage() {
 
     // Process Engagements first (they hold priority state over invitations)
     if (engagements) {
-      engagements.forEach((eng) => {
+      const now = Date.now();
+      engagements.forEach((eng, index) => {
         if (!eng.project) return;
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
@@ -101,7 +110,7 @@ export default function ExpertProjectsPage() {
           ceoName,
           companyName: null,
           status,
-          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || Date.now()),
+          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || eng.project?.createdAt || (now - index * 1000)),
           engagement: eng
         });
       });
@@ -235,12 +244,20 @@ export default function ExpertProjectsPage() {
             <Building2 className="w-8 h-8 text-slate-400" />
           </div>
           <h3 className="text-lg font-bold text-slate-900 mb-2">No projects yet</h3>
-          <p className="text-slate-500 max-w-sm mb-6">
-            You don't have any project invitations or active engagements. Complete your profile to get discovered!
-          </p>
-          <Button onClick={() => navigate('/expert/service/expert-profile')}>
-            Complete Profile
-          </Button>
+          {isProfileComplete ? (
+            <p className="text-slate-500 max-w-sm mb-6">
+              You don't have any project invitations or active engagements. We'll notify you when a CEO invites you to a project!
+            </p>
+          ) : (
+            <>
+              <p className="text-slate-500 max-w-sm mb-6">
+                You don't have any project invitations or active engagements. Complete your profile to get discovered!
+              </p>
+              <Button onClick={() => navigate('/expert/service/expert-profile')}>
+                Complete Profile
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <div className="flex-1 flex gap-6 items-start">
@@ -415,7 +432,7 @@ export default function ExpertProjectsPage() {
                           <span className="text-slate-300">•</span>
                           <p className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                             Total Budget: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                              fullProject.milestone_framework_json.reduce((sum: number, m: any) => sum + (m.payment_amount_vnd || 0), 0)
+                              fullProject.milestone_framework_json.reduce((sum: number, m: any) => sum + (m.payment_amount_vnd || m.estimated_cost_vnd || 0), 0)
                             )}
                           </p>
                         </>
@@ -712,7 +729,7 @@ export default function ExpertProjectsPage() {
                                     </span>
                                   )}
                                   <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shadow-sm">
-                                    {new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(m.payment_amount_vnd || 0)}
+                                    {new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(m.payment_amount_vnd || m.estimated_cost_vnd || 0)}
                                   </span>
                                 </div>
                               </div>
@@ -749,7 +766,7 @@ export default function ExpertProjectsPage() {
                                 <div className="text-right">
                                   <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block mb-1">Payment</span>
                                   <span className="text-emerald-400 font-bold text-base block">
-                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(activeM.payment_amount_vnd || 0)}
+                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(activeM.payment_amount_vnd || activeM.estimated_cost_vnd || 0)}
                                   </span>
                                 </div>
                               </div>

@@ -1,5 +1,6 @@
 import { useReducer, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useBlocker } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -116,6 +117,7 @@ export default function ElicitationWizard() {
   const location = useLocation();
   const { user } = useAuth();
   const toast = useToastActions();
+  const queryClient = useQueryClient();
   const initPromiseRef = useRef<Promise<any> | null>(null);
 
   const [state, dispatch] = useReducer(wizardReducer, {
@@ -231,6 +233,7 @@ export default function ElicitationWizard() {
     if (state.sessionId) {
       try {
         await revertSession(state.sessionId, stage);
+        queryClient.invalidateQueries({ queryKey: ["elicitation", "session", state.sessionId] });
       } catch (err: any) {
         dispatch({ type: "SET_ERROR", payload: handleElicitationError(err).message });
         return;
