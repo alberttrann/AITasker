@@ -165,4 +165,24 @@ export class ReviewService {
       where: { engagementId: engagement.id },
     });
   }
+
+  async getReviewsForUser(targetId: string) {
+    return this.prisma.review.findMany({
+      where: { targetId },
+      orderBy: { id: 'desc' }, 
+      include: {
+        reviewer: { select: { id: true, fullName: true } },
+      },
+    });
+  }
+
+  async getReviewsByReviewer(reviewerId: string) {
+    return this.prisma.review.findMany({
+      where: { reviewerId },
+      orderBy: { id: 'desc' }, 
+      include: {
+        target: { select: { id: true, fullName: true } },
+      },
+    });
+  }
 }

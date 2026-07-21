@@ -91,7 +91,7 @@ export const useNotificationsStore = create<NotificationsState>()(
       clear: () => set({ notifications: [], unreadCount: 0 }),
     }),
     {
-      name: 'aitasker-notifications-v2',
+      name: 'aitasker-notifications',
     }
   )
 );

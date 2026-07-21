@@ -11,8 +11,8 @@ export default function ErrorPage() {
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-light/30 rounded-full blur-3xl opacity-70"></div>
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-coral-light/20 rounded-full blur-3xl opacity-70"></div>
 
-      <div className="w-full max-w-5xl mx-auto flex flex-col items-center justify-center relative z-10 min-w-0">
-        <div className="relative z-10 text-center max-w-5xl w-full flex flex-col items-center shrink-0 min-w-0">
+      <div className="w-full max-w-[1440px] mx-auto flex flex-col items-center justify-center relative z-10 min-w-0">
+        <div className="relative z-10 text-center max-w-[1440px] w-full flex flex-col items-center shrink-0 min-w-0">
 
           {/* Massive 404 Typography */}
           <div className="relative inline-block mb-4">

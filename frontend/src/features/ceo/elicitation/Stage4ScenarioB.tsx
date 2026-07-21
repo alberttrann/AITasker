@@ -1,11 +1,41 @@
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, Link as LinkIcon, AlertTriangle, KeyRound } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Loader2, Link as LinkIcon, AlertTriangle, KeyRound, CheckCircle2 } from 'lucide-react';
 import Stage4HandoffLink from "./Stage4HandoffLink";
 import { inviteTechTeam, getSession, revertSession, handleElicitationError, useElicitation } from "@/hooks/use-elicitation";
 import type { Stage4ScenarioBProps } from "@t/ui.types";
 import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuth } from "@/hooks/use-auth";
+import { useToastActions } from "@lib/toast-context";
+
+/**
+ * ShakeInput — wraps <Input> and plays a shake animation whenever
+ * `error` transitions from false → true (on blur/submit with invalid value).
+ * The class is removed after the animation ends so it can re-fire next time.
+ */
+type ShakeInputProps = React.ComponentProps<typeof Input>;
+function ShakeInput({ error, className, ...props }: ShakeInputProps) {
+  const [shaking, setShaking] = useState(false);
+  const prevError = useRef(false);
+
+  useEffect(() => {
+    if (error && !prevError.current) {
+      setShaking(true);
+    }
+    prevError.current = !!error;
+  }, [error]);
+
+  return (
+    <Input
+      {...props}
+      error={error}
+      shake={shaking}
+      className={className}
+      onAnimationEnd={() => setShaking(false)}
+    />
+  );
+}
 
 // Polling configuration
 // Stopgap until a real sockets/notifications module exists on the backend.
@@ -21,26 +51,32 @@ export default function Stage4ScenarioB({
   onBack,
 }: Stage4ScenarioBProps) {
   const queryClient = useQueryClient();
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
+  const toast = useToastActions();
   const [inviteEmail, setInviteEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
+
+  const isEmailEmpty = !inviteEmail.trim();
+  const isEmailInvalidFormat = !isEmailEmpty && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim());
+  const isEmailSelf = !isEmailEmpty && !isEmailInvalidFormat && !!user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase();
+  const isEmailValid = !isEmailEmpty && !isEmailInvalidFormat && !isEmailSelf;
+  const hasEmailError = emailTouched && !isEmailValid;
 
   const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
 
   const handleBackClick = async () => {
     setIsReverting(true);
-    setSendError(null);
     try {
       await revertSession(sessionId, 3);
       await queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
       onBack();
     } catch (err: any) {
-      setSendError(handleElicitationError(err).message || 'Failed to revert session.');
+      toast.error(handleElicitationError(err).message || 'Failed to revert session.');
       setIsReverting(false);
     }
   };
@@ -51,23 +87,33 @@ export default function Stage4ScenarioB({
   // through whatever channel they normally use with their tech team
   // (Slack, Zalo, etc). This is intentional, not a missing feature.
   const handleGenerateLink = useCallback(async () => {
-    if (!inviteEmail.trim()) return;
+    if (!inviteEmail.trim()) {
+      setEmailTouched(true);
+      toast.error("Please enter your tech team member's email.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
+      setEmailTouched(true);
+      toast.error("Please enter a valid email address.");
+      return;
+    }
 
     if (user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase()) {
-      setSendError("You cannot invite yourself. Please enter your tech lead's email.");
+      setEmailTouched(true);
+      toast.error("You cannot invite yourself. Please enter your tech lead's email.");
       return;
     }
 
     setIsSending(true);
-    setSendError(null);
 
     try {
       const res = await inviteTechTeam(sessionId, inviteEmail.trim());
-      setInviteLink(res.invite_link);
+      setInviteLink(`${window.location.origin}/register/handoff/${res.invite_token}`);
       setInviteSent(true);
       setPollStartedAt(Date.now());
     } catch (err: any) {
-      setSendError(
+      toast.error(
         err?.response?.data?.message ??
           "Could not generate the invite link. Please try again.",
       );
@@ -89,19 +135,19 @@ export default function Stage4ScenarioB({
   const handleResendInvite = useCallback(() => {
     setInviteSent(false);
     setInviteLink(null);
-    setSendError(null);
     setPollStartedAt(null);
   }, []);
 
   // Give up after POLL_TIMEOUT_MS
   const timedOut = pollStartedAt ? Date.now() - pollStartedAt > POLL_TIMEOUT_MS : false;
 
-  const { data: sessionData, isError: isPollError } = useQuery({
+  const { data: sessionData, isError: isPollError } = useQuery<any>({
     queryKey: ['elicitation-session', sessionId],
     queryFn: () => getSession(sessionId),
-    refetchInterval: (query) => {
+    refetchInterval: (query: any) => {
       if (!inviteSent || timedOut) return false;
-      const currentStage = query.state?.data?.currentStage || query.state?.data?.current_stage || 1;
+      const data = query?.state?.data;
+      const currentStage = data?.currentStage || data?.current_stage || 1;
       return currentStage >= 5 ? false : POLL_INTERVAL_MS;
     },
     enabled: inviteSent && !timedOut,
@@ -124,36 +170,60 @@ export default function Stage4ScenarioB({
             Delegate technical details to your team. We'll generate a secure invite link for them to complete this stage.
           </p>
         </div>
+        
+        {sessionData?.criticalArtifactsJson && sessionData.criticalArtifactsJson.length > 0 && (
+          <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+            <h3 className="text-body font-bold text-blue-900 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-blue-600" />
+              Critical Documents Required
+            </h3>
+            <p className="mt-1 text-body-sm text-blue-800">
+              Please remind your tech team to prepare links to the following documents when they fill out this stage:
+            </p>
+            <ul className="mt-3 space-y-2">
+              {sessionData.criticalArtifactsJson.map((artifact: any, idx: number) => (
+                <li key={idx} className="flex flex-col text-sm">
+                  <span className="font-semibold text-blue-900">• {artifact.label}</span>
+                  <span className="text-blue-700 ml-3 text-xs italic">{artifact.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-        <div className="space-y-2">
-          <label htmlFor="tech-team-email" className="text-body-sm font-semibold text-primary">
+        <div>
+          <Label htmlFor="tech-team-email">
             Tech team member's email
-          </label>
-          <input
+          </Label>
+          <ShakeInput
             id="tech-team-email"
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
+            onFocus={() => setEmailTouched(false)}
             placeholder="name@company.com"
-            className="w-full rounded-lg border border-slate-200 bg-surface px-4 py-3 text-body text-primary placeholder:text-secondary transition-shadow hover:border-primary focus:border-2 focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none"
+            error={hasEmailError}
             disabled={isSending}
           />
-          <p className="text-caption text-secondary">
+          {hasEmailError && (
+            <p className="mt-1 text-xs font-semibold text-error text-red-600">
+              {isEmailEmpty && "Email address is required."}
+              {isEmailInvalidFormat && "Please enter a valid email address."}
+              {isEmailSelf && "You cannot invite yourself. Please enter your tech lead's email."}
+            </p>
+          )}
+          <p className="text-caption text-secondary mt-1">
             Used to link the account once they register — not used to send an email.
           </p>
         </div>
 
-        {sendError && <p className="text-body-sm text-error">{sendError}</p>}
+
 
         <Button
           onClick={handleGenerateLink}
-          disabled={
-            isSending || 
-            !inviteEmail.trim() || 
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim()) ||
-            (!!user?.email && inviteEmail.trim().toLowerCase() === user.email.toLowerCase())
-          }
-          className="w-full"
+          disabled={isSending || !isEmailValid}
+          className="w-full mt-4"
           variant="primary"
         >
           {isSending ? "Generating link…" : "Generate invite link"}

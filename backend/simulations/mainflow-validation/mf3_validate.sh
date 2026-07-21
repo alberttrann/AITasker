@@ -138,8 +138,15 @@ RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/auth/register/handoff" \
 CODE=$(echo "$RES" | tail -n1); BODY=$(echo "$RES" | sed '$d')
 print_body "$BODY"
 check_status "201" "$CODE" "Tech team registration succeeds"
-check_field_equals "$BODY" ".user.clientSubtype" "TECH_TEAM" "user.clientSubtype is TECH_TEAM"
-TECH_TOKEN=$(echo "$BODY" | jq -r '.access_token')
+check_field_equals "$BODY" ".message" "OTP_SENT" "Registration triggers OTP"
+
+REAL_OTP=$(run_db_script "
+  const u = await prisma.user.findUnique({ where: { email: '${TECH_EMAIL}' }});
+  console.log(u ? u.emailOtp : '');
+")
+RES=$(curl -s -X POST "${BASE_URL}/auth/verify-otp" -H "Content-Type: application/json" \
+  -d "{\"email\":\"${TECH_EMAIL}\",\"otp\":\"${REAL_OTP}\"}")
+TECH_TOKEN=$(echo "$RES" | jq -r '.access_token')
 TECH_AUTH=(-H "Authorization: Bearer ${TECH_TOKEN}")
 
 step_header "GET /engagements — confirm dashboard scoping (per resolved Open Question 3)"

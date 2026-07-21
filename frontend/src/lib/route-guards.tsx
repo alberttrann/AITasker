@@ -27,7 +27,7 @@ function homePath(
  * Prevents any guard from making a redirect decision before the
  * GET /users/me call has resolved.
  */
-function AuthGate() {
+export function AuthGate() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Spinner size="lg" className="text-primary" />

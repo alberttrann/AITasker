@@ -7,6 +7,7 @@ interface QualityGateFailedProps {
   advisoryNote: string;
   flaggedVoid: string | null;
   returnToStage: number;
+  completenessScore: number;
   onReturnToStage: (stage: number) => void;
   onStartOver: () => void;
 }

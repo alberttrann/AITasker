@@ -5,12 +5,12 @@ export default function BankHubLink() {
   const navigate = useNavigate();
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto w-full">
+    <div className="py-10 px-4 sm:px-6 max-w-[1440px] mx-auto w-full">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <button
           onClick={() => navigate('/expert/wallet')}
-          className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           aria-label="Go back"
         >
           <ArrowLeft size={20} />

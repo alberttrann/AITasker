@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ForbiddenException, BadRequestException, ConflictException,
-} from '@nestjs/common';
-import { JwtService }          from '@nestjs/jwt';
-import { ElicitationService }  from '../../src/elicitation/elicitation.service';
-import { PrismaService }       from '../../src/database/prisma.service';
-import { FastapiClient }       from '../../src/elicitation/fastapi.client';
-import { AuthService }         from '../../src/auth/auth.service';
+import { ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ElicitationService } from '../../src/elicitation/elicitation.service';
+import { PrismaService } from '../../src/database/prisma.service';
+import { FastapiClient } from '../../src/elicitation/fastapi.client';
+import { AuthService } from '../../src/auth/auth.service';
 import { MatchingHelperService } from '../../src/shared/matching/matching-helper.service';
 
 type GateFailedResult = {
@@ -30,9 +28,9 @@ describe('ElicitationService — regression', () => {
   let authService: any;
   let matchingHelper: any;
 
-  const CEO_ID     = 'ceo-user-1';
-  const OTHER_CEO  = 'other-ceo-2';
-  const TECH_ID    = 'tech-team-user-1';
+  const CEO_ID = 'ceo-user-1';
+  const OTHER_CEO = 'other-ceo-2';
+  const TECH_ID = 'tech-team-user-1';
   const SESSION_ID = 'session-1';
 
   const baseUser = {
@@ -71,27 +69,27 @@ describe('ElicitationService — regression', () => {
     prisma = {
       elicitationSession: {
         findUnique: jest.fn(),
-        findFirst:  jest.fn(),
-        create:     jest.fn(),
-        update:     jest.fn(),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
       },
       project: {
         create: jest.fn(),
       },
       user: {
         findUnique: jest.fn().mockResolvedValue(baseUser),
-        update:     jest.fn().mockResolvedValue(baseUser),
+        update: jest.fn().mockResolvedValue(baseUser),
       },
       techTeamProfile: {
         findUnique: jest.fn(),
-        update:     jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({}),
       },
     };
 
     fastapiClient = {
-      stage1Extract:         jest.fn(),
-      stage3VaguenessCheck:  jest.fn().mockResolvedValue({ vague_answers: [] }),
-      stage5Synthesize:      jest.fn(),
+      stage1Extract: jest.fn(),
+      stage3VaguenessCheck: jest.fn().mockResolvedValue({ vague_answers: [] }),
+      stage5Synthesize: jest.fn(),
     };
 
     authService = {
@@ -105,11 +103,14 @@ describe('ElicitationService — regression', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ElicitationService,
-        { provide: PrismaService,          useValue: prisma },
-        { provide: FastapiClient,          useValue: fastapiClient },
-        { provide: JwtService,             useValue: { signAsync: jest.fn().mockResolvedValue('invite.jwt.token') } },
-        { provide: AuthService,            useValue: authService },
-        { provide: MatchingHelperService,  useValue: matchingHelper },
+        { provide: PrismaService, useValue: prisma },
+        { provide: FastapiClient, useValue: fastapiClient },
+        {
+          provide: JwtService,
+          useValue: { signAsync: jest.fn().mockResolvedValue('invite.jwt.token') },
+        },
+        { provide: AuthService, useValue: authService },
+        { provide: MatchingHelperService, useValue: matchingHelper },
       ],
     }).compile();
 
@@ -123,16 +124,14 @@ describe('ElicitationService — regression', () => {
   describe('ownership enforcement', () => {
     it('throws ForbiddenException when a different user reads the session', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      await expect(
-        service.getSession(SESSION_ID, OTHER_CEO),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.getSession(SESSION_ID, OTHER_CEO)).rejects.toThrow(ForbiddenException);
     });
 
     it('throws ForbiddenException when retrying synthesis on a session owned by someone else', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      await expect(
-        service.retryFailedSynthesis(SESSION_ID, OTHER_CEO),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.retryFailedSynthesis(SESSION_ID, OTHER_CEO)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -141,7 +140,9 @@ describe('ElicitationService — regression', () => {
   describe('processStage2 — E5 archetype recommendation validation', () => {
     it('accepts an archetype within the recommended set', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 2, archetype: null,
+        ...stage5ReadySession,
+        currentStage: 2,
+        archetype: null,
         recommendedArchetypesJson: ['2', '4'],
       });
       prisma.elicitationSession.update.mockResolvedValue({});
@@ -155,33 +156,38 @@ describe('ElicitationService — regression', () => {
 
     it('rejects an archetype NOT within the recommended set', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 2, archetype: null,
+        ...stage5ReadySession,
+        currentStage: 2,
+        archetype: null,
         recommendedArchetypesJson: ['2', '4'],
       });
 
-      await expect(
-        service.processStage2(SESSION_ID, '6', CEO_ID, []),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.processStage2(SESSION_ID, '6', CEO_ID, [])).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('falls back to allowing any archetype when recommendations are empty (degraded ai-service)', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 2, archetype: null,
+        ...stage5ReadySession,
+        currentStage: 2,
+        archetype: null,
         recommendedArchetypesJson: [],
       });
       prisma.elicitationSession.update.mockResolvedValue({});
 
-      await expect(
-        service.processStage2(SESSION_ID, '6', CEO_ID, []),
-      ).resolves.toBeDefined();
+      await expect(service.processStage2(SESSION_ID, '6', CEO_ID, [])).resolves.toBeDefined();
     });
   });
 
-  // Stage 3 — exactly 4 archetype-tailored questions + vagueness 
+  // Stage 3 — exactly 4 archetype-tailored questions + vagueness
 
   describe('processStage3 — E6 fixed probes + vagueness check', () => {
     const archetype1Session = {
-      ...stage5ReadySession, currentStage: 3, archetype: '1', stage3ProbesJson: null,
+      ...stage5ReadySession,
+      currentStage: 3,
+      archetype: '1',
+      stage3ProbesJson: null,
     };
 
     it('throws BadRequestException when fewer than 4 questions are answered', async () => {
@@ -232,7 +238,7 @@ describe('ElicitationService — regression', () => {
         advanced: true,
         currentStage: 4,
         stage4_required: true,
-        scenario_type: 'SCENARIO_A',   // baseUser.selfTechnical = false
+        scenario_type: 'SCENARIO_A', // baseUser.selfTechnical = false
       });
     });
 
@@ -275,7 +281,10 @@ describe('ElicitationService — regression', () => {
     it('adds an override entry and returns a fresh access_token', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       prisma.user.findUnique.mockResolvedValue(baseUser);
-      prisma.user.update.mockResolvedValue({ ...baseUser, selfTechnicalProjects: [{ sessionId: SESSION_ID, override: true }] });
+      prisma.user.update.mockResolvedValue({
+        ...baseUser,
+        selfTechnicalProjects: [{ sessionId: SESSION_ID, override: true }],
+      });
 
       const result = await service.setSelfTechnical(SESSION_ID, CEO_ID, true);
 
@@ -288,9 +297,9 @@ describe('ElicitationService — regression', () => {
 
     it('throws ForbiddenException for a non-owner', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      await expect(
-        service.setSelfTechnical(SESSION_ID, OTHER_CEO, true),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.setSelfTechnical(SESSION_ID, OTHER_CEO, true)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -299,10 +308,13 @@ describe('ElicitationService — regression', () => {
   describe('processStage4 — E4(b) auto-chain into synthesis', () => {
     it('saves stage4 data AND returns the synthesis gate result in one call', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 4,
+        ...stage5ReadySession,
+        currentStage: 4,
       });
       prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 5, state: 'IN_PROGRESS',
+        ...stage5ReadySession,
+        currentStage: 5,
+        state: 'IN_PROGRESS',
       });
       fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
@@ -322,11 +334,13 @@ describe('ElicitationService — regression', () => {
   describe('processStage4Handoff — E4(b) auto-chain, Tech Team caller', () => {
     it('verifies tech team linkage then auto-chains synthesis', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 4,
+        ...stage5ReadySession,
+        currentStage: 4,
       });
       prisma.techTeamProfile.findUnique.mockResolvedValue({ linkedClientId: CEO_ID });
       prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 5,
+        ...stage5ReadySession,
+        currentStage: 5,
       });
       fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
@@ -342,62 +356,77 @@ describe('ElicitationService — regression', () => {
 
     it('throws UnauthorizedException when the tech team member is not linked to this session', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 4,
+        ...stage5ReadySession,
+        currentStage: 4,
       });
       prisma.techTeamProfile.findUnique.mockResolvedValue({ linkedClientId: 'some-other-ceo' });
 
       await expect(
-        service.processStage4Handoff(SESSION_ID, { current_stack: 'x', data_available: 'y' }, TECH_ID),
+        service.processStage4Handoff(
+          SESSION_ID,
+          { current_stack: 'x', data_available: 'y' },
+          TECH_ID,
+        ),
       ).rejects.toThrow('Tech Team member is not linked');
     });
 
     it('links the specific Tech Team member to the new project on gate pass (Phase 1b)', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 4,
+        ...stage5ReadySession,
+        currentStage: 4,
       });
       prisma.techTeamProfile.findUnique.mockResolvedValue({ linkedClientId: CEO_ID });
       prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 5,
+        ...stage5ReadySession,
+        currentStage: 5,
       });
       fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
 
       await service.processStage4Handoff(
-        SESSION_ID, { current_stack: 'Node', data_available: 'logs' }, TECH_ID,
+        SESSION_ID,
+        { current_stack: 'Node', data_available: 'logs' },
+        TECH_ID,
       );
 
       expect(prisma.techTeamProfile.update).toHaveBeenCalledWith({
         where: { userId: TECH_ID },
-        data:  { linkedProjectId: 'project-1' },
+        data: { linkedProjectId: 'project-1' },
       });
     });
 
     it('does NOT call techTeamProfile.update for Scenario A (CEO self-submit, no tech team involved)', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 4,
+        ...stage5ReadySession,
+        currentStage: 4,
       });
       prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 5,
+        ...stage5ReadySession,
+        currentStage: 5,
       });
       fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
 
       await service.processStage4(
-        SESSION_ID, { current_stack: 'Node', data_available: 'logs' }, CEO_ID,
+        SESSION_ID,
+        { current_stack: 'Node', data_available: 'logs' },
+        CEO_ID,
       );
 
       expect(prisma.techTeamProfile.update).not.toHaveBeenCalled();
     });
   });
 
-  // 3-condition quality gate 
+  // 3-condition quality gate
 
   describe('quality gate — E10 all 3 BR-ELI-06 conditions', () => {
     it('passes when completeness >= 0.70 AND no hard voids AND >= 1 candidate', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse({ completeness_score: 0.95 }));
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({ completeness_score: 0.95 }),
+      );
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
       prisma.elicitationSession.update.mockResolvedValue({});
@@ -408,7 +437,9 @@ describe('ElicitationService — regression', () => {
 
     it('fails when completeness < 0.70, even with candidates and no hard voids', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse({ completeness_score: 0.40 }));
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({ completeness_score: 0.4 }),
+      );
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.elicitationSession.update.mockResolvedValue({});
 
@@ -419,12 +450,33 @@ describe('ElicitationService — regression', () => {
       }
     });
 
+    it('returns missing technical artifacts to Stage 4', async () => {
+      prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({
+          completeness_score: 0.6,
+          flagged_void: 'MISSING_TECHNICAL_ARTIFACT',
+        }),
+      );
+      matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
+      prisma.elicitationSession.update.mockResolvedValue({});
+
+      const result = await service.retryFailedSynthesis(SESSION_ID, CEO_ID);
+      expect(result.gate_passed).toBe(false);
+      if (isGateFailed(result)) {
+        expect(result.flagged_void).toBe('MISSING_TECHNICAL_ARTIFACT');
+        expect(result.return_to_stage).toBe(4);
+      }
+    });
+
     it('fails when an unresolved HIGH-severity void exists, even with good completeness and candidates', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
         ...stage5ReadySession,
         voidListJson: [{ void_code: 'NO_GROUND_TRUTH', severity: 'HIGH', injected: false }],
       });
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse({ completeness_score: 0.95 }));
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({ completeness_score: 0.95 }),
+      );
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.elicitationSession.update.mockResolvedValue({});
 
@@ -440,7 +492,9 @@ describe('ElicitationService — regression', () => {
         ...stage5ReadySession,
         voidListJson: [{ void_code: 'NO_GROUND_TRUTH', severity: 'HIGH', injected: true }],
       });
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse({ completeness_score: 0.95 }));
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({ completeness_score: 0.95 }),
+      );
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
       prisma.elicitationSession.update.mockResolvedValue({});
@@ -451,7 +505,9 @@ describe('ElicitationService — regression', () => {
 
     it('fails with an HONEST advisory (not "go fix your input") when candidates=0 is the ONLY failing condition', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse({ completeness_score: 0.95 }));
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({ completeness_score: 0.95 }),
+      );
       matchingHelper.scoreEligibleExperts.mockResolvedValue([]); // zero candidates
       prisma.elicitationSession.update.mockResolvedValue({});
 
@@ -467,7 +523,9 @@ describe('ElicitationService — regression', () => {
 
     it('treats a matching pre-check failure (ai-service error) as zero candidates, fail-safe', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse({ completeness_score: 0.95 }));
+      fastapiClient.stage5Synthesize.mockResolvedValue(
+        makeSynthesisResponse({ completeness_score: 0.95 }),
+      );
       matchingHelper.scoreEligibleExperts.mockRejectedValue(new Error('ai-service matching down'));
       prisma.elicitationSession.update.mockResolvedValue({});
 
@@ -481,11 +539,12 @@ describe('ElicitationService — regression', () => {
   describe('retryFailedSynthesis — duplicate-publish prevention', () => {
     it('throws ConflictException when session is already COMPLETED', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, state: 'COMPLETED',
+        ...stage5ReadySession,
+        state: 'COMPLETED',
       });
-      await expect(
-        service.retryFailedSynthesis(SESSION_ID, CEO_ID),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.retryFailedSynthesis(SESSION_ID, CEO_ID)).rejects.toThrow(
+        ConflictException,
+      );
       expect(fastapiClient.stage5Synthesize).not.toHaveBeenCalled();
     });
 
@@ -495,36 +554,35 @@ describe('ElicitationService — regression', () => {
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.project.create.mockRejectedValue({ code: 'P2002' });
 
-      await expect(
-        service.retryFailedSynthesis(SESSION_ID, CEO_ID),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.retryFailedSynthesis(SESSION_ID, CEO_ID)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('returns a clean BadRequestException instead of a raw Axios error on ai-service failure', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       fastapiClient.stage5Synthesize.mockRejectedValue(new Error('ECONNABORTED'));
 
-      await expect(
-        service.retryFailedSynthesis(SESSION_ID, CEO_ID),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.retryFailedSynthesis(SESSION_ID, CEO_ID)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
-  // handoff link generation — no email, jti-tracked 
-
+  // handoff link generation — no email, jti-tracked
   describe('inviteTechTeam — E9 no email binding, jti tracking', () => {
     it('generates a jti, persists it on the session, and returns a link with no email reference', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       prisma.elicitationSession.update.mockResolvedValue({});
 
-      const result = await service.inviteTechTeam(SESSION_ID, CEO_ID);
+      const result = await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
 
       expect(result.invite_link).toContain('/tech-team/register?token=');
       expect(result.expires_in).toBe('72h');
       expect(prisma.elicitationSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            handoffTokenJti:   expect.any(String),
+            handoffTokenJti: expect.any(String),
             handoffConsumedAt: null,
           }),
         }),
@@ -535,10 +593,10 @@ describe('ElicitationService — regression', () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       prisma.elicitationSession.update.mockResolvedValue({});
 
-      await service.inviteTechTeam(SESSION_ID, CEO_ID);
+      await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
       const firstJti = prisma.elicitationSession.update.mock.calls[0][0].data.handoffTokenJti;
 
-      await service.inviteTechTeam(SESSION_ID, CEO_ID);
+      await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
       const secondJti = prisma.elicitationSession.update.mock.calls[1][0].data.handoffTokenJti;
 
       expect(firstJti).not.toBe(secondJti);
@@ -550,9 +608,15 @@ describe('ElicitationService — regression', () => {
   describe('state reset after RETURNED', () => {
     it('resets state to IN_PROGRESS when re-processing stage1', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession, currentStage: 1, state: 'RETURNED',
+        ...stage5ReadySession,
+        currentStage: 1,
+        state: 'RETURNED',
       });
-      fastapiClient.stage1Extract.mockResolvedValue({ symptoms: ['x'], voids: [], recommended_archetypes: ['1'] });
+      fastapiClient.stage1Extract.mockResolvedValue({
+        symptoms: ['x'],
+        voids: [],
+        recommended_archetypes: ['1'],
+      });
       prisma.elicitationSession.update.mockResolvedValue({});
 
       await service.processStage1(SESSION_ID, 'a fresh symptom description', CEO_ID);

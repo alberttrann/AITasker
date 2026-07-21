@@ -1,6 +1,5 @@
 import { useReducer, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { apiClient } from "@/lib/api-client";
+import { useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -12,12 +11,14 @@ import {
   getActiveSession,
   handleElicitationError,
   revertSession,
+  abandonSession,
   STAGE_LABELS,
   setSelfTechnical,
   type GateResult,
   type StageCompleteData,
 } from "@/hooks/use-elicitation";
 import { Loader2, Check } from "lucide-react";
+import { useToastActions } from "@lib/toast-context";
 
 // Child stage components
 import Stage1Symptoms from "./Stage1Symptoms";
@@ -62,15 +63,24 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_ERROR":
       return { ...state, error: action.payload, isLoading: false };
     case "STAGE_COMPLETE": {
-      const { gateResult, archetype, symptomText } = action.payload;
+      const { gateResult, archetype, symptomText, nextStage } = action.payload as any;
+      const isGatePassed = gateResult?.gate_passed;
+      let newStage = nextStage ?? (state.currentStage + 1);
+      
+      if (gateResult && !isGatePassed) {
+         newStage = state.currentStage; // stay on current stage if we just failed the gate
+      }
+      
       return {
         ...state,
         error: null,
-        gateResult: gateResult || state.gateResult,
+        // Clear the gateResult UNLESS this STAGE_COMPLETE action explicitly passed a new one.
+        // This stops stale gate failures from persisting when the user fixes their input and clicks Next.
+        gateResult: gateResult !== undefined ? gateResult : null, 
         archetype: archetype || state.archetype,
         symptomTextDraft: symptomText || state.symptomTextDraft,
-        currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
-        sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
+        currentStage: newStage,
+        sessionState: gateResult && !isGatePassed ? "RETURNED" : "IN_PROGRESS",
       };
     }
     case "SYNTHESIS_RESOLVED":
@@ -114,6 +124,7 @@ export default function ElicitationWizard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const toast = useToastActions();
   const initPromiseRef = useRef<Promise<any> | null>(null);
 
   const [state, dispatch] = useReducer(wizardReducer, {
@@ -128,6 +139,15 @@ export default function ElicitationWizard() {
     archetype: null,
     symptomTextDraft: null,
   });
+
+  const isConfirmingRef = useRef(false);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      state.sessionState === "IN_PROGRESS" && 
+      currentLocation.pathname !== nextLocation.pathname &&
+      !isConfirmingRef.current
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -186,7 +206,7 @@ export default function ElicitationWizard() {
           type: "INIT_SUCCESS",
           payload: {
             sessionId: data.id,
-            currentStage: data.currentStage ?? 1,
+            currentStage: data.currentStage ?? data.current_stage ?? 1,
             sessionState: finalSessionState,
             gateResult: initGateResult as GateResult | null,
             archetype: data.archetype || null,
@@ -198,7 +218,7 @@ export default function ElicitationWizard() {
         if (cancelled) return;
         const { message, isSubscriptionError } = handleElicitationError(err);
         if (isSubscriptionError) {
-          navigate("/ceo/subscription", { replace: true });
+          navigate("/ceo/subscriptions/plans", { replace: true });
           return;
         }
         dispatch({ type: "SET_ERROR", payload: message });
@@ -243,7 +263,7 @@ export default function ElicitationWizard() {
     dispatch({ type: "START_OVER_START" });
     try {
       if (state.sessionId && state.sessionState !== "COMPLETED") {
-        await apiClient.put(`/elicitation/sessions/${state.sessionId}/abandon`);
+        await abandonSession(state.sessionId);
       }
       const data = await createSession();
       dispatch({ type: "START_OVER_SUCCESS", payload: { sessionId: data.id } });
@@ -324,7 +344,7 @@ export default function ElicitationWizard() {
 
   if (state.sessionState === "COMPLETED" && state.gateResult?.gate_passed) {
     return (
-      <div className="mx-auto max-w-6xl py-8">
+      <div className="mx-auto max-w-[1440px] py-8">
         <QualityGatePassed
           projectId={state.gateResult.project_id}
           onStartNew={handleStartOver}
@@ -334,12 +354,16 @@ export default function ElicitationWizard() {
   }
 
   if (state.sessionState === "RETURNED" && state.gateResult && !state.gateResult.gate_passed) {
+    console.log("=== QUALITY GATE FAILED DATA FROM BACKEND ===");
+    console.log(JSON.stringify(state.gateResult, null, 2));
+
     return (
-      <div className="mx-auto max-w-6xl py-8">
+      <div className="mx-auto max-w-[1440px] py-8">
         <QualityGateFailed
           advisoryNote={state.gateResult.advisory_note}
           flaggedVoid={state.gateResult.flagged_void ?? ""}
           returnToStage={state.gateResult.return_to_stage}
+          completenessScore={state.gateResult.completeness_score}
           onReturnToStage={handleReturnToStage}
           onStartOver={handleStartOver}
         />
@@ -348,7 +372,7 @@ export default function ElicitationWizard() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl relative pt-4">
+    <div className="mx-auto max-w-[1440px] relative pt-4">
       <div className="absolute top-0 right-0 z-10">
         <Button variant="ghost" size="sm" onClick={handleCancelSession} className="text-slate-500 hover:text-slate-700 hover:bg-slate-50">
           Exit Session
@@ -392,11 +416,6 @@ export default function ElicitationWizard() {
         </div>
       </div>
 
-      {state.error && (
-        <div className="mb-6 rounded-lg border border-error/20 bg-error/5 px-4 py-3">
-          <p className="text-body-sm text-error">{state.error}</p>
-        </div>
-      )}
 
       <Card>
         <CardContent className="pt-6">
@@ -405,14 +424,14 @@ export default function ElicitationWizard() {
               sessionId={state.sessionId}
               symptomTextDraft={state.symptomTextDraft}
               onComplete={handleStageComplete}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
             />
           )}
           {state.currentStage === 2 && state.sessionId && (
             <Stage2Archetype
               sessionId={state.sessionId}
               onComplete={handleStageComplete}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
               onBack={handleBack}
             />
           )}
@@ -420,7 +439,7 @@ export default function ElicitationWizard() {
             <Stage3Probes
               sessionId={state.sessionId}
               onComplete={handleStageComplete}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
               onBack={handleBack}
             />
           )}
@@ -430,7 +449,7 @@ export default function ElicitationWizard() {
               <Stage4ScenarioA
                 sessionId={state.sessionId}
                 onComplete={handleStageComplete}
-                onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+                onError={(msg) => toast.error(msg)}
                 onBack={state.forceScenarioA ? () => handleSetSelfTechnical(false) : handleBack}
                 isForced={state.forceScenarioA}
               />
@@ -447,16 +466,28 @@ export default function ElicitationWizard() {
               sessionId={state.sessionId}
               initialGateResult={state.gateResult}
               onComplete={handleSynthesisResolved}
-              onError={(msg) => dispatch({ type: "SET_ERROR", payload: msg })}
+              onError={(msg) => toast.error(msg)}
             />
           )}
         </CardContent>
       </Card>
 
       <ConfirmModal
-        isOpen={state.isCancelModalOpen}
-        onClose={() => dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false })}
-        onConfirm={confirmCancelSession}
+        isOpen={state.isCancelModalOpen || blocker.state === "blocked"}
+        onClose={() => {
+          dispatch({ type: "SET_CANCEL_MODAL_OPEN", payload: false });
+          if (blocker.state === "blocked" && !isConfirmingRef.current) {
+            blocker.reset();
+          }
+        }}
+        onConfirm={() => {
+          isConfirmingRef.current = true;
+          if (blocker.state === "blocked") {
+            blocker.proceed();
+          } else {
+            confirmCancelSession();
+          }
+        }}
         title="Exit Session"
         confirmText="Exit Session"
         cancelText="Cancel"

@@ -1,732 +1,527 @@
-# AITasker — ai-service Technical Documentation
+# AITasker AI-Service — Technical Reference & Architecture Guide
 
-> **Audience:** NestJS backend engineers integrating with ai-service  
-> **Module owner:** Minh Hùng  
-> **Last updated:** 2026-06-15
-
----
-
-## 1. Overview
-
-`ai-service` is a FastAPI microservice that provides all LLM-powered reasoning for the AITasker platform. It runs as a sidecar to the NestJS backend on Railway. NestJS calls it over the internal Railway network; it is **not** exposed to the public internet.
-
-```
-Browser → NestJS (port 3000) → ai-service (port 8000, internal)
-```
-
-The service has two types of endpoints:
-
-| Type | Description | Examples |
-|---|---|---|
-| **LLM endpoints** | Call Gemini 2.5 Flash, return structured JSON | `/llm/*` |
-| **Algorithm endpoints** | Pure arithmetic, no LLM | `/llm/matching`, `/projects/*/artifact-b` |
+> **Purpose:** Definitive technical reference for the `ai-service` (FastAPI) microservice. This document covers all 12 endpoints, internal architecture, LLM client rules, dynamic prompt rendering, and pure-Python matching engine logic.
+>
+> **Tech Stack:** Python 3.11 · FastAPI · Pydantic v2 · OpenAI SDK (Async) · Jinja2.
 
 ---
 
-## 2. Environment Setup
+## 1. Architecture Overview
 
-### Required environment variable
+The AI-Service is an internal microservice called **exclusively** by the NestJS backend. It never interacts with the FE directly. 
 
-```env
-# ai-service/.env
-ANTHROPIC_API_KEY=YOUR_GEMINI_API_KEY   # Key from aistudio.google.com
+### 1.1 Directory Structure
+```text
+ai-service/
+├── app/
+│   ├── main.py              # FastAPI app init, CORS, router registration
+│   ├── config.py            # Pydantic Settings (env vars)
+│   ├── dependencies.py      # Internal token guard
+│   ├── guards/
+│   │   └── artifact_b_guard.py  # 4-condition business logic gate
+│   ├── models/
+│   │   ├── requests.py      # Pydantic request schemas
+│   │   └── responses.py     # Pydantic response schemas
+│   ├── prompts/             # Default .txt prompt templates (Jinja2)
+│   ├── routers/             # API route handlers
+│   │   ├── elicitation.py   # Stage 1, 3, 4, 5 + Milestone Chat
+│   │   ├── portfolio.py     # Tier 2 upgrade eval
+│   │   ├── matching.py      # Composite scoring engine
+│   │   ├── disputes.py      # Dispute Layer 1 eval
+│   │   ├── criteria.py      # Acceptance criteria quality gate
+│   │   ├── service_gen.py   # Marketplace listing AI generator
+│   │   └── artifact_b.py    # Artifact B access check
+│   └── services/
+│       ├── llm_client.py        # OpenAI Async wrapper
+│       ├── prompt_service.py    # DB + .txt prompt loader with 60s cache
+│       ├── elicitation_engine.py
+│       ├── portfolio_evaluator.py
+│       ├── matching_engine.py   # Pure Python arithmetic (no LLM)
+│       ├── dispute_evaluator.py
+│       └── service_generator.py
+└── .env                     # Environment variables
 ```
 
-The variable name is `ANTHROPIC_API_KEY` for backward compatibility — it holds a **Gemini AI Studio key**, not an Anthropic key.
+### 1.2 Environment Variables (`config.py`)
+Configured via `pydantic-settings`. Reads from `.env`.
 
-### Running locally
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_API_KEY` | `""` | Primary API key for LLM provider. |
+| `ANTHROPIC_API_KEY` | `""` | Fallback API key. |
+| `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` | OpenAI-compatible base URL (e.g., Gemini, DeepSeek). |
+| `LLM_MODEL` | `gemini-2.5-flash` | Model identifier. |
+| `LLM_TEMPERATURE` | `0.1` | Default temperature for non-deterministic calls. |
+| `LLM_MAX_OUTPUT_TOKENS` | `8192` | Max tokens for LLM output. |
+| `PORTFOLIO_EVAL_THRESHOLD` | `0.85` | Confidence required for Tier 2 upgrade. |
+| `DISPUTE_EVAL_THRESHOLD` | `0.80` | Confidence required for auto-resolve (informational; NestJS applies the threshold). |
+| `NESTJS_BASE_URL` | `http://localhost:3001` | NestJS URL for fetching DB prompt templates. |
+| `INTERNAL_SERVICE_TOKEN` | `aitasker-internal-dev-secret-change-in-prod` | Shared secret for `/internal/prompts/:stage`. |
+| `PROMPT_CACHE_TTL_SEC` | `60` | TTL for prompt template cache. |
 
-```bash
-cd ai-service
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS/Linux
+### 1.3 LLM Client Rules (`llm_client.py`)
+The service uses the `openai` Python SDK configured with a custom `base_url` to support various providers (Gemini, DeepSeek, OpenAI).
+- **`call_llm_json_with_system(prompt, system, temp, max_tokens)`**: Sends a system and user message. Forces `response_format={"type": "json_object"}`. Returns a parsed `dict`.
+- **`call_llm_text(prompt, temp)`**: Simple text completion.
+- **`call_llm_with_system_and_messages(system, messages, max_tokens)`**: Multi-turn chat used by the Milestone Chat Assistant. Prepends the system message to the history list.
 
-pip install -r requirements.txt
-
-# Dev server — watches only app/ so simulations/ don't trigger reloads
-uvicorn app.main:app --reload --reload-dir app --port 8000
-```
-
-### Docker
-
-```bash
-cd aitasker
-docker compose build ai-service
-docker compose up -d ai-service
-```
-
-**Warning:** If you edit source files, the Docker container serves the OLD image until rebuilt. Always use local uvicorn during development.
+### 1.4 Dynamic Prompt System (`prompt_service.py`)
+Prompts are NOT hardcoded. They are rendered dynamically using Jinja2.
+1. **Fetch from DB**: Calls NestJS `GET /internal/prompts/:stage` with `x-internal-token`.
+2. **Fallback**: If NestJS returns 404 or errors, falls back to local `.txt` file in `app/prompts/`.
+3. **Cache**: Results are cached in-memory for 60 seconds (`PROMPT_CACHE_TTL_SEC`).
+4. **Rendering**: `get_rendered_prompt(stage, context)` fetches the template string and renders it with Jinja2, passing context variables (e.g., `{{ archetypes }}`).
 
 ---
 
-## 3. Domain Reference Tables
+## 2. Endpoints Overview (12 Total)
 
-These tables are the shared vocabulary between ai-service output and NestJS database schema. Use them for dropdown labels, validation, and display text in the CEO/Expert UIs.
-
-### Domain codes (A–F)
-
-| Code | Domain | Role on a project |
-|---|---|---|
-| `A` | LLM App Engineering | Building the LLM application layer, prompt engineering, output handling |
-| `B` | MLOps / LLMOps | Deployment pipelines, model serving, CI/CD for AI |
-| `C` | AI Eval & Quality | Evaluation frameworks, hallucination detection, quality metrics |
-| `D` | Vector DB & Embeddings | Retrieval systems, embedding models, vector stores |
-| `E` | Data & Pipeline Engineering | ETL, feature stores, data ingestion pipelines |
-| `F` | ML Modeling & Fine-Tuning | Training, fine-tuning, LoRA/RLHF, custom model development |
-
-### Seam codes (10 cross-domain boundaries)
-
-A "seam" is a boundary between two domains where the expert must demonstrate cross-domain competency. These appear in `required_seams_json` (stage5) and expert `seam_claims` (matching).
-
-| Code | Boundary | Description |
-|---|---|---|
-| `A↔C` | LLM output ↔ AI Eval | LLM output quality contract |
-| `A↔D` | LLM App ↔ Vector DB | Retrieval-generation contract |
-| `A↔B` | LLM App ↔ MLOps | Deployment-inference boundary |
-| `A↔F` | LLM App ↔ ML Modeling | Fine-tuned model integration |
-| `D↔E` | Vector DB ↔ Data Pipeline | Embedding pipeline contract |
-| `D↔F` | Vector DB ↔ ML Modeling | Model-vector alignment |
-| `C↔E` | AI Eval ↔ Data Pipeline | Ground-truth pipeline |
-| `C↔F` | AI Eval ↔ ML Modeling | Eval-model feedback loop |
-| `E↔F` | Data Pipeline ↔ ML Modeling | Training data pipeline |
-| `B↔E` | MLOps ↔ Data Pipeline | Monitoring-pipeline boundary |
-
-### Archetype codes (1–6)
-
-Returned in `artifact_a_json.archetype` from stage5-synthesize. Use for display labels in CEO project dashboard and expert shortlist.
-
-| Code | Archetype | Typical use case |
-|---|---|---|
-| `1` | RAG / Search | Chatbots, knowledge base Q&A, document retrieval |
-| `2` | Recommendation | Product, content, or user recommendation engines |
-| `3` | Classification | Fraud detection, sentiment analysis, categorisation |
-| `4` | Generation | Content generation, code generation, creative AI |
-| `5` | Prediction / Forecasting | Churn prediction, demand forecasting, time-series |
-| `6` | Multimodal | Vision + language, audio + text, cross-modal AI |
-
-### Volume tier thresholds
-
-Returned in `artifact_a_json.volume_tier` from stage5-synthesize.
-
-| Tier | Scale | Typical characteristics |
-|---|---|---|
-| `TIER_1` | < 10k users, simple data | Proof of concept, small team tools, low transaction rate |
-| `TIER_2` | 10k – 100k users | Moderate complexity, standard SLA, typical commercial project |
-| `TIER_3` | > 100k users | High complexity, strict SLA, enterprise-grade reliability required |
-
-### Seam criticality weights (used by matching engine)
-
-| Criticality | Weight multiplier | Meaning |
-|---|---|---|
-| `load_bearing` | 3.0 | Project cannot function without this seam |
-| `significant` | 2.0 | Important but has workarounds |
-| `contributing` | 1.0 | Useful but not essential |
-
-### Expert seam verification tiers
-
-| Tier | Gap map color | Score multiplier |
-|---|---|---|
-| `EVIDENCE_BACKED` | 🟢 green | 1.0 |
-| `CLAIMED` | 🟡 amber | 0.5 |
-| Not present | 🔴 red | 0.0 |
+| # | Method | Path | Description | LLM Call |
+|---|---|---|---|---|
+| 1 | GET | `/health` | Health check | No |
+| 2 | GET | `/projects/{project_id}/artifact-b` | Artifact B 4-condition gate | No |
+| 3 | POST | `/llm/criterion-check` | Check criterion subjectivity | Yes |
+| 4 | POST | `/llm/dispute-eval` | Arbitrate dispute | Yes |
+| 5 | POST | `/llm/elicitation/stage1-extract` | Extract symptoms | Yes |
+| 6 | POST | `/llm/elicitation/stage3-vagueness-check` | Check probe vagueness | Yes |
+| 7 | POST | `/llm/elicitation/stage4-recommend` | Recommend tech context | Yes |
+| 8 | POST | `/llm/elicitation/stage5-synthesize` | Synthesize project spec | Yes |
+| 9 | POST | `/llm/elicitation/milestone-chat` | Chat about milestones | Yes |
+| 10 | POST | `/llm/matching` | Score experts | No (Pure Python) |
+| 11 | POST | `/llm/portfolio-eval` | Evaluate portfolio evidence | Yes |
+| 12 | POST | `/llm/service-generate` | Generate service listing | Yes |
 
 ---
 
-## 4. Endpoint Reference
+## 3. Elicitation Engine Endpoints
 
-All request/response bodies are JSON. Content-Type: `application/json`.
+### 3.1 `POST /llm/elicitation/stage1-extract`
+Extracts structured symptoms, scale signals, voids, and recommended archetypes from CEO free-text.
 
----
-
-### `GET /health`
-
-**NestJS caller:** Railway health check + `AppService.onModuleInit()` startup check  
-**Purpose:** Confirms ai-service is alive and running.
-
-**Response (200):**
-```json
-{ "status": "ok", "service": "aitasker-llm" }
-```
-
-No request body or parameters.
-
----
-
-### `POST /llm/criterion-check`
-
-**NestJS caller:** `MilestonesService.createAcceptanceCriterion()`  
-**Purpose:** Flags subjective language in milestone acceptance criteria and suggests measurable rewrites.
-
-**Request:**
+**Request (`Stage1Request`):**
 ```json
 {
-  "criterion_text": "The AI should respond quickly and produce good results"
+  "symptom_text": "string",
+  "archetypes": [{"code": "1", "name": "RAG/Search", "description": "..."}],
+  "void_codes": [{"code": "NO_GROUND_TRUTH", "description": "..."}]
 }
 ```
 
-**Response:**
+**Response (`Stage1Response`):**
 ```json
 {
-  "is_subjective": true,
-  "suggestions": [
-    "The recommendation API must return results within 200ms at p95.",
-    "The model must achieve CTR >= 15% on recommended items."
+  "symptoms": ["string"],
+  "scale_signals": {"user_count": "string|null", "data_volume": "string|null", "transaction_rate": "string|null", "latency_requirement": "string|null", "budget_vnd": "int|null"},
+  "voids": [{"void_code": "string", "severity": "HIGH|MEDIUM|LOW"}],
+  "recommended_archetypes": ["1", "3"],
+  "critical_artifacts_required": [
+    {
+      "artifact_key": "compliance_ruleset",
+      "label": "Compliance Ruleset",
+      "reason": "string",
+      "placeholder_prompt": "string"
+    }
   ]
 }
 ```
+**Logic:**
+- Jinja2 context: `{{ archetypes }}`, `{{ void_codes }}`.
+- Validates `recommended_archetypes` against the provided `archetypes` list. Falls back to all archetypes if none returned.
 
-| Field | Type | Notes |
-|---|---|---|
-| `is_subjective` | `boolean` | `true` if any qualifier is unmeasurable |
-| `suggestions` | `string[]` | Empty array `[]` when `is_subjective=false` |
+### 3.2 `POST /llm/elicitation/stage3-vagueness-check`
+Checks Stage 3 probe answers for both vagueness and relevancy.
 
-**NestJS action:** If `is_subjective=true`, write advisory to `platform_decisions` table and display inline in criterion editor. **Does not block saving.**
-
----
-
-### `POST /llm/elicitation/stage1-extract`
-
-**NestJS caller:** `ElicitationService.submitStage1(session_id, symptom_text)`  
-**Purpose:** Extracts structured AI problem signals from the CEO's free-text Stage 1 description.
-
-**Request:**
+**Request (`Stage3VaguenessCheckRequest`):**
 ```json
 {
-  "symptom_text": "Our chatbot keeps giving wrong answers about our product catalogue. 50k users daily, no eval system in place."
+  "archetype": "1",
+  "probe_questions": ["Question 1?", "Question 2?"],
+  "probe_responses": {"Question 1?": "Answer 1", "Question 2?": "Answer 2"},
+  "is_self_technical": false,
+  "stage1_symptoms": ["symptom"],
+  "stage1_voids": [{"void_code": "NO_GROUND_TRUTH", "severity": "HIGH"}]
 }
 ```
-
-**Response:**
+**Response (`Stage3VaguenessCheckResponse`):**
 ```json
 {
-  "symptoms": [
-    "Chatbot provides incorrect product information to customers.",
-    "No system exists to measure chatbot answer accuracy."
-  ],
-  "scale_signals": {
-    "user_count": "50,000 daily users",
-    "data_volume": null,
-    "transaction_rate": null,
-    "latency_requirement": null
-  },
-  "voids": [
-    { "void_code": "NO_GROUND_TRUTH", "severity": "HIGH" },
-    { "void_code": "UNCLEAR_SUCCESS_METRIC", "severity": "MEDIUM" }
-  ]
+  "vague_answers": [{"question": "string", "reason": "string"}],
+  "irrelevant_answers": [{"question": "string", "issue": "string"}]
 }
 ```
+**Logic:**
+- If `is_self_technical == false`, appends a forgiveness clause to the system prompt to be lenient on non-technical CEOs.
+- Fails open: if LLM call fails, returns empty arrays (does not block elicitation).
 
-| Field | Type | Notes |
-|---|---|---|
-| `symptoms` | `string[]` | Distinct pain points, full sentences. May be empty for very sparse input. |
-| `scale_signals` | `object` | **Always exactly 4 keys**, all nullable. Never add new keys. |
-| `scale_signals.user_count` | `string \| null` | Free-text string as stated by CEO, e.g. `"50,000 monthly active users"` |
-| `scale_signals.data_volume` | `string \| null` | Free-text, e.g. `"2TB purchase history"` |
-| `scale_signals.transaction_rate` | `string \| null` | Free-text, e.g. `"500,000 transactions per day"` |
-| `scale_signals.latency_requirement` | `string \| null` | Free-text, e.g. `"under 500ms"` |
-| `voids` | `array` | May be empty. Each item has `void_code` and `severity`. |
+### 3.3 `POST /llm/elicitation/stage4-recommend`
+Recommends tech stack and integration methods for non-technical CEOs.
 
-**Void codes:** `NO_GROUND_TRUTH`, `NO_BASELINE`, `UNCLEAR_SUCCESS_METRIC`, `DATA_PRIVACY_CONSTRAINT`, `INTEGRATION_UNCLEAR`, `TIMELINE_UNREALISTIC`, `SCOPE_CREEP_RISK`  
-**Void severities:** `HIGH`, `MEDIUM`, `LOW`
-
-**NestJS action:** Persist all three fields to `elicitation_sessions`. Voids carry forward into Stage 5 and penalise `completeness_score`.
-
----
-
-### `POST /llm/elicitation/stage5-synthesize`
-
-**NestJS caller:** `ElicitationService.submitStage4()` — triggers synthesis after CEO completes all 4 stages  
-**Purpose:** Single LLM call that synthesises all 4 elicitation stages into the full project specification.
-
-**Request:**
+**Request (`Stage4RecommendRequest`):**
 ```json
 {
-  "session_id": "uuid-here",
-  "stage1_symptoms": [
-    "Chatbot provides incorrect product information.",
-    "No system to measure answer accuracy."
-  ],
+  "stage1_symptoms": ["string"],
   "stage2_archetype": "1",
-  "stage3_probes": {
-    "What does success look like in 90 days?": "Chatbot correct for 90% of queries, escalation drops below 15%.",
-    "Existing systems to integrate with?": "Zendesk REST API and PostgreSQL product catalogue updated daily."
-  },
-  "stage4_tech_inputs": {
-    "current_stack": "Python FastAPI, PostgreSQL, AWS ECS",
-    "data_available": "200k Zendesk conversation logs, 50k SKU catalogue",
-    "latency_requirement": "Under 3 seconds end-to-end"
-  },
-  "void_list_json": [
-    { "void_code": "NO_GROUND_TRUTH", "severity": "HIGH" },
-    { "void_code": "UNCLEAR_SUCCESS_METRIC", "severity": "MEDIUM" }
-  ]
+  "stage3_probes": {"q": "a"},
+  "void_list_json": [{"void_code": "NO_GROUND_TRUTH", "severity": "HIGH"}],
+  "is_self_technical": false,
+  "additional_requirement_1": "string|null",
+  "estimated_budget_vnd": 1000000|null
+}
+```
+**Response (`Stage4RecommendResponse`):**
+```json
+{
+  "recommended_stack": "string",
+  "recommended_integration": "string",
+  "recommended_legacy_volume": "string"
 }
 ```
 
-**Response:**
+### 3.4 `POST /llm/elicitation/stage5-synthesize`
+Synthesizes the complete project spec from all 4 stages.
+
+**Request (`Stage5Request`):**
 ```json
 {
-  "required_seams_json": [
-    { "seam_code": "A↔D", "criticality": "load_bearing" },
-    { "seam_code": "A↔C", "criticality": "significant" },
-    { "seam_code": "D↔E", "criticality": "significant" }
-  ],
-  "required_domains_json": [
-    { "domain_code": "A", "required_depth": "OPERATIONAL" },
-    { "domain_code": "C", "required_depth": "DEEP" },
-    { "domain_code": "D", "required_depth": "DEEP" }
-  ],
+  "session_id": "uuid",
+  "stage1_symptoms": ["string"],
+  "stage2_archetype": "1",
+  "stage3_probes": {"q": "a"},
+  "stage4_tech_inputs": {
+    "current_stack": "...",
+    "technical_artifacts": {"compliance_ruleset": "Rule 1..."}
+  },
+  "void_list_json": [{"void_code": "...", "severity": "..."}],
+  "is_self_technical": false,
+  "estimated_budget_vnd": 1000000|null,
+  "critical_artifacts_required": [{"artifact_key": "compliance_ruleset"}],
+  "domains": [{"code": "A", "name": "LLM App"}],
+  "seams": [{"code": "A↔C", "name": "LLM output"}],
+  "archetypes": [{"code": "1", "name": "RAG"}]
+}
+```
+
+**Response (`Stage5Response`):**
+```json
+{
+  "required_seams_json": [{"seam_code": "A↔C", "criticality": "load_bearing"}],
+  "required_domains_json": [{"domain_code": "A", "required_depth": "DEEP"}],
   "milestone_framework_json": [
     {
       "milestone_number": 1,
-      "deliverable_statement": "Functional RAG prototype with daily catalogue sync via PostgreSQL, accessible via API.",
-      "sign_off_authority": "TECH_TEAM",
-      "payment_amount_vnd": 0
-    },
-    {
-      "milestone_number": 2,
-      "deliverable_statement": "Production chatbot integrated with Zendesk achieving 90% accuracy and <15% escalation rate.",
-      "sign_off_authority": "CEO",
-      "payment_amount_vnd": 0
+      "deliverable_statement": "string",
+      "sign_off_authority": "JOINT",
+      "payment_amount_vnd": 0,
+      "estimated_cost_vnd": 50000000,
+      "estimated_duration_days": 14
     }
   ],
   "artifact_a_json": {
-    "business_intent": "Deploy accurate RAG chatbot to reduce agent escalation from 40% to under 15%.",
+    "project_name": "string",
+    "business_intent": "string",
     "archetype": "1",
-    "stack_tags": ["Python", "FastAPI", "PostgreSQL", "AWS ECS"],
+    "stack_tags": ["Python"],
     "volume_tier": "TIER_2",
-    "sdlc_notices": [
-      "Integration risk with Zendesk REST API.",
-      "Daily catalogue sync cadence must match product update frequency."
-    ]
+    "sdlc_notices": ["string"]
   },
   "artifact_b_json": {
-    "stack_tags": ["LangChain", "Pinecone", "OpenAI", "Zendesk REST API"],
-    "integration_method": "REST API for Zendesk ticketing. Direct PostgreSQL connection for daily catalogue sync.",
-    "legacy_volume": "200k Zendesk conversation logs (18 months). 50k SKU product catalogue.",
+    "stack_tags": ["Python"],
+    "integration_method": "string",
+    "legacy_volume": "string",
     "schemas": [],
     "contracts": []
   },
-  "completeness_score": 0.95
+  "completeness_score": 0.85,
+  "estimated_total_cost_vnd": 50000000,
+  "estimated_total_duration_days": 14
 }
 ```
+**Logic:**
+- Jinja2 context: `{{ domains }}`, `{{ seams }}`, `{{ archetypes }}`.
+- Enforces `payment_amount_vnd = 0` on all milestones (CEO sets actual prices later).
+- If `is_self_technical == false`, appends a clause to use accessible business language.
+- **Artifact Grounding:** If `technical_artifacts` are provided, the prompt instructs the LLM to use their actual content for milestone deliverables.
+- **Missing Artifacts:** If `critical_artifacts_required` are not found in `technical_artifacts`, it caps `completeness_score` at 0.60 and adds `sdlc_notices`.
+- Validates all enum values (`criticality`, `required_depth`, `sign_off_authority`, `volume_tier`) and drops invalid ones.
 
-**Response field reference:**
+### 3.5 `POST /llm/elicitation/milestone-chat`
+Context-aware milestone editing assistant.
 
-| Field | Type | Notes |
-|---|---|---|
-| `required_seams_json` | `array` | 2–5 seam objects typical. Each: `seam_code` + `criticality`. |
-| `required_domains_json` | `array` | Domains the project requires. Each: `domain_code` + `required_depth`. |
-| `milestone_framework_json` | `array` | Ordered milestones. Fields: `milestone_number`, `deliverable_statement`, `sign_off_authority`, `payment_amount_vnd`. |
-| `artifact_a_json.business_intent` | `string` | 2–3 sentence plain-English summary for the expert shortlist display. |
-| `artifact_a_json.archetype` | `string` | `"1"`–`"6"`. See archetype table in Section 3. |
-| `artifact_a_json.stack_tags` | `string[]` | CEO-mentioned tech stack. |
-| `artifact_a_json.volume_tier` | `string` | `TIER_1`, `TIER_2`, or `TIER_3`. See volume tier table. |
-| `artifact_a_json.sdlc_notices` | `string[]` | Integration risks, compliance notes, data concerns. May be empty. |
-| `artifact_b_json.integration_method` | `string` | How AI connects to existing systems. Always non-empty for complete sessions. |
-| `artifact_b_json.legacy_volume` | `string` | Data volume description. Always non-empty for complete sessions. |
-| `artifact_b_json.schemas` | `array` | **Always `[]`** unless CEO provided actual schema URLs during elicitation. |
-| `artifact_b_json.contracts` | `array` | **Always `[]`** unless CEO provided API contract references. |
-| `completeness_score` | `float` | `[0.0, 1.0]`. Threshold at 0.70 — see NestJS action below. |
-
-**Business rules (code-enforced — never re-implement in NestJS):**
-
-| Rule | Enforced by |
-|---|---|
-| `payment_amount_vnd` is always `0` on every milestone | `elicitation_engine.py` |
-| All enum fields (`criticality`, `domain_code`, `required_depth`, `sign_off_authority`, `archetype`, `volume_tier`) validated before returning | `_validate_stage5_response()` |
-
-**NestJS action:**
-- `completeness_score >= 0.70` → `project.state = PUBLISHED` → triggers matching
-- `completeness_score < 0.70` → `project.state = RETURNED_TO_CLIENT` → CEO prompted to add more detail
+**Request (`MilestoneChatRequest`):**
+```json
+{
+  "artifact_a": {},
+  "milestone_framework": [],
+  "budget_context": "string",
+  "conversation_history": [{"role": "user", "content": "hi"}],
+  "user_message": "Why 3 milestones?"
+}
+```
+**Response (`MilestoneChatResponse`):**
+```json
+{
+  "reply": "string",
+  "suggested_edit": {
+    "milestone_number": 2,
+    "field": "paymentAmountVnd",
+    "suggested_value": 30000000,
+    "reason": "string"
+  }
+}
+```
+**Logic:**
+- Injects project context via string replacement (`{artifact_a}`, `{milestone_framework}`, `{budget_context}`) into the system prompt.
+- Calls `call_llm_with_system_and_messages` with the conversation history.
+- Parses ` ```edit_suggestion ... ``` ` JSON blocks from LLM output to extract `suggested_edit`.
 
 ---
 
-### `POST /llm/portfolio-eval`
+## 4. Expert Profile & Matching Endpoints
 
-**NestJS caller:** `PortfolioService.submitPortfolioEntry(expert_id, seam_code, ...)`  
-**Purpose:** Evaluates whether an expert's portfolio submission demonstrates cross-domain competency at a specific seam boundary. Threshold is computed in code, not by the LLM.
+### 4.1 `POST /llm/portfolio-eval`
+Evaluates expert portfolio submission for seam-boundary competency.
 
-**Request:**
+**Request (`PortfolioEvalRequest`):**
 ```json
 {
-  "seam_code": "A↔D",
-  "project_description": "Built RAG pipeline for 500-lawyer firm. 50k queries/month, p95 < 200ms.",
-  "decision_points": "Chose text-embedding-3-large over BGE-large: nDCG@10=0.79 vs 0.83 but 40% lower latency. Added cross-encoder reranker: hallucination dropped from 22% to 4% on 50 annotated queries."
+  "project_description": "string",
+  "decision_points": "string",
+  "seam_code": "A↔C",
+  "seam_name": "LLM output quality",
+  "seam_description": "string",
+  "all_seam_definitions": [{"code": "A↔C", "name": "LLM output", "description": "..."}]
 }
 ```
-
-**Response:**
+**Response (`PortfolioEvalResponse`):**
 ```json
 {
-  "confidence_score": 0.95,
+  "confidence_score": 0.92,
   "passed_boolean": true,
-  "gap_advisory": null
+  "gap_advisory": "string|null"
 }
 ```
+**Logic:**
+- Jinja2 context: `{{ seam_definitions }}`, `{{ evaluated_seam_code }}`, `{{ evaluated_seam_name }}`, `{{ evaluated_seam_desc }}`.
+- `passed_boolean` is computed in code: `confidence_score >= settings.portfolio_eval_threshold` (0.85).
+- `gap_advisory` is `null` if passed, otherwise extracted from LLM response.
 
-| Field | Type | Notes |
-|---|---|---|
-| `confidence_score` | `float` | `[0.0, 1.0]`. Raw LLM score before threshold. |
-| `passed_boolean` | `boolean` | `true` if `confidence_score >= 0.85`. **Computed in code.** |
-| `gap_advisory` | `string \| null` | `null` when passed. Non-null string with specific gap description when failed. |
+### 4.2 `POST /llm/matching`
+Pure Python arithmetic scoring engine. **No LLM call.**
 
-**Business rules (code-enforced — BR-VER-03):**
-
-| Rule | Description |
-|---|---|
-| `passed_boolean = (confidence_score >= 0.85)` | Threshold computed in `portfolio_evaluator.py`, not by LLM |
-| `gap_advisory = null` when `passed_boolean = true` | Code-enforced |
-| `gap_advisory = <string>` when `passed_boolean = false` | Code-enforced |
-
-**NestJS action:**
-- `passed_boolean = true` → `expert_seam_claims.verification_tier = EVIDENCE_BACKED`
-- `passed_boolean = false` → increment `expert_seam_claims.failure_count`, check lockout threshold
-
----
-
-### `POST /llm/dispute-eval`
-
-**NestJS caller:** `DisputeService.fileDispute(engagement_id, milestone_id)`  
-**Purpose:** Neutral arbitration of milestone disputes. Returns a finding and confidence score. The AUTO_RESOLVE vs MANUAL_REVIEW threshold lives in NestJS, not ai-service.
-
-**Request:**
+**Request (`MatchingRequest`):**
 ```json
 {
-  "criterion_text": "API p95 latency < 300ms under 500 RPS. HTTP 200. JSON array >= 5 items.",
-  "deliverable_description": "k6 load test at 500 RPS: p95=187ms. All 1000 requests returned HTTP 200. Array sizes 6–12 items. No errors.",
-  "files": ["https://storage.example.com/k6-report.html"]
-}
-```
-
-**Important on `files`:** These are URL strings only. The ai-service **cannot fetch URLs**. The model evaluates solely from `criterion_text` and `deliverable_description`. Include URLs for record-keeping only — they do not affect the evaluation.
-
-**Response:**
-```json
-{
-  "confidence_score": 1.0,
-  "finding": "expert_wins"
-}
-```
-
-| Field | Type | Notes |
-|---|---|---|
-| `finding` | `string` | `"expert_wins"` or `"client_wins"` only. No other values possible. |
-| `confidence_score` | `float` | `[0.0, 1.0]`. Raw confidence in the finding. |
-
-**NestJS action (threshold lives in NestJS, not ai-service):**
-- `confidence_score >= 0.80` → `dispute.state = AUTO_RESOLVED` (finding determines payment release)
-- `confidence_score < 0.80` → `dispute.state = MANUAL_REVIEW` (added to admin queue)
-
-**Prompt behaviour:**
-- Temperature = `0.0` → deterministic, idempotent. Two identical calls return identical results.
-- Conservative default: `client_wins` on ambiguity (protects client payment)
-- Subjective criteria (e.g. "easy to use", "modern-looking") → `confidence_score <= 0.60` regardless of deliverable, always routes to MANUAL_REVIEW
-
----
-
-### `POST /llm/service-generate`
-
-**NestJS caller:** `ListingsService.generateServiceDraft(expert_id)`  
-**Purpose:** Generates a marketplace listing draft from the expert's declared capabilities. Expert reviews and edits before publishing — nothing is auto-published.
-
-**Request:**
-```json
-{
-  "expert_capabilities": [
-    "5 years building production RAG systems at Fortune 500 scale",
-    "LangChain, LlamaIndex, Pinecone, RAGAS evaluation framework"
-  ],
-  "target_use_cases": [
-    "Enterprise knowledge base Q&A",
-    "Legal document analysis and contract review"
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "title": "Enterprise RAG System Design & Optimization Consulting",
-  "description": "Unlock hallucination-free information retrieval for your enterprise...",
-  "scope": "Included:\n- Architecture design and implementation\n- Evaluation framework setup\nNot included:\n- Full-stack application development",
-  "timeline": "Phase 1: Discovery (2-3 weeks)\nPhase 2: Implementation (4-6 weeks)\nPhase 3: Handover (1 week)",
-  "suggested_price_vnd": 65000000
-}
-```
-
-| Field | Type | Notes |
-|---|---|---|
-| `title` | `string` | Specific to the expert's capabilities. Never empty. |
-| `description` | `string` | Marketing copy. Never empty. |
-| `scope` | `string` | What is and is not included. Multi-line string. Never empty. |
-| `timeline` | `string` | Phased timeline. Multi-line string. Never empty. |
-| `suggested_price_vnd` | `integer` | Vietnamese Dong. `0` means scope too vague to quote. Clamped to `[0, 2,000,000,000]` in code. |
-
-**Business rules (code-enforced):**
-- `suggested_price_vnd` always clamped to `[0, 2_000_000_000]`
-- `suggested_price_vnd = 0` when capabilities are too vague to scope
-
----
-
-### `POST /llm/matching`
-
-**NestJS caller:** `ProjectsService.publishProject(project_id)`  
-**Purpose:** Scores and ranks all eligible experts against the published project's requirements. Pure arithmetic — no LLM call.
-
-**Request:**
-```json
-{
-  "project_archetype": "1",
-  "required_seams_json": [
-    { "seam_code": "A↔D", "criticality": "load_bearing" },
-    { "seam_code": "D↔E", "criticality": "significant" }
-  ],
-  "required_domains_json": [
-    { "domain_code": "A", "required_depth": "OPERATIONAL" },
-    { "domain_code": "D", "required_depth": "DEEP" }
-  ],
+  "required_seams_json": [{"seam_code": "A↔C", "criticality": "load_bearing"}],
+  "required_domains_json": [{"domain_code": "A", "required_depth": "DEEP"}],
   "expert_profiles": [
     {
       "expert_id": "uuid",
-      "seam_claims": [
-        { "seam_code": "A↔D", "verification_tier": "EVIDENCE_BACKED" },
-        { "seam_code": "D↔E", "verification_tier": "CLAIMED" }
-      ],
-      "domain_depths": [
-        { "domain_code": "A", "depth_level": "DEEP" },
-        { "domain_code": "D", "depth_level": "DEEP" }
-      ],
-      "portfolio_score": 0.92,
-      "archetype_history": ["1", "4"]
+      "seam_claims": [{"seam_code": "A↔C", "verification_tier": "EVIDENCE_BACKED"}],
+      "domain_depths": [{"domain_code": "A", "depth_level": "DEEP"}],
+      "portfolio_score": 0.9,
+      "archetype_history": ["1"]
     }
-  ]
+  ],
+  "project_archetype": "1"
 }
 ```
-
-**Request field notes:**
-- `project_archetype` — optional. If omitted, archetype dimension scores `0.5` (neutral) for all experts.
-- `expert_profiles` — may be an empty array `[]`. Returns `[]` response, not an error.
-- `verification_tier` in seam claims — `"EVIDENCE_BACKED"` or `"CLAIMED"`. Any other value treated as missing.
-- `depth_level` in domain_depths — `"SURFACE"`, `"OPERATIONAL"`, or `"DEEP"`.
-
-**Response:** Sorted array, descending by `composite_score`. Empty array `[]` if no experts provided.
+**Response (`list[MatchResult]`):**
 ```json
 [
   {
     "expert_id": "uuid",
-    "composite_score": 0.8643,
+    "composite_score": 0.85,
     "strength_label": "STRONG_MATCH",
-    "gap_map": [
-      { "seam_code": "A↔D", "color": "green" },
-      { "seam_code": "D↔E", "color": "amber" }
-    ]
+    "gap_map": [{"seam_code": "A↔C", "color": "green"}]
   }
 ]
 ```
 
-**`gap_map` always contains one entry per required seam** — including seams the expert doesn't cover (color: `"red"`).
-
-**Composite score formula:**
-```
-composite = 0.40 × seam_score
-          + 0.25 × domain_score
-          + 0.20 × portfolio_score
-          + 0.10 × archetype_score
-          + 0.05 × engagement_score  (always 1.0 — NestJS pre-filters by engagement)
-
-seam_score = Σ(tier_mult × criticality_mult for each seam) / Σ(criticality_mult for all seams)
-  tier_mult:         EVIDENCE_BACKED=1.0, CLAIMED=0.5, missing=0.0
-  criticality_mult:  load_bearing=3.0, significant=2.0, contributing=1.0
-
-domain_score = average of per-domain scores
-  expert_depth >= required_depth  → 1.0
-  expert_depth == required_depth - 1 → 0.5
-  else → 0.0
-
-archetype_score = 1.0 if project_archetype in expert.archetype_history else 0.0
-  (0.5 if project_archetype not specified in request)
-
-portfolio_score = expert.portfolio_score (default 0.5 if null)
-```
-
-**Strength labels:**
-
-| Score | Label |
-|---|---|
-| `>= 0.85` | `STRONG_MATCH` |
-| `>= 0.70` | `GOOD_MATCH` |
-| `>= 0.55` | `POSSIBLE_MATCH` |
-| `< 0.55` | `WEAK_MATCH` |
+#### Matching Engine Rules (`matching_engine.py`)
+1. **Hard Gate (4:1 Ratio):** Before scoring, if an expert has `> 4` CLAIMED seams for every 1 EVIDENCE_BACKED seam (among required seams), they are excluded entirely.
+2. **Weights:**
+   - 40% Seam Coverage
+   - 25% Domain Depth
+   - 20% Portfolio Quality (defaults to 0.5 if null)
+   - 10% Archetype History
+   - 5% Engagement Model (always 1.0)
+3. **Seam Scoring:**
+   - `EVIDENCE_BACKED` = 1.0 (Green)
+   - `CLAIMED` = 0.5 (Amber)
+   - Missing = 0.0 (Red)
+   - Criticality weights: `load_bearing` (3.0), `significant` (2.0), `contributing` (1.0).
+4. **Domain Scoring:**
+   - Exact match = 1.0
+   - One level below = 0.5
+   - >1 level below / missing = 0.0
+5. **Strength Labels:**
+   - `>= 0.85` → `STRONG_MATCH`
+   - `>= 0.70` → `GOOD_MATCH`
+   - `>= 0.55` → `POSSIBLE_MATCH`
+   - `< 0.55` → `WEAK_MATCH`
 
 ---
 
-### `GET /projects/{project_id}/artifact-b`
+## 5. Marketplace & Project Endpoints
 
-**NestJS caller:** `ProjectsService.getProject()` — called before returning `artifact_b_json` to a requesting expert  
-**Purpose:** Access gate — checks whether the expert is entitled to see Artifact B. No LLM.
+### 5.1 `POST /llm/service-generate`
+Drafts a marketplace service listing based on expert capabilities.
 
-**Query parameters (all required):**
-
-| Parameter | Required | Valid values that pass |
-|---|---|---|
-| `engagement_state` | ✓ | `ACTIVE`, `CONNECTED` |
-| `bid_state` | ✓ | `TECH_APPROVED`, `CEO_REVIEW`, `SELECTED` |
-| `expert_nda_accepted` | ✓ | `true` |
-| `ceo_nda_accepted` | ✓ | `true` |
-
-**All four conditions must be true simultaneously.** Any single failure returns 403.
-
-**Response (200 — access granted):**
+**Request (`ServiceGenerateRequest`):**
 ```json
-{ "artifact_b_accessible": true, "project_id": "proj-uuid" }
+{
+  "expert_capabilities": ["Python", "RAG"],
+  "target_use_cases": ["Enterprise Search"],
+  "claimed_domains": [{"code": "A", "name": "LLM App", "depth": "DEEP"}],
+  "claimed_seams": [{"code": "A↔C", "name": "LLM output"}],
+  "price_guidance": {"small_min": 5000000, "small_max": 15000000, "medium_min": 15000000, "medium_max": 50000000, "large_min": 50000000},
+  "is_pro_expert": true
+}
 ```
-
-**Response (403 — access denied):**
+**Response (`ServiceGenerateResponse`):**
 ```json
-{ "detail": "Engagement state PENDING does not grant Artifact B access" }
+{
+  "title": "string",
+  "description": "string",
+  "scope": "string",
+  "timeline": "string",
+  "suggested_price_vnd": 45000000,
+  "suggested_domains": ["A"],
+  "suggested_seams": ["A↔C"],
+  "pricing_rationale": "string"
+}
 ```
+**Logic:**
+- Jinja2 context: `{{ price_guidance }}`, `{{ claimed_domains }}`, `{{ claimed_seams }}`, `{{ is_pro_expert }}`.
+- Custom Jinja2 filter `format_number` is used to format VND prices.
+- Clamps price to `[0, 2,000,000,000]`.
 
-The `detail` message names the specific failing condition — useful for logging.
+### 5.2 `GET /projects/{project_id}/artifact-b`
+Gate check — can this expert access the technical specification (Artifact B)?
 
-**NestJS action:**
-- `200` → include `artifact_b_json` in the project response payload
-- `403` → omit `artifact_b_json` entirely from the response (do not return null or empty)
+**Query Params:**
+- `engagement_state` (string)
+- `bid_state` (string)
+- `expert_nda_accepted` (bool)
+- `ceo_nda_accepted` (bool)
+
+**Response:**
+- `200 OK`: `{"project_id": "uuid", "artifact_b_accessible": true}`
+- `403 Forbidden`: `{"detail": "<reason>"}`
+
+#### Artifact B Guard Rules (`artifact_b_guard.py`)
+Checks 4 conditions in order. Returns the first failing condition as the `reason`.
+1. `engagement_state IN ('CONNECTED', 'ACTIVE')`
+2. `bid_state IN ('TECH_APPROVED', 'CEO_REVIEW', 'SELECTED')`
+3. `expert_nda_accepted == True`
+4. `ceo_nda_accepted == True`
 
 ---
 
-## 5. Running the Test Suite
+## 6. Execution & Dispute Endpoints
 
-Unit + integration tests using pytest.
+### 6.1 `POST /llm/criterion-check`
+Detects subjective language in acceptance criteria.
 
-```bash
-cd ai-service
-source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-
-# Unit tests only — no API key needed, fast (~0.4s), always run in CI
-pytest tests/ -m "not integration" -v --tb=short
-
-# Integration tests — requires real ANTHROPIC_API_KEY in .env, ~90s
-pytest tests/ -m integration -v -s
-
-# All tests
-pytest tests/ -v
+**Request (`CriterionCheckRequest`):**
+```json
+{
+  "criterion_text": "The system should respond quickly.",
+  "project_archetype": "1",
+  "archetype_name": "RAG/Search",
+  "milestone_context": "Build the retrieval pipeline."
+}
 ```
+**Response (`CriterionCheckResponse`):**
+```json
+{
+  "is_subjective": true,
+  "suggestions": ["Response time must be under 200ms at P95."],
+  "severity": "HIGH",
+  "context_note": "Vague latency requirement."
+}
+```
+**Logic:**
+- Temperature = `0.0` (deterministic).
+- Jinja2 context: `{{ archetype_name }}`.
+- If `is_subjective == false`, forces `severity="LOW"` and `context_note=null`.
 
-**Test files:**
+### 6.2 `POST /llm/dispute-eval`
+Neutral arbitration of deliverable vs acceptance criterion.
 
-| File | What it tests |
-|---|---|
-| `tests/conftest.py` | Shared fixtures, Windows event loop fix, mock_llm fixture |
-| `tests/test_elicitation.py` | stage1 extract + stage5 synthesize unit tests |
-| `tests/test_criteria.py` | criterion-check unit tests |
-| `tests/test_portfolio.py` | portfolio-eval unit tests + threshold business rule |
-| `tests/test_disputes.py` | dispute-eval unit tests + idempotency |
-| `tests/test_service_gen.py` | service-generate unit tests + price clamping |
-| `tests/test_matching.py` | matching algorithm unit tests + weight formula |
-| `tests/test_artifact_b_guard.py` | artifact-b access guard unit tests |
-| `tests/test_integration.py` | Real Gemini API calls, ASGI transport, all 7 endpoints |
-
-**CI behaviour:** Unit tests (`-m "not integration"`) run automatically on every PR. Integration tests **do not run in CI** — they are run manually before pushing using the simulation suite below.
+**Request (`DisputeEvalRequest`):**
+```json
+{
+  "criterion_text": "string",
+  "deliverable_description": "string",
+  "files": ["url1", "url2"],
+  "project_archetype": "1",
+  "milestone_context": "string",
+  "prior_revision_count": 0
+}
+```
+**Response (`DisputeEvalResponse`):**
+```json
+{
+  "confidence_score": 0.85,
+  "finding": "expert_wins",
+  "reasoning": "string"
+}
+```
+**Logic:**
+- Temperature = `0.0` (deterministic).
+- Validates `finding` ∈ `{"expert_wins", "client_wins"}`. Defaults to `"client_wins"` on unexpected values (conservative).
+- Note: The ai-service does NOT apply the 0.80 threshold. It returns the raw score and finding; NestJS applies the threshold to determine `AUTO_RESOLVED` vs `MANUAL_REVIEW`.
 
 ---
 
-## 6. Running the Simulation Suite
+## 7. Pydantic Models Reference
 
-Simulations hit the **live running server** via real HTTP. Uvicorn console will show all request logs. Run the full suite before pushing to validate prompt quality and catch LLM regressions.
+All request and response models are defined in `app/models/requests.py` and `app/models/responses.py` using Pydantic v2.
 
-```bash
-# Terminal 1 — keep server running
-cd ai-service
-uvicorn app.main:app --reload --reload-dir app --port 8000
+### 7.1 Elicitation Models
+- `Stage1Request` / `Stage1Response`
+- `Stage3VaguenessCheckRequest` / `Stage3VaguenessCheckResponse`
+- `Stage4RecommendRequest` / `Stage4RecommendResponse`
+- `Stage5Request` / `Stage5Response`
+- `MilestoneChatRequest` / `MilestoneChatResponse`
 
-# Terminal 2 — run simulations
-cd ai-service
+### 7.2 Matching Models
+- `MatchingRequest`
+- `MatchResult` (includes `GapMapItem`)
 
-python simulations/runner.py criterion_check     # 5 scenarios
-python simulations/runner.py stage1_extract      # 5 scenarios
-python simulations/runner.py portfolio_eval      # 8 scenarios
-python simulations/runner.py dispute_eval        # 6 scenarios
-python simulations/runner.py service_generate    # 4 scenarios
-python simulations/runner.py stage5_synthesize   # 4 scenarios (~2-3 min)
-python simulations/runner.py matching            # 5 scenarios, no LLM, ~2s
+### 7.3 Evaluation Models
+- `PortfolioEvalRequest` / `PortfolioEvalResponse`
+- `DisputeEvalRequest` / `DisputeEvalResponse`
+- `CriterionCheckRequest` / `CriterionCheckResponse`
 
-python simulations/runner.py                     # run all 37 scenarios
-
-python simulations/runner.py --no-color > report.txt   # save to file
-python simulations/runner.py --url http://ai-service:8000  # Docker URL
-```
-
-**Scenario files:**
-
-| File | Endpoint | Scenarios | LLM? |
-|---|---|---|---|
-| `simulations/scenarios/s01_criterion_check.py` | `/llm/criterion-check` | 5 | Yes |
-| `simulations/scenarios/s02_stage1_extract.py` | `/llm/elicitation/stage1-extract` | 5 | Yes |
-| `simulations/scenarios/s03_portfolio_eval.py` | `/llm/portfolio-eval` | 8 | Yes |
-| `simulations/scenarios/s04_dispute_eval.py` | `/llm/dispute-eval` | 6 | Yes |
-| `simulations/scenarios/s05_service_generate.py` | `/llm/service-generate` | 4 | Yes |
-| `simulations/scenarios/s06_stage5_synthesize.py` | `/llm/elicitation/stage5-synthesize` | 4 | Yes |
-| `simulations/scenarios/s07_matching.py` | `/llm/matching` | 5 | No |
-
-**Check tiers:**
-
-| Tier | Blocks verdict? | What it validates |
-|---|---|---|
-| `SHAPE` | Yes | Field presence, types, enum bounds, list structure |
-| `RULE` | Yes | Business rules enforced in code (thresholds, nullability, sorting) |
-| `QUALITY` | No (affects ★ grade only) | LLM output quality heuristics |
-
-**Grading:** `PASS` = all SHAPE+RULE pass AND quality ≥ ★★☆ · `WARN` = SHAPE+RULE pass AND quality < ★★☆ · `FAIL` = any SHAPE or RULE check failed
-
-JSON reports saved to `simulations/reports/` (git-ignored).
+### 7.4 Service Generation Models
+- `ServiceGenerateRequest` / `ServiceGenerateResponse`
 
 ---
 
-## 7. Architecture Notes for NestJS Integration
+## 8. Prompt Template Management
 
-### Internal URLs
+Prompts are stored as Jinja2 templates. The system checks the DB (via NestJS internal API) first, then falls back to local `.txt` files.
 
-| Environment | URL |
+### Available Stages:
+1. `stage1_extract`
+2. `stage3_vagueness_check`
+3. `stage4_recommend`
+4. `stage5_synthesize`
+5. `milestone_chat`
+6. `criterion_check`
+7. `dispute_eval`
+8. `portfolio_eval`
+9. `service_generate`
+
+### Jinja2 Variables Available per Stage:
+| Stage | Variables |
 |---|---|
-| Railway (production) | `http://ai-service.railway.internal:8000` |
-| Docker Compose (local dev) | `http://ai-service:8000` |
-| Direct local (uvicorn) | `http://localhost:8000` |
+| `stage1_extract` | `{{ archetypes }}`, `{{ void_codes }}` |
+| `stage5_synthesize` | `{{ domains }}`, `{{ seams }}`, `{{ archetypes }}` |
+| `portfolio_eval` | `{{ seam_definitions }}`, `{{ evaluated_seam_code }}`, `{{ evaluated_seam_name }}`, `{{ evaluated_seam_desc }}` |
+| `service_generate` | `{{ price_guidance }}`, `{{ claimed_domains }}`, `{{ claimed_seams }}`, `{{ is_pro_expert }}` |
+| `criterion_check` | `{{ archetype_name }}` |
 
-### Error handling
-
-| HTTP status | Meaning | NestJS action |
-|---|---|---|
-| `200` | Success | Read response body normally |
-| `422` | Validation error — bad request shape | Log + surface generic error to user |
-| `503` | LLM unavailable — invalid key or quota exceeded | Retry once after 2s, then surface error |
-| `500` | Unexpected server error | Log + alert on-call |
-
-### Timeout recommendations
-
-| Endpoint | Recommended timeout |
-|---|---|
-| `/health`, `/llm/matching`, `/projects/*/artifact-b` | 5s |
-| `/llm/criterion-check`, `/llm/portfolio-eval`, `/llm/dispute-eval`, `/llm/service-generate`, `/llm/elicitation/stage1-extract` | 30s |
-| `/llm/elicitation/stage5-synthesize` | 90s |
-
-### Business rules: what lives where
-
-**Computed in ai-service — use as-is, never re-implement in NestJS:**
-
-| Value | Endpoint | Rule |
-|---|---|---|
-| `passed_boolean` | portfolio-eval | `confidence_score >= 0.85` |
-| `gap_advisory` nullability | portfolio-eval | null when passed, non-null when failed |
-| `payment_amount_vnd = 0` | stage5-synthesize | Always zero on all milestones |
-| `composite_score` | matching | Weighted formula, see Section 4 |
-| `strength_label` | matching | Derived from composite_score thresholds |
-| `gap_map` colors | matching | green/amber/red from verification tier |
-
-**Threshold logic lives in NestJS — ai-service returns raw scores only:**
-
-| Decision | Threshold | Where |
-|---|---|---|
-| Dispute AUTO_RESOLVE vs MANUAL_REVIEW | `confidence_score >= 0.80` | `DisputeService` |
-| Project PUBLISHED vs RETURNED_TO_CLIENT | `completeness_score >= 0.70` | `ElicitationService` |
+**Cache Invalidation:** The cache TTL is 60 seconds. Admin updates to `prompt_templates` in DB will take effect within 1 minute. No service restart is required.

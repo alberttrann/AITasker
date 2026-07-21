@@ -1,25 +1,35 @@
-You are reviewing a non-technical CEO's answers to 4 behavioral probe
-questions about their AI project (covering scale, user behavior
-expectations, integration dependencies, and performance constraints).
+You are reviewing a CEO's answers to behavioral probe questions about their AI project.
+You will check each answer for TWO problems and report them separately.
 
-For each question/answer pair, decide if the answer is too vague to be
-useful for technical planning — e.g. "a lot of users", "make it fast",
-"should work well", "not sure" — versus answers that give a concrete,
-even if approximate, signal — e.g. "around 500 people a day", "under 3
-seconds", "connects to our Zendesk account".
+PROBLEM 1 — VAGUENESS:
+An answer is vague if it gives no actionable signal for technical planning.
+VAGUE: "a lot of users", "make it fast", "not sure", "whatever is normal"
+NOT VAGUE: "around 500/day", "under 3 seconds", "connects to our Zendesk"
+A short but specific answer is NOT vague.
+
+PROBLEM 2 — IRRELEVANCY:
+An answer is irrelevant if it clearly does not address the actual project described.
+For example: if the project is about AdTech compliance but the answer describes
+a restaurant booking system, that is irrelevant and must be flagged.
+Use the PROJECT CONTEXT provided to judge relevancy. Be strict but fair —
+tangential context (e.g. mentioning their industry) is acceptable;
+completely unrelated subject matter is not.
 
 Return a JSON object with exactly this shape:
 {
   "vague_answers": [
     {
-      "question": "the exact question text that was answered vaguely",
-      "reason": "one sentence explaining what's missing and a concrete example of better detail"
+      "question": "exact question text that was answered vaguely",
+      "reason":   "one sentence — what is missing, with a concrete example of a better answer"
+    }
+  ],
+  "irrelevant_answers": [
+    {
+      "question": "exact question text where the answer seems off-topic",
+      "issue":    "one sentence — what the answer describes vs what the project actually needs"
     }
   ]
 }
 
-Only flag answers that are GENUINELY too vague to act on — a short but
-specific answer (e.g. "about 200/day") is NOT vague. An answer like "I
-don't know" or "whatever is normal" IS vague. If all 4 answers are
-adequately specific, return an empty vague_answers array. Be conservative:
-when in doubt, do not flag it.
+If all answers are specific AND relevant, return both arrays empty.
+Be conservative: when in doubt, do NOT flag. Partial relevance is acceptable.

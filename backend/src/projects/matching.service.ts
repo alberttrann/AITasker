@@ -5,7 +5,7 @@ import { MatchingHelperService } from '../shared/matching/matching-helper.servic
 import { MatchResult } from '../elicitation/fastapi.client';
 
 interface ProjectPublishedEvent {
-  projectId:  string;
+  projectId: string;
   candidates: MatchResult[];
 }
 
@@ -16,7 +16,7 @@ export class MatchingService {
     private readonly matchingHelper: MatchingHelperService,
   ) {}
 
-  // Event handler 
+  // Event handler
 
   /**
    * Seeded at project publish time by ElicitationService's 'project.published' event.
@@ -64,33 +64,47 @@ export class MatchingService {
     await this.triggerMatching(projectId, 'FORCE_REFRESH');
   }
 
-  // Frontend mapping 
+  // Frontend mapping
 
   /**
    * Strips composite_score before returning to the frontend.
    * Numeric scores are never exposed — strength labels and gap colors only.
    * Also joins user contact info (fullName, email, phone) for each expert.
    */
-  async mapShortlistForFrontend(results: MatchResult[]) {
+  async mapShortlistForFrontend(results: MatchResult[], projectId: string) {
     if (!results || results.length === 0) return [];
 
     const expertIds = results.map((r) => r.expert_id);
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: expertIds } },
-      select: { id: true, fullName: true, email: true, phone: true },
-    });
+    
+    // Fetch users and existing invitations in parallel
+    const [users, invitations] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: expertIds } },
+        select: { id: true, fullName: true, email: true, phone: true },
+      }),
+      this.prisma.invitation.findMany({
+        where: { projectId, expertId: { in: expertIds } },
+        select: { expertId: true, status: true }
+      })
+    ]);
 
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const inviteMap = new Map(invitations.map((i) => [i.expertId, i.status]));
 
-    return results.map((r) => ({
-      expert_id:      r.expert_id,
-      strength_label: r.strength_label,
-      gap_map:        r.gap_map,
-      contact_info:   userMap.get(r.expert_id) ?? null,
-    }));
+    return results.map((r) => {
+      const inviteStatus = inviteMap.get(r.expert_id);
+      return {
+        expert_id:      r.expert_id,
+        strength_label: r.strength_label,
+        gap_map:        r.gap_map,
+        contact_info:   userMap.get(r.expert_id) ?? null,
+        // Tell FE exactly what state the invite is in
+        invitation_status: inviteStatus ?? 'NONE', 
+      };
+    });
   }
 
-  // Private helpers 
+  // Private helpers
 
   /**
    * Reads the cached MatchResult[] from the DB.
@@ -118,7 +132,7 @@ export class MatchingService {
     source: 'AUTO' | 'FORCE_REFRESH',
   ): Promise<void> {
     await this.prisma.projectShortlistCache.upsert({
-      where:  { projectId },
+      where: { projectId },
       create: {
         projectId,
         resultsJson: results as any,
@@ -178,9 +192,7 @@ export class MatchingService {
       await this.persistCache(projectId, results, source);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new InternalServerErrorException(
-        `Failed to calculate matches via AI Service: ${msg}`,
-      );
+      throw new InternalServerErrorException(`Failed to calculate matches via AI Service: ${msg}`);
     }
   }
 }

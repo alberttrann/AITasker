@@ -5,7 +5,8 @@ import Tier2Success from './Tier2Success';
 import Tier2Rejected from './Tier2Rejected';
 import VerificationLockout from './VerificationLockout';
 import { AlertTriangle, ChevronRight, FileText, Plus, Search, Send, X, AlertCircle, Loader2, CheckSquare } from 'lucide-react';
-import { ConfirmModal } from '@/components/ui/modal';
+import { ConfirmModal } from '@/components/ui/Modal';
+import { formatSeamCode } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
 export default function PortfolioSubmitForm() {
@@ -133,11 +134,14 @@ export default function PortfolioSubmitForm() {
   };
 
   const selectedSeamData = profile?.seamClaims?.find((s: any) => s.id === selectedSeamId) || eligibleSeams.find(s => s.id === selectedSeamId);
+  const rawSeamCode = selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown';
+  const displaySeamName = getSeamLabel(rawSeamCode);
 
   if (resultView === 'success') {
     return (
       <Tier2Success 
-        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
+        seamCode={formatSeamCode(rawSeamCode)} 
+        seamName={displaySeamName}
         llmConfidence={resultData?.llmConfidence || 0} 
         onClose={handleReset} 
         onSubmitAnother={handleReset} 
@@ -148,7 +152,8 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'rejected') {
     return (
       <Tier2Rejected 
-        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
+        seamCode={formatSeamCode(rawSeamCode)} 
+        seamName={displaySeamName}
         llmConfidence={resultData?.llmConfidence || 0} 
         advisoryNote={resultData?.advisoryNote}
         attemptsRemaining={5 - (resultData?.submissionCount ?? (selectedSeamData?.submissionCount || 0))}
@@ -161,7 +166,8 @@ export default function PortfolioSubmitForm() {
   if (resultView === 'lockout') {
     return (
       <VerificationLockout 
-        seamCode={selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown'} 
+        seamCode={formatSeamCode(rawSeamCode)} 
+        seamName={displaySeamName}
         lockedUntil={resultData?.lockedUntil || new Date(Date.now() + 86400000).toISOString()}
         onClose={handleReset}
       />
@@ -186,7 +192,7 @@ export default function PortfolioSubmitForm() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+    <div className="w-full max-w-[1440px] mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
       <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Portfolio Submission</h2>
       <p className="text-gray-500 mb-8">Provide evidence for AI evaluation to reach Tier 2 verification.</p>
 
@@ -208,7 +214,7 @@ export default function PortfolioSubmitForm() {
             </div>
           </div>
           <Link 
-            to="/expert/subscription"
+            to="/expert/subscriptions/plans"
             className="whitespace-nowrap px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-lg transition-colors flex-shrink-0"
           >
             Activate Pro
@@ -242,7 +248,7 @@ export default function PortfolioSubmitForm() {
             >
               <option value="" disabled>Select a seam to verify...</option>
               {eligibleSeams.map(s => (
-                <option key={s.id} value={s.id}>{s.seamCode || s.code || s.seam_code} · {getSeamLabel(s.seamCode || s.code || s.seam_code)}</option>
+                <option key={s.id} value={s.id}>{formatSeamCode(s.seamCode || s.code || s.seam_code)} · {getSeamLabel(s.seamCode || s.code || s.seam_code)}</option>
               ))}
             </select>
             {selectedSeamData && (

@@ -3,10 +3,12 @@ import { cn } from "@lib/utils"
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
+  /** When true, plays a horizontal shake animation — pass a changing key to re-trigger */
+  shake?: boolean;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, error, ...props }, ref) => {
+  ({ className, type, error, shake, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -15,6 +17,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           error 
             ? "border-[2px] border-error focus:border-error focus:ring-[3px] focus:ring-error/10 focus:outline-none" 
             : "border-slate-200 hover:border-primary focus:border-[2px] focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:outline-none",
+          shake && "input-shake",
           className
         )}
         ref={ref}
@@ -24,6 +27,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
   }
 )
 Input.displayName = "Input"
+
 
 const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(
   ({ className, ...props }, ref) => (

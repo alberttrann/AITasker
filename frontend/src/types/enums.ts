@@ -3,10 +3,7 @@ export type UserRoleItem = 'CLIENT_CEO' | 'EXPERT'
 export type ClientSubtype = 'CEO' | 'TECH_TEAM';
 export type SubscriptionTier = 'free' | 'pro';
 
-export enum SubscriptionPrice {
-  CEO = 5000,
-  EXPERT = 3000,
-}
+
 
 export type EngagementModel  = 'MILESTONE' | 'HOURLY' | 'HYBRID';
 

@@ -54,6 +54,12 @@ INVITE_TOKEN=$(echo "$RES" | jq -r '.invite_link' | sed -n 's/.*token=\(.*\)/\1/
 TECH_EMAIL="mf14-tech-$(date +%s)@aitasker.test"
 RES=$(curl -s -X POST "${BASE_URL}/auth/register/handoff" -H "Content-Type: application/json" \
   -d "{\"invite_token\":\"${INVITE_TOKEN}\",\"email\":\"${TECH_EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF14 Test Tech\"}")
+REAL_OTP=$(run_db_script "
+  const u = await prisma.user.findUnique({ where: { email: '${TECH_EMAIL}' }});
+  console.log(u ? u.emailOtp : '');
+")
+RES=$(curl -s -X POST "${BASE_URL}/auth/verify-otp" -H "Content-Type: application/json" \
+  -d "{\"email\":\"${TECH_EMAIL}\",\"otp\":\"${REAL_OTP}\"}")
 TECH_TOKEN=$(echo "$RES" | jq -r '.access_token')
 TECH_AUTH=(-H "Authorization: Bearer ${TECH_TOKEN}")
 
@@ -99,7 +105,7 @@ EXPERT_TOKEN=$(echo "$RES" | jq -r '.access_token')
 EXPERT_AUTH=(-H "Authorization: Bearer ${EXPERT_TOKEN}")
 
 RES=$(curl -s -X POST "${BASE_URL}/bids" -H "Content-Type: application/json" "${EXPERT_AUTH[@]}" \
-  -d "{\"projectId\":\"${PROJECT_ID}\",\"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},\"approach_summary\":\"RAG pipeline.\",\"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery sign-off\"}]}")
+  -d "{\"projectId\":\"${PROJECT_ID}\",\"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},\"approach_summary\":\"RAG pipeline.\",\"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery sign-off\"}]}")
 BID_ID=$(echo "$RES" | jq -r '.bid.id')
 ENGAGEMENT_ID=$(echo "$RES" | jq -r '.engagement.id')
 curl -s -X PUT "${BASE_URL}/bids/${BID_ID}/tech-review" -H "Content-Type: application/json" "${TECH_AUTH[@]}" -d '{"action":"APPROVED"}' > /dev/null

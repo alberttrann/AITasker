@@ -51,6 +51,92 @@ export class IpnHandlerService {
 
       EXPLANATION: ONCE THE WEB SOCKET/EVENT EMITTER FAIL, THE WHOLE PROCESS CHAIN IS DOWN!
     */
+
+    // payment:confirmed for milestone escrow lock (MILESTONE VA type)
+    // Guard: skip emit on idempotent retry ("Already processed") to avoid duplicate events
+    if (userVirtualAccount.entityType === VAEntityType.MILESTONE && result && 'success' in result && (result as any).message !== 'Already processed') {
+      const milestone = await this.prisma.milestone.findUnique({
+        where: { id: userVirtualAccount.entityId },
+        include: {
+          engagement: {
+            select: {
+              id: true,
+              clientId: true,
+              expertId: true,
+              projectId: true,
+            },
+          },
+        },
+      });
+      if (milestone) {
+        try {
+          const engagement = milestone.engagement;
+          const recipientIds = new Set<string>([
+            engagement.clientId,
+            engagement.expertId,
+          ]);
+
+          if (engagement.projectId) {
+            const techProfiles = await this.prisma.techTeamProfile.findMany({
+              where: { linkedProjectId: engagement.projectId },
+              select: { userId: true },
+            });
+            techProfiles.forEach((tp) => recipientIds.add(tp.userId));
+          }
+
+          for (const userId of recipientIds) {
+            let rolePath = 'ceo';
+            if (userId === engagement.expertId) {
+              rolePath = 'expert';
+            } else if (userId !== engagement.clientId) {
+              rolePath = 'tech-team';
+            }
+
+            // 1. Emit payment:confirmed (for query invalidation)
+            this.eventEmitter.emit('socket.broadcast', {
+              userId,
+              event: 'payment:confirmed',
+              payload: {
+                engagement_id: milestone.engagementId,
+                milestone_id: milestone.id,
+                milestone_number: milestone.milestoneNumber,
+                amount_vnd: Number(transferAmount),
+              },
+            });
+
+            // 2. Emit milestone:updated (for instant UI state transition)
+            this.eventEmitter.emit('socket.broadcast', {
+              userId,
+              event: 'milestone:updated',
+              payload: {
+                engagement_id: milestone.engagementId,
+                milestone_id: milestone.id,
+                milestone_number: milestone.milestoneNumber,
+                state: MilestoneState.IN_PROGRESS,
+                link: `/${rolePath}/engagements/${milestone.engagementId}/milestones/${milestone.id}`,
+              },
+            });
+
+            // 3. Emit notification:generic (shows Bell notification icon alert on Expert and Tech Team screens)
+            if (userId !== engagement.clientId) {
+              this.eventEmitter.emit('socket.broadcast', {
+                userId,
+                event: 'notification:generic',
+                payload: {
+                  type: 'payment',
+                  title: 'Milestone Funded!',
+                  body: `Milestone #${milestone.milestoneNumber} (${Number(transferAmount).toLocaleString('vi-VN')} VND) has been funded into escrow by the client. Work can now begin.`,
+                  link: `/${rolePath}/engagements/${milestone.engagementId}/milestones/${milestone.id}`,
+                },
+              });
+            }
+          }
+        } catch (_err) {
+          // Broadcast is best-effort; transaction is already committed.
+        }
+      }
+    }
+
     if (
       userVirtualAccount.entityType !== VAEntityType.MILESTONE &&
       userVirtualAccount.entityType !== VAEntityType.SERVICE &&
@@ -216,6 +302,7 @@ export class IpnHandlerService {
 
     const engagement = await tx.engagement.findUnique({
       where: { id: userVirtualAccount.entityId },
+      include: { service: true },
     });
 
     if (!engagement) throw new ConflictException('Engagement not found');
@@ -248,6 +335,17 @@ export class IpnHandlerService {
         paymentAmountVnd: Number(transferAmount),
         state: MilestoneState.FUNDED,
         fundedAt: new Date(),
+        deliverableStatement: `Full Delivery & Implementation for Service: "${engagement.service?.title || 'Service Listing'}"`,
+      },
+    });
+
+    // Create a default Acceptance Criterion for the auto-created service milestone
+    await tx.acceptanceCriterion.create({
+      data: {
+        milestoneId: milestone.id,
+        criterionText: `Deliver and verify all requirements specified in the service: "${engagement.service?.title || 'Service Listing'}"`,
+        isRequired: true,
+        verifiedByRole: SignOffAuthority.CEO,
       },
     });
 
@@ -264,6 +362,45 @@ export class IpnHandlerService {
       where: { id: engagement.id },
       data: { state: EngagementState.ACTIVE },
     });
+
+    try {
+      // 1. Notify the expert
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.expertId,
+        event: 'notification:generic',
+        payload: {
+          type: 'system',
+          title: 'Service Purchased!',
+          body: 'A client has purchased your service and funded the escrow milestones.',
+          link: `/expert/engagements/${engagement.id}/milestones/${milestone.id}`,
+        },
+      });
+
+      // 2. Notify the client (buyer)
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.clientId,
+        event: 'notification:generic',
+        payload: {
+          type: 'system',
+          title: 'Payment Confirmed!',
+          body: `Your payment for the service "${engagement.service?.title || 'Service Listing'}" has been confirmed.`,
+          link: `/ceo/engagements/${engagement.id}/milestones`,
+        },
+      });
+
+      // 3. Emit payment:confirmed for query invalidation
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.clientId,
+        event: 'payment:confirmed',
+        payload: {
+          engagement_id: engagement.id,
+          milestone_number: 1,
+          amount_vnd: Number(transferAmount),
+        },
+      });
+    } catch (_err) {
+      // best-effort broadcast
+    }
 
     await tx.virtualAccount.update({
       where: { id: userVirtualAccount.id },

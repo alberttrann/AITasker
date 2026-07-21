@@ -3,11 +3,12 @@ import { Lock, ArrowLeft } from 'lucide-react';
 
 interface VerificationLockoutProps {
   seamCode: string;
+  seamName?: string;
   lockedUntil: string;
   onClose: () => void;
 }
 
-export default function VerificationLockout({ seamCode, lockedUntil, onClose }: VerificationLockoutProps) {
+export default function VerificationLockout({ seamCode, seamName, lockedUntil, onClose }: VerificationLockoutProps) {
   const date = new Date(lockedUntil);
   const formattedDate = date.toLocaleDateString(undefined, { 
     weekday: 'long', 
@@ -28,7 +29,7 @@ export default function VerificationLockout({ seamCode, lockedUntil, onClose }: 
       
       <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-4">Verification Locked</h2>
       <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-        You have reached the maximum number of attempts for seam <span className="font-bold text-gray-900">{seamCode}</span>.
+        You have reached the maximum number of attempts for seam <span className="font-bold text-gray-900">{seamName || seamCode}</span>.
       </p>
 
       <div className="bg-orange-50 border border-orange-100 rounded-xl p-6 mb-8 inline-block text-left">

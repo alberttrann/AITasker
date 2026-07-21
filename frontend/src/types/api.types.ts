@@ -1,335 +1,475 @@
 import type {
-  ActiveRole, ClientSubtype, SubscriptionTier, EngagementModel,
-  DomainCode, DepthLevel, VerificationTier, SeamCode,
-  ArchetypeCode, ElicitationState, ScenarioType,
-  ProjectState, ProjectTier, EngagementType, EngagementState,
-  BidState, TechStatus, CeoStatus,
-  MilestoneState, SignOffAuthority, DodStatus, ReleaseState,
-  EscrowStatus, DisputeState, WalletTxType, WithdrawalType,
-  WithdrawalStatus, ServiceState, ServiceType, PortfolioStatus,
-  ReviewerRole, DecisionType,
-} from './enums';
+  ActiveRole,
+  ClientSubtype,
+  SubscriptionTier,
+  EngagementModel,
+  DomainCode,
+  DepthLevel,
+  VerificationTier,
+  SeamCode,
+  ArchetypeCode,
+  ElicitationState,
+  ScenarioType,
+  ProjectState,
+  ProjectTier,
+  EngagementType,
+  EngagementState,
+  BidState,
+  TechStatus,
+  CeoStatus,
+  MilestoneState,
+  SignOffAuthority,
+  DodStatus,
+  ReleaseState,
+  EscrowStatus,
+  DisputeState,
+  WalletTxType,
+  WithdrawalType,
+  WithdrawalStatus,
+  ServiceState,
+  ServiceType,
+  PortfolioStatus,
+  ReviewerRole,
+  DecisionType,
+} from "./enums";
 
 import type {
-  ArtifactA, ArtifactB, FootprintAlignment, ConditionalPricingItem,
-  RequiredSeam, RequiredDomain, MilestoneFrameworkItem,
-  SubmissionFile, SeamSignal, MatchResult,
-} from './jsonb.types';
+  ArtifactA,
+  ArtifactB,
+  FootprintAlignment,
+  ConditionalPricingItem,
+  RequiredSeam,
+  RequiredDomain,
+  MilestoneFrameworkItem,
+  SeamSignal,
+  MatchResult,
+  VoidItem,
+} from "./jsonb.types";
 
 export interface AuthTokens {
-  access_token:  string;
+  access_token: string;
   refresh_token: string;
 }
 
 export interface UserDto {
-  id:                       string;
-  email:                    string;
-  fullName:                string;
-  phone:                    string | null;
-  taxCode:                  string | null;
-  roles:                    string[];
-  activeRole:              ActiveRole;
-  clientSubtype:           ClientSubtype | null;
-  subscriptionTier:        SubscriptionTier;
-  subscriptionExpires:     string | null;
-  sepay_bank_account_xid:   string | null;
-  bank_linked_at:           string | null;
-  selfTechnical:            boolean;
-  is_active:                boolean;
-  activeRoleProfile:       ActiveRoleProfile | null;
-  createdAt:               string;
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  taxCode: string | null;
+  roles: string[];
+  activeRole: ActiveRole;
+  clientSubtype: ClientSubtype | null;
+  subscriptionTier: SubscriptionTier;
+  subscriptionExpires: string | null;
+  sepay_bank_account_xid: string | null;
+  bank_linked_at: string | null;
+  selfTechnical: boolean;
+  is_active: boolean;
+  activeRoleProfile: ActiveRoleProfile | null;
+  createdAt: string;
 }
 
 export interface WalletDto {
-  id:                string;
-  userId:           string;
+  id: string;
+  userId: string;
   availableBalance: number;
-  lockedBalance:    number;
+  lockedBalance: number;
 }
 
 export interface WalletTransactionDto {
-  id:               string;
-  walletId:        string;
-  amount:           number;
+  id: string;
+  walletId: string;
+  amount: number;
   transactionType: WalletTxType;
-  referenceId:     string | null;
-  createdAt:       string;
+  referenceId: string | null;
+  createdAt: string;
+  details?: string | null;
 }
 
 export interface VirtualAccountDto {
-  id:           string;
-  entity_type:  string;
-  entity_id:    string;
-  va_number:    string;
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  va_number: string;
   fixed_amount: number | null;
-  expires_at:   string | null;
-  status:       string;
+  expires_at: string | null;
+  status: string;
 }
 
 export interface WithdrawalRequestDto {
-  id:                string;
-  expert_id:         string;
-  type:              WithdrawalType;
-  amount:            number;
-  bank_account_xid:  string;
-  disbursement_id:   string | null;
-  status:            WithdrawalStatus;
-  requested_at:      string;
-  confirmed_at:      string | null;
+  id: string;
+  expert_id: string;
+  type: WithdrawalType;
+  amount: number;
+  bank_account_xid: string;
+  disbursement_id: string | null;
+  status: WithdrawalStatus;
+  requested_at: string;
+  confirmed_at: string | null;
 }
 
 export interface ExpertProfileDto {
-  userId:                string;
-  bio:                    string | null;
-  engagementModel:       EngagementModel | null;
-  stackTagsJson:         string[];
-  archetypeHistoryJson:  object[];
+  userId: string;
+  bio: string | null;
+  engagementModel: EngagementModel | null;
+  stackTagsJson: string[];
+  archetypeHistoryJson: object[];
 }
 
 export interface ClientProfileDto {
-  userId:       string;
-  companyName:  string | null;
-  industry:     string | null;
-  ceoName:      string | null;
+  userId: string;
+  companyName: string | null;
+  industry: string | null;
+  ceoName: string | null;
   isTaxVerified?: boolean;
 }
 
 export type ActiveRoleProfile = ExpertProfileDto | ClientProfileDto;
 
 export interface ExpertDomainDepthDto {
-  id:                string;
-  expert_id:         string;
-  domain_code:       DomainCode;
-  depth_level:       DepthLevel;
+  id: string;
+  expert_id: string;
+  domain_code: DomainCode;
+  depth_level: DepthLevel;
   verification_tier: VerificationTier;
 }
 
 export interface ExpertSeamClaimDto {
-  id:                string;
-  expert_id:         string;
-  seam_code:         SeamCode;
+  id: string;
+  expert_id: string;
+  seam_code: SeamCode;
   verification_tier: VerificationTier;
-  submission_count:  number;
-  locked_until:      string | null;
+  submission_count: number;
+  locked_until: string | null;
 }
 
 export interface ElicitationSessionDto {
-  id:                  string;
-  user_id:             string;
-  current_stage:       number;
-  archetype:           ArchetypeCode | null;
-  scenario_type:       ScenarioType | null;
-  void_list_json:      object[];
-  state:               ElicitationState;
-  symptom_text_draft:  string | null;   
-  created_at:          string;
-  updated_at:          string;
+  id: string;
+  user_id: string;
+  current_stage: number;
+  archetype: ArchetypeCode | null;
+  scenario_type: ScenarioType | null;
+  void_list_json: object[];
+  criticalArtifactsJson?: any[];
+  stage1OriginalInput?: string | null;
+  stage1SymptomsJson?: string[] | null;
+  state: ElicitationState;
+  symptom_text_draft: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectDto {
-  id:                        string;
-  client_id:                 string;
-  elicitation_session_id:    string | null;
-  state:                     ProjectState;
-  archetype:                 ArchetypeCode | null;
-  tier:                      ProjectTier | null;
-  selfTechnical:            boolean;
-  required_seams_json:       RequiredSeam[];
-  required_domains_json:     RequiredDomain[];
-  milestone_framework_json:  MilestoneFrameworkItem[];
-  artifact_a_json:           ArtifactA | null;
-  projectName?:              string | null;
-  created_at:                string;
+  id: string;
+  client_id: string;
+  elicitation_session_id: string | null;
+  state: ProjectState;
+  archetype: ArchetypeCode | null;
+  tier: ProjectTier | null;
+  selfTechnical: boolean;
+  required_seams_json: RequiredSeam[];
+  required_domains_json: RequiredDomain[];
+  milestone_framework_json: MilestoneFrameworkItem[];
+  artifact_a_json: ArtifactA | null;
+  projectName?: string | null;
+  estimatedTotalCostVnd?: string;
+  estimatedTotalDurationDays?: number;
+  created_at: string;
 }
 
 export interface ServiceDto {
-  id:           string;
-  expert_id:    string;
-  title:        string;
-  description:  string | null;
+  id: string;
+  expert_id: string;
+  title: string;
+  description: string | null;
   domains_json: DomainCode[];
-  seams_json:   SeamCode[];
-  price_vnd:    number;
-  state:        ServiceState;
+  seams_json: SeamCode[];
+  price_vnd: number;
+  state: ServiceState;
   service_type: ServiceType;
 }
 
 export interface EngagementDto {
-  id:                     string;
-  project_id:             string | null;
-  expert_id:              string;
-  service_id:             string | null;
-  type:                   EngagementType;
-  state:                  EngagementState;
-  connected_at:           string | null;
-  client_nda_accepted_at: string | null;
-  expert_nda_accepted_at: string | null;
+  id: string;
+  projectId: string | null;
+  expertId: string;
+  serviceId: string | null;
+  type: EngagementType;
+  state: EngagementState;
+  connectedAt: string | null;
+  clientNdaAcceptedAt: string | null;
+  expertNdaAcceptedAt: string | null;
+  // Adding supportive fields for EngagementDto
+  clientId: string;
+  capabilityBid?: CapabilityBidDto | null;
+  milestones?: MilestoneDto[];
+  project?: Pick<ProjectDto, 'id' | 'projectName' | 'state' | 'archetype' | 'tier'> | null;
+  termsLocked?: boolean;
+  ndaComplete?: boolean;
+}
+
+export type BidNegotiationState =
+  | 'AWAITING_TECH_REVIEW'
+  | 'AWAITING_CEO'
+  | 'AWAITING_EXPERT'
+  | 'TERMS_ACCEPTED'
+  | 'DECLINED';
+
+export type BidNextActionBy = 'CEO' | 'EXPERT' | 'TECH_TEAM' | 'NONE';
+
+export interface MilestoneOfferCriterionDto {
+  criterion_text: string;
+  is_required: boolean;
+}
+
+export interface MilestoneOfferTermDto {
+  milestone_number: number;
+  deliverable_statement: string;
+  criteria: MilestoneOfferCriterionDto[];
+  price_vnd?: number;
+  estimated_duration_days?: number;
+  condition?: string;
+  tech_stack?: string[];
+}
+
+export interface BidOfferDto {
+  id: string;
+  version: number;
+  proposerUserId?: string;
+  proposerRole: 'CEO' | 'EXPERT';
+  recipientRole: 'CEO' | 'EXPERT';
+  milestones: MilestoneOfferTermDto[];
+  state: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'SUPERSEDED';
+  createdAt: string;
+  respondedAt?: string;
+  technicalScopeVersion: number;
 }
 
 export interface CapabilityBidDto {
-  id:                        string;
-  engagement_id:             string;
-  footprint_alignment_json:  FootprintAlignment | null;
-  approach_summary:          string | null;
-  conditional_pricing_json:  ConditionalPricingItem[] | null;
-  state:                     BidState;
-  tech_status:               TechStatus;
-  ceo_status:                CeoStatus;
-  tech_feedback:             string | null;
-  negotiated_price_vnd:      number | null;
-  version_number:            number;
+  id: string;
+  engagementId: string;
+  footprintAlignmentJson: FootprintAlignment | null;
+  approachSummary: string | null;
+  conditionalPricingJson: unknown;
+  state: BidState;
+  techStatus: TechStatus;
+  ceoStatus: CeoStatus;
+  techFeedback: string | null;
+  negotiatedPriceVnd: number | null;
+  versionNumber: number;
+  currentOffer?: BidOfferDto;
+  acceptedOffer?: BidOfferDto;
+  offerHistory?: BidOfferDto[];
+  negotiationState?: BidNegotiationState;
+  nextActionBy?: BidNextActionBy;
+  termsLocked?: boolean;
+  ndaComplete?: boolean;
+  termsAcceptedAt?: string;
+  technicalReview?: {
+    scopeVersion: number;
+    status: 'PENDING' | 'APPROVED' | 'REVISION_REQUESTED';
+    intendedRecipient: 'CEO' | 'EXPERT';
+    reviewedAt?: string;
+    feedback?: string;
+  };
+  engagement?: {
+    id: string;
+    projectId: string | null;
+    clientId: string;
+    expertId: string;
+    clientNdaAcceptedAt: string | null;
+    expertNdaAcceptedAt: string | null;
+    state: EngagementState;
+    expert?: { id: string; fullName: string };
+    project?: Pick<ProjectDto, 'id' | 'projectName' | 'state'>;
+    milestones?: Array<MilestoneDto & { acceptanceCriteria?: AcceptanceCriterionDto[] }>;
+  };
 }
 
 export interface MilestoneDto {
-  id:                    string;
-  engagement_id:         string;
-  milestone_number:      number;
-  deliverable_statement: string | null;
-  sign_off_authority:    SignOffAuthority;
-  payment_amount_vnd:    number;
-  state:                 MilestoneState;
-  va_number:             string | null;
-  va_expires_at:         string | null;
-  funded_at:             string | null;
-  submitted_at:          string | null;
-  approved_at:           string | null;
-  released_at:           string | null;
+  id: string;
+  engagementId: string;
+  milestoneNumber: number;
+  deliverableStatement: string | null;
+  signOffAuthority: SignOffAuthority;
+  paymentAmountVnd: number;
+  state: MilestoneState;
+  vaNumber: string | null;
+  vaExpiresAt: string | null;
+  fundedAt: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  releasedAt: string | null;
+  updatedAt: string;
 }
 
 export interface AcceptanceCriterionDto {
-  id:              string;
-  milestone_id:    string;
-  criterion_text:  string;
-  is_required:     boolean;
-  verified_by_role: SignOffAuthority;
-  verified_at:     string | null;
-  revision_note:   string | null;
+  id: string;
+  milestoneId: string;
+  criterionText: string;
+  isRequired: boolean;
+  verifiedByRole: SignOffAuthority;
+  verifiedAt: string | null;
+  techVerifiedAt: string | null;
+  ceoVerifiedAt: string | null;
+  revisionNote: string | null;
+  revisionRequestedByRole: "TECH_TEAM" | "CEO" | null;
 }
 
 export interface MilestoneDodItemDto {
-  id:                  string;
-  milestone_id:        string;
-  item_description:    string;
-  is_required:         boolean;
-  status:              DodStatus;
-  completed_at:        string | null;
-  completion_note:     string | null;
-  not_applicable_note: string | null;
-  maps_to_criterion_id: string | null;
+  id: string;
+  milestoneId: string;
+  itemDescription: string;
+  isRequired: boolean;
+  status: DodStatus;
+  completedAt: string | null;
+  completionNote: string | null;
+  notApplicableNote: string | null;
+  mapsToCriterionId: string | null;
 }
 
 export interface MilestoneSubmissionDto {
-  id:           string;
-  milestone_id: string;
-  expert_id:    string;
-  description:  string | null;
-  files_json:   SubmissionFile[];
-  submitted_at: string;
+  id: string;
+  milestoneId: string;
+  expertId: string;
+  description: string | null;
+  filesJson: string[];
+  submittedAt: string;
 }
 
 export interface PaygatedDocumentDto {
-  id:            string;
-  milestone_id:  string;
-  document_url:  string;
-  release_state: ReleaseState;
-  staged_at:     string;
-  released_at:   string | null;
+  id: string;
+  milestoneId: string;
+  documentUrl: string;
+  releaseState: ReleaseState;
+  stagedAt: string;
+  releasedAt: string | null;
 }
 
 // ── Escrow & Disputes ─────────────────────────────────────────────────────────
 export interface EscrowAccountDto {
-  id:               string;
-  milestone_id:     string | null;
-  engagement_id:    string | null;
-  amount:           number;
+  id: string;
+  milestone_id: string | null;
+  engagement_id: string | null;
+  amount: number;
   client_wallet_id: string;
   expert_wallet_id: string;
-  status:           EscrowStatus;
-  held_at:          string;
-  released_at:      string | null;
+  status: EscrowStatus;
+  held_at: string;
+  released_at: string | null;
 }
 
 export interface DisputeDto {
-  id:               string;
-  engagement_id:    string;
-  milestone_id:     string | null;
-  criterion_id:     string;
-  escrow_account_id: string;
-  filed_by:         string;
-  state:            DisputeState;
-  llm_confidence:   number | null;
-  filed_at:         string;
-  resolved_at:      string | null;
+  id: string;
+  engagementId: string;
+  milestoneId: string | null;
+  criterionId: string;
+  escrowAccountId: string;
+  filedBy: string;
+  state: DisputeState;
+  llmConfidence: number | null;
+  resolution: "EXPERT_WINS" | "CLIENT_WINS" | "SPLIT" | null;
+  llmReasoning: string | null;
+  filedAt: string;
+  resolvedAt: string | null;
+  resolvedBy?: string | null;
+  escrowAccount?: {
+    status: EscrowStatus;
+    amount: number | string;
+  };
+  criterion?: {
+    criterionText: string;
+    criterion_text?: string;
+  };
+  milestone?: {
+    deliverableStatement: string | null;
+    paymentAmountVnd: number | string;
+    milestoneNumber?: number;
+    deliverable_statement?: string | null;
+    payment_amount_vnd?: number | string;
+  };
+
+  // Transitional fallbacks for older API payloads and admin screens.
+  engagement_id?: string;
+  milestone_id?: string | null;
+  criterion_id?: string;
+  escrow_account_id?: string;
+  filed_by?: string;
+  llm_confidence?: number | null;
+  llm_reasoning?: string | null;
+  filed_at?: string;
+  resolved_at?: string | null;
 }
 
 export interface MessageDto {
-  id:             string;
-  engagement_id:  string;
-  sender_id:      string;
-  content:        string;
+  id: string;
+  engagement_id: string;
+  sender_id: string;
+  content: string;
   attachment_url: string | null;
-  timestamp:      string;
-  is_read:        boolean;  // computed for current user
+  timestamp: string;
+  is_read: boolean; // computed for current user
 }
 
 export interface ReviewDto {
-  id:                     string;
-  engagement_id:          string;
-  reviewer_id:            string;
-  target_id:              string;
-  rating:                 number;
-  comment:                string | null;
+  id: string;
+  engagement_id: string;
+  reviewer_id: string;
+  target_id: string;
+  rating: number;
+  comment: string | null;
   structured_signals_json: SeamSignal[] | null;
-  reviewer_role:          ReviewerRole;
+  reviewer_role: ReviewerRole;
 }
 
 export interface ShortlistDto {
-  project_id:   string;
-  results:      MatchResult[];
+  project_id: string;
+  results: MatchResult[];
   generated_at: string;
 }
 
 export interface PortfolioSubmissionDetailDto {
-  id:                      string;
-  status:                  'PENDING' | 'APPROVED' | 'REJECTED';
-  llmConfidence:           number | null;
-  evaluatedAt:             string | null;
-  advisoryNote:            string | null;
-  attemptsRemaining?:      number;
-  lockedUntil:             string | null;
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  llmConfidence: number | null;
+  evaluatedAt: string | null;
+  advisoryNote: string | null;
+  attemptsRemaining?: number;
+  lockedUntil: string | null;
   evaluationTierUpgraded?: boolean;
 }
 
 export interface PortfolioListItemDto {
-  id:            string;
-  status:        'PENDING' | 'APPROVED' | 'REJECTED';
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
   llmConfidence: number | null;
-  evaluatedAt:   string | null;
-  advisoryNote:  string | null;
-  createdAt:     string;
+  evaluatedAt: string | null;
+  advisoryNote: string | null;
+  createdAt: string;
   seamClaim: {
-    id:               string;
-    seamCode:         string;
+    id: string;
+    seamCode: string;
     verificationTier: string;
-    submissionCount:  number;
+    submissionCount: number;
   };
 }
 
 export interface PlatformDecisionDto {
-  id:             string;
-  decision_type:  DecisionType;
-  entity_type:    string | null;
-  entity_id:      string | null;
+  id: string;
+  decision_type: DecisionType;
+  entity_type: string | null;
+  entity_id: string | null;
   llm_confidence: number | null;
-  decision:       string | null;
-  advisory_note:  string | null;
-  created_at:     string;
+  decision: string | null;
+  advisory_note: string | null;
+  created_at: string;
 }
 
 export interface PaginatedResponse<T> {
-  data:  T[];
+  data: T[];
   total: number;
-  page:  number;
+  page: number;
   limit: number;
 }
 
@@ -341,7 +481,676 @@ export interface GenerateHandoffLinkResponse {
 
 export interface ApiError {
   statusCode: number;
-  message:    string | object;
-  path:       string;
-  timestamp:  string;
+  message: string | object;
+  path: string;
+  timestamp: string;
+}
+
+// ── Bids API DTOs (from use-bids.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new capability bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCreateBid)
+ */
+export interface CreateBidPayLoad {
+  projectId: string;
+  footprint_alignment_json: FootprintAlignment;
+  approach_summary: string;
+  conditional_pricing_json: ConditionalPricingItem[];
+}
+
+/**
+ * Data transfer object for updating an existing bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useUpdateBid)
+ */
+export interface UpdateBidDto {
+  footprint_alignment_json: FootprintAlignment;
+  approach_summary: string;
+  conditional_pricing_json: ConditionalPricingItem[];
+}
+
+/**
+ * Variables required when calling the update bid mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useUpdateBid)
+ */
+export interface UpdateBidVariables {
+  bidId: string; // param
+  body: UpdateBidDto;
+}
+
+/**
+ * Data transfer object for the technical review of a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useTechReview)
+ */
+export interface TechReviewDto {
+  action: "APPROVED" | "REVISION_REQUESTED";
+  tech_feedback?: string;
+}
+
+/**
+ * Variables required when calling the tech review mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useTechReview)
+ */
+export interface TechReviewVariables {
+  bidId: string;
+  body: TechReviewDto;
+}
+
+/**
+ * Data transfer object for the CEO's decision on a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCeoDecision)
+ */
+export interface CeoDecisionDto {
+  decision: "APPROVED" | "DECLINED";
+}
+
+/**
+ * Variables required when calling the CEO decision mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useCeoDecision)
+ */
+export interface CeoDecisionVariables {
+  bidId: string;
+  body: CeoDecisionDto;
+}
+
+/**
+ * Data transfer object for making a counter-offer on a bid.
+ * Used in: frontend/src/hooks/use-bids.ts (useCounterOffer)
+ */
+export interface CounterOfferDto {
+  negotiated_price_vnd: number;
+}
+
+/**
+ * Variables required when calling the counter-offer mutation.
+ * Used in: frontend/src/hooks/use-bids.ts (useCounterOffer)
+ */
+export interface CounterOfferVariables {
+  bidId: string;
+  body: CounterOfferDto;
+}
+
+export interface CreateOfferDto {
+  respondingToVersion: number;
+  milestones: MilestoneOfferTermDto[];
+}
+
+export interface CreateOfferVariables {
+  bidId: string;
+  body: CreateOfferDto;
+}
+
+export interface OfferDecisionVariables {
+  bidId: string;
+  offerId: string;
+}
+
+export interface BidFinalizationResponse {
+  bidId: string;
+  engagementId: string;
+  projectId: string;
+  acceptedOffer: BidOfferDto;
+  milestonesCreated: number;
+  nextStep: 'NDA';
+}
+
+// ── Elicitation API DTOs (from use-elicitation.ts) ──────────────────────────
+
+/**
+ * Represents a successful elicitation gate passage.
+ * Used in: frontend/src/hooks/use-elicitation.ts (GateResult)
+ */
+export interface GatePassed {
+  gate_passed: true;
+  completeness_score: number;
+  project_id: string;
+}
+
+/**
+ * Represents a failed elicitation gate attempt.
+ * Used in: frontend/src/hooks/use-elicitation.ts (GateResult)
+ */
+export interface GateFailed {
+  gate_passed: false;
+  completeness_score: number;
+  flagged_void: string | null;
+  return_to_stage: number;
+  advisory_note: string;
+}
+
+/**
+ * Union type representing the result of an elicitation gate.
+ * Used in: frontend/src/hooks/use-elicitation.ts
+ */
+export type GateResult = GatePassed | GateFailed;
+
+/**
+ * Data representation of a completed elicitation stage.
+ * Used in: frontend/src/hooks/use-elicitation.ts
+ */
+export interface StageCompleteData {
+  voidListJson?: VoidItem[];
+  archetype?: string;
+  probeResponses?: Record<string, string>;
+  gateResult?: GateResult;
+  vaguenessResult?: {
+    vague_answers?: { question: string; reason: string }[];
+    irrelevant_answers?: { question: string; issue: string }[];
+  };
+  symptomText?: string;
+  acknowledgedVoidCodes?: string[];
+  techContext?: {
+    scaleAndInfrastructure: string;
+    integrationMethod: string;
+    legacyVolume: string;
+    schemas: string[];
+    contracts: string[];
+  };
+  nextStage?: number; // to explicitly drive the frontend wizard
+}
+
+// ── Milestones API DTOs (from use-milestones.ts) ──────────────────────────
+
+/**
+ * Payload used for creating a new milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts (useCreateMilestone)
+ */
+export interface CreateMilestonePayload {
+  engagement_id: string;
+  milestone_number: number;
+  deliverable_statement: string;
+  payment_amount_vnd: number;
+  criteria: CreateCriterionDto[];
+}
+
+/**
+ * Data transfer object representing a criterion when creating a milestone.
+ * Used in: frontend/src/hooks/use-milestones.ts
+ */
+export interface CreateCriterionDto {
+  criterion_text: string;
+  is_required?: boolean;
+}
+
+// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
+
+/**
+ * Payload used for verifying a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionDto {
+  verification_comment?: string;
+}
+
+/**
+ * Variables required when calling the verify criterion mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionVariable {
+  criterionId: string;
+  body: VerifyCriterionDto;
+}
+
+/**
+ * Payload used for requesting revision on a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteDto {
+  revision_note: string;
+}
+
+/**
+ * Variables required when calling the request revision mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteVariable {
+  criterionId: string;
+  body: RevisionNoteDto;
+}
+
+// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new DoD checklist item.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemDto {
+  item_description: string;
+  is_required?: boolean;
+  maps_to_criterion_id?: string;
+}
+
+/**
+ * Variables required when calling the create DoD item mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemVariable {
+  milestoneId: string;
+  body: CreateDodItemDto;
+}
+
+/**
+ * Payload used for updating a Milestone DoD item status.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemDto {
+  status: DodStatus;
+  completion_note?: string;
+  not_applicable_note?: string;
+}
+
+/**
+ * Variables required when calling the update DoD status mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemVariable {
+  milestoneId: string;
+  itemId: string;
+  body: UpdateMilestoneDoDItemDto;
+}
+
+// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
+
+/**
+ * Payload used for expert submitting deliverables for a milestone.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionDto {
+  description: string;
+  files_json?: string[];
+}
+
+/**
+ * Variables required when calling the submit milestone mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionVariable {
+  milestoneId: string;
+  body: CreateSubmissionDto;
+}
+
+/**
+ * Payload used for staging a detailed technical paygated document.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocDto {
+  document_url: string;
+}
+
+/**
+ * Variables required when calling the upload document mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocVariable {
+  milestoneId: string;
+  body: StagePaygatedDocDto;
+}
+
+// ── Admin Config Types ───────────────────────────────────────────────────────
+
+export interface SubPackage {
+  id: string;
+  role: string;
+  name: string;
+  priceVnd: number;
+  durationMonths: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DomainDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SeamDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ArchetypeDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ProbeQuestion {
+  id: string;
+  archetypeCode: string;
+  questionText: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+export interface InvitationDto {
+  id: string;
+  projectId: string;
+  expertId: string;
+  ceoId: string;
+  message: string | null;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  invitedAt: string;
+  respondedAt: string | null;
+  expiresAt: string | null;
+  isExpired: boolean;
+  project: {
+    id: string;
+    projectName: string;
+    state: string;
+    archetype: string;
+    tier: string;
+    createdAt: string;
+    requiredDomainsJson: any[];
+    requiredSeamsJson: any[];
+  };
+  ceo: {
+    id: string;
+    fullName: string;
+  };
+}
+
+export interface MilestoneDetailDto extends MilestoneDto {
+  acceptanceCriteria: AcceptanceCriterionDto[];
+  dodItems: MilestoneDodItemDto[];
+  submissions: MilestoneSubmissionDto[];
+}
+// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
+
+/**
+ * Payload used for verifying a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionDto {
+  verification_comment?: string;
+}
+
+/**
+ * Variables required when calling the verify criterion mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
+ */
+export interface VerifyCriterionVariable {
+  criterionId: string;
+  body: VerifyCriterionDto;
+}
+
+/**
+ * Payload used for requesting revision on a criterion.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteDto {
+  revision_note: string;
+}
+
+/**
+ * Variables required when calling the request revision mutation.
+ * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
+ */
+export interface RevisionNoteVariable {
+  criterionId: string;
+  body: RevisionNoteDto;
+}
+
+// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
+
+/**
+ * Payload used for creating a new DoD checklist item.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemDto {
+  item_description: string;
+  is_required?: boolean;
+  maps_to_criterion_id?: string;
+}
+
+/**
+ * Variables required when calling the create DoD item mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
+ */
+export interface CreateDodItemVariable {
+  milestoneId: string;
+  body: CreateDodItemDto;
+}
+
+/**
+ * Payload used for updating a Milestone DoD item status.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemDto {
+  status: DodStatus;
+  completion_note?: string;
+  not_applicable_note?: string;
+}
+
+/**
+ * Variables required when calling the update DoD status mutation.
+ * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
+ */
+export interface UpdateMilestoneDoDItemVariable {
+  milestoneId: string;
+  itemId: string;
+  body: UpdateMilestoneDoDItemDto;
+}
+
+// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
+
+/**
+ * Payload used for expert submitting deliverables for a milestone.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionDto {
+  description: string;
+  files_json?: string[];
+}
+
+/**
+ * Variables required when calling the submit milestone mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
+ */
+export interface CreateSubmissionVariable {
+  milestoneId: string;
+  body: CreateSubmissionDto;
+}
+
+/**
+ * Payload used for staging a detailed technical paygated document.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocDto {
+  document_url: string;
+}
+
+/**
+ * Variables required when calling the upload document mutation.
+ * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
+ */
+export interface StagePaygatedDocVariable {
+  milestoneId: string;
+  body: StagePaygatedDocDto;
+}
+
+// ── Admin Config Types ───────────────────────────────────────────────────────
+
+export interface SubPackage {
+  id: string;
+  role: string;
+  name: string;
+  priceVnd: number;
+  durationMonths: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DomainDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface SeamDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ArchetypeDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ProbeQuestion {
+  id: string;
+  archetypeCode: string;
+  questionText: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+export interface InvitationDto {
+  id: string;
+  projectId: string;
+  expertId: string;
+  ceoId: string;
+  message: string | null;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  invitedAt: string;
+  respondedAt: string | null;
+  expiresAt: string | null;
+  isExpired: boolean;
+  project: {
+    id: string;
+    projectName: string;
+    state: string;
+    archetype: string;
+    tier: string;
+    createdAt: string;
+    requiredDomainsJson: any[];
+    requiredSeamsJson: any[];
+  };
+  ceo: {
+    id: string;
+    fullName: string;
+  };
+}
+
+export interface MilestoneDetailDto extends MilestoneDto {
+  acceptanceCriteria: AcceptanceCriterionDto[];
+  dodItems: MilestoneDodItemDto[];
+}
+
+/**
+ * Payload required to file a dispute.
+ * Used in: frontend/src/hooks/use-disputes.ts (useCreateDispute)
+ */
+export interface CreateDisputePayload {
+  criterion_id: string;
+  additional_context?: string;
+}
+
+export interface VoidCodeDefinition {
+  code: string;
+  title: string;
+  description: string;
+}
+
+export interface MilestoneChatMessageDto {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface MilestoneChatSessionDto {
+  id: string;
+  title: string;
+  messageCount: number;
+  updatedAt: string;
+  messagesJson?: MilestoneChatMessageDto[];
+  createdAt?: string;
+}
+
+export interface MilestoneChatResponseDto {
+  reply: string;
+  suggestedEdit: {
+    milestone_number: number;
+    field: string;
+    suggested_value: any;
+    reason: string;
+  } | null;
+  chatSessionId: string;
+  sessionTitle: string;
+  messageCount: number;
+}
+
+export interface AcceptanceCriterionDto {
+  id: string;
+  milestoneId: string;
+  criterionText: string;
+  isRequired: boolean;
+  platformDecisionsJson?: any[]; // optional platform notes
+}
+
+export interface BulkCreateDodItemsDto {
+  items: CreateDodItemDto[];
+}
+export interface BulkCreateDodItemsVariable {
+  milestoneId: string;
+  body: BulkCreateDodItemsDto;
+}
+export interface BulkStagePaygatedDocsDto {
+  documentUrls: string[];
+}
+export interface BulkStagePaygatedDocsVariable {
+  milestoneId: string;
+  body: BulkStagePaygatedDocsDto;
+}
+
+export interface VerifyOtpDto {
+  email: string;
+  otp: string;
+}
+
+export interface ResendOtpDto {
+  email: string;
+}
+
+export interface SubscriptionStatus {
+  tier: 'free' | 'pro' | string;
+  isActive: boolean;
+  packageId?: string;
+  expiresAt?: string;
+  [key: string]: any;
+}
+
+export interface SubscriptionHistoryLog {
+  id: string;
+  packageName: string;
+  role: string;
+  amountPaidVnd: string;
+  purchasedAt: string;
+  expiresAt: string;
+  paymentMethod: string;
+  isExpired: boolean;
 }

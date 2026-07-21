@@ -4,9 +4,11 @@ import { useExpertProfile } from '@/hooks/use-expert-profile';
 import DomainDepthGrid from './DomainDepthGrid';
 import SeamClaimsGrid from './SeamClaimsGrid';
 import type { DomainDepth, SeamClaim } from '@/types/ui.types';
+import { useDomains, useSeams } from '@/hooks/use-config';
 import StackTagsPicker from './StackTagsPicker';
 import { CheckCircle, ShieldCheck, X } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
+import TooltipIcon from '@/components/ui/TooltipIcon';
 
 export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   const [selectedSeams, setSelectedSeams] = useState<SeamClaim[]>(() => profile?.seamClaims || []);
   const [stackTags, setStackTags] = useState<string[]>(() => profile?.profile?.stackTagsJson || []);
   const [engagementModel, setEngagementModel] = useState<string>(() => profile?.profile?.engagementModel || 'MILESTONE');
+  const [bio, setBio] = useState<string>(() => profile?.profile?.bio || '');
 
   useEffect(() => {
     if (profile) {
@@ -25,6 +28,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
       if (profile.seamClaims?.length) setSelectedSeams(profile.seamClaims);
       if (profile.profile?.stackTagsJson?.length) setStackTags(profile.profile.stackTagsJson);
       if (profile.profile?.engagementModel) setEngagementModel(profile.profile.engagementModel);
+      if (profile.profile?.bio) setBio(profile.profile.bio);
     }
   }, [profile]);
 
@@ -37,37 +41,32 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
     }
   };
 
+  const { data: dynamicDomains } = useDomains();
+  const { data: dynamicSeams } = useSeams();
+
   const getDomainLabel = (code: string) => {
-    const map: Record<string, string> = {
-      'A': 'LLM App Engineering',
-      'B': 'Applied Reasoning Systems',
-      'C': 'Prompt Engineering & Design',
-      'D': 'Model Fine-Tuning & Training',
-      'E': 'RAG & Search Architecture',
-      'F': 'MLOps & Production AI',
-    };
-    return map[code] || code;
+    const domain = dynamicDomains?.find(d => d.code === code);
+    return domain ? domain.name : code;
+  };
+
+  const getDomainDescription = (code: string) => {
+    const domain = dynamicDomains?.find(d => d.code === code);
+    return domain?.description;
   };
 
   const getSeamLabel = (code: string) => {
-    const map: Record<string, string> = {
-      'A↔B': 'Applied Agents',
-      'A↔C': 'Prompt Engineering Apps',
-      'A↔D': 'Fine-Tuned Apps',
-      'A↔F': 'Production LLMs',
-      'B↔E': 'Agents with Memory',
-      'C↔E': 'Retrieval Prompting',
-      'C↔F': 'PromptOps',
-      'D↔E': 'Fine-Tuned RAG',
-      'D↔F': 'MLOps for LLMs',
-      'E↔F': 'Scalable RAG',
-    };
-    return map[code] || code;
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam ? seam.name : code;
+  };
+
+  const getSeamDescription = (code: string) => {
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam?.description;
   };
 
   if (isLoadingProfile) {
     return (
-      <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
+      <div className="w-full max-w-[1440px] mx-auto py-12 flex flex-col items-center justify-center min-h-[50vh]">
         <Spinner size="lg" className="mb-4" />
         <p className="text-gray-500 font-medium">Loading profile builder...</p>
       </div>
@@ -77,12 +76,12 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
   const tabs = [
     { key: 'domains', label: '1. Domains', done: selectedDomains.length > 0 },
     { key: 'seams',   label: '2. Seams',   done: selectedSeams.length > 0 },
-    { key: 'tags',    label: '3. Stack & Model', done: stackTags.length > 0 },
+    { key: 'tags',    label: '3. Stack, Model & Bio', done: stackTags.length > 0 },
     { key: 'review',  label: '4. Review',  done: false },
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="w-full max-w-[1440px] mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Expert Profile Builder</h1>
@@ -152,9 +151,11 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
             <StackTagsPicker 
               initialTags={stackTags}
               initialModel={engagementModel}
-              onSave={(tags, model) => {
+              initialBio={bio}
+              onSave={(tags, model, newBio) => {
                 setStackTags(tags);
                 setEngagementModel(model);
+                setBio(newBio);
                 setActiveTab('review');
               }} 
             />
@@ -182,7 +183,10 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
                   <div className="grid gap-3">
                     {selectedDomains.map(d => (
                       <div key={d.domainCode} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                        <span className="font-medium text-gray-700">{d.domainCode} · {getDomainLabel(d.domainCode)}</span>
+                        <span className="font-medium text-gray-700 flex items-center gap-2">
+                          {d.domainCode} &middot; {getDomainLabel(d.domainCode)}
+                          <TooltipIcon text={getDomainDescription(d.domainCode)} />
+                        </span>
                         <span className="px-3 py-1 bg-blue-50 text-blue-700 font-bold text-xs rounded-full">{d.depthLevel}</span>
                       </div>
                     ))}
@@ -205,6 +209,7 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-800 font-bold text-xs rounded border">{s.seamCode || s.code}</span>
                         <span className="font-medium text-gray-700 flex items-center gap-2">
                           {getSeamLabel(s.seamCode || s.code)}
+                          <TooltipIcon text={getSeamDescription(s.seamCode || s.code)} />
                           {(s.verificationTier === 'EVIDENCE_BACKED' || s.verificationTier === 'VERIFIED') && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
                               <CheckCircle className="h-3 w-3" /> AI Verified
@@ -220,8 +225,17 @@ export default function ProfileBuilder({ onCancel }: { onCancel?: () => void }) 
               {/* Stack & Model Review */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-extrabold text-lg text-gray-900">Tech Stack & Engagement</h4>
+                  <h4 className="font-extrabold text-lg text-gray-900">Bio, Tech Stack & Engagement</h4>
                   <button onClick={() => setActiveTab('tags')} className="text-blue-600 text-sm font-semibold hover:underline">Edit</button>
+                </div>
+                
+                <div className="mb-4">
+                  <span className="text-sm font-semibold text-gray-500 block mb-2 uppercase tracking-wider">Professional Bio</span>
+                  {bio ? (
+                    <p className="text-gray-900 text-sm whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-100">{bio}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No bio provided.</p>
+                  )}
                 </div>
                 <div className="mb-4">
                   <span className="text-sm font-semibold text-gray-500 block mb-2 uppercase tracking-wider">Tech Stack</span>

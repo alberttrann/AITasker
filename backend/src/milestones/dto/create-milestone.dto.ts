@@ -1,8 +1,12 @@
 import { Type } from 'class-transformer';
 import {
-  IsString, IsNotEmpty, IsNumber, IsEnum,
-  IsUUID, IsBoolean, IsArray, ValidateNested,
-  IsOptional, Min,
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsUUID,
+  IsArray,
+  ValidateNested,
+  Min,
 } from 'class-validator';
 import { CreateCriterionDto } from './create-criterion.dto';
 export { CreateCriterionDto };
@@ -20,10 +24,6 @@ export class CreateMilestoneDto {
   @IsString({ message: 'deliverable_statement must be a valid string.' })
   @IsNotEmpty({ message: 'deliverable_statement cannot be empty.' })
   deliverable_statement: string;
-
-  @IsNotEmpty({ message: 'sign_off_authority cannot be empty.' })
-  @IsEnum(['TECH_TEAM', 'CEO', 'JOINT'])
-  sign_off_authority: 'TECH_TEAM' | 'CEO' | 'JOINT';
 
   @IsNumber()
   @Min(1, { message: 'payment_amount_vnd must be greater than zero' })

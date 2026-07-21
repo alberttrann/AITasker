@@ -3,7 +3,7 @@ declare global {
     toJSON(): string;
   }
 }
- 
+
 BigInt.prototype.toJSON = function () {
   return this.toString();
 };
@@ -14,6 +14,8 @@ import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
+import * as express from 'express';
+import { join } from 'path';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -21,8 +23,6 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  // Enable graceful shutdown hooks to ensure OnModuleDestroy is invoked
-  // and Prisma disconnects cleanly from PostgreSQL during hot-reloads.
   app.enableShutdownHooks();
 
   const redisUrl = process.env.REDIS_URL;
@@ -32,15 +32,20 @@ async function bootstrap() {
       await redisIoAdapter.connectToRedis(redisUrl);
       app.useWebSocketAdapter(redisIoAdapter);
     } catch (err) {
-      logger.error('Failed to connect to Redis Adapter. Falling back to default in-memory adapter.', err);
+      logger.error(
+        'Failed to connect to Redis Adapter. Falling back to default in-memory adapter.',
+        err,
+      );
     }
   }
 
+  // Cấu hình static assets để phục vụ hình ảnh và file đính kèm trong chat
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+
   app.useGlobalPipes(
     new ZodValidationPipe(),
-    new ValidationPipe({ whitelist: true, transform: true }),
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
-  app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -65,9 +70,9 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`  Backend running on http://localhost:${port}`);
+  console.log(`  Static uploads served at http://localhost:${port}/uploads`);
   console.log(`  Swagger docs at http://localhost:${port}/api`);
   console.log(`  Health check at http://localhost:${port}/health`);
-  console.log(`  CORS allowed: ${allowedOrigins.join(', ')}`);
 }
 
 bootstrap();

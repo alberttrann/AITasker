@@ -12,6 +12,7 @@ import { FastapiClient } from '../elicitation/fastapi.client';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { VAStatus } from '@common/enums/va-status.enum';
 import { generateVaNumber } from '@shared/ledger/va-generator';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 type Actor = { id: string; activeRole: string };
 
@@ -25,11 +26,12 @@ export class ListingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fastapiClient: FastapiClient,
-  ) {}
+    private readonly eventEmitter: EventEmitter2,
+  ) { }
 
   async list(filter: ListServicesFilterDto) {
     const where: any = {
-      state: 'PUBLISHED', 
+      state: 'PUBLISHED',
     };
 
     if (filter.serviceType) {
@@ -82,7 +84,20 @@ export class ListingsService {
 
     const isOwner = service.expertId === actor.id;
     const isAdmin = actor.activeRole === 'ADMIN';
-    if (service.state !== 'PUBLISHED' && !isOwner && !isAdmin) {
+    
+    let isPurchaser = false;
+    if (actor.activeRole === 'CLIENT') {
+      const engagement = await this.prisma.engagement.findFirst({
+        where: {
+          clientId: actor.id,
+          serviceId: id,
+          state: { not: 'DECLINED' },
+        },
+      });
+      isPurchaser = !!engagement;
+    }
+
+    if (service.state !== 'PUBLISHED' && !isOwner && !isAdmin && !isPurchaser) {
       throw new NotFoundException('Service not found.');
     }
 
@@ -107,9 +122,24 @@ export class ListingsService {
     let description = dto.description;
     let scope = dto.scope;
     let timeline = dto.timeline;
+
+    // Unconditionally fetch expert's verified competencies from DB
+    const [domainDepths, seamClaims] = await Promise.all([
+      this.prisma.expertDomainDepth.findMany({
+        where: { expertId: expertUserId },
+      }),
+      this.prisma.expertSeamClaim.findMany({
+        where: { expertId: expertUserId },
+      }),
+    ]);
+
+    // Unconditionally use expert profile data for domains and seams
+    let domainsJson = domainDepths.map(d => d.domainCode);
+    let seamsJson = seamClaims.map(s => s.seamCode);
     let priceVnd: bigint | null = dto.priceVnd !== undefined ? BigInt(dto.priceVnd) : null;
 
     if (dto.useAiGenerator) {
+      // 1. Fetch expert and verify Pro status (E5 / C-4)
       const expert = await this.prisma.user.findUnique({
         where: { id: expertUserId },
         select: {
@@ -133,14 +163,29 @@ export class ListingsService {
       if (!dto.targetUseCases || dto.targetUseCases.length === 0) {
         throw new BadRequestException('targetUseCases is required when useAiGenerator=true.');
       }
+
+      // 3. Call AI with rich context
       const ai = await this.fastapiClient.serviceGenerate({
         expert_capabilities: dto.capabilities,
         target_use_cases: dto.targetUseCases,
+        claimed_domains: domainDepths.map(d => ({
+          code: d.domainCode,
+          depth: d.depthLevel,
+        })),
+        claimed_seams: seamClaims.map(s => ({
+          code: s.seamCode,
+        })),
+        is_pro_expert: expert.subscriptionExpertTier === 'pro',
       });
+
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
-      scope = dto.scope ?? ai.scope;
+      const aiScopeStr = Array.isArray(ai.scope)
+        ? ai.scope.join('\n')
+        : (ai.scope ?? '');
+      scope = dto.scope ?? aiScopeStr;
       timeline = dto.timeline ?? ai.timeline;
+
       if (priceVnd === null) {
         priceVnd = BigInt(ai.suggested_price_vnd);
       }
@@ -160,8 +205,8 @@ export class ListingsService {
         description: description ?? null,
         scope: scope ?? null,
         timeline: timeline ?? null,
-        domainsJson: dto.domainsJson ?? [],
-        seamsJson: dto.seamsJson ?? [],
+        domainsJson: domainsJson as any,
+        seamsJson: seamsJson as any,
         priceVnd,
         serviceType: dto.serviceType,
         state: 'DRAFT',
@@ -248,40 +293,78 @@ export class ListingsService {
     const wallet = await this.prisma.wallet.findUnique({
       where: { userId: buyer.id },
     });
-    if (!wallet || wallet.availableBalance < service.priceVnd) {
-      throw new UnprocessableEntityException('INSUFFICIENT_BALANCE');
+    // Note: remove the wallet balance, otherwise will prevent the client from chatting with the expert first before proceed buying service
+    if (!wallet) {
+      throw new UnprocessableEntityException('CAN NOT FOUND USER WALLET!');
     }
 
-    // 5. Determine engagement type from service.service_type
+    // 5. Check if they already have an ACTIVE engagement for this service.
+    const existingActive = await this.prisma.engagement.findFirst({
+      where: {
+        serviceId: id,
+        clientId: buyer.id,
+        state: 'ACTIVE',
+      },
+    });
+
+    if (existingActive) {
+      return {
+        engagement: existingActive,
+        virtualAccount: null,
+        vietqrUrl: '',
+      };
+    }
+
+    // 5b. Check if they already have a PENDING engagement for this service to reuse.
+    const existingPending = await this.prisma.engagement.findFirst({
+      where: {
+        serviceId: id,
+        clientId: buyer.id,
+        state: 'PENDING',
+      },
+    });
+
     const engagementType =
       service.serviceType === 'AI_SERVICE' ? 'SERVICE_PURCHASE' : 'TECH_DISCOVERY';
 
     // 6. Create engagement + per-order VA atomically.
     const result = await this.prisma.$transaction(async (tx) => {
-      const engagement = await tx.engagement.create({
-        data: {
-          expertId: service.expertId,
-          clientId: buyer.id, 
-          serviceId: id,
-          type: engagementType,
-          state: 'PENDING',
-        },
-      });
+      let engagement = existingPending;
+      if (!engagement) {
+        engagement = await tx.engagement.create({
+          data: {
+            expertId: service.expertId,
+            clientId: buyer.id,
+            serviceId: id,
+            type: engagementType,
+            state: 'PENDING',
+          },
+        });
+      }
 
-      const vaNumber = generateVaNumber(VAEntityType.SERVICE);
-
-      // Per-order VA for service purchase. Fixed amount = service price so
-      // IPN handler can match the payment. Expires in 24h.
-      const va = await tx.virtualAccount.create({
-        data: {
+      // Reuse active VA if valid, otherwise create a new one
+      let va = await tx.virtualAccount.findFirst({
+        where: {
           entityType: VAEntityType.SERVICE,
           entityId: engagement.id,
-          vaNumber,
-          fixedAmount: service.priceVnd,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           status: VAStatus.ACTIVE,
+          expiresAt: { gte: new Date() },
         },
       });
+
+      if (!va) {
+        const vaNumber = generateVaNumber(VAEntityType.SERVICE);
+        va = await tx.virtualAccount.create({
+          data: {
+            entityType: VAEntityType.SERVICE,
+            entityId: engagement.id,
+            vaNumber,
+            fixedAmount: service.priceVnd,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            status: VAStatus.ACTIVE,
+          },
+        });
+      }
 
       return { engagement, va };
     });
@@ -297,6 +380,26 @@ export class ListingsService {
       `&des=${result.va.vaNumber}`,
     ].join('');
 
+    // Emit notification to the expert about the new engagement/chat thread
+    try {
+      const buyerUser = await this.prisma.user.findUnique({
+        where: { id: buyer.id },
+        select: { fullName: true },
+      });
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: service.expertId,
+        event: 'notification:generic',
+        payload: {
+          type: 'system',
+          title: 'New Service Order / Chat',
+          body: `${buyerUser?.fullName || 'A client'} has initiated a workspace chat for your service "${service.title}".`,
+          link: `/expert/messages`,
+        },
+      });
+    } catch (_err) {
+      // ignore broadcast failures
+    }
+
     return {
       engagement: result.engagement,
       virtualAccount: {
@@ -305,5 +408,103 @@ export class ListingsService {
       },
       vietqrUrl,
     };
+  }
+
+  async delete(id: string, expertUserId: string) {
+    const svc = await this.prisma.service.findUnique({ where: { id }, 
+      // include the engagement of this service for checking before proceed delete
+      include: { engagements: true } });
+    if (!svc) throw new NotFoundException('Service not found.');
+    if (svc.expertId !== expertUserId) throw new ForbiddenException('Not your listing.');
+    if (svc.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only delete DRAFT listings. Unpublish first.');
+    }
+
+    // Checking if this service has engagement inside -> not allow to delete even though the state of the service is DRAFT
+    if (svc.engagements.length > 0) {
+      throw new UnprocessableEntityException('Can only delete service without ENGAGEMENTS')
+    }
+    
+    return this.prisma.service.delete({ where: { id } });
+  }
+
+  async myListings(expertUserId: string) {
+    const services = await this.prisma.service.findMany({
+      where: { expertId: expertUserId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return services.map(s => ({ ...s, priceVnd: s.priceVnd.toString() }));
+  }
+
+  async myPurchases(clientUserId: string) {
+    const purchases = await this.prisma.engagement.findMany({
+      where: { 
+        clientId: clientUserId, 
+        type: { in: ['SERVICE_PURCHASE', 'TECH_DISCOVERY'] },
+        state: { not: 'DECLINED' }
+      },
+      include: {
+        service: true,
+        milestones: true,
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    // Hide duplicate PENDING service purchases if there is already an ACTIVE one for the same service
+    const activeServiceIds = new Set(
+      purchases
+        .filter(p => p.state === 'ACTIVE' && p.serviceId)
+        .map(p => p.serviceId)
+    );
+
+    const filteredPurchases = purchases.filter(p => {
+      if (p.state === 'PENDING' && p.serviceId && activeServiceIds.has(p.serviceId)) {
+        return false;
+      }
+      return true;
+    });
+
+    return filteredPurchases.map((p) => {
+      if (p.service) {
+        return {
+          ...p,
+          service: {
+            ...p.service,
+            priceVnd: p.service.priceVnd.toString(),
+          },
+        };
+      }
+      
+      // Fallback for orphaned service purchases (deleted service listings)
+      const serviceType = p.type === 'SERVICE_PURCHASE' ? 'AI_SERVICE' : 'TECH_DISCOVERY';
+      const totalMilestonesPrice = p.milestones.reduce((sum: number, m: any) => sum + Number(m.paymentAmountVnd), 0);
+      return {
+        ...p,
+        service: {
+          id: p.serviceId || 'deleted',
+          title: `Deleted Service Order (${p.id.slice(0, 8)})`,
+          description: 'This service listing has been deleted by the expert.',
+          priceVnd: totalMilestonesPrice.toString(),
+          serviceType,
+          state: 'DELETED',
+        }
+      };
+    });
+  }
+
+  async setPublishState(id: string, expertUserId: string, newState: 'PUBLISHED' | 'DRAFT') {
+    const svc = await this.prisma.service.findUnique({ where: { id } });
+    if (!svc) throw new NotFoundException('Service not found.');
+    if (svc.expertId !== expertUserId) throw new ForbiddenException('Not your listing.');
+    if (newState === 'PUBLISHED' && svc.state !== 'DRAFT') {
+      throw new UnprocessableEntityException('Can only publish listings in DRAFT state.');
+    }
+    if (newState === 'DRAFT' && svc.state !== 'PUBLISHED') {
+      throw new UnprocessableEntityException('Can only unpublish listings in PUBLISHED state.');
+    }
+    const updated = await this.prisma.service.update({
+      where: { id }, data: { state: newState },
+    });
+    return { ...updated, priceVnd: updated.priceVnd.toString() };
   }
 }

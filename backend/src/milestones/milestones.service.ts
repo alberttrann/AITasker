@@ -1,10 +1,38 @@
-import { Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
 import { PrismaService }      from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
-import { VAEntityType }       from '@common/enums/va-entity-type.enum';
-import { MilestoneState }     from '@common/enums/milestone-state.enum';
-import { LedgerService }      from '@shared/ledger/ledger.service';
-import { FastapiClient }      from '../elicitation/fastapi.client';
+import { VAEntityType } from '@common/enums/va-entity-type.enum';
+import { MilestoneState } from '@common/enums/milestone-state.enum';
+import { LedgerService } from '@shared/ledger/ledger.service';
+import { FastapiClient } from '../elicitation/fastapi.client';
+import { generateVaNumber } from '@shared/ledger/va-generator';
+import { UpdateMilestoneDto } from './dto/update-milestone.dto';
+import { BulkInitializeMilestonesDto } from './dto/bulk-initialize-milestones.dto';
+import { AuthUser } from '../auth/strategies/jwt.strategy';
+import { deriveMilestoneReviewAuthority } from './milestone-review-flow';
+import {
+  assertEngagementMilestoneTermsEditable,
+  assertMilestoneTermsEditable,
+  bidHasAcceptedTerms,
+} from './milestone-terms-lock';
+
+type MilestoneActor = Pick<AuthUser, 'id' | 'activeRole' | 'clientSubtype'>;
+type EngagementAccess = {
+  id: string;
+  clientId: string;
+  expertId: string;
+  projectId: string | null;
+  project?: {
+    selfTechnical: boolean;
+    techTeamProfiles?: Array<{ userId: string }>;
+    elicitationSession?: {
+      stage4TechInputsJson: unknown;
+      handoffConsumedAt: Date | null;
+    } | null;
+  } | null;
+};
+
+const TECH_TEAM_USER_ID_KEY = '_tech_team_user_id';
 
 @Injectable()
 export class MilestonesService {
@@ -14,18 +42,49 @@ export class MilestonesService {
     private readonly fastapiClient: FastapiClient,
   ) {}
 
-  async getMilestone(milestoneId: string) {
+  async getMilestone(milestoneId: string, user: MilestoneActor) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
-      include: { acceptanceCriteria: true, dodItems: true },
+      include: {
+        acceptanceCriteria: true,
+        dodItems: true,
+        submissions: true,
+        engagement: {
+          select: {
+            type: true,
+            id: true,
+            clientId: true,
+            expertId: true,
+            projectId: true,
+            project: { select: { selfTechnical: true } },
+            service: { select: { title: true } },
+          },
+        },
+      },
     });
     if (!milestone) {
       throw new NotFoundException('Milestone not found.');
     }
+    await this.assertEngagementAccess(user, milestone.engagement);
+
+    // Auto-heal missing criteria for service purchases
+    const isServiceOrder = milestone.engagement?.type === 'SERVICE_PURCHASE' || milestone.engagement?.type === 'TECH_DISCOVERY';
+    if (isServiceOrder && milestone.acceptanceCriteria.length === 0) {
+      const defaultCriterion = await this.prisma.acceptanceCriterion.create({
+        data: {
+          milestoneId: milestone.id,
+          criterionText: `Deliver and verify all requirements specified in the service: "${milestone.engagement?.service?.title || 'Service Listing'}"`,
+          isRequired: true,
+          verifiedByRole: milestone.signOffAuthority,
+        },
+      });
+      milestone.acceptanceCriteria.push(defaultCriterion);
+    }
+
     return milestone;
   }
 
-  async createMilestone(dto: CreateMilestoneDto) {
+  async createMilestone(dto: CreateMilestoneDto, user: MilestoneActor) {
     if (!dto.criteria || dto.criteria.length === 0) {
       throw new BadRequestException('At least one acceptance criterion is required.');
     }
@@ -33,6 +92,12 @@ export class MilestonesService {
     if (dto.payment_amount_vnd <= 0) {
       throw new BadRequestException('payment_amount_vnd must be greater than zero.');
     }
+
+    const engagement = await this.getEngagementAccess(dto.engagement_id);
+    this.assertCeoOwner(user, engagement);
+    await assertEngagementMilestoneTermsEditable(this.prisma, dto.engagement_id);
+    await this.assertReviewFlowReady(engagement);
+    const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
 
     const result = await this.prisma.$transaction(async (tx) => {
       let milestone;
@@ -42,7 +107,7 @@ export class MilestonesService {
             engagementId:         dto.engagement_id,
             milestoneNumber:      dto.milestone_number,
             deliverableStatement: dto.deliverable_statement,
-            signOffAuthority:     dto.sign_off_authority,
+            signOffAuthority,
             paymentAmountVnd:     dto.payment_amount_vnd,
             state:                'DEFINED',
           },
@@ -61,9 +126,9 @@ export class MilestonesService {
         const criterion = await tx.acceptanceCriterion.create({
           data: {
             milestoneId:    milestone.id,
-            criterionText:  c.criterion_text,
-            isRequired:     c.is_required ?? true,
-            verifiedByRole: dto.sign_off_authority,
+            criterionText:  c.criterion_text, 
+            isRequired:     c.is_required ?? true, 
+            verifiedByRole: signOffAuthority,
           },
         });
         createdCriteria.push(criterion);
@@ -103,16 +168,46 @@ export class MilestonesService {
     return result;
   }
 
-  async initiateFunding(milestoneId: string) {
+  async initiateFunding(milestoneId: string, user: MilestoneActor) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
+      include: {
+        engagement: {
+          include: { project: { select: { selfTechnical: true } } },
+        },
+      },
     });
 
     if (!milestone) {
       throw new BadRequestException('Milestone cannot be found');
     }
+    this.assertCeoOwner(user, milestone.engagement);
 
-    const vaNumber = `VA-${Math.floor(100000 + Math.random() * 900000)}`;
+    if (milestone.state !== 'DEFINED') {
+      throw new UnprocessableEntityException(
+        `Funding requires a DEFINED milestone; current state is ${milestone.state}.`,
+      );
+    }
+    if (milestone.engagement.type === 'PROJECT_BASED') {
+      const engagement = await this.prisma.engagement.findUnique({
+        where: { id: milestone.engagementId },
+        include: { capabilityBid: true },
+      });
+      if (
+        !engagement ||
+        (engagement.state !== 'CONNECTED' && engagement.state !== 'ACTIVE') ||
+        !engagement.clientNdaAcceptedAt ||
+        !engagement.expertNdaAcceptedAt ||
+        !bidHasAcceptedTerms(engagement.capabilityBid)
+      ) {
+        throw new UnprocessableEntityException({
+          error: 'ACCEPTED_CONTRACT_AND_NDA_REQUIRED',
+          message: 'Accepted terms and both NDA signatures are required before funding.',
+        });
+      }
+    }
+
+    const vaNumber = generateVaNumber(VAEntityType.MILESTONE);
 
     await this.prisma.virtualAccount.create({
       data: {
@@ -133,5 +228,327 @@ export class MilestonesService {
         vaExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
+  }
+
+  
+  async updateMilestone(milestoneId: string, userId: string, dto: UpdateMilestoneDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: {
+        engagement: { select: { clientId: true, state: true } },
+      },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    if (milestone.engagement.clientId !== userId) {
+      throw new ForbiddenException('Only the project CEO can edit milestones.');
+    }
+    await assertMilestoneTermsEditable(this.prisma, milestoneId);
+    if (milestone.state !== 'DEFINED') {
+      throw new UnprocessableEntityException(
+        `Cannot edit a milestone in state '${milestone.state}'. Only DEFINED milestones can be edited.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Update the milestone record
+      const updated = await tx.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          ...(dto.title                !== undefined && { title: dto.title }),
+          ...(dto.deliverable_statement !== undefined && { deliverableStatement: dto.deliverable_statement }),
+          ...(dto.payment_amount_vnd   !== undefined && { paymentAmountVnd: BigInt(dto.payment_amount_vnd) }),
+          ...(dto.estimated_duration_days !== undefined && { estimatedDurationDays: dto.estimated_duration_days }),
+          ...(dto.tech_stack           !== undefined && { techStackJson: dto.tech_stack }),
+          updatedAt: new Date(),
+        },
+      });
+
+      // 2. If the criteria checklist was updated, replace it atomically (Issue fix)
+      if (dto.criteria && dto.criteria.length > 0) {
+        // Delete all old criteria for this milestone
+        await tx.acceptanceCriterion.deleteMany({
+          where: { milestoneId },
+        });
+
+        // Insert the newly provided ones
+        for (const c of dto.criteria) {
+          await tx.acceptanceCriterion.create({
+            data: {
+              milestone:      { connect: { id: milestoneId } },
+              criterionText:  c.criterion_text,
+              isRequired:     c.is_required ?? true,
+              verifiedByRole: milestone.signOffAuthority,
+            },
+          });
+        }
+      }
+
+      // Return fully populated milestone with its updated criteria checklist included
+      return tx.milestone.findUnique({
+        where: { id: milestoneId },
+        include: { acceptanceCriteria: true, dodItems: true },
+      });
+    });
+  }
+
+  async deleteMilestone(milestoneId: string, userId: string) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: { engagement: { select: { clientId: true } } },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    if (milestone.engagement.clientId !== userId) {
+      throw new ForbiddenException('Only the project CEO can delete milestones.');
+    }
+    await assertMilestoneTermsEditable(this.prisma, milestoneId);
+    if (milestone.state !== 'DEFINED') {
+      throw new UnprocessableEntityException(
+        `Cannot delete a milestone in state '${milestone.state}'. Only DEFINED milestones can be deleted.`,
+      );
+    }
+
+    return this.prisma.milestone.delete({ where: { id: milestoneId } });
+  }
+
+  async listByEngagement(engagementId: string, user: MilestoneActor) {
+    const engagement = await this.getEngagementAccess(engagementId);
+    await this.assertEngagementAccess(user, engagement);
+    return this.prisma.milestone.findMany({
+      where: { engagementId },
+      orderBy: { milestoneNumber: 'asc' },
+      include: { acceptanceCriteria: true, dodItems: true },
+    });
+  }
+
+  async getMilestoneDisputes(milestoneId: string, user: MilestoneActor) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
+      include: {
+        engagement: { include: { project: { select: { selfTechnical: true } } } },
+      },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found.');
+    await this.assertEngagementAccess(user, milestone.engagement);
+    return this.prisma.dispute.findMany({
+      where: { milestoneId },
+      orderBy: { filedAt: 'desc' },
+      include: {
+        criterion: { select: { criterionText: true } },
+        milestone: {
+          select: { deliverableStatement: true, paymentAmountVnd: true },
+        },
+        escrowAccount: { select: { status: true, amount: true } },
+      },
+    });
+  }
+
+  async bulkInitialize(user: MilestoneActor, dto: BulkInitializeMilestonesDto) {
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: dto.engagementId },
+      include: {
+        project: {
+          select: {
+            selfTechnical: true,
+            techTeamProfiles: { take: 1, select: { userId: true } },
+            elicitationSession: {
+              select: { stage4TechInputsJson: true, handoffConsumedAt: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    this.assertCeoOwner(user, engagement);
+    await assertEngagementMilestoneTermsEditable(this.prisma, dto.engagementId);
+    await this.assertReviewFlowReady(engagement);
+    const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
+
+    // Anti-Spam: Block if milestones have already been initialized
+    const existingCount = await this.prisma.milestone.count({
+      where: { engagementId: dto.engagementId },
+    });
+    if (existingCount > 0) {
+      throw new ConflictException('Milestones have already been initialized for this engagement.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const createdMilestones = [];
+
+      for (const item of dto.milestones) {
+        const milestone = await tx.milestone.create({
+          data: {
+            engagementId:         dto.engagementId,
+            milestoneNumber:      item.milestoneNumber,
+            deliverableStatement: item.deliverableStatement,
+            signOffAuthority,
+            paymentAmountVnd:     item.paymentAmountVnd,
+            state:                'DEFINED',
+          },
+        });
+
+        for (const c of item.criteria) {
+          await tx.acceptanceCriterion.create({
+            data: {
+              milestone:      { connect: { id: milestone.id } },
+              criterionText:  c.criterion_text,
+              isRequired:     c.is_required ?? true,
+              verifiedByRole: signOffAuthority,
+            },
+          });
+        }
+
+        const populated = await tx.milestone.findUnique({
+          where: { id: milestone.id },
+          include: { acceptanceCriteria: true },
+        });
+        createdMilestones.push(populated);
+      }
+
+      return createdMilestones;
+    });
+  }
+
+  private async getEngagementAccess(engagementId: string): Promise<EngagementAccess> {
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: engagementId },
+      include: {
+        project: {
+          select: {
+            selfTechnical: true,
+            techTeamProfiles: { take: 1, select: { userId: true } },
+            elicitationSession: {
+              select: { stage4TechInputsJson: true, handoffConsumedAt: true },
+            },
+          },
+        },
+      },
+    });
+    if (!engagement) throw new NotFoundException('Engagement not found.');
+    return engagement;
+  }
+
+  private assertCeoOwner(user: MilestoneActor, engagement: EngagementAccess): void {
+    if (
+      user.activeRole !== 'CLIENT' ||
+      user.clientSubtype !== 'CEO' ||
+      engagement.clientId !== user.id
+    ) {
+      throw new ForbiddenException('Only the project CEO can manage milestones.');
+    }
+  }
+
+  private async assertReviewFlowReady(engagement: EngagementAccess): Promise<void> {
+    if (
+      !engagement.project ||
+      engagement.project.selfTechnical ||
+      engagement.project.techTeamProfiles?.length
+    ) {
+      return;
+    }
+
+    const stage4Inputs = engagement.project.elicitationSession?.stage4TechInputsJson;
+    const recordedTechTeamUserId =
+      stage4Inputs && typeof stage4Inputs === 'object' && !Array.isArray(stage4Inputs)
+        ? (stage4Inputs as Record<string, unknown>)[TECH_TEAM_USER_ID_KEY]
+        : undefined;
+
+    if (engagement.projectId && typeof recordedTechTeamUserId === 'string') {
+      const repaired = await this.prisma.techTeamProfile.updateMany({
+        where: {
+          userId: recordedTechTeamUserId,
+          linkedClientId: engagement.clientId,
+        },
+        data: { linkedProjectId: engagement.projectId },
+      });
+      if (repaired.count === 1) {
+        engagement.project.techTeamProfiles = [{ userId: recordedTechTeamUserId }];
+        return;
+      }
+    }
+
+    // Older handoffs did not record the exact Stage 4 submitter. Repair only
+    // the unambiguous one-profile case.
+    const unlinkedProfiles = await this.prisma.techTeamProfile.findMany({
+      where: {
+        linkedClientId: engagement.clientId,
+        linkedProjectId: null,
+      },
+      select: { userId: true },
+      take: 2,
+    });
+
+    if (engagement.projectId && unlinkedProfiles.length === 1) {
+      const repaired = await this.prisma.techTeamProfile.updateMany({
+        where: {
+          userId: unlinkedProfiles[0].userId,
+          linkedClientId: engagement.clientId,
+          linkedProjectId: null,
+        },
+        data: { linkedProjectId: engagement.projectId },
+      });
+      if (repaired.count === 1) {
+        engagement.project.techTeamProfiles = [unlinkedProfiles[0]];
+        return;
+      }
+    }
+
+    // Some consumed legacy handoffs overwrote the sole profile with a stale
+    // project link before the invited session published its project. When the
+    // CEO has exactly one Tech Team profile, the intended reviewer is still
+    // unambiguous and can be safely reassigned to this project.
+    if (engagement.projectId && engagement.project.elicitationSession?.handoffConsumedAt) {
+      const linkedProfiles = await this.prisma.techTeamProfile.findMany({
+        where: { linkedClientId: engagement.clientId },
+        select: { userId: true },
+        take: 2,
+      });
+      if (linkedProfiles.length === 1) {
+        const repaired = await this.prisma.techTeamProfile.updateMany({
+          where: {
+            userId: linkedProfiles[0].userId,
+            linkedClientId: engagement.clientId,
+          },
+          data: { linkedProjectId: engagement.projectId },
+        });
+        if (repaired.count === 1) {
+          engagement.project.techTeamProfiles = [linkedProfiles[0]];
+          return;
+        }
+      }
+    }
+
+    throw new UnprocessableEntityException({
+      error: 'TECH_TEAM_HANDOFF_REQUIRED',
+      message:
+        'The invited Tech Team must complete the handoff before milestones can be initialized.',
+    });
+  }
+
+  private async assertEngagementAccess(
+    user: MilestoneActor,
+    engagement: EngagementAccess,
+  ): Promise<void> {
+    if (user.activeRole === 'ADMIN') return;
+    if (user.activeRole === 'EXPERT' && engagement.expertId === user.id) return;
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'CEO' &&
+      engagement.clientId === user.id
+    ) {
+      return;
+    }
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'TECH_TEAM' &&
+      engagement.projectId
+    ) {
+      const techTeam = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+        select: { linkedProjectId: true },
+      });
+      if (techTeam?.linkedProjectId === engagement.projectId) return;
+    }
+    throw new ForbiddenException('Not a party to this engagement.');
   }
 }

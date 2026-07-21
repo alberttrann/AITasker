@@ -1,10 +1,10 @@
-import { Controller, Put, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Put, Post, Param, Body, UseGuards, ParseUUIDPipe, Delete } from '@nestjs/common';
 import { ExpertProfileService } from './expert-profiles.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UpsertDomainDepthDto } from './dto/upsert-domain-depth.dto';
 import { SyncDomainsDto } from './dto/sync-domains.dto';
 @ApiTags('Expert Domains')
@@ -21,6 +21,7 @@ export class DomainDepthsController {
   }
 
   @Put('sync')
+  @Post('sync')
   @ApiBearerAuth('JWT')
   async syncDomainDepths(@CurrentUser() user: { id: string }, @Body() dto: SyncDomainsDto) {
     return this.expertProfileService.syncDomainDepths(user.id, dto.domains);
@@ -29,10 +30,17 @@ export class DomainDepthsController {
   @Put(':id')
   @ApiBearerAuth('JWT')
   async updateDomainDepth(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: { id: string },
     @Body() dto: UpsertDomainDepthDto,
   ) {
     return this.expertProfileService.updateDomainDepth(user.id, id, dto.depthLevel);
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Delete a domain depth entry (only if no portfolio submissions)' })
+  async deleteDomainDepth(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    return this.expertProfileService.deleteDomainDepth(user.id, id);
   }
 }

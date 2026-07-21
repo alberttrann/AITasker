@@ -3,6 +3,7 @@ import { XCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 
 interface Tier2RejectedProps {
   seamCode: string;
+  seamName?: string;
   llmConfidence: number;
   advisoryNote: string | null;
   attemptsRemaining: number;
@@ -10,33 +11,37 @@ interface Tier2RejectedProps {
   onClose: () => void;
 }
 
-export default function Tier2Rejected({ 
-  seamCode, 
-  llmConfidence, 
-  advisoryNote, 
-  attemptsRemaining, 
-  onRetry, 
-  onClose 
+export default function Tier2Rejected({
+  seamCode,
+  seamName,
+  llmConfidence,
+  advisoryNote,
+  attemptsRemaining,
+  onRetry,
+  onClose
 }: Tier2RejectedProps) {
   const percentage = Math.round(llmConfidence * 100);
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-12 px-6 bg-white rounded-2xl shadow-sm border border-red-100 text-center animate-in slide-in-from-bottom-4 duration-300">
+    <div className="w-full max-w-3xl mx-auto py-12 px-6 bg-white rounded-2xl shadow-sm border border-red-100 text-center animate-in slide-in-from-bottom-4 duration-300">
       <div className="flex justify-center mb-6">
         <XCircle className="w-24 h-24 text-red-500" strokeWidth={1.5} />
       </div>
-      
+
       <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Evidence Insufficient</h2>
       <p className="text-gray-600 text-lg mb-8">
-        Your portfolio for seam <span className="font-bold text-gray-900">{seamCode}</span> did not meet the Tier 2 threshold.
+        Your portfolio for seam <span className="font-bold text-gray-900">{seamName || seamCode}</span> did not meet the Tier 2 threshold.
       </p>
 
       <div className="bg-red-50 border border-red-100 rounded-xl p-6 mb-6 text-left">
         <div className="flex justify-between items-center mb-4">
-          <span className="text-sm font-semibold text-red-800 uppercase tracking-wider">AI Confidence Score</span>
-          <span className="text-2xl font-black text-red-700">{percentage}%</span>
+          <div>
+            <span className="text-sm font-semibold text-red-800 uppercase tracking-wider block">AI Evaluation Score</span>
+            <span className="text-xs text-red-600">Minimum required for Tier 2 is 85 / 100</span>
+          </div>
+          <span className="text-2xl font-black text-red-700">{percentage} <span className="text-sm font-bold text-red-600">/ 100</span></span>
         </div>
-        
+
         {advisoryNote && (
           <div className="bg-white p-4 rounded-lg border border-red-100">
             <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Advisory Note</h4>

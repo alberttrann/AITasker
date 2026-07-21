@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Delete, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -26,5 +26,14 @@ export class WithdrawalsController {
   @ApiOperation({ summary: 'View your own withdrawal request history' })
   async getMyWithdrawals(@CurrentUser() user: AuthUser) {
     return this.withdrawalsService.getMyWithdrawals(user.id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Cancel a PENDING withdrawal request (refunds wallet)' })
+  async cancelWithdrawal(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.withdrawalsService.cancelWithdrawal(id, user.id);
   }
 }

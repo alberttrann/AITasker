@@ -20,9 +20,13 @@ class Settings(BaseSettings):
     portfolio_eval_threshold: float = 0.85
     dispute_eval_threshold:   float = 0.80
 
-    # Service 
+    # Service
     port: int = 8000
     env:  str = "development"
+    nestjs_base_url:        str = "http://localhost:3001"
+    internal_service_token: str = "aitasker-internal-dev-secret-change-in-prod"
+    # Cache TTL for prompt templates fetched from DB (seconds)
+    prompt_cache_ttl_sec:   int = 60
 
     @property
     def active_api_key(self) -> str:

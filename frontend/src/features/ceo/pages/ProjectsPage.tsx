@@ -1,10 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProjects, useElicitationSessions, useDeleteElicitationSession, useUpdateProjectName, useActiveElicitationSession } from "@/hooks/use-projects";
-import { ConfirmModal } from "@/components/ui/modal";
-import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket } from "lucide-react";
+import { ConfirmModal } from "@/components/ui/Modal";
+import { FileText, ArrowRight, Loader2, PlayCircle, Clock, ArrowLeft, Plus, Trash2, Pencil, Check, X, MoreVertical, History, Rocket, ArrowUpDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useSubscriptionStatus } from "@/hooks/use-subscription";
+import { useEngagements } from "@/hooks/use-engagements";
+import { DataList } from "@/components/layout/Table";
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
@@ -14,9 +17,15 @@ export default function ProjectsPage() {
   const { activeSession, isLoadingActiveSession, isFetchingActiveSession } = useActiveElicitationSession();
   const deleteSession = useDeleteElicitationSession();
   const updateProjectName = useUpdateProjectName();
+  const { data: engagements } = useEngagements();
   const { user } = useAuth();
-  const isSubscribed = user?.subscriptionTier === 'pro';
   
+  const { data: subStatus } = useSubscriptionStatus();
+  const isSubscribed = subStatus?.tier === 'pro';
+  
+  const [projectsSort, setProjectsSort] = useState<'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'>('date_desc');
+  const [isProjectsDropdownOpen, setIsProjectsDropdownOpen] = useState(false);
+
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['elicitation-sessions'] });
   }, [queryClient]);
@@ -31,17 +40,17 @@ export default function ProjectsPage() {
     return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
   };
 
-  const allProjects = projects.sort((a, b) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
-
-  const formatDraftName = (dateString: string) => {
-    const date = new Date(dateString);
-    const d = String(date.getDate()).padStart(2, '0');
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const y = String(date.getFullYear()).slice(-2);
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    return `${d}${m}${y}-${hh}${mm}`;
-  };
+  const sortedProjects = useMemo(() => {
+    return [...projects].sort((a, b) => {
+      if (projectsSort === 'date_desc') return getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt');
+      if (projectsSort === 'date_asc') return getSafeDate(a, 'createdAt') - getSafeDate(b, 'createdAt');
+      
+      const nameA = (a.projectName || `Project ${a.id}`).toLowerCase();
+      const nameB = (b.projectName || `Project ${b.id}`).toLowerCase();
+      if (projectsSort === 'name_asc') return nameA.localeCompare(nameB);
+      return nameB.localeCompare(nameA);
+    });
+  }, [projects, projectsSort]);
 
   const handleSaveName = (id: string) => {
     if (!editNameValue.trim()) {
@@ -59,19 +68,19 @@ export default function ProjectsPage() {
   };
 
   const handleStartNewProject = () => {
-    navigate("/ceo/elicitation");
+    navigate("/ceo/projects/elicitation");
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto relative">
+    <div className="w-full max-w-[1440px] mx-auto relative">
       {openMenuId && (
         <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
       )}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-lg hover:bg-slate-200 transition-colors text-slate-600 hover:text-slate-900"
+            onClick={() => navigate('/ceo')}
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Go back"
           >
             <ArrowLeft size={20} />
@@ -80,7 +89,7 @@ export default function ProjectsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/ceo/session-history')}
+            onClick={() => navigate('/ceo/projects/session-history')}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-lg transition-colors shrink-0"
           >
             <History className="w-4 h-4" />
@@ -101,7 +110,7 @@ export default function ProjectsPage() {
             <div className="mb-10 relative overflow-hidden rounded-2xl bg-slate-900 shadow-xl shadow-blue-900/10 border border-slate-800 transition-all hover:shadow-2xl hover:shadow-blue-900/20 group">
               {/* Decorative background glow */}
               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-blue-500/20 blur-[80px] pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-700"></div>
-              <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-indigo-500/20 blur-[80px] pointer-events-none group-hover:bg-indigo-500/30 transition-colors duration-700"></div>
+              <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-blue-600/20 blur-[80px] pointer-events-none group-hover:bg-blue-600/30 transition-colors duration-700"></div>
               
               <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div className="flex-1 min-w-0 z-10">
@@ -134,7 +143,7 @@ export default function ProjectsPage() {
                   </button>
                   <button
                     onClick={() => {
-                      navigate("/ceo/elicitation");
+                      navigate("/ceo/projects/elicitation");
                     }}
                     className="flex items-center justify-center gap-2 px-7 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10"
                   >
@@ -161,7 +170,7 @@ export default function ProjectsPage() {
                 <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-4 shrink-0">
                   {!isSubscribed ? (
                     <button
-                      onClick={() => navigate('/ceo/subscription')}
+                      onClick={() => navigate('/ceo/subscriptions/plans')}
                       className="flex items-center justify-center gap-2 px-8 py-4 bg-accent text-slate-900 font-extrabold rounded-xl transition-all shadow-[0_0_20px_rgba(190,242,100,0.3)] hover:bg-accent-light hover:shadow-[0_0_30px_rgba(190,242,100,0.5)] hover:-translate-y-1 active:translate-y-0"
                     >
                       <Rocket className="w-5 h-5 text-emerald-700" />
@@ -191,9 +200,18 @@ export default function ProjectsPage() {
           )}
 
           {/* BOTTOM SECTION: Published Projects */}
-          <div>
-            <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Projects List</h4>
-            {allProjects.length === 0 ? (
+          <DataList
+            title="Projects List"
+            sortOptions={[
+              { label: 'Newest First', value: 'date_desc' },
+              { label: 'Oldest First', value: 'date_asc' },
+              { label: 'Name (A-Z)', value: 'name_asc' },
+              { label: 'Name (Z-A)', value: 'name_desc' },
+            ]}
+            currentSort={projectsSort}
+            onSortChange={(val) => setProjectsSort(val as any)}
+            isEmpty={sortedProjects.length === 0}
+            emptyState={
               <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm flex flex-col items-center justify-center text-center">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                   <FileText className="w-8 h-8 text-slate-400" />
@@ -203,101 +221,111 @@ export default function ProjectsPage() {
                   When you complete an elicitation session, your published projects will appear here.
                 </p>
               </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                
-                {allProjects.map((project) => (
-            <div key={project.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold uppercase tracking-wider">
-                    <PlayCircle className="w-3.5 h-3.5" />
-                    {project.state.replace(/_/g, ' ')}
-                  </span>
-                  {project.tier && (
-                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[11px] font-semibold uppercase rounded-md border border-purple-100">
-                      {project.tier.replace(/_/g, ' ')}
-                    </span>
-                  )}
-                  {project.selfTechnical && (
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-semibold uppercase rounded-md border border-indigo-100">
-                      Self-Managed Tech
-                    </span>
-                  )}
-                </div>
-                
-                {editingProjectId === project.id ? (
-                  <div className="flex items-center gap-2 mb-2 w-full max-w-md">
-                    <input
-                      type="text"
-                      value={editNameValue}
-                      onChange={(e) => setEditNameValue(e.target.value)}
-                      className="flex-1 px-3 py-1 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveName(project.id, false);
-                        if (e.key === "Escape") setEditingProjectId(null);
-                      }}
-                    />
-                    <button
-                      onClick={() => handleSaveName(project.id, false)}
-                      disabled={updateProjectName.isPending}
-                      className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors shrink-0"
-                      title="Save name"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setEditingProjectId(null)}
-                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md transition-colors shrink-0"
-                      title="Cancel"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+            }
+          >
+            <div className="flex flex-col gap-4">
+              {sortedProjects.map((project) => {
+                const hasNewBids = (engagements || []).some(
+                  (e: any) =>
+                    (e.projectId === project.id || e.project_id === project.id) &&
+                    e.capabilityBid &&
+                    (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
+                );
+
+                return (
+                  <div key={project.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold uppercase tracking-wider">
+                          <PlayCircle className="w-3.5 h-3.5" />
+                          {project.state.replace(/_/g, ' ')}
+                        </span>
+                        {project.tier && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-semibold uppercase rounded-md border border-blue-100">
+                            {project.tier.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                        {project.selfTechnical && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-semibold uppercase rounded-md border border-blue-100">
+                            Self-Managed Tech
+                          </span>
+                        )}
+                      </div>
+                      
+                      {editingProjectId === project.id ? (
+                        <div className="flex items-center gap-2 mb-2 w-full max-w-md">
+                          <input
+                            type="text"
+                            value={editNameValue}
+                            onChange={(e) => setEditNameValue(e.target.value)}
+                            className="flex-1 px-3 py-1 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveName(project.id, false);
+                              if (e.key === "Escape") setEditingProjectId(null);
+                            }}
+                          />
+                          <button
+                            onClick={() => handleSaveName(project.id, false)}
+                            disabled={updateProjectName.isPending}
+                            className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors shrink-0"
+                            title="Save name"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingProjectId(null)}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md transition-colors shrink-0"
+                            title="Cancel"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 mb-1 group flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-lg font-bold text-slate-900 truncate max-w-sm sm:max-w-md">
+                              {project.projectName || `Project ${project.id}`}
+                            </h4>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setEditingProjectId(project.id);
+                              setEditNameValue(project.projectName || `Project ${project.id}`);
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
+                            title="Rename project"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      
+                      <p className="text-sm text-slate-500 mb-3">
+                        Created: {new Date(getSafeDate(project, 'createdAt')).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
+
+                      <Link
+                        to={`/ceo/projects/${project.id}`}
+                        className="relative flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors border border-slate-200"
+                      >
+                        View Details
+                        {hasNewBids && (
+                          <span className="relative flex h-2.5 w-2.5" title="New bids waiting for review">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                          </span>
+                        )}
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
                   </div>
-                ) : (
-                      <div className="flex items-center gap-2 mb-1 group flex-wrap">
-                    <h4 className="text-lg font-bold text-slate-900 truncate max-w-sm sm:max-w-md">
-                      {project.projectName || `Project ${project.id}`}
-                    </h4>
-                    <button
-                      onClick={() => {
-                        setEditingProjectId(project.id);
-                        setEditNameValue(project.projectName || `Project ${project.id}`);
-                      }}
-                      className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
-                      title="Rename project"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-                
-                <p className="text-sm text-slate-500 mb-3">
-                  Created: {new Date(getSafeDate(project, 'createdAt')).toLocaleDateString()}
-                </p>
-                
-                {/* Domains and Seams Tags removed for slim view */}
-              </div>
-              <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
-                <Link
-                  to={`/ceo/shortlist/${project.id}`}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 hover:text-blue-900 transition-colors border border-blue-200"
-                >
-                  View Matched Experts <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  to={`/ceo/projects/${project.id}`}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors border border-slate-200"
-                >
-                  View Details <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
+                );
+              })}
             </div>
-          ))}
-              </div>
-            )}
-          </div>
+          </DataList>
         </div>
       )}
 

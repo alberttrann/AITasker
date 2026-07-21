@@ -47,7 +47,7 @@ export function Modal({
       {/* Modal Content */}
       <div 
         className={cn(
-          "relative w-full max-w-[90vw] sm:w-[448px] sm:max-w-[448px] bg-white rounded-[12px] border border-slate-200 shadow-[0_8px_32px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-200 flex flex-col",
+          "relative w-full max-w-[95vw] sm:w-[448px] sm:max-w-[448px] bg-white rounded-[12px] border border-slate-200 shadow-[0_8px_32px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]",
           className
         )}
       >
@@ -61,7 +61,7 @@ export function Modal({
             )}
           </div>
         )}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {children}
         </div>
       </div>

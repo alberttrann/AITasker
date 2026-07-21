@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Clipboard, Check, AlertCircle, Hourglass, Loader2, Link2, KeyRound } from 'lucide-react';
 
 interface HandoffLinkProps {

@@ -120,7 +120,7 @@ AUTH=(-H "Authorization: Bearer ${TOKEN}")
 RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/bids" -H "Content-Type: application/json" "${AUTH[@]}" \
   -d "{
     \"projectId\":\"${PROJECT_ID}\",
-    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A<->C\",\"tier\":\"CLAIMED\"}]},
+    \"footprint_alignment_json\":{\"domains\":[{\"code\":\"A\",\"depth\":\"DEEP\"}],\"seams\":[{\"code\":\"A↔C\",\"tier\":\"CLAIMED\"}]},
     \"approach_summary\":\"Self-bid attempt — should be rejected.\",
     \"conditional_pricing_json\":[{\"milestone_number\":1,\"price_vnd\":15000000,\"condition\":\"Discovery sign-off\"}]
   }")

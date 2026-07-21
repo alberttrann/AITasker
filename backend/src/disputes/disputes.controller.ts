@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, UseGuards, Put } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -10,7 +10,7 @@ import { CreateDisputeDto } from './dto/create-dispute.dto';
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
 @ApiTags('Disputes')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT')
 @Controller('disputes')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DisputesController {
@@ -18,7 +18,10 @@ export class DisputesController {
 
   @Post()
   @Roles('CLIENT', 'EXPERT')
-  @ApiOperation({ summary: 'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)' })
+  @ApiOperation({
+    summary:
+      'File a dispute on an unverified acceptance criterion (milestone must be SUBMITTED or IN_REVISION)',
+  })
   async create(@CurrentUser() user: ActorUser, @Body() dto: CreateDisputeDto) {
     return this.disputesService.create(user.id, dto);
   }
@@ -37,3 +40,4 @@ export class DisputesController {
     return this.disputesService.findById(id, user);
   }
 }
+

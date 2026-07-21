@@ -1,7 +1,11 @@
 import {
-  Injectable, NotFoundException, ForbiddenException,
-  ConflictException, UnprocessableEntityException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../database/prisma.service';
 import { LedgerService } from '@shared/ledger/ledger.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
@@ -9,11 +13,11 @@ import { DisputeState } from '@common/enums/dispute-state.enum';
 import { EscrowStatus } from '@common/enums/escrow-status.enum';
 import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
-import { DisputeResolution } from './dto/resolve-dispute.dto';
+import { DisputeResolution, ResolutionContext } from './dto/resolve-dispute.dto';
 
 type ActorUser = { id: string; activeRole: string; clientSubtype?: string | null };
 
-const AUTO_RESOLVE_THRESHOLD = 0.80; 
+const AUTO_RESOLVE_THRESHOLD = 0.8;
 
 @Injectable()
 export class DisputesService {
@@ -21,6 +25,7 @@ export class DisputesService {
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
     private readonly fastapiClient: FastapiClient,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // POST /disputes
@@ -33,12 +38,17 @@ export class DisputesService {
       throw new NotFoundException('Acceptance criterion not found.');
     }
     if (criterion.verifiedAt !== null) {
-      throw new UnprocessableEntityException('This criterion has already been verified — cannot dispute it.');
+      throw new UnprocessableEntityException(
+        'This criterion has already been verified — cannot dispute it.',
+      );
     }
 
     const milestone = criterion.milestone;
 
-    if (milestone.state !== MilestoneState.SUBMITTED && milestone.state !== MilestoneState.IN_REVISION) {
+    if (
+      milestone.state !== MilestoneState.SUBMITTED &&
+      milestone.state !== MilestoneState.IN_REVISION
+    ) {
       throw new UnprocessableEntityException(
         `Milestone is in state ${milestone.state}; disputing requires SUBMITTED or IN_REVISION.`,
       );
@@ -46,6 +56,9 @@ export class DisputesService {
 
     const engagement = await this.prisma.engagement.findUnique({
       where: { id: milestone.engagementId },
+      include: {
+        project: { select: { archetype: true } },
+      },
     });
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
@@ -94,10 +107,29 @@ export class DisputesService {
       return created;
     });
 
-    const latestSubmission = await this.prisma.milestoneSubmission.findFirst({
-      where: { milestoneId: milestone.id },
-      orderBy: { submittedAt: 'desc' },
-    });
+    // Emit dispute:filed to the non-filing party after transaction commits
+    const notifyUserId = engagement.clientId === filerId
+      ? engagement.expertId
+      : engagement.clientId;
+    try {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: notifyUserId,
+        event: 'dispute:filed',
+        payload: { engagement_id: engagement.id },
+      });
+    } catch (_err) {
+      // Broadcast is best-effort; transaction is already committed.
+    }
+
+    const [latestSubmission, submissionCount] = await Promise.all([
+      this.prisma.milestoneSubmission.findFirst({
+        where: { milestoneId: milestone.id },
+        orderBy: { submittedAt: 'desc' },
+      }),
+      this.prisma.milestoneSubmission.count({
+        where: { milestoneId: milestone.id },
+      }),
+    ]);
 
     let evalResult;
     try {
@@ -105,6 +137,9 @@ export class DisputesService {
         criterion_text: criterion.criterionText,
         deliverable_description: latestSubmission?.description ?? dto.additional_context ?? '',
         files: (latestSubmission?.filesJson as string[]) ?? [],
+        project_archetype: engagement.project?.archetype ?? undefined,
+        milestone_context: milestone.deliverableStatement ?? undefined,
+        prior_revision_count: Math.max(0, submissionCount - 1),
       });
     } catch (err) {
       // AI service unavailable — dispute stays in LAYER_1_EVAL, escrow
@@ -117,39 +152,39 @@ export class DisputesService {
     }
 
     if (evalResult.confidence_score >= AUTO_RESOLVE_THRESHOLD) {
+      const finding = evalResult.finding === 'expert_wins' ? 'expert_wins' : 'client_wins';
       const resolution: DisputeResolution = {
-        decision: evalResult.finding === 'expert_wins' ? 'EXPERT_WINS' : 'CLIENT_WINS',
+        decision: finding === 'expert_wins' ? 'EXPERT_WINS' : 'CLIENT_WINS',
       };
-      await this.applyResolution(dispute.id, resolution, evalResult.confidence_score);
- 
-      // platform_decisions write on the auto-resolve path only.
-      await this.prisma.platformDecision.create({
-        data: {
-          decisionType: 'DISPUTE_L1_EVAL',
-          entityType:   'disputes',
-          entityId:     dispute.id,
-          llmConfidence: evalResult.confidence_score,
-          decision:     'AUTO_RESOLVED',
-        },
+      await this.applyResolution(dispute.id, resolution, {
+        source: 'AI',
+        llmConfidence: evalResult.confidence_score,
+        llmReasoning: evalResult.reasoning,
       });
- 
+
       return {
         dispute_id: dispute.id,
         state: DisputeState.AUTO_RESOLVED,
-        finding: evalResult.finding,
+        finding,
         confidence_score: evalResult.confidence_score,
+        reasoning: evalResult.reasoning,
       };
     }
 
     await this.prisma.dispute.update({
       where: { id: dispute.id },
-      data: { state: DisputeState.MANUAL_REVIEW, llmConfidence: evalResult.confidence_score },
+      data: {
+        state: DisputeState.MANUAL_REVIEW,
+        llmConfidence: evalResult.confidence_score,
+        llmReasoning: evalResult.reasoning,
+      },
     });
 
     return {
       dispute_id: dispute.id,
       state: DisputeState.MANUAL_REVIEW,
       confidence_score: evalResult.confidence_score,
+      reasoning: evalResult.reasoning,
       message: 'AI confidence below threshold — routed to Admin for manual review.',
     };
   }
@@ -158,14 +193,16 @@ export class DisputesService {
   async applyResolution(
     disputeId: string,
     resolution: DisputeResolution,
-    llmConfidence?: number,
-    resolvedBy?: string,
+    context: ResolutionContext,
   ) {
     const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
     if (!dispute) {
       throw new NotFoundException('Dispute not found.');
     }
-    if (dispute.state !== DisputeState.LAYER_1_EVAL && dispute.state !== DisputeState.MANUAL_REVIEW) {
+    if (
+      dispute.state !== DisputeState.LAYER_1_EVAL &&
+      dispute.state !== DisputeState.MANUAL_REVIEW
+    ) {
       throw new ConflictException(`Dispute is in state ${dispute.state}; cannot resolve.`);
     }
 
@@ -211,28 +248,82 @@ export class DisputesService {
         await this.ledgerService.splitEscrowWithTx(tx, dispute.escrowAccountId);
       }
 
+      const llmConfidence = context.llmConfidence ?? dispute.llmConfidence;
+      const llmReasoning = context.llmReasoning ?? dispute.llmReasoning;
+
       await tx.dispute.update({
         where: { id: dispute.id },
         data: {
-          state: resolvedBy ? DisputeState.RESOLVED : DisputeState.AUTO_RESOLVED,
-          llmConfidence: llmConfidence ?? dispute.llmConfidence,
+          state: context.source === 'ADMIN'
+            ? DisputeState.RESOLVED
+            : DisputeState.AUTO_RESOLVED,
+          resolution: resolution.decision,
+          llmConfidence,
+          llmReasoning,
           resolvedAt: new Date(),
-          resolvedBy: resolvedBy ?? null,
+          resolvedBy: context.resolvedBy ?? null,
+        },
+      });
+
+      await tx.platformDecision.create({  
+        data: {
+          decisionType: 'DISPUTE_L1_EVAL',
+          entityType: 'disputes',
+          entityId: dispute.id,
+          llmConfidence,
+          decision: resolution.decision,
+          advisoryNote: context.source === 'AI'
+            ? llmReasoning
+            : 'Manual resolution by platform administrator.',
         },
       });
     });
+
+    // Emit dispute:resolved to both parties after transaction commits
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: dispute.engagementId },
+    });
+    if (engagement) {
+      [engagement.clientId, engagement.expertId].forEach((userId) => {
+        try {
+          this.eventEmitter.emit('socket.broadcast', {
+            userId,
+            event: 'dispute:resolved',
+            payload: {
+              engagement_id: dispute.engagementId,
+              dispute_id: dispute.id,
+              milestone_id: dispute.milestoneId,
+              resolution: resolution.decision,
+            },
+          });
+        } catch (_err) {
+          // Broadcast is best-effort; transaction is already committed.
+        }
+      });
+    }
   }
 
   // GET /disputes/:id
   async findById(disputeId: string, user: ActorUser) {
-    const dispute = await this.prisma.dispute.findUnique({ where: { id: disputeId } });
+    const dispute = await this.prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: {
+        criterion: { select: { criterionText: true } },
+        milestone: {
+          select: { deliverableStatement: true, paymentAmountVnd: true },
+        },
+        escrowAccount: { select: { status: true, amount: true } },
+      },
+    });
     if (!dispute) {
       throw new NotFoundException('Dispute not found.');
     }
 
     if (user.activeRole === 'ADMIN') return dispute;
 
-    const engagement = await this.prisma.engagement.findUnique({ where: { id: dispute.engagementId } });
+    const engagement = await this.prisma.engagement.findUnique({
+      where: { id: dispute.engagementId },
+    });
     if (!engagement) {
       throw new NotFoundException('Engagement not found.');
     }
@@ -250,15 +341,14 @@ export class DisputesService {
 
   // GET /disputes — shared by DisputesController (own) and AdminController
   async findAll(user: ActorUser, filters?: { state?: string }) {
-    
     // Include milestone and escrow account context for the Admin dashboard / general query clarity
     const includeRelations = {
       milestone: {
-        select: { deliverableStatement: true, paymentAmountVnd: true }
+        select: { deliverableStatement: true, paymentAmountVnd: true },
       },
       escrowAccount: {
-        select: { status: true, amount: true }
-      }
+        select: { status: true, amount: true },
+      },
     };
 
     if (user.activeRole === 'ADMIN') {
@@ -273,8 +363,8 @@ export class DisputesService {
       user.activeRole === 'CLIENT'
         ? { clientId: user.id }
         : user.activeRole === 'EXPERT'
-        ? { expertId: user.id }
-        : null;
+          ? { expertId: user.id }
+          : null;
 
     if (!engagementFilter) {
       throw new ForbiddenException('Access denied.');
@@ -294,4 +384,5 @@ export class DisputesService {
       include: includeRelations,
     });
   }
+
 }

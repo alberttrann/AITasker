@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Post, Get, Put, Body, Param, UseGuards, Query, Delete } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { BidsService } from './bids.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -10,6 +10,7 @@ import { UpdateBidDto } from './dto/update-bid.dto';
 import { TechReviewDto } from './dto/tech-review.dto';
 import { CeoDecisionDto } from './dto/ceo-decision.dto';
 import { CounterOfferDto } from './dto/counter-offer.dto';
+import { CreateOfferDto } from './dto/create-offer.dto';
 
 @ApiTags('Bids')
 @Controller('bids')
@@ -86,5 +87,70 @@ export class BidsController {
     @Body() body: CounterOfferDto,
   ) {
     return this.bidsService.counterOffer(id, user, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post(':id/offers')
+  @ApiOperation({ summary: 'Counter or revise the current offer with full per-milestone terms' })
+  async createOffer(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+    @Body() body: CreateOfferDto,
+  ) {
+    return this.bidsService.createOffer(id, user, body);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post(':id/offers/:offerId/accept')
+  @ApiOperation({ summary: 'Accept the current offer and atomically finalize its milestones' })
+  async acceptOffer(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+    @Param('offerId') offerId: string,
+  ) {
+    return this.bidsService.acceptOffer(id, offerId, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post(':id/offers/:offerId/decline')
+  @ApiOperation({ summary: 'Decline the current offer' })
+  async declineOffer(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+    @Param('offerId') offerId: string,
+  ) {
+    return this.bidsService.declineOffer(id, offerId, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Post(':id/reconcile')
+  @ApiOperation({ summary: 'Idempotently convert a legacy bid into the versioned offer contract' })
+  async reconcileLegacyBid(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Param('id') id: string,
+  ) {
+    return this.bidsService.reconcileLegacyBid(id, user);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Get()
+  @ApiOperation({ summary: 'List bids — experts see own bids; CEOs see bids for their projects' })
+  @ApiQuery({ name: 'projectId', required: false })
+  async findAll(
+    @CurrentUser() user: { id: string; activeRole: string; clientSubtype?: string },
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.bidsService.findAll(user, projectId);
+  }
+
+  @ApiBearerAuth('JWT')
+  @Delete(':id')
+  @Roles('EXPERT')
+  @ApiOperation({ summary: 'Withdraw a submitted bid (only while in SUBMITTED state)' })
+  async withdraw(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    return this.bidsService.withdraw(id, user.id);
   }
 }
