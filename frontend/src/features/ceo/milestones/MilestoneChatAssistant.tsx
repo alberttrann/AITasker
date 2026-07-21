@@ -4,30 +4,48 @@ import {
   useMilestoneChatHistory, 
   useSendMilestoneMessage, 
   useUpdateMilestone, 
-  useProjectMilestones,
   useProject,
   useUpdateProjectMilestones
 } from '@/hooks/use-projects';
 import { useEngagementMilestones } from '@/hooks/use-engagements';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, MessageSquare, Bot, User, CheckCircle2, AlertTriangle, ChevronRight, Menu, X } from 'lucide-react';
+import { Loader2, Send, MessageSquare, Bot, CheckCircle2, X } from 'lucide-react';
+import { useToastActions } from '@/lib/toast-context';
 
 interface MilestoneChatAssistantProps {
   projectId: string;
   engagementId?: string;
   currentMilestones?: any[];
+  onApplyLocalEdit?: (newMilestones: any[]) => void; 
 }
 
-export default function MilestoneChatAssistant({ projectId, engagementId, currentMilestones }: MilestoneChatAssistantProps) {
+// Top-level criteria parser
+const parseCriteria = (raw: any) => {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c: any) => {
+    if (typeof c === 'string') return { criterion_text: c, is_required: true };
+    return {
+      criterion_text: c.criterion_text || c.criterionText || '',
+      is_required: c.is_required !== undefined ? c.is_required : (c.isRequired ?? true)
+    };
+  });
+};
+
+export default function MilestoneChatAssistant({ 
+  projectId, 
+  engagementId, 
+  currentMilestones, 
+  onApplyLocalEdit 
+}: MilestoneChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
   const [currentEdit, setCurrentEdit] = useState<any | null>(null);
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const toast = useToastActions();
   
-  const { data: sessions, isLoading: isLoadingSessions } = useMilestoneChatSessions(projectId);
-  const { data: activeSession, isLoading: isLoadingHistory } = useMilestoneChatHistory(projectId, activeSessionId);
-  const { data: projectMilestones } = useProjectMilestones(projectId);
+  const { data: sessions } = useMilestoneChatSessions(projectId);
+  const { data: activeSession } = useMilestoneChatHistory(projectId, activeSessionId);
   const { data: project } = useProject(projectId);
   const { data: engagementMilestones } = useEngagementMilestones(engagementId);
   
@@ -43,31 +61,24 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
     ...(pendingUserMessage ? [{ role: 'user', content: pendingUserMessage }] : [])
   ];
 
-  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messagesToRender.length, sendMessage.isPending]);
 
-  // Clear pending message once the activeSession is updated and includes our message
   useEffect(() => {
     if (activeSession?.messagesJson && pendingUserMessage) {
       const messages = activeSession.messagesJson as any[];
       const hasMsg = messages.some(
         (m: any) => m.role === 'user' && m.content === pendingUserMessage
       );
-      if (hasMsg) {
-        setPendingUserMessage(null);
-      }
+      if (hasMsg) setPendingUserMessage(null);
     }
   }, [activeSession?.messagesJson, pendingUserMessage]);
 
   useEffect(() => {
-    if (sendMessage.isError) {
-      setPendingUserMessage(null);
-    }
+    if (sendMessage.isError) setPendingUserMessage(null);
   }, [sendMessage.isError]);
 
-  // When sessions load, if none is selected, select the first one or leave empty for a new chat
   useEffect(() => {
     if (sessions && sessions.length > 0 && !activeSessionId) {
       setActiveSessionId(sessions[0].id);
@@ -90,15 +101,9 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
           if (!activeSessionId && data.chatSessionId) {
             setActiveSessionId(data.chatSessionId);
           }
-          if (data.suggestedEdit) {
-            setCurrentEdit(data.suggestedEdit);
-          } else {
-            setCurrentEdit(null);
-          }
+          setCurrentEdit(data.suggestedEdit || null);
         },
-        onError: () => {
-          setPendingUserMessage(null);
-        }
+        onError: () => setPendingUserMessage(null)
       }
     );
     setInputText("");
@@ -107,7 +112,8 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
   const handleApplyEdit = () => {
     if (!currentEdit || !currentEdit.milestone_number) return;
 
-    // The API uses snake_case keys, but field might be camelCase. Map safely.
+    const targetMilestoneNum = Number(currentEdit.milestone_number);
+
     const fieldMap: Record<string, string> = {
       paymentAmountVnd: 'payment_amount_vnd',
       payment_amount_vnd: 'payment_amount_vnd',
@@ -122,91 +128,107 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
     const targetField = fieldMap[currentEdit.field] || currentEdit.field;
     const isFullObject = targetField === 'milestone' && typeof currentEdit.suggested_value === 'object';
 
-    // 1. If we have active instantiated engagement milestones, update the milestone row directly
-    if (engagementMilestones && engagementMilestones.length > 0) {
-      const targetMilestone = engagementMilestones.find(
-        (m: any) => m.milestoneNumber === currentEdit.milestone_number || m.milestone_number === currentEdit.milestone_number
-      );
-      if (!targetMilestone) return;
-
-      const payload = isFullObject 
-        ? currentEdit.suggested_value 
-        : { [targetField]: currentEdit.suggested_value };
-
-      // Map any camelCase keys inside payload to snake_case safely
-      const cleanPayload: Record<string, any> = {};
-      Object.keys(payload).forEach(k => {
-        const cleanKey = fieldMap[k] || k;
-        if (cleanKey === 'sign_off_authority' || cleanKey === 'signOffAuthority') return;
-        cleanPayload[cleanKey] = payload[k];
-      });
-
-      // Handle criteria if the AI returns an array of strings
-      if (cleanPayload.criteria && Array.isArray(cleanPayload.criteria)) {
-        cleanPayload.criteria = cleanPayload.criteria.map((c: any) => {
-          if (typeof c === 'string') {
-            return { criterion_text: c, is_required: true };
-          }
-          // Strip id and other DB-only fields, mapping safely to the DTO requirements
-          return { 
-            criterion_text: c.criterion_text || c.criterionText || '', 
-            is_required: c.is_required !== undefined ? c.is_required : (c.isRequired ?? true)
-          };
-        });
-      }
-
-      updateMilestone.mutate({
-        id: targetMilestone.id,
-        payload: cleanPayload
-      }, {
-        onSuccess: () => {
-          setCurrentEdit(null);
-        }
-      });
-    } 
-    // 2. Otherwise, update the project's draft milestoneFrameworkJson blueprint
-    else if (project) {
-      const framework = project.milestoneFrameworkJson || (project as any).milestone_framework_json || [];
-      const updatedFramework = [...framework];
+    // SCENARIO 1: Local state edit mode
+    if (onApplyLocalEdit && currentMilestones) {
+      const updatedFramework = [...currentMilestones];
       const targetIndex = updatedFramework.findIndex(
-        (m: any) => (m.milestone_number || m.milestoneNumber) === currentEdit.milestone_number
+        (m: any) => Number(m.milestone_number || m.milestoneNumber) === targetMilestoneNum
       );
 
       if (targetIndex !== -1) {
         if (isFullObject) {
-          // Merge all fields from the suggested object
           const suggestedObj = currentEdit.suggested_value;
           const mappedObj: Record<string, any> = {};
           Object.keys(suggestedObj).forEach(k => {
             const cleanKey = fieldMap[k] || k;
             mappedObj[cleanKey] = suggestedObj[k];
           });
-          
-          updatedFramework[targetIndex] = {
-            ...updatedFramework[targetIndex],
-            ...mappedObj
-          };
+          updatedFramework[targetIndex] = { ...updatedFramework[targetIndex], ...mappedObj };
         } else {
           updatedFramework[targetIndex] = {
             ...updatedFramework[targetIndex],
             [targetField]: currentEdit.suggested_value
           };
         }
+        onApplyLocalEdit(updatedFramework);
+        setCurrentEdit(null);
+        toast.success("Edit applied to draft.");
+        return;
+      }
+    }
 
-        // Strip out non-whitelisted properties before saving to project blueprint (matching ProjectDetailPage logic)
+    // SCENARIO 2: Live Engagement DB update
+    if (engagementMilestones && engagementMilestones.length > 0) {
+      const targetMilestone = engagementMilestones.find(
+        (m: any) => Number(m.milestoneNumber) === targetMilestoneNum || Number(m.milestone_number) === targetMilestoneNum
+      );
+      if (!targetMilestone) {
+        toast.error("Could not find the target milestone.");
+        return;
+      }
+
+      const payload = isFullObject ? currentEdit.suggested_value : { [targetField]: currentEdit.suggested_value };
+      const cleanPayload: Record<string, any> = {};
+      Object.keys(payload).forEach(k => {
+        const cleanKey = fieldMap[k] || k;
+        if (cleanKey === 'sign_off_authority' || cleanKey === 'signOffAuthority') return;
+        if (cleanKey === 'milestone_number' || cleanKey === 'milestoneNumber') return;
+
+        if (k === 'criteria' || k === 'acceptanceCriteria' || k === 'acceptance_criteria') {
+          cleanPayload['criteria'] = parseCriteria(payload[k]);
+          return;
+        }
+
+        cleanPayload[cleanKey] = payload[k];
+      });
+
+      if (!cleanPayload.criteria && (payload.criteria || payload.acceptanceCriteria || payload.acceptance_criteria)) {
+         cleanPayload.criteria = parseCriteria(payload.criteria || payload.acceptanceCriteria || payload.acceptance_criteria);
+      }
+
+      updateMilestone.mutate({ id: targetMilestone.id, payload: cleanPayload }, {
+        onSuccess: () => {
+          setCurrentEdit(null);
+          toast.success("Milestone updated.");
+        }
+      });
+      return;
+    } 
+
+    // SCENARIO 3: Published Project Blueprint DB update
+    if (project) {
+      const framework = project.milestone_framework_json || (project as any).milestone_framework_json || [];
+      const updatedFramework = [...framework];
+      const targetIndex = updatedFramework.findIndex(
+        (m: any) => Number(m.milestone_number || m.milestoneNumber) === targetMilestoneNum
+      );
+
+      if (targetIndex !== -1) {
+        if (isFullObject) {
+          const suggestedObj = currentEdit.suggested_value;
+          const mappedObj: Record<string, any> = {};
+          Object.keys(suggestedObj).forEach(k => {
+            const cleanKey = fieldMap[k] || k;
+            mappedObj[cleanKey] = suggestedObj[k];
+          });
+          updatedFramework[targetIndex] = { ...updatedFramework[targetIndex], ...mappedObj };
+        } else {
+          updatedFramework[targetIndex] = { ...updatedFramework[targetIndex], [targetField]: currentEdit.suggested_value };
+        }
+
         const cleanMilestones = updatedFramework.map((m: any) => ({
-          milestone_number: m.milestone_number || m.milestoneNumber,
+          milestone_number: Number(m.milestone_number || m.milestoneNumber),
           deliverable_statement: m.deliverable_statement || m.deliverableStatement || '',
-          payment_amount_vnd: m.payment_amount_vnd !== undefined ? m.payment_amount_vnd : (m.paymentAmountVnd || 0),
-          estimated_duration_days: m.estimated_duration_days !== undefined ? m.estimated_duration_days : (m.estimatedDurationDays || 0),
+          payment_amount_vnd: Number(m.payment_amount_vnd ?? m.paymentAmountVnd ?? 0),
+          estimated_duration_days: Number(m.estimated_duration_days ?? m.estimatedDurationDays ?? 0),
+          criteria: parseCriteria(m.criteria || m.acceptanceCriteria || m.acceptance_criteria || []),
+          tech_stack: m.tech_stack || m.techStack || []
         }));
 
-        updateProjectMilestones.mutate({
-          id: projectId,
-          milestones: cleanMilestones
-        }, {
+        updateProjectMilestones.mutate({ id: projectId, milestones: cleanMilestones }, {
           onSuccess: () => {
             setCurrentEdit(null);
+            toast.success("Blueprint updated.");
           }
         });
       }
@@ -217,7 +239,7 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
     return (
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 bg-emerald-600 text-white rounded-full shadow-xl hover:bg-emerald-700 hover:-translate-y-1 transition-all z-50 flex items-center justify-center group"
+        className="fixed bottom-6 right-6 p-4 bg-emerald-600 text-white rounded-full shadow-xl hover:bg-emerald-700 hover:-translate-y-1 transition-all z-50 flex items-center justify-center group cursor-pointer"
       >
         <Bot className="w-6 h-6 mr-0 group-hover:mr-2 transition-all" />
         <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all whitespace-nowrap font-medium text-sm">
@@ -229,7 +251,6 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
 
   return (
     <div className="fixed top-0 right-0 h-screen w-full sm:w-[400px] md:w-[450px] bg-white shadow-2xl border-l border-slate-200 flex flex-col z-50 animate-in slide-in-from-right duration-300">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
@@ -240,12 +261,11 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
             <p className="text-xs text-slate-500">Milestone Planning & Budgets</p>
           </div>
         </div>
-        <button onClick={() => setIsOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+        <button onClick={() => setIsOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Body: Chat Area */}
       <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50 flex flex-col gap-4">
         {messagesToRender.length ? (
           messagesToRender.map((msg: any, idx: number) => (
@@ -283,7 +303,7 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
                 <p className="text-xs text-emerald-700 mb-3">{currentEdit.reason}</p>
                 <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-emerald-100 text-sm mb-3">
                   <span className="text-slate-500 font-mono">{currentEdit.field}</span>
-                  <span className="font-bold text-slate-800">→ {String(currentEdit.suggested_value)}</span>
+                  <span className="font-bold text-slate-800">→ {typeof currentEdit.suggested_value === 'object' ? '{...}' : String(currentEdit.suggested_value)}</span>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setCurrentEdit(null)}>
@@ -318,7 +338,6 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <div className="p-4 bg-white border-t border-slate-100">
         <div className="flex items-center gap-2">
           <input
@@ -334,7 +353,7 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
             variant="primary" 
             onClick={handleSend}
             disabled={!inputText.trim() || sendMessage.isPending}
-            className="rounded-xl h-[46px] px-4"
+            className="rounded-xl h-[46px] px-4 cursor-pointer"
           >
             {sendMessage.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </Button>

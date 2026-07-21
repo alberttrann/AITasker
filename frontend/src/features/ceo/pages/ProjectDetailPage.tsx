@@ -569,10 +569,16 @@ export default function ProjectDetailPage() {
 
       </div>
 
-      {!termsLocked ? <MilestoneChatAssistant
-        projectId={project.id}
-        currentMilestones={isEditingMilestones ? editedMilestones : undefined}
-      /> : null}
+      {!termsLocked ? (
+        <MilestoneChatAssistant
+          projectId={project.id}
+          currentMilestones={isEditingMilestones ? editedMilestones : undefined}
+          onApplyLocalEdit={(newMilestones) => {
+            // Instantly sync AI modifications to the local edit state
+            setEditedMilestones(newMilestones);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

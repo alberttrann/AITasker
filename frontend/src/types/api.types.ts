@@ -205,6 +205,8 @@ export interface EngagementDto {
   capabilityBid?: CapabilityBidDto | null;
   milestones?: MilestoneDto[];
   project?: Pick<ProjectDto, 'id' | 'projectName' | 'state' | 'archetype' | 'tier'> | null;
+  service?: ServiceDto | null;
+  client?: { id: string; fullName: string; email?: string } | null;
   termsLocked?: boolean;
   ndaComplete?: boolean;
 }
