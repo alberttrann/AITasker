@@ -10,7 +10,10 @@ import { MatchingService } from './matching.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
 import { deriveMilestoneReviewAuthority } from '../milestones/milestone-review-flow';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { assertProjectMilestoneTermsEditable } from '../milestones/milestone-terms-lock';
+import {
+  assertProjectMilestoneTermsEditable,
+  bidHasAcceptedTerms,
+} from '../milestones/milestone-terms-lock';
 
 @Injectable()
 export class ProjectsService {
@@ -436,6 +439,15 @@ export class ProjectsService {
       );
     }
 
+    const selectedBid = await this.prisma.capabilityBid.findFirst({
+      where: {
+        engagement: { projectId, type: 'PROJECT_BASED' },
+        state: 'SELECTED',
+      },
+      select: { conditionalPricingJson: true },
+    });
+    const termsLocked = bidHasAcceptedTerms(selectedBid);
+
     // Xác định nguồn dữ liệu Milestone cho Chatbot đọc 
     let frameworkToUse: any = project.milestoneFrameworkJson;
 
@@ -500,6 +512,7 @@ export class ProjectsService {
       artifact_a:           (project.artifactAJson ?? {})          as Record<string, unknown>,
       milestone_framework:  (frameworkToUse ?? [])                 as Array<Record<string, unknown>>,
       budget_context:       budgetContext,
+      terms_locked:         termsLocked,
       conversation_history: historyWithUserMsg,   
       user_message:         message,              
     });

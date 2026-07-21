@@ -422,11 +422,29 @@ def _validate_stage5_response(raw: dict, request: Stage5Request) -> Stage5Respon
 
 async def milestone_chat(request: MilestoneChatRequest) -> MilestoneChatResponse:
     system_template = await get_rendered_prompt("milestone_chat", {})
+    lock_status = "true" if request.terms_locked else "false"
+    runtime_lock_directive = (
+        "RUNTIME CONTRACT LOCK: terms_locked=true. The accepted milestone contract is "
+        "immutable. Answer read-only questions, but refuse all milestone mutations and never "
+        "emit an edit_suggestion block. A DEFINED milestone is still locked."
+        if request.terms_locked
+        else
+        "RUNTIME CONTRACT LOCK: terms_locked=false. Apply the milestone state gates before "
+        "suggesting any edit."
+    )
+    runtime_format_directive = (
+        "VISIBLE RESPONSE FORMAT: Return plain text only. Do not use Markdown headings, bold, "
+        "italics, inline code, tables, links, or visible fenced blocks. Do not expose internal "
+        "field names such as terms_locked. The hidden edit_suggestion block is the only allowed "
+        "formatting exception because the application removes it before display."
+    )
     system = (
         system_template
         .replace("{artifact_a}",          _json.dumps(request.artifact_a, ensure_ascii=False, indent=2))
         .replace("{milestone_framework}", _json.dumps(request.milestone_framework, ensure_ascii=False, indent=2))
         .replace("{budget_context}",      request.budget_context)
+        .replace("{terms_locked}",        lock_status)
+        + f"\n\n{runtime_lock_directive}\n\n{runtime_format_directive}"
     )
 
     raw_reply = await llm_client.call_llm_with_system_and_messages(
@@ -443,5 +461,10 @@ async def milestone_chat(request: MilestoneChatRequest) -> MilestoneChatResponse
         except _json.JSONDecodeError:
             pass
         raw_reply = _re.sub(r"```edit_suggestion.*?```", "", raw_reply, flags=_re.DOTALL).strip()
+
+    # Defense in depth: prompt text may be DB-managed and LLM output is not a
+    # security boundary. Never forward a mutation proposal for accepted terms.
+    if request.terms_locked:
+        suggested_edit = None
 
     return MilestoneChatResponse(reply=raw_reply, suggested_edit=suggested_edit)

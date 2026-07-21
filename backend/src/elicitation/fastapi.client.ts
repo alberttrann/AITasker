@@ -185,6 +185,7 @@ export interface MilestoneChatRequest {
   artifact_a:           Record<string, unknown>;
   milestone_framework:  Array<Record<string, unknown>>;
   budget_context?:      string;
+  terms_locked?:        boolean;
   conversation_history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   user_message:         string;
 }

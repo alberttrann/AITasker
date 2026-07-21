@@ -94,5 +94,6 @@ class MilestoneChatRequest(BaseModel):
     artifact_a:           dict
     milestone_framework:  list[dict]
     budget_context:       str = "No budget specified"
+    terms_locked:         bool = False
     conversation_history: list[dict] = []
     user_message:         str
