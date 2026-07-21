@@ -195,7 +195,7 @@ export class MilestonesService {
       });
       if (
         !engagement ||
-        engagement.state !== 'CONNECTED' ||
+        (engagement.state !== 'CONNECTED' && engagement.state !== 'ACTIVE') ||
         !engagement.clientNdaAcceptedAt ||
         !engagement.expertNdaAcceptedAt ||
         !bidHasAcceptedTerms(engagement.capabilityBid)

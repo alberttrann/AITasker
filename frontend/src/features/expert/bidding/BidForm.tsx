@@ -18,7 +18,11 @@ import type { MilestoneFrameworkItem } from '@/types/jsonb.types';
 type CompatibleMilestoneFrameworkItem = MilestoneFrameworkItem & {
   milestoneNumber?: number;
   deliverableStatement?: string;
+  payment_amount_vnd?: number;
   paymentAmountVnd?: number;
+  estimated_cost_vnd?: number;
+  estimatedCostVnd?: number;
+  price_vnd?: number;
   estimated_duration_days?: number;
   estimatedDurationDays?: number;
   condition?: string;
@@ -49,7 +53,12 @@ function getDefaultPricingItem(
   const milestoneNumber =
     frameworkItem.milestone_number ?? frameworkItem.milestoneNumber ?? 0;
   const price = Number(
-    frameworkItem.payment_amount_vnd ?? frameworkItem.paymentAmountVnd ?? 0,
+    frameworkItem.estimated_cost_vnd ??
+      frameworkItem.estimatedCostVnd ??
+      frameworkItem.payment_amount_vnd ??
+      frameworkItem.paymentAmountVnd ??
+      frameworkItem.price_vnd ??
+      0,
   );
   const condition =
     frameworkItem.condition?.trim() ||

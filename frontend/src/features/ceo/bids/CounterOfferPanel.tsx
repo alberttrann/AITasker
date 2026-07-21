@@ -1,6 +1,6 @@
 import { Form, Formik } from 'formik';
 import * as Yup from 'yup';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { useCreateOffer } from '@/hooks/use-bids';
 import type { BidOfferDto, MilestoneOfferTermDto } from '@/types/api.types';
 

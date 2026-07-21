@@ -1,11 +1,14 @@
 import React from 'react';
 import { useWalletTransactions } from '@/hooks/use-wallet';
+import { useAuth } from '@/hooks/use-auth';
 import { ArrowDownRight, ArrowUpRight, Lock, Unlock } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { format } from 'date-fns';
 
 export function TransactionHistory() {
   const { data: transactions, isLoading } = useWalletTransactions();
+  const { user, activeRole } = useAuth();
+  const isClient = activeRole === 'CLIENT' || user?.activeRole === 'CLIENT';
 
   if (isLoading) {
     return (
@@ -47,7 +50,9 @@ export function TransactionHistory() {
       case 'ESCROW_LOCK':
         return { label: 'Escrow Locked', color: 'text-yellow-600', icon: <Lock size={20} strokeWidth={2.5} />, bg: 'bg-yellow-100' };
       case 'ESCROW_RELEASE':
-        return { label: 'Escrow Released', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+        return isClient
+          ? { label: 'Escrow Released', color: 'text-blue-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-blue-100' }
+          : { label: 'Escrow Released', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       case 'WITHDRAWAL':
         return { label: 'Withdrawal', color: 'text-red-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-red-100' };
       default:
@@ -63,7 +68,9 @@ export function TransactionHistory() {
       <div className="divide-y divide-slate-100">
         {transactions.map((tx) => {
           const config = getTxConfig(tx.transactionType);
-          const isPositive = ['TOP_UP', 'ESCROW_RELEASE'].includes(tx.transactionType);
+          const isPositive = isClient
+            ? tx.transactionType === 'TOP_UP'
+            : ['TOP_UP', 'ESCROW_RELEASE'].includes(tx.transactionType);
           
           return (
              <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">

@@ -107,6 +107,17 @@ export default function FundMilestone() {
         {milestone.state === "DEFINED" && (
           <Card className="border-dashed border-primary/40 bg-slate-50/50">
             <CardContent className="pt-6 space-y-4 flex flex-col items-center text-center">
+              {fundMilestone.isError && (
+                <div className="w-full text-left">
+                  <ErrorBanner
+                    message={
+                      (fundMilestone.error as any)?.response?.data?.message?.message ||
+                      (fundMilestone.error as any)?.response?.data?.message ||
+                      "Failed to initiate funding. Please ensure terms are accepted and both NDA signatures are completed."
+                    }
+                  />
+                </div>
+              )}
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <CreditCard size={24} />
               </div>

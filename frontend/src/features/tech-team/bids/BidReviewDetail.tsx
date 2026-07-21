@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBid } from '@/hooks/use-bids';
 import { formatSeamCode } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { AlertTriangle, ArrowLeft, CheckCircle2, AlertCircle, Clock } from 'lucide-react';

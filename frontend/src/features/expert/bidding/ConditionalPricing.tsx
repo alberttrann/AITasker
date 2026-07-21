@@ -126,7 +126,13 @@ export default function ConditionalPricing({
                   <div className="text-right shrink-0">
                     <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-0.5">Budget</p>
                     <p className="font-headline text-[14px] font-semibold text-[#0F172A]">
-                      {formatVND(fwItem.payment_amount_vnd)}
+                      {formatVND(
+                        fwItem.estimated_cost_vnd ??
+                          fwItem.estimatedCostVnd ??
+                          fwItem.payment_amount_vnd ??
+                          fwItem.paymentAmountVnd ??
+                          0,
+                      )}
                     </p>
                   </div>
                 </div>

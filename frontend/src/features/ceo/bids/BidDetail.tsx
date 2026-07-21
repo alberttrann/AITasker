@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Clock, LockKeyhole } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { useBid } from '@/hooks/use-bids';

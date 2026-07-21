@@ -27,6 +27,12 @@ export interface MilestoneFrameworkItem {
   deliverable_statement: string;
   sign_off_authority:    SignOffAuthority;
   payment_amount_vnd:    number;
+  estimated_cost_vnd?:   number;
+  estimatedCostVnd?:     number;
+  paymentAmountVnd?:     number;
+  price_vnd?:            number;
+  estimated_duration_days?: number;
+  estimatedDurationDays?:   number;
 }
 
 export interface ArtifactA {

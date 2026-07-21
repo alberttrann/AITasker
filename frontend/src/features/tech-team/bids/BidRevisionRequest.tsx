@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { ConfirmModal } from '@/components/ui/Modal';
 import { AlertTriangle, ArrowLeft, MessageSquareWarning } from 'lucide-react';

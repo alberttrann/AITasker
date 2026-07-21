@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { AlertTriangle, FileText, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useBids } from '@/hooks/use-bids';
 
