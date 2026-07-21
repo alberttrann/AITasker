@@ -9,14 +9,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
 import { Check, Zap, ChevronRight, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 
 export default function SubscriptionPlans() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: wallet } = useWallet();
-  const { activateSubscription: activateMutation } = useSubscription();
+  const { activateSubscription } = useSubscription();
   const { data: packages, isLoading: isLoadingPackages } = useSubscriptionPackages();
   const toast = useToastActions();
   const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
@@ -24,12 +24,13 @@ export default function SubscriptionPlans() {
   const { data: subStatus } = useSubscriptionStatus();
   const { data: history } = useSubscriptionHistory();
   const activePackage = history?.find((h) => !h.isExpired);
-  const activePackageNames = subStatus?.isActive && activePackage 
-    ? [activePackage.packageName] 
+  const activePackageNames = subStatus?.isActive && activePackage
+    ? [activePackage.packageName]
     : [];
 
   const handleActivate = (packageId: string) => {
-    activateMutation.mutate(
+    setErrorMsg(null);
+    activateSubscription.mutate(
       { activeRole: user?.activeRole || 'CLIENT', packageId },
       {
         onSuccess: async (data) => {
@@ -49,14 +50,14 @@ export default function SubscriptionPlans() {
 
   return (
     <div className="min-h-[80vh] w-full flex flex-col justify-start pt-6 pb-12 shrink-0 min-w-0">
-      <div className="fixed top-1/4 left-1/4 w-[400px] h-[400px] bg-emerald-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
+      <div className="fixed top-1/4 left-1/4 w-100 h-100 bg-emerald-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-75 h-75 bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
 
-      <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-8 items-center justify-center relative z-10 px-6">
-        
+      <div className="w-full max-w-360 mx-auto flex flex-col gap-8 items-center justify-center relative z-10 px-6">
+
         <div className="text-center max-w-2xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-headline font-extrabold text-slate-900 leading-[1.1] mb-6">
-            Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Client Pro</span> Experience
+            Unlock the <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-500 to-teal-400">Client Pro</span> Experience
           </h1>
           <p className="text-lg text-slate-600 leading-relaxed">
             Choose the perfect plan to elevate your project management with AI-driven elicitation, priority expert matching, and secure milestone tracking.
@@ -117,9 +118,9 @@ export default function SubscriptionPlans() {
                           className="w-full h-12 rounded-xl text-[15px] font-bold"
                           variant="primary"
                           onClick={() => handleActivate(pkg.id)}
-                          disabled={activateMutation.isPending}
+                          disabled={activateSubscription.isPending}
                         >
-                          {activateMutation.isPending ? 'Activating...' : 'Select Plan'}
+                          {activateSubscription.isPending ? 'Activating...' : 'Select Plan'}
                           <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
                       ) : (

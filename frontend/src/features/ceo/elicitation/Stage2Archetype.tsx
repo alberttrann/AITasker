@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import type { VoidItem } from '@t/jsonb.types';
 import { submitStage2, handleElicitationError, revertSession, useElicitation } from '@/hooks/use-elicitation';
@@ -128,9 +128,9 @@ export default function Stage2Archetype({ sessionId, onComplete, onError, onBack
           
           <div className="grid grid-cols-1 gap-3 mt-4">
             {voidList.map((v) => {
-              const voidDef = voidCodesList?.find(def => def.code === v.void_code);
+              const voidDef = voidCodesList?.find(def => def.code === v.void_code) as any;
               const fallbackName = v.void_code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-              const name = voidDef?.name || fallbackName;
+              const name = voidDef?.title || voidDef?.name || fallbackName;
               const description = voidDef?.description || "This area needs more detail before your project can be matched.";
               const isChecked = acknowledged.has(v.void_code);
 

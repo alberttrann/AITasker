@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useEngagements } from "@/hooks/use-engagements";
 import { Loader2, ArrowLeft, Briefcase, Search, Filter, Hash, CheckCircle2, MessageSquare, ArrowRight, FolderKanban, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 type UnifiedOrder = {
   id: string;
@@ -54,7 +54,8 @@ export default function ExpertOrdersPage() {
     });
     
     return filtered
-      .map((eng) => {
+      .map((e) => {
+        const eng = e as any;
         const milestones = eng.milestones || [];
         const totalMilestonesPrice = milestones.reduce((sum: number, m: any) => sum + Number(m.paymentAmountVnd), 0);
         

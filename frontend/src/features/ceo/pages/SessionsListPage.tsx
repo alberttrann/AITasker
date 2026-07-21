@@ -8,7 +8,7 @@ import {
   useDeleteElicitationSession,
   useElicitationSessions
 } from "@/hooks/use-projects";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/modal";
 import { ArrowLeft, ArrowUpDown, Trash2, Clock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function SessionsListPage() {
@@ -18,7 +18,7 @@ export default function SessionsListPage() {
   const { activeSession } = useActiveElicitationSession();
   const abandonSession = useDeleteElicitationSession();
 
-  const [sessionToHardDelete, setSessionToHardDelete] = useState<number | null>(null);
+  const [sessionToHardDelete, setSessionToHardDelete] = useState<string | null>(null);
   const [showEmptyBinConfirm, setShowEmptyBinConfirm] = useState(false);
   const [sessionSort, setSessionSort] = useState<'date_desc' | 'date_asc' | 'status'>('date_desc');
   const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);

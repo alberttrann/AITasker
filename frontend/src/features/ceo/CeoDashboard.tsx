@@ -20,7 +20,7 @@ export function CeoOverview() {
   const { sessions, isLoadingSessions } = useElicitationSessions();
   const { data: engagements, isLoading: isLoadingEngagements } = useEngagements();
 
-  const activeSessions = sessions.filter(s => s.state === 'IN_PROGRESS').sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  const activeSessions = sessions.filter((s: any) => s.state === 'IN_PROGRESS').sort((a: any, b: any) => new Date(b.updated_at || b.updatedAt).getTime() - new Date(a.updated_at || a.updatedAt).getTime());
   
   // Use the most recent active session for the banner
   const mostRecentSession = activeSessions.length > 0 ? activeSessions[0] : null;
@@ -29,7 +29,7 @@ export function CeoOverview() {
     return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
   };
 
-  const allProjects = projects.sort((a, b) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
+  const allProjects = projects.sort((a: any, b: any) => getSafeDate(b, 'createdAt') - getSafeDate(a, 'createdAt'));
   const { data: subStatus, isLoading: isLoadingSub } = useSubscriptionStatus();
   const hasSubscription = subStatus?.tier === "pro";
 
@@ -98,7 +98,7 @@ export function CeoOverview() {
       )}
 
       {/* FOR YOU Section */}
-      {user && !user.companyName && !dismissCompanySuggest && (
+      {user && !(user as any).companyName && !dismissCompanySuggest && (
         <div className="mb-8">
           <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">For You</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">

@@ -2,7 +2,7 @@ import { useMyPortfolioSubmissions } from '@/hooks/use-portfolio';
 import { CheckCircle2, XCircle, Clock, Lock, ArrowLeft } from 'lucide-react';
 import { formatSeamCode } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 
 const SEAM_LABELS: Record<string, string> = {
   'A↔B': 'Applied Agents',

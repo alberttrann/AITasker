@@ -1,7 +1,7 @@
 import { FolderKanban, User, Briefcase, PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { ServiceCreateModal } from "./ServiceCreateModal";
 import { ServiceListingsGrid } from "./ServiceListingsGrid";
 import { useMyServices } from "@/hooks/use-services";

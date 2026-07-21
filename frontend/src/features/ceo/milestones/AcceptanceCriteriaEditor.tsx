@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGetCriteria, useCreateCriterion, useDeleteCriterion } from '@/hooks/use-criteria';
 import { Plus, Trash2, Loader2, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 
 export default function AcceptanceCriteriaEditor({ milestoneId }: { milestoneId: string }) {
   const { data: criteria, isLoading } = useGetCriteria(milestoneId);

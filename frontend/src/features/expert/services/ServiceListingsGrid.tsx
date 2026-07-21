@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/Card';
 import { ArrowRight, Briefcase } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
 interface ServiceListingsGridProps {

@@ -7,7 +7,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
 import { Check, Sparkles, Zap, Shield, ChevronRight, History, ChevronUp, ChevronDown, CheckCircle2, X } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/layout/Table';
 
 export default function SubscriptionActivate() {

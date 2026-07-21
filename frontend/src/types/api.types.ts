@@ -646,6 +646,7 @@ export interface StageCompleteData {
     schemas: string[];
     contracts: string[];
   };
+  nextStage?: number; // to explicitly drive the frontend wizard
 }
 
 // ── Milestones API DTOs (from use-milestones.ts) ──────────────────────────

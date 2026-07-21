@@ -1,3 +1,4 @@
+import ArtifactBView from '../connection/ArtifactBView';
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInvitations, useDeclineInvitation } from "@/hooks/use-invitations";
@@ -8,7 +9,7 @@ import { useExpertProfile } from "@/hooks/use-expert-profile";
 import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2 } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 // Unified type combining Invitation and Engagement logic
 type UnifiedProject = {
@@ -31,14 +32,14 @@ export default function ExpertProjectsPage() {
 
   const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'>('date_desc');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  
+
   const [activePopupId, setActivePopupId] = useState<string | null>(null);
   const [activeMilestoneId, setActiveMilestoneId] = useState<number | null>(1);
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const sortOptions = [
     { label: 'Newest First', value: 'date_desc' },
     { label: 'Oldest First', value: 'date_asc' },
@@ -53,8 +54,8 @@ export default function ExpertProjectsPage() {
   const { profile } = useExpertProfile();
 
   const isProfileComplete = profile && !!(
-    profile.profile?.bio || 
-    profile.profile?.engagementModel || 
+    profile.profile?.bio ||
+    profile.profile?.engagementModel ||
     (profile.profile?.stackTagsJson && profile.profile.stackTagsJson.length > 0) ||
     (profile.domainDepths && profile.domainDepths.length > 0) ||
     (profile.seamClaims && profile.seamClaims.length > 0)
@@ -65,7 +66,7 @@ export default function ExpertProjectsPage() {
 
   const unifiedProjects = useMemo(() => {
     if (!invitations && !engagements) return [];
-    
+
     const projectMap = new Map<string, UnifiedProject>();
 
     const getSafeTime = (dateVal: any) => {
@@ -79,29 +80,29 @@ export default function ExpertProjectsPage() {
       const now = Date.now();
       engagements.forEach((eng, index) => {
         if (!eng.project) return;
-        
+
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
-        if (eng.state === 'PENDING') {
-          const negotiationState = eng.capabilityBid?.negotiationState;
+        if ((eng.state as string) === 'PENDING') {
+          const negotiationState = (eng as any).capabilityBid?.negotiationState;
           if (eng.termsLocked || negotiationState === 'TERMS_ACCEPTED') {
-             status = 'NDA_PENDING';
+            status = 'NDA_PENDING';
           } else if (
-            eng.capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
+            (eng as any).capabilityBid?.techStatus === 'REVISION_REQUESTED' ||
             negotiationState === 'AWAITING_EXPERT'
           ) {
-             status = 'COUNTER_OFFER';
+            status = 'COUNTER_OFFER';
           } else {
-             status = 'BID_SENT';
+            status = 'BID_SENT';
           }
-        } else if (eng.state === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
+        } else if ((eng.state as string) === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
           status = 'NDA_PENDING';
-        } else if (eng.state === 'DECLINED') {
+        } else if ((eng.state as string) === 'DECLINED') {
           status = 'DECLINED';
         }
 
         const projectId = eng.projectId || eng.id;
-        const projectName = eng.project?.projectName || eng.service?.title || 'Service Order';
-        const ceoName = eng.client?.fullName || eng.client_id || 'Client';
+        const projectName = eng.project?.projectName || (eng as any).service?.title || 'Service Order';
+        const ceoName = (eng as any).client?.fullName || (eng as any).client_id || 'Client';
 
         projectMap.set(projectId, {
           id: projectId,
@@ -110,7 +111,7 @@ export default function ExpertProjectsPage() {
           ceoName,
           companyName: null,
           status,
-          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || eng.project?.createdAt || (now - index * 1000)),
+          updatedAt: getSafeTime((eng as any).updatedAt || (eng as any).connectedAt || Date.now()),
           engagement: eng
         });
       });
@@ -126,7 +127,7 @@ export default function ExpertProjectsPage() {
           existing.invitation = inv;
           existing.ceoName = inv.ceo.fullName; // richer info
           existing.companyName = (inv.ceo as any).companyName || (inv.ceo as any).activeRoleProfile?.companyName || null;
-          
+
           // Re-enable Submit Bid if the previous engagement was declined but we have a new/pending invitation
           if (existing.status === 'DECLINED' && inv.status === 'PENDING' && !inv.isExpired) {
             existing.status = 'INVITED';
@@ -136,7 +137,7 @@ export default function ExpertProjectsPage() {
           let status: UnifiedProject['status'] = 'INVITED';
           if (inv.isExpired) status = 'EXPIRED';
           else if (inv.status === 'DECLINED') status = 'DECLINED';
-          
+
           projectMap.set(inv.projectId, {
             id: inv.projectId,
             projectId: inv.projectId,
@@ -158,13 +159,13 @@ export default function ExpertProjectsPage() {
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.projectName.toLowerCase().includes(q) || 
+      filtered = filtered.filter(p =>
+        p.projectName.toLowerCase().includes(q) ||
         p.ceoName.toLowerCase().includes(q) ||
         (p.companyName && p.companyName.toLowerCase().includes(q))
       );
     }
-    
+
     const sorted = filtered.sort((a, b) => {
       if (sortOrder === 'date_desc') return b.updatedAt - a.updatedAt;
       if (sortOrder === 'date_asc') return a.updatedAt - b.updatedAt;
@@ -179,7 +180,7 @@ export default function ExpertProjectsPage() {
     if (!invitations && !engagements) return false;
     const projectMap = new Map<string, boolean>();
     engagements?.forEach(eng => {
-      if (eng.project) projectMap.set(eng.projectId, true);
+      if (eng.project && eng.projectId) projectMap.set(eng.projectId, true);
     });
     invitations?.forEach(inv => {
       if (!deletedInvites.has(inv.id) && !projectMap.has(inv.projectId)) {
@@ -191,7 +192,7 @@ export default function ExpertProjectsPage() {
 
   // Auto-select first project
   if (unifiedProjects.length > 0 && !selectedProjectId) {
-    setSelectedProjectId(unifiedProjects[0].projectId);
+    setSelectedProjectId(unifiedProjects[0].projectId as string);
   }
 
   // Reset phase to 1 when selected project changes
@@ -223,7 +224,7 @@ export default function ExpertProjectsPage() {
     <div className="w-full max-w-[1440px] mx-auto relative flex flex-col min-h-[calc(100vh-140px)] mb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => navigate('/expert')}
             className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             aria-label="Go back"
@@ -233,7 +234,7 @@ export default function ExpertProjectsPage() {
           <h3 className="text-2xl font-bold text-slate-900">Projects</h3>
         </div>
       </div>
-      
+
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -266,9 +267,9 @@ export default function ExpertProjectsPage() {
             <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-3">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input 
-                  type="text" 
-                  placeholder="Search projects..." 
+                <input
+                  type="text"
+                  placeholder="Search projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
@@ -278,12 +279,12 @@ export default function ExpertProjectsPage() {
               {/* Sort & Filter Controls */}
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <button 
+                  <button
                     onClick={() => setIsSortOpen(!isSortOpen)}
                     className="w-full flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     <span className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis">
-                      <ArrowUpDown className="w-3.5 h-3.5 shrink-0"/> 
+                      <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
                       {sortOptions.find(o => o.value === sortOrder)?.label || 'Sort'}
                     </span>
                   </button>
@@ -309,11 +310,11 @@ export default function ExpertProjectsPage() {
                 </div>
 
                 <div className="relative flex-1">
-                  <button 
+                  <button
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
                     className="w-full flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                   >
-                    <span className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5"/> Filter {statusFilters.size > 0 && `(${statusFilters.size})`}</span>
+                    <span className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" /> Filter {statusFilters.size > 0 && `(${statusFilters.size})`}</span>
                   </button>
                   {isFilterOpen && (
                     <>
@@ -321,8 +322,8 @@ export default function ExpertProjectsPage() {
                       <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-2">
                         {['INVITED', 'BID_SENT', 'COUNTER_OFFER', 'IN_PROGRESS', 'DECLINED', 'EXPIRED'].map(status => (
                           <label key={status} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs">
-                            <input 
-                              type="checkbox" 
+                            <input
+                              type="checkbox"
                               checked={statusFilters.has(status)}
                               onChange={(e) => {
                                 const newFilters = new Set(statusFilters);
@@ -341,7 +342,7 @@ export default function ExpertProjectsPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="overflow-y-auto custom-scrollbar p-3 space-y-2 max-h-[480px]">
               {unifiedProjects.length === 0 ? (
                 <div className="text-center py-10 text-slate-500 text-sm">
@@ -350,10 +351,10 @@ export default function ExpertProjectsPage() {
               ) : (
                 unifiedProjects.map((project) => {
                   const isSelected = selectedProjectId === project.projectId;
-                  
+
                   let chipColor = "bg-slate-100 text-slate-700";
                   let chipText = "Unknown";
-                  
+
                   switch (project.status) {
                     case 'INVITED': chipColor = "bg-amber-100 text-amber-700"; chipText = "New Invite"; break;
                     case 'BID_SENT': chipColor = "bg-blue-100 text-blue-700"; chipText = "Bid Sent"; break;
@@ -362,16 +363,15 @@ export default function ExpertProjectsPage() {
                     case 'DECLINED': chipColor = "bg-slate-100 text-slate-600"; chipText = "Declined"; break;
                     case 'EXPIRED': chipColor = "bg-rose-100 text-rose-700"; chipText = "Expired"; break;
                   }
-                  
+
                   return (
                     <button
                       key={project.id}
                       onClick={() => setSelectedProjectId(project.projectId)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all ${
-                        isSelected 
-                          ? 'bg-blue-50/50 border-blue-200 shadow-sm' 
+                      className={`w-full text-left p-4 rounded-xl border transition-all ${isSelected
+                          ? 'bg-blue-50/50 border-blue-200 shadow-sm'
                           : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <span className={`text-[11px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${chipColor}`}>
@@ -416,10 +416,10 @@ export default function ExpertProjectsPage() {
                       <h2 className="text-2xl font-bold text-slate-900">{selectedProject.projectName}</h2>
                       <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg uppercase tracking-wider">
                         {(() => {
-                           const code = fullProject?.archetype || fullProject?.artifact_a_json?.archetype;
-                           if (!code) return 'UNKNOWN ARCHETYPE';
-                           const match = archetypes?.find(a => a.code === code);
-                           return match ? match.name : code;
+                          const code = fullProject?.archetype || fullProject?.artifact_a_json?.archetype;
+                          if (!code) return 'UNKNOWN ARCHETYPE';
+                          const match = archetypes?.find(a => a.code === code);
+                          return match ? match.name : code;
                         })()}
                       </span>
                     </div>
@@ -439,18 +439,18 @@ export default function ExpertProjectsPage() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Actions based on state */}
                   <div className="flex gap-3">
                     {selectedProject.status === 'INVITED' && (
                       <>
-                        <Button 
+                        <Button
                           variant="outline"
                           onClick={() => handleDecline(selectedProject.invitation!.id)}
                         >
                           Decline
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => navigate(`/expert/bids/${selectedProject.projectId}`)}
                         >
                           Submit Bid
@@ -484,7 +484,7 @@ export default function ExpertProjectsPage() {
                     {selectedProject.status === 'IN_PROGRESS' && (
                       <>
                         {selectedProject.engagement?.serviceId && (
-                          <Button 
+                          <Button
                             variant="outline"
                             onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}
                             className="mr-2"
@@ -539,7 +539,7 @@ export default function ExpertProjectsPage() {
                             </span>
                           </div>
                         )}
-                        
+
                         {fullProject.artifact_a_json.business_intent && (
                           <div className="mb-4">
                             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Business Intent</h4>
@@ -579,7 +579,7 @@ export default function ExpertProjectsPage() {
                     <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                       Project Requirements
                     </h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       {/* Domains */}
                       <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
@@ -590,24 +590,24 @@ export default function ExpertProjectsPage() {
                           <div className="space-y-2">
                             {fullProject.required_domains_json.map((d: any, i: number) => {
                               const domainName = domains?.find(def => def.code === d.domain_code)?.name || d.domain_code;
-                              
+
                               const getDepthValue = (depth: string) => {
                                 if (depth === 'DEEP' || depth === 'EXPERT') return 3;
                                 if (depth === 'OPERATIONAL' || depth === 'INTERMEDIATE') return 2;
                                 if (depth === 'SURFACE' || depth === 'BEGINNER') return 1;
                                 return 0;
                               };
-                              
+
                               const requiredDepth = d.depth_level || d.required_depth;
                               const expertDomain = profile?.domainDepths?.find((pd: any) => pd.domainCode === d.domain_code);
                               const isMatch = expertDomain && getDepthValue(expertDomain.depthLevel || expertDomain.depth_level) >= getDepthValue(requiredDepth);
-                              
-                              const bgFill = expertDomain 
-                                ? "bg-emerald-50 border-emerald-200" 
+
+                              const bgFill = expertDomain
+                                ? "bg-emerald-50 border-emerald-200"
                                 : "bg-rose-50 border-rose-200";
-                              
+
                               const textColor = expertDomain ? "text-emerald-700" : "text-rose-700";
-                              
+
                               const showWarning = expertDomain && !isMatch;
 
                               return (
@@ -615,7 +615,7 @@ export default function ExpertProjectsPage() {
                                   <span className="font-semibold text-slate-900">{domainName}</span>
                                   <div className="relative flex items-center">
                                     {showWarning ? (
-                                      <button 
+                                      <button
                                         onClick={() => setActivePopupId(activePopupId === d.domain_code ? null : d.domain_code)}
                                         className="flex items-center hover:opacity-75 transition-opacity focus:outline-none"
                                       >
@@ -629,15 +629,15 @@ export default function ExpertProjectsPage() {
                                         {requiredDepth}
                                       </span>
                                     )}
-                                    
+
                                     {showWarning && activePopupId === d.domain_code && (
                                       <div className="absolute right-0 bottom-full mb-2 w-40 bg-white text-slate-800 text-xs p-2.5 rounded shadow-xl border border-slate-200 z-10 whitespace-normal leading-relaxed before:content-[''] before:absolute before:-bottom-1.5 before:right-3 before:w-3 before:h-3 before:bg-white before:border-b before:border-r before:border-slate-200 before:rotate-45">
                                         <div>
-                                          <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Project Requires</span> 
+                                          <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Project Requires</span>
                                           <span className="font-bold">{requiredDepth}</span>
                                         </div>
                                         <div className="mt-2">
-                                          <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Your Profile</span> 
+                                          <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Your Profile</span>
                                           <span className="font-bold">{expertDomain.depthLevel || expertDomain.depth_level}</span>
                                         </div>
                                       </div>
@@ -663,10 +663,10 @@ export default function ExpertProjectsPage() {
                               const rawSeamName = seams?.find(def => def.code === s.seam_code)?.name || s.seam_code;
                               const seamName = formatSeamCode(rawSeamName);
                               const isMatch = profile?.seamClaims?.some((ps: any) => (ps.seamCode || ps.code) === s.seam_code);
-                              const bgFill = isMatch 
-                                ? "bg-emerald-50 border-emerald-200" 
+                              const bgFill = isMatch
+                                ? "bg-emerald-50 border-emerald-200"
                                 : "bg-rose-50 border-rose-200";
-                              
+
                               const textColor = isMatch ? "text-emerald-700" : "text-rose-700";
 
                               return (
@@ -686,6 +686,15 @@ export default function ExpertProjectsPage() {
                     </div>
                   </div>
 
+                  {/* ARTIFACT B */}
+                  <div className="mb-8">
+                    <ArtifactBView
+                      projectId={selectedProject.projectId}
+                      // Expert is only authorized if engagement is ACTIVE/CONNECTED (mapped to IN_PROGRESS in this UI)
+                      isAuthorized={selectedProject.status === 'IN_PROGRESS'}
+                    />
+                  </div>
+
                   {/* Milestone Framework */}
                   {fullProject?.milestone_framework_json && fullProject.milestone_framework_json.length > 0 && (
                     <div className="mb-8">
@@ -695,49 +704,48 @@ export default function ExpertProjectsPage() {
                       <div className="relative pt-6 pb-2 border border-slate-200 rounded-xl bg-slate-50/50">
                         <div className="overflow-x-auto custom-scrollbar w-full">
                           <div className="flex relative z-10 gap-4 pb-4 px-8 w-max mx-auto">
-                          {fullProject.milestone_framework_json.map((m: any, i: number) => {
-                            const isActive = activeMilestoneId === m.milestone_number;
-                            
-                            return (
-                              <div key={i} className="flex flex-col items-center flex-shrink-0 w-32 relative">
-                                {/* Connecting line to the next dot */}
-                                {i < fullProject.milestone_framework_json.length - 1 && (
-                                  <div className="absolute top-[9px] left-1/2 w-[calc(100%+1rem)] h-0.5 bg-slate-300 -z-10"></div>
-                                )}
-                                
-                                {/* Dot Button */}
-                                <button 
-                                  onClick={() => setActiveMilestoneId(isActive ? null : m.milestone_number)}
-                                  className={`w-5 h-5 rounded-full border-[3px] mb-3 flex items-center justify-center transition-all bg-white z-10 ${
-                                    isActive 
-                                      ? 'bg-blue-600 border-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]' 
-                                      : 'bg-white border-slate-300 hover:border-blue-400'
-                                  }`}
-                                >
-                                </button>
-                                
-                                {/* Label */}
-                                <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
-                                  Phase {m.milestone_number}
-                                </span>
-                                
-                                {/* Formatted Price & Duration Preview */}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {m.estimated_duration_days !== undefined && (
-                                    <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                      <Clock className="w-3 h-3" /> {m.estimated_duration_days}d
-                                    </span>
+                            {fullProject.milestone_framework_json.map((m: any, i: number) => {
+                              const isActive = activeMilestoneId === m.milestone_number;
+
+                              return (
+                                <div key={i} className="flex flex-col items-center flex-shrink-0 w-32 relative">
+                                  {/* Connecting line to the next dot */}
+                                  {i < fullProject.milestone_framework_json.length - 1 && (
+                                    <div className="absolute top-[9px] left-1/2 w-[calc(100%+1rem)] h-0.5 bg-slate-300 -z-10"></div>
                                   )}
-                                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shadow-sm">
-                                    {new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(m.payment_amount_vnd || m.estimated_cost_vnd || 0)}
+
+                                  {/* Dot Button */}
+                                  <button
+                                    onClick={() => setActiveMilestoneId(isActive ? null : m.milestone_number)}
+                                    className={`w-5 h-5 rounded-full border-[3px] mb-3 flex items-center justify-center transition-all bg-white z-10 ${isActive
+                                        ? 'bg-blue-600 border-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]'
+                                        : 'bg-white border-slate-300 hover:border-blue-400'
+                                      }`}
+                                  >
+                                  </button>
+
+                                  {/* Label */}
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
+                                    Phase {m.milestone_number}
                                   </span>
+
+                                  {/* Formatted Price & Duration Preview */}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {m.estimated_duration_days !== undefined && (
+                                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <Clock className="w-3 h-3" /> {m.estimated_duration_days}d
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shadow-sm">
+                                      {new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(m.payment_amount_vnd || m.estimated_cost_vnd || 0)}
+                                    </span>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                           </div>
                         </div>
-                        
+
                         {/* Active Milestone Details Pane */}
                         {activeMilestoneId && (() => {
                           const activeM = fullProject.milestone_framework_json.find((m: any) => m.milestone_number === activeMilestoneId);

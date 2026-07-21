@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import ArtifactBView from '../../tech-team/vault/ArtifactBView';
 import { useAdminProjects, useAdminProjectDetail, useSuspendProject, useReopenProject } from '@/hooks/use-admin';
 import { DataTable, Column } from '@/components/layout/Table';
 import { Spinner } from '@/components/ui/Spinner';
@@ -13,12 +14,12 @@ export default function AdminProjectsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [sortColumn, setSortColumn] = useState<string>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc'|'desc'>('desc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const { data, isLoading } = useAdminProjects({ state: filterState || undefined });
   const suspendProject = useSuspendProject();
   const reopenProject = useReopenProject();
-  
+
   const [confirmTarget, setConfirmTarget] = useState<{ id: string, action: 'suspend' | 'reopen' } | null>(null);
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null);
   const { data: projectDetail, isLoading: isLoadingDetail } = useAdminProjectDetail(detailProjectId || '');
@@ -88,33 +89,35 @@ export default function AdminProjectsPage() {
   };
 
   const columns: Column<any>[] = [
-    { key: 'projectName', label: 'Project', sortable: true, render: (p: any) => <div className="font-bold text-slate-900">{p.projectName || `Project ${p.id.slice(0,8)}`}</div> },
+    { key: 'projectName', label: 'Project', sortable: true, render: (p: any) => <div className="font-bold text-slate-900">{p.projectName || `Project ${p.id.slice(0, 8)}`}</div> },
     { key: 'tier', label: 'Tier', sortable: true, render: (p: any) => <span className="text-xs font-bold text-slate-500 uppercase">{p.tier?.replace('_', ' ') || '—'}</span> },
     { key: 'state', label: 'State', sortable: true, render: (p: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${p.state === 'SUSPENDED' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{p.state}</span> },
     { key: 'createdAt', label: 'Created At', sortable: true, render: (p: any) => <span className="text-xs text-slate-500">{new Date(p.createdAt).toLocaleDateString()}</span> },
-    { key: 'actions', label: '', sortable: false, render: (p: any) => (
-      <div className="flex justify-end gap-2">
-        <button onClick={() => setDetailProjectId(p.id)} className="px-3 py-1 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50">Details</button>
+    {
+      key: 'actions', label: '', sortable: false, render: (p: any) => (
+        <div className="flex justify-end gap-2">
+          <button onClick={() => setDetailProjectId(p.id)} className="px-3 py-1 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50">Details</button>
 
-        {p.state === 'SUSPENDED' ? (
-          <button onClick={() => setConfirmTarget({ id: p.id, action: 'reopen'})} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded hover:bg-emerald-100">Reopen</button>
-        ) : (
-          <button onClick={() => setConfirmTarget({ id: p.id, action: 'suspend'})} className="px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded hover:bg-red-100">Suspend Spec</button>
-        )}
-      </div>
-    )}
+          {p.state === 'SUSPENDED' ? (
+            <button onClick={() => setConfirmTarget({ id: p.id, action: 'reopen' })} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded hover:bg-emerald-100">Reopen</button>
+          ) : (
+            <button onClick={() => setConfirmTarget({ id: p.id, action: 'suspend' })} className="px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded hover:bg-red-100">Suspend Spec</button>
+          )}
+        </div>
+      )
+    }
   ];
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2"><Briefcase className="h-8 w-8 text-blue-600"/> Projects Oversight</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2"><Briefcase className="h-8 w-8 text-blue-600" /> Projects Oversight</h1>
           <p className="text-slate-500 mt-2">Monitor all published projects. Suspend malicious or non-compliant specs.</p>
         </div>
       </div>
 
-      <AdminTableToolbar 
+      <AdminTableToolbar
         searchQuery={search}
         onSearchChange={(val) => { setSearch(val); setPage(1); }}
         searchPlaceholder="Search by project name or ID..."
@@ -132,13 +135,13 @@ export default function AdminProjectsPage() {
         onPageChange={setPage}
       />
 
-      <DataTable 
-        columns={columns} 
-        data={paginatedData} 
+      <DataTable
+        columns={columns}
+        data={paginatedData}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         onSort={handleSort}
-        keyExtractor={(p: any) => p.id} 
+        keyExtractor={(p: any) => p.id}
       />
 
       <ConfirmModal
@@ -185,14 +188,8 @@ export default function AdminProjectsPage() {
               <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{projectDetail.artifactAJson?.business_intent || 'No intent recorded.'}</p>
             </div>
 
-            <div>
-              <h4 className="font-bold text-slate-800 mb-2 border-b pb-2">Technical Constraints (Artifact B)</h4>
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-700 whitespace-pre-wrap">
-                <span className="font-semibold text-slate-900 block mb-1">Integration Method:</span>
-                {projectDetail.artifactBJson?.integration_method || 'N/A'}
-                <span className="font-semibold text-slate-900 block mt-3 mb-1">Legacy Volume:</span>
-                {projectDetail.artifactBJson?.legacy_volume || 'N/A'}
-              </div>
+            <div className="pt-4 border-t border-slate-200 mt-6">
+              <ArtifactBView projectId={projectDetail.id} />
             </div>
           </div>
         ) : (

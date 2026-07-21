@@ -2,9 +2,9 @@ import { useReducer, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useBlocker } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/modal";
 import type { VoidItem } from "@t/jsonb.types";
 import {
   createSession,
@@ -64,15 +64,24 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_ERROR":
       return { ...state, error: action.payload, isLoading: false };
     case "STAGE_COMPLETE": {
-      const { gateResult, archetype, symptomText } = action.payload;
+      const { gateResult, archetype, symptomText, nextStage } = action.payload as any;
+      const isGatePassed = gateResult?.gate_passed;
+      let newStage = nextStage ?? (state.currentStage + 1);
+      
+      if (gateResult && !isGatePassed) {
+         newStage = state.currentStage; // stay on current stage if we just failed the gate
+      }
+      
       return {
         ...state,
         error: null,
-        gateResult: gateResult || state.gateResult,
+        // Clear the gateResult UNLESS this STAGE_COMPLETE action explicitly passed a new one.
+        // This stops stale gate failures from persisting when the user fixes their input and clicks Next.
+        gateResult: gateResult !== undefined ? gateResult : null, 
         archetype: archetype || state.archetype,
         symptomTextDraft: symptomText || state.symptomTextDraft,
-        currentStage: gateResult ? (gateResult.gate_passed ? 5 : state.currentStage) : state.currentStage + 1,
-        sessionState: gateResult && !gateResult.gate_passed ? "RETURNED" : state.sessionState,
+        currentStage: newStage,
+        sessionState: gateResult && !isGatePassed ? "RETURNED" : "IN_PROGRESS",
       };
     }
     case "SYNTHESIS_RESOLVED":

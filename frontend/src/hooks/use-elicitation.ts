@@ -9,6 +9,8 @@ import {
 } from "@t/api.types";
 import { useAuthStore } from '@/store/auth.store';
 
+export type { GateResult, StageCompleteData };
+
 export function useElicitation(sessionId?: string) {
   const sessionQuery = useQuery({
     queryKey: ["elicitation", "session", sessionId],

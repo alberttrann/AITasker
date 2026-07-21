@@ -423,7 +423,22 @@ export class ElicitationService {
   async processStage5(sessionId: string, userId: string) {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, userId);           
-    this.assertStage(session, 5);                    
+    
+    // Allow stage 4 (just finished tech inputs) or 5 (retrying synthesis)
+    if (session.currentStage !== 4 && session.currentStage !== 5) {
+      throw new BadRequestException(
+        `Session is at stage ${session.currentStage}, expected stage 4 or 5.`
+      );
+    }
+
+    // Force DB up to Stage 5 if we arrived here from Stage 4
+    if (session.currentStage === 4) {
+      await this.prisma.elicitationSession.update({
+        where: { id: sessionId },
+        data: { currentStage: 5 }
+      });
+      session.currentStage = 5;
+    }
 
     const techTeamUserId = await this.resolveTechTeamUserId(session, userId);
     return this.runSynthesis(session, techTeamUserId);

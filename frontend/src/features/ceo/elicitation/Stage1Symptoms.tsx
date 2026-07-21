@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/Button";
-import { Label } from "@/components/ui/Input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/input";
 import { Chip } from "@/components/ui/Chip";
 import { Bot, Loader2, CheckCircle2 } from "lucide-react";
 import type { VoidItem } from "@t/jsonb.types";

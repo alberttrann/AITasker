@@ -1,6 +1,6 @@
 import { useReducer, useEffect, useState, useRef } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/input';
 import { submitStage4, saveStage4Draft, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -8,7 +8,7 @@ import { useToastActions } from '@lib/toast-context';
 
 interface Stage4AProps {
   sessionId: string;
-  onComplete: (data: { gateResult?: GateResult }) => void;
+  onComplete: (data: { gateResult?: GateResult; nextStage?: number }) => void;
   onError: (msg: string) => void;
   onBack: () => void;
   isForced?: boolean;
@@ -121,7 +121,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
   const toast = useToastActions();
   const [cooldown, setCooldown] = useState(0);
   
-  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -192,7 +192,8 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
           dispatch({ type: 'SET_MISSING_WARNING', missing: res.missingArtifacts });
         } else {
           queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
-          onComplete({});
+          // Explicitly advance to 5, avoiding reliance on implicit state transitions
+          onComplete({ nextStage: 5 });
         }
       })
       .catch((err: any) => {
@@ -204,7 +205,7 @@ export default function Stage4ScenarioA({ sessionId, onComplete, onError, onBack
 
   const handleConfirmMissing = () => {
     queryClient.invalidateQueries({ queryKey: ["elicitation", "session", sessionId] });
-    onComplete({});
+    onComplete({ nextStage: 5 });
   };
 
   const handleRevertMissing = async () => {

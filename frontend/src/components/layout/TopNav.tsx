@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
 import { Bell, BellOff, MessageSquare, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
-import { ConfirmModal, Modal } from '@/components/ui/Modal';
+import { ConfirmModal, Modal } from '@/components/ui/modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotificationsStore } from '@/store/notifications.store';
@@ -81,6 +81,7 @@ export default function TopNav() {
   const unreadNotifications = notifications.filter(n => !n.read).length;
   const queryClient = useQueryClient();
   const unreadCounts = useEngagementStore((s) => s.unreadCounts);
+  const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
 
   const rawThreads = conversationsResponse?.data || [];
@@ -117,9 +118,9 @@ export default function TopNav() {
   // Safely grab the first letter of the name
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
 // 1. Decide which raw string to use
-  const rawRole = user?.activeRole === 'CLIENT' && user?.clientSubtype
+  const rawRole: string = user?.activeRole === 'CLIENT' && user?.clientSubtype
   ? user.clientSubtype 
-  : user?.activeRole;
+  : (user?.activeRole || '');
 
 // 2. Format it for display
 const roleDisplay = rawRole ? rawRole.replace('_', ' ').toUpperCase() : 'UNKNOWN';
@@ -147,8 +148,8 @@ const RoleIcon =
   
   // Real balances via useWallet hook
   const { data: wallet } = useWallet();
-  const availableBalance = (wallet as any)?.availableBalance ?? wallet?.available_balance ?? 0;
-  const lockedBalance = (wallet as any)?.lockedBalance ?? wallet?.locked_balance ?? 0;
+  const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
+  const lockedBalance = (wallet as any)?.lockedBalance ?? (wallet as any)?.locked_balance ?? 0;
 
   const handleSignOut = () => {
     setIsSignOutModalOpen(true);
@@ -469,11 +470,11 @@ const RoleIcon =
 
 
                     {/* Divider for Promoted Actions */}
-                    {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+                    {(!(hasClient && hasExpert) || !isPro) && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                       <div className="h-[1px] bg-primary/10 my-2 mx-4" />
                     )}
 
-                    {!(hasClient && hasExpert) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+                    {!(hasClient && hasExpert) && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                       <button
                         onClick={() => {
                           setActiveDropdown(null);
@@ -485,7 +486,7 @@ const RoleIcon =
                       </button>
                     )}
 
-                    {!isPro && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+                    {!isPro && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                       <Link
                         to={`${dashboardRoute}/profile`}
                         onClick={() => setActiveDropdown(null)}
@@ -540,7 +541,7 @@ const RoleIcon =
             </>
           ) : (
             <>
-              {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+              {(rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
               <Link to={`${dashboardRoute}/wallet`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <Wallet size={20} className="text-slate-500" /> Wallet <span className="ml-auto font-bold">{formatVND(availableBalance)}</span>
               </Link>
@@ -603,11 +604,11 @@ const RoleIcon =
               )}
 
               {/* Divider for Promoted Actions */}
-              {(!(hasClient && hasExpert) || !isPro) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+              {(!(hasClient && hasExpert) || !isPro) && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                 <div className="h-[1px] bg-primary/10 my-2" />
               )}
 
-              {!(hasClient && hasExpert) && rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+              {!(hasClient && hasExpert) && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                 <button
                   onClick={() => {
                     setActiveDropdown(null);
@@ -634,7 +635,7 @@ const RoleIcon =
       )}
 
       {/* Bottom Navigation Row */}
-      {isAuthenticated && rawRole !== 'ADMIN' && (
+      {isAuthenticated && (rawRole as string) !== 'ADMIN' && (
         <div className="hidden md:block w-full bg-transparent border-t border-primary/20 relative z-40">
           <div className="flex flex-row items-center justify-start gap-8 px-6 max-w-[1440px] mx-auto">
             <Link 
@@ -691,7 +692,7 @@ const RoleIcon =
               </>
             )}
 
-            {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
+            {(rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
               <Link 
                 to={`${dashboardRoute}/subscriptions`} 
                 className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/subscriptions') ? 'text-primary' : 'text-secondary hover:text-primary'} flex items-center gap-1.5`}
@@ -704,7 +705,7 @@ const RoleIcon =
               </Link>
             )}
 
-            {rawRole !== 'ADMIN' && (
+            {(rawRole as string) !== 'ADMIN' && (
               <Link 
                 to={`${dashboardRoute}/inbox`} 
                 className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/inbox') || location.pathname.includes('/messages') ? 'text-primary' : 'text-secondary hover:text-primary'}`}

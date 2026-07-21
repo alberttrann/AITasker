@@ -11,7 +11,7 @@ import { useInvitations } from '@/hooks/use-invitations';
 import { useMyServices } from '@/hooks/use-services';
 import { useEngagements } from '@/hooks/use-engagements';
 import Widget, { WidgetMetric } from '@/components/dashboard/Widget';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Briefcase, PlusCircle, ArrowRight } from 'lucide-react';
 import { ServiceCreateModal } from './services/ServiceCreateModal';
@@ -47,8 +47,8 @@ export function ExpertOverview() {
   const activeEngagements = engagements?.filter(e => e.state === 'ACTIVE' || e.state === 'CONNECTED') || [];
   const latestActive = activeEngagements.length > 0 ? activeEngagements[0] : null;
 
-  const hasActiveProjects = engagements?.some(e => (e.state === 'ACTIVE' || e.state === 'CONNECTED') && e.project) || false;
-  const hasActiveOrders = engagements?.some(e => e.state === 'ACTIVE' && e.service) || false;
+  const hasActiveProjects = engagements?.some(e => ((e.state as string) === 'ACTIVE' || (e.state as string) === 'CONNECTED') && e.project) || false;
+  const hasActiveOrders = engagements?.some(e => (e.state as string) === 'ACTIVE' && (e as any).service) || false;
 
   let workspaceHref = '/expert/service';
   if (hasActiveProjects && !hasActiveOrders) {
@@ -72,7 +72,7 @@ export function ExpertOverview() {
         label: 'Active Workspaces',
         value: isLoadingEngagements ? '...' : activeEngagements.length.toString(),
         subValue: latestActive 
-          ? `Working on "${latestActive.project?.projectName || latestActive.service?.title || 'Service Order'}"` 
+          ? `Working on "${(latestActive as any).project?.projectName || (latestActive as any).service?.title || 'Service Order'}"` 
           : 'No active workspaces',
         href: workspaceHref,
         icon: <Briefcase className="h-5 w-5" />
