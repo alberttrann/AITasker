@@ -18,6 +18,7 @@
     "test:unit": "jest --config jest.unit.config.js --passWithNoTests",
     "test:all": "npm run test:unit && npm run test:e2e",
     "validate": "bash ../scripts/validate.sh",
+    "simulate:webhook": "npx tsx simulate_milestone_payment.ts",
     "swagger:gen": "ts-node -e \"require('./src/swagger-gen').generate()\" > swagger.json",
     "test:e2e": "dotenv -e .env.test -- jest --config jest.e2e.config.js --forceExit --runInBand --passWithNoTests",
     "test:e2e:watch": "dotenv -e .env.test -- jest --config jest.e2e.config.js --watch --forceExit --runInBand --passWithNoTests",

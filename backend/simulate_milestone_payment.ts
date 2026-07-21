@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
 import * as crypto from 'crypto';
@@ -13,26 +14,43 @@ function signSepayPayload(rawBodyString: string, secret: string, timestamp: stri
 }
 
 async function main() {
-  const webhookSecret = "enter your webhook secret here"; // from local .env
+  const webhookSecret = process.env.SEPAY_WEBHOOK_SECRET || "dev-secret-key-12345";
   
-  // 1. Fetch the latest active virtual account created locally for a MILESTONE or SERVICE
-  const va = await prisma.virtualAccount.findFirst({
-    where: {
-      entityType: { in: ["MILESTONE", "SERVICE"] },
-      status: "ACTIVE"
-    },
-    orderBy: {
-      expiresAt: 'desc'
-    }
-  });
+  // Allow passing a specific VA / Memo code and custom amount via CLI arguments:
+  // e.g. npm run simulate:webhook WALLETTOPUPokhewqcV 10000000
+  const targetVaNumber = process.argv[2]?.trim();
+  const customAmount = process.argv[3] ? Number(process.argv[3]) : undefined;
+
+  let va;
+  if (targetVaNumber) {
+    va = await prisma.virtualAccount.findFirst({
+      where: { vaNumber: targetVaNumber }
+    });
+  } else {
+    // Fetch the latest ACTIVE, unexpired virtual account created locally across ALL entity types (WALLET_TOPUP, MILESTONE, SERVICE, etc.)
+    va = await prisma.virtualAccount.findFirst({
+      where: {
+        status: "ACTIVE",
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      },
+      orderBy: {
+        expiresAt: 'desc'
+      }
+    });
+  }
 
   if (!va || !va.vaNumber) {
-    console.error("❌ No ACTIVE virtual account found for any milestone or service on your LOCAL database.");
-    console.error("👉 Make sure you clicked 'Generate Payment Info' or 'Pay Now' on your browser page first!");
+    console.error("❌ No active, unexpired virtual account found in your local database.");
+    console.error("👉 Make sure you clicked 'Pay Now', 'Top Up', or generated a payment QR in your browser first!");
     return;
   }
 
-  console.log(`Found active VA: ${va.vaNumber} (Type: ${va.entityType}) with amount: ${va.fixedAmount} VND (linked to ID: ${va.entityId})`);
+  const transferAmount = customAmount || (va.fixedAmount ? Number(va.fixedAmount) : 10000000);
+
+  console.log(`Found active VA: ${va.vaNumber} (Type: ${va.entityType}) with amount: ${transferAmount} VND (linked to ID: ${va.entityId})`);
 
   // 2. Construct SePay webhook payload
   const payload = {
@@ -44,7 +62,7 @@ async function main() {
     content: `${va.vaNumber} topup simulation`,
     transferType: "in",
     description: `BankAPINotify ${va.vaNumber} topup simulation`,
-    transferAmount: Number(va.fixedAmount || 2000),
+    transferAmount: transferAmount,
     referenceCode: `SIM-FT-${Date.now()}`,
     accumulated: 0,
     id: Math.floor(Math.random() * 10000000)
