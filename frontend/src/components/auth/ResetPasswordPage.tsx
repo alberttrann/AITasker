@@ -3,8 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '@hooks/use-auth';
-import { Button } from '@components/ui/Button';
-import { Input, Label } from '@components/ui/Input';
+import { Button } from '@components/ui/button';
+import { Input, Label } from '@components/ui/input';
 import { Eye, EyeOff, XCircle, CheckCircle2 } from 'lucide-react';
 import { Spinner } from '@components/ui/Spinner';
 
