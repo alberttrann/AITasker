@@ -21,8 +21,8 @@ export function useExpertProfile() {
 
   const saveDomains = useMutation({
     mutationFn: async (domains: { domainCode: string; depthLevel: string }[]) => {
-      await apiClient.post('/expert-profile/domains/sync', {
-        items: domains.map(d => ({ code: d.domainCode, depth: d.depthLevel })),
+      await apiClient.put('/expert-profile/domains/sync', {
+        domains: domains.map(d => ({ domainCode: d.domainCode, depthLevel: d.depthLevel })),
       });
     },
     onSuccess: () => {
@@ -32,8 +32,8 @@ export function useExpertProfile() {
 
   const saveSeams = useMutation({
     mutationFn: async (seams: { code: string }[]) => {
-      await apiClient.post('/expert-profile/seams/sync', {
-        items: seams.map(s => ({ code: s.code })),
+      await apiClient.put('/expert-profile/seams/sync', {
+        seams: seams.map(s => s.code),
       });
     },
     onSuccess: () => {
@@ -43,7 +43,7 @@ export function useExpertProfile() {
 
   const saveStackAndModel = useMutation({
     mutationFn: async (payload: { engagementModel?: string; stackTagsJson?: string[]; archetypeHistoryJson?: any[]; bio?: string }) => {
-      await apiClient.patch('/expert-profile/me', payload);
+      await apiClient.put('/expert-profile/me', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expert-profile', 'me'] });
