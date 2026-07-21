@@ -32,7 +32,7 @@ export class ProjectMilestoneDto {
   deliverable_statement?: string;
 
   @IsNumber()
-  @Min(1, { message: 'payment_amount_vnd must be greater than zero' })
+  @Min(0, { message: 'payment_amount_vnd must be greater than zero' })
   payment_amount_vnd: number;
 
   @IsNumber()

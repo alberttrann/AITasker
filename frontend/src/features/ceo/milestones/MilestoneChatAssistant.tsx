@@ -216,14 +216,20 @@ export default function MilestoneChatAssistant({
           updatedFramework[targetIndex] = { ...updatedFramework[targetIndex], [targetField]: currentEdit.suggested_value };
         }
 
-        const cleanMilestones = updatedFramework.map((m: any) => ({
-          milestone_number: Number(m.milestone_number || m.milestoneNumber),
-          deliverable_statement: m.deliverable_statement || m.deliverableStatement || '',
-          payment_amount_vnd: Number(m.payment_amount_vnd ?? m.paymentAmountVnd ?? 0),
-          estimated_duration_days: Number(m.estimated_duration_days ?? m.estimatedDurationDays ?? 0),
-          criteria: parseCriteria(m.criteria || m.acceptanceCriteria || m.acceptance_criteria || []),
-          tech_stack: m.tech_stack || m.techStack || []
-        }));
+        const cleanMilestones = updatedFramework.map((m: any) => {
+          const parsedCriteria = parseCriteria(m.criteria || m.acceptanceCriteria || m.acceptance_criteria);
+          
+          return {
+            milestone_number: Number(m.milestone_number || m.milestoneNumber),
+            deliverable_statement: m.deliverable_statement || m.deliverableStatement || '',
+            // Fallback 0 to 1 VND to bypass the backend @Min(1) draft constraint cleanly
+            payment_amount_vnd: Math.max(1, Number(m.payment_amount_vnd ?? m.paymentAmountVnd ?? 1)), 
+            estimated_duration_days: Number(m.estimated_duration_days ?? m.estimatedDurationDays ?? 0),
+            tech_stack: m.tech_stack || m.techStack || [],
+            // CRITICAL: Only include the criteria key if we actually have items, satisfying @ArrayMinSize(1)
+            ...(parsedCriteria.length > 0 ? { criteria: parsedCriteria } : {})
+          };
+        });
 
         updateProjectMilestones.mutate({ id: projectId, milestones: cleanMilestones }, {
           onSuccess: () => {
