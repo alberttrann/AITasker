@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, UseGuards, Param, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Body, UseGuards, Param, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { ExpertProfileService } from './expert-profiles.service';
 import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -21,6 +21,7 @@ export class ExpertProfilesController {
   }
 
   @Put('me')
+  @Patch('me')
   @ApiBearerAuth('JWT')
   async updateMyProfile(@CurrentUser() user: { id: string }, @Body() dto: UpdateExpertProfileDto) {
     return this.expertService.updateMyProfile(user.id, dto);

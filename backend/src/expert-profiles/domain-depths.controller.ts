@@ -21,6 +21,7 @@ export class DomainDepthsController {
   }
 
   @Put('sync')
+  @Post('sync')
   @ApiBearerAuth('JWT')
   async syncDomainDepths(@CurrentUser() user: { id: string }, @Body() dto: SyncDomainsDto) {
     return this.expertProfileService.syncDomainDepths(user.id, dto.domains);

@@ -262,7 +262,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             {domainItems.length > 0 && (
               <div>
                 <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Domain Expertise & Match</h4>
-                <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-[8px] p-3">
+                <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-[8px] p-3 max-h-[220px] overflow-y-auto">
                   {domainItems.map((item) => (
                     <div key={item.code} className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
@@ -315,7 +315,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             {gaps.length > 0 && (
               <div>
                 <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Project Seam Coverage</h4>
-                <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-[8px] p-3">
+                <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-[8px] p-3 max-h-[180px] overflow-y-auto">
                   {gaps.map((g) => {
                     const isVerified = profile?.seamClaims?.some(
                       (sc: any) => sc.seamCode === g.seam_code && (sc.verificationTier === 'EVIDENCE_BACKED' || sc.verificationTier === 'VERIFIED')
@@ -382,7 +382,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
               </p>
               
               <textarea
-                className="w-full flex-1 min-h-[220px] rounded-[8px] border border-slate-200 bg-white px-3.5 py-3 text-[13px] leading-relaxed text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none shadow-sm transition-shadow"
+                className="w-full flex-1 min-h-[140px] rounded-[8px] border border-slate-200 bg-white px-3.5 py-3 text-[13px] leading-relaxed text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none shadow-sm transition-shadow"
                 value={inviteMessage}
                 onChange={(e) => setInviteMessage(e.target.value)}
                 disabled={isInviting || invited}

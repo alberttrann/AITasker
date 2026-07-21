@@ -42,7 +42,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
     const getValidSeams = () => {
     return seamStates.filter(s => {
       if (!s.checked) return false;
-      const requiredDomains = s.code.split('↔');
+      const requiredDomains = s.code.includes('↔') ? s.code.split('↔') : s.code.split('<->');
       const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
       
       const existing = (initialSeams || []).find((is: any) => (is.seamCode || is.code) === s.code);
@@ -114,7 +114,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
             const hasSubmissions = (existing?.submissionCount || 0) > 0;
             const cannotRemove = isVerified || hasSubmissions;
             
-            const requiredDomains = seam.code.split('<->');
+            const requiredDomains = seam.code.includes('↔') ? seam.code.split('↔') : seam.code.split('<->');
             const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
             
             const isInvalid = !hasRequiredDomains && !cannotRemove;

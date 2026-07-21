@@ -22,6 +22,7 @@ export class SeamClaimsController {
   }
 
   @Put('sync')
+  @Post('sync')
   @ApiBearerAuth('JWT')
   async syncSeamClaims(@CurrentUser() user: { id: string }, @Body() dto: SyncSeamsDto) {
     return this.expertProfileService.syncSeamClaims(user.id, dto.seams);
