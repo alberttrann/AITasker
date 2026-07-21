@@ -217,10 +217,10 @@ export default function MilestoneChatAssistant({ projectId, engagementId, curren
     return (
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 bg-emerald-600 text-white rounded-full shadow-xl hover:bg-emerald-700 hover:-translate-y-1 transition-all z-50 flex items-center justify-center group"
+        className="fixed bottom-6 right-6 p-4 bg-emerald-600 text-white rounded-full shadow-xl hover:bg-emerald-700 hover:-translate-y-1 transition-all duration-300 z-50 flex items-center justify-center group"
       >
-        <Bot className="w-6 h-6 mr-0 group-hover:mr-2 transition-all" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all whitespace-nowrap font-medium text-sm">
+        <Bot className="w-6 h-6 transition-all duration-300" />
+        <span className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap font-medium text-sm">
           Milestone Assistant
         </span>
       </button>

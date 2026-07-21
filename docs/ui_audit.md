@@ -92,3 +92,61 @@ This document tracks the detailed UI and integration audits across all main flow
 **Unhappy Path:**
 - [ ] Insufficient balance (`422`) shows an error prompting wallet top-up.
 - [ ] Already subscribed (`409`) shows a relevant error message.
+
+---
+
+## MF-3: Tech Team Handoff Registration
+
+### Phase A: CEO Generates Handoff Link (`POST /elicitation/sessions/:id/generate-handoff-link`)
+**Happy Path:**
+- [x] In Stage 4 of Elicitation, CEO clicks to delegate to Tech Team, triggering `generate-handoff-link`.
+- [x] UI displays the `invite_link` securely and provides a one-click copy button.
+
+**Unhappy Path:**
+- [x] API failures show a toast error instead of silently failing.
+
+### Phase B: Tech Team Registration & Claim (`POST /auth/register/handoff` & `POST /auth/claim-handoff`)
+**Happy Path:**
+- [x] Visiting `/register/handoff/:token` parses the JWT (if valid) and pre-fills email (disabled).
+- [x] Submitting registration calls `POST /auth/register/handoff` and transitions to OTP screen.
+- [x] Entering OTP successfully completes registration, saves tokens, and routes to `/tech-team`.
+- [x] If logged in as an existing user matching the email, clicking "Accept" calls `POST /auth/claim-handoff`.
+
+**Unhappy Path:**
+- [x] Visiting an expired or malformed token routes to `/register/handoff/expired`.
+- [x] If logged in but email mismatches, UI strictly blocks "Accept" button and displays "Account Mismatch" warning.
+- [x] Submitting invalid registration data (weak password, empty name) shows validation errors.
+- [x] API returning `409` (user already exists) or `EMAIL_UNVERIFIED` is handled gracefully.
+
+---
+
+## MF-4: AI Elicitation Engine (5-Stage)
+
+### Stage 1: Symptoms (`PUT /elicitation/sessions/:id/stage1`)
+**Happy Path:**
+- [x] Symptom draft autosaves every 30s without hitting the LLM (`PATCH .../draft`).
+- [x] Submitting symptoms calls `PUT .../stage1` with a 120s timeout.
+- [x] UI handles the extracted budget, voids, archetypes, and shows the `critical_artifacts` banner.
+
+### Stage 2: Archetype Selection (`PUT /elicitation/sessions/:id/stage2`)
+**Happy Path:**
+- [x] Archetype codes are dynamically fetched from the DB, not hardcoded.
+- [x] CEO must acknowledge all voids before submitting.
+
+### Stage 3: Probe Questions (`PUT /elicitation/sessions/:id/stage3`)
+**Happy Path:**
+- [x] Questions are dynamically rendered per archetype.
+- [x] If the API returns `vague` or `irrelevant` answers, the UI highlights them.
+- [x] If the backend explicitly sets `advanced: true`, the UI treats the warnings as advisory and proceeds to Stage 4.
+
+### Stage 4: Tech Context (`PUT /elicitation/sessions/:id/stage4`)
+**Happy Path:**
+- [x] Autosaves draft tech context every 30s.
+- [x] The form includes dynamic technical artifacts mapping based on `critical_artifacts_json`.
+- [x] If `missingArtifacts` are returned by the API, a warning modal asks "Incomplete spec — proceed anyway?".
+- [x] CEO can also delegate to the Tech Team (Branch B).
+
+### Stage 5: Synthesis (`POST /elicitation/sessions/:id/stage5`)
+**Happy Path:**
+- [x] Submitting synthesis waits up to 120s for the LLM to return `milestoneFrameworkJson` with cost/duration estimates.
+- [x] Handles partial or failed synthesis with a retry button or clear UI feedback.
