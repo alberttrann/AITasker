@@ -67,9 +67,15 @@ INVITE_TOKEN=$(echo "$RES" | jq -r '.invite_link' | sed -n 's/.*token=\(.*\)/\1/
 TECH_EMAIL="mf6-tech-$(date +%s)@aitasker.test"
 RES=$(curl -s -X POST "${BASE_URL}/auth/register/handoff" -H "Content-Type: application/json" \
   -d "{\"invite_token\":\"${INVITE_TOKEN}\",\"email\":\"${TECH_EMAIL}\",\"password\":\"${PASSWORD}\",\"fullName\":\"MF6 Test Tech\"}")
+REAL_OTP=$(run_db_script "
+  const u = await prisma.user.findUnique({ where: { email: '${TECH_EMAIL}' }});
+  console.log(u ? u.emailOtp : '');
+")
+RES=$(curl -s -X POST "${BASE_URL}/auth/verify-otp" -H "Content-Type: application/json" \
+  -d "{\"email\":\"${TECH_EMAIL}\",\"otp\":\"${REAL_OTP}\"}")
 TECH_TOKEN=$(echo "$RES" | jq -r '.access_token')
 TECH_AUTH=(-H "Authorization: Bearer ${TECH_TOKEN}")
-echo "  Tech team registered and linked via handoff."
+echo "  Tech team registered, verified, and linked via handoff."
 
 RES=$(curl -s -X PUT "${BASE_URL}/elicitation/sessions/${SESSION_ID}/stage4-handoff" -H "Content-Type: application/json" "${TECH_AUTH[@]}" \
   -d '{"current_stack":"Python FastAPI, PostgreSQL, AWS ECS","data_available":"200k Zendesk conversation logs, 50k SKU catalogue","latency_requirement":"Under 3 seconds end-to-end"}' \
