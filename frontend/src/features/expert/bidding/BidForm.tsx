@@ -5,7 +5,7 @@ import { useProject, useArtifactA } from '@/hooks/use-projects';
 import { useExpertProfile } from '@/hooks/use-expert-profile';
 import { useEngagement, useEngagements } from '@/hooks/use-engagements';
 import { useCreateBid } from '@/hooks/use-bids';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { ConfirmModal } from '@/components/ui/modal';
