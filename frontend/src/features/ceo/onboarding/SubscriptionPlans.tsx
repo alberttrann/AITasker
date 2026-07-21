@@ -29,7 +29,6 @@ export default function SubscriptionPlans() {
     : [];
 
   const handleActivate = (packageId: string) => {
-    setErrorMsg(null);
     activateSubscription.mutate(
       { activeRole: user?.activeRole || 'CLIENT', packageId },
       {
