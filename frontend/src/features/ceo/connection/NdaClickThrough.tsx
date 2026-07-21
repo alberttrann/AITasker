@@ -51,12 +51,24 @@ export default function CeoNdaClickThrough() {
 
   // ── Scroll detection ───────────────────────────────────────────
 
-  const handleScroll = useCallback(() => {
+  const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
+    const contentFits = el.scrollHeight <= el.clientHeight + 1;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-    if (atBottom) setHasScrolledToBottom(true);
+    if (contentFits || atBottom) setHasScrolledToBottom(true);
   }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    updateScrollState();
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(el);
+
+    return () => resizeObserver.disconnect();
+  }, [engagement, updateScrollState]);
 
   // ── Sign handler ───────────────────────────────────────────────
 
@@ -126,7 +138,7 @@ export default function CeoNdaClickThrough() {
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-[768px] flex flex-col h-[calc(100vh-120px)] gap-4 pb-4">
+    <div className="mx-auto max-w-[768px] space-y-4 pb-8">
       <div className="shrink-0">
         <button
           onClick={() => navigate(-1)}
@@ -179,11 +191,14 @@ export default function CeoNdaClickThrough() {
       />
 
       {/* NDA text */}
-      <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <Card className="flex h-[clamp(320px,45vh,480px)] flex-col overflow-hidden">
         <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
           <div
+            id="nda-agreement-scroll-ceo"
             ref={scrollRef}
-            onScroll={handleScroll}
+            onScroll={updateScrollState}
+            tabIndex={0}
+            aria-label="Non-disclosure agreement text"
             className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
           >
             <div className="flex items-center gap-2 mb-4">
@@ -210,8 +225,9 @@ export default function CeoNdaClickThrough() {
       {!alreadySigned ? (
         <div className="space-y-3 shrink-0">
           <Button
+            id="btn-sign-ceo-nda"
             variant="primary"
-            className="w-full"
+            className="w-full cursor-pointer disabled:cursor-not-allowed"
             disabled={!hasScrolledToBottom || acceptNda.isPending}
             onClick={() => setShowSignConfirm(true)}
           >

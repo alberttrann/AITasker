@@ -433,8 +433,11 @@ export class ElicitationService {
     const session = await this.findSessionOrThrow(sessionId);
     this.assertOwnership(session, ceoUserId);
 
+    const normalizedEmail =
+      typeof email === 'string' ? email.trim().toLowerCase() : '';
+
     // Verify the email is legitimate (MX + disposable block) before generating link
-    await this.emailValidatorService.assertValidEmail(email);
+    await this.emailValidatorService.assertValidEmail(normalizedEmail);
 
     const jti = randomUUID();
 
@@ -442,7 +445,7 @@ export class ElicitationService {
       {
         sessionId: session.id,
         ceoId:     ceoUserId,
-        email:     email,
+        email:     normalizedEmail,
         jti:       jti,
         purpose:   'tech-team-handoff',
       },

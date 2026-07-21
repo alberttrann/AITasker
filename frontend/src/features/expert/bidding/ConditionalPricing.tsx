@@ -74,7 +74,10 @@ export default function ConditionalPricing({
           </p>
         ) : (
           <p className="mt-0.5 text-[12px] text-[#64748B]">
-            Review the project milestones defined by the client. You can optionally add a counter-offer with your own price and condition for any milestone.
+            Review the project milestones defined by the client. You can
+            optionally add a counter-offer with your own price and condition for
+            any milestone. Milestones without a counter-offer keep the client's
+            defaults.
           </p>
         )}
       </div>

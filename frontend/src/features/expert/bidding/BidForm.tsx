@@ -13,6 +13,76 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
 import FootprintAlignment, { type FootprintAlignmentData } from './FootprintAlignment';
 import ConditionalPricing, { type PricingItem } from './ConditionalPricing';
+import type { MilestoneFrameworkItem } from '@/types/jsonb.types';
+
+type CompatibleMilestoneFrameworkItem = MilestoneFrameworkItem & {
+  milestoneNumber?: number;
+  deliverableStatement?: string;
+  paymentAmountVnd?: number;
+  estimated_duration_days?: number;
+  estimatedDurationDays?: number;
+  condition?: string;
+};
+
+interface SubmittedPricingItem {
+  milestone_number: number;
+  price_vnd: number;
+  condition: string;
+  estimated_duration_days?: number;
+}
+
+function getDefaultPricingItem(
+  frameworkItem: CompatibleMilestoneFrameworkItem,
+): SubmittedPricingItem {
+  const milestoneNumber =
+    frameworkItem.milestone_number ?? frameworkItem.milestoneNumber ?? 0;
+  const price = Number(
+    frameworkItem.payment_amount_vnd ?? frameworkItem.paymentAmountVnd ?? 0,
+  );
+  const condition =
+    frameworkItem.condition?.trim() ||
+    frameworkItem.deliverable_statement?.trim() ||
+    frameworkItem.deliverableStatement?.trim() ||
+    '';
+  const duration = Number(
+    frameworkItem.estimated_duration_days ??
+      frameworkItem.estimatedDurationDays ??
+      0,
+  );
+
+  return {
+    milestone_number: milestoneNumber,
+    price_vnd: price,
+    condition,
+    ...(Number.isInteger(duration) && duration > 0
+      ? { estimated_duration_days: duration }
+      : {}),
+  };
+}
+
+function mergePricingWithProjectDefaults(
+  frameworkItems: MilestoneFrameworkItem[],
+  overrides: PricingItem[],
+): SubmittedPricingItem[] {
+  const overridesByMilestone = new Map(
+    overrides.map((item) => [item.milestone_number, item]),
+  );
+
+  return frameworkItems.map((frameworkItem) => {
+    const defaults = getDefaultPricingItem(frameworkItem);
+    const override = overridesByMilestone.get(defaults.milestone_number);
+
+    if (!override) return defaults;
+
+    return {
+      milestone_number: defaults.milestone_number,
+      price_vnd: override.price_vnd ?? defaults.price_vnd,
+      condition: override.condition || defaults.condition,
+      estimated_duration_days:
+        override.estimated_duration_days ?? defaults.estimated_duration_days,
+    };
+  });
+}
 
 export default function BidForm() {
   const { projectId: routeId } = useParams<{ projectId: string }>();
@@ -107,12 +177,17 @@ export default function BidForm() {
     if (!validate()) return;
     if (!actualProjectId) return;
 
+    const submittedPricing = mergePricingWithProjectDefaults(
+      project?.milestone_framework_json || [],
+      pricing,
+    );
+
     createBid.mutate(
       {
         projectId: actualProjectId,
         footprint_alignment_json: footprint,
         approach_summary: approach,
-        conditional_pricing_json: pricing,
+        conditional_pricing_json: submittedPricing,
       },
       {
         onSuccess: () => {
