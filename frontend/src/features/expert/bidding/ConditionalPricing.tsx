@@ -14,7 +14,11 @@ interface ConditionalPricingProps {
   frameworkItems: MilestoneFrameworkItem[];
   items: PricingItem[];
   onChange: (items: PricingItem[]) => void;
-  errors?: { items?: string; [key: number]: { price?: string; condition?: string } };
+  errors?: {
+    items?: string;
+    offers?: Record<number, { price?: string; condition?: string }>;
+    milestones?: Record<number, { price?: string; condition?: string }>;
+  };
   disabled?: boolean;
   readOnly?: boolean;
 }
@@ -93,8 +97,8 @@ export default function ConditionalPricing({
           // Check if an offer exists for this milestone
           const offerIndex = items.findIndex((it) => it.milestone_number === fwItem.milestone_number);
           const offer = offerIndex >= 0 ? items[offerIndex] : null;
-          // error index matches the items array index
-          const itemErr = offerIndex >= 0 ? errors[offerIndex] || {} : {};
+          const itemErr = offerIndex >= 0 ? errors.offers?.[offerIndex] || {} : {};
+          const milestoneErr = errors.milestones?.[fwItem.milestone_number];
 
           return (
             <div
@@ -156,15 +160,27 @@ export default function ConditionalPricing({
                   )
                 ) : (
                   !offer ? (
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => addOffer(fwItem.milestone_number)}
-                      className="inline-flex items-center gap-1.5 rounded-[6px] border border-dashed border-[#CBD5E1] px-3 py-2 text-[13px] font-medium text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors"
-                    >
-                      <Plus size={14} />
-                      Add your offer
-                    </button>
+                    <div className="space-y-2">
+                      {milestoneErr?.price && (
+                        <p className="text-[12px] text-[#EF4444]" role="alert">
+                          {milestoneErr.price}
+                        </p>
+                      )}
+                      {milestoneErr?.condition && (
+                        <p className="text-[12px] text-[#EF4444]" role="alert">
+                          {milestoneErr.condition}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => addOffer(fwItem.milestone_number)}
+                        className="inline-flex items-center gap-1.5 rounded-[6px] border border-dashed border-[#CBD5E1] px-3 py-2 text-[13px] font-medium text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors"
+                      >
+                        <Plus size={14} />
+                        {milestoneErr ? 'Add required offer' : 'Add your offer'}
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-3 relative pt-2">
                       <div className="absolute right-4 top-2">

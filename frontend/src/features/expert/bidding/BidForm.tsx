@@ -31,6 +31,18 @@ interface SubmittedPricingItem {
   estimated_duration_days?: number;
 }
 
+interface PricingFieldErrors {
+  price?: string;
+  condition?: string;
+}
+
+interface BidFormErrors {
+  approach?: string;
+  items?: string;
+  offers?: Record<number, PricingFieldErrors>;
+  milestones?: Record<number, PricingFieldErrors>;
+}
+
 function getDefaultPricingItem(
   frameworkItem: CompatibleMilestoneFrameworkItem,
 ): SubmittedPricingItem {
@@ -130,7 +142,7 @@ export default function BidForm() {
     }
   }, [bid]);
 
-  const [fieldErrors, setFieldErrors] = useState<Record<string, any>>({});
+  const [fieldErrors, setFieldErrors] = useState<BidFormErrors>({});
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -151,20 +163,37 @@ export default function BidForm() {
 
   // ── Validation ─────────────────────────────────────────────────
 
-  const validate = (): boolean => {
-    const errs: Record<string, any> = {};
+  const validate = (submittedPricing: SubmittedPricingItem[]): boolean => {
+    const errs: BidFormErrors = {};
     if (!approach.trim()) errs.approach = 'Approach summary is required.';
-    // Removed requirement for at least one pricing milestone
-    pricing.forEach((p, idx) => {
-      const itemErrs: any = {};
-      if (!p.price_vnd || p.price_vnd <= 0) itemErrs.price = 'Price must be a positive integer.';
-      if (!p.condition.trim()) itemErrs.condition = 'Describe the milestone condition.';
-      if (Object.keys(itemErrs).length) {
-        // Find original index in pricing array to map error correctly
-        const originalIndex = pricing.findIndex(it => it.milestone_number === p.milestone_number);
-        errs[originalIndex] = itemErrs;
+
+    if (submittedPricing.length === 0) {
+      errs.items = 'The project must define at least one milestone before a bid can be submitted.';
+    }
+
+    submittedPricing.forEach((item) => {
+      const itemErrors: PricingFieldErrors = {};
+      if (!Number.isInteger(item.price_vnd) || item.price_vnd <= 0) {
+        itemErrors.price = 'Set a positive counter price because the client milestone has no valid budget.';
+      }
+      if (!item.condition.trim()) {
+        itemErrors.condition = 'Describe the milestone condition.';
+      }
+      if (Object.keys(itemErrors).length === 0) return;
+
+      const offerIndex = pricing.findIndex(
+        (offer) => offer.milestone_number === item.milestone_number,
+      );
+      if (offerIndex >= 0) {
+        errs.offers = { ...errs.offers, [offerIndex]: itemErrors };
+      } else {
+        errs.milestones = {
+          ...errs.milestones,
+          [item.milestone_number]: itemErrors,
+        };
       }
     });
+
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -174,13 +203,13 @@ export default function BidForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setServerError(null);
-    if (!validate()) return;
     if (!actualProjectId) return;
 
     const submittedPricing = mergePricingWithProjectDefaults(
       project?.milestone_framework_json || [],
       pricing,
     );
+    if (!validate(submittedPricing)) return;
 
     createBid.mutate(
       {
