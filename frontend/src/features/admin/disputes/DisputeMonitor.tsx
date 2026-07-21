@@ -7,7 +7,7 @@ import {
 } from "@/hooks/use-admin";
 import { Spinner } from "@/components/ui/Spinner";
 import { Shield, ShieldAlert, Scale, FileText, ChevronRight } from "lucide-react";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/modal";
 import { formatConfidencePercent } from "@/lib/utils";
 
 export default function DisputeMonitor() {
