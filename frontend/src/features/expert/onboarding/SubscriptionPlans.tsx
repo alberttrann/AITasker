@@ -50,14 +50,14 @@ export default function SubscriptionPlans() {
 
   return (
     <div className="min-h-[80vh] w-full flex flex-col justify-start pt-6 pb-12 shrink-0 min-w-0">
-      <div className="fixed top-1/4 left-1/4 w-100 h-100 bg-emerald-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-75 h-75 bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
+      <div className="fixed top-1/4 left-1/4 w-[400px] h-[400px] bg-emerald-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
 
-      <div className="w-full max-w-360 mx-auto flex flex-col gap-8 items-center justify-center relative z-10 px-6">
+      <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-8 items-center justify-center relative z-10 px-6">
         
         <div className="text-center max-w-2xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-headline font-extrabold text-slate-900 leading-[1.1] mb-6">
-            Unlock the <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-500 to-teal-400">Expert Pro</span> Experience
+            Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Expert Pro</span> Experience
           </h1>
           <p className="text-lg text-slate-600 leading-relaxed">
             Elevate your freelance career with priority matching, premium project access, and 0% withdrawal fees.
@@ -81,16 +81,17 @@ export default function SubscriptionPlans() {
           </div>
         ) : (
           <div className="flex flex-wrap justify-center gap-8 w-full">
-            {clientPackages.map((pkg) => {
+            {/* Changed clientPackages to expertPackages */}
+            {expertPackages.map((pkg) => {
               const priceNum = Number(pkg.priceVnd);
               const canAfford = availableBalance >= priceNum;
 
               return (
-                <div key={pkg.id} className="w-full max-w-sm sm:w-85 bg-white rounded-3xl shadow-xl shadow-emerald-500/5 border border-slate-200 overflow-hidden flex flex-col h-full relative group hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1">
-                  <div className="h-2 w-full bg-linear-to-r from-emerald-400 to-teal-400" />
+                <div key={pkg.id} className="w-full max-w-sm sm:w-[340px] bg-white rounded-3xl shadow-xl shadow-emerald-500/5 border border-slate-200 overflow-hidden flex flex-col h-full relative group hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1">
+                  <div className="h-2 w-full bg-gradient-to-r from-emerald-400 to-teal-400" />
                   <div className="p-8 flex flex-col flex-1">
                     <div className="mb-6">
-                      <h3 className="text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-emerald-600 to-teal-500 mb-2">{pkg.name}</h3>
+                      <h3 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500 mb-2">{pkg.name}</h3>
                       <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-extrabold text-slate-900">{formatVND(priceNum)}</span>
                       </div>
@@ -125,10 +126,12 @@ export default function SubscriptionPlans() {
                           variant="primary"
                           onClick={() => handleActivate(pkg.id)}
                           disabled={activateSubscription.isPending}
-                          isLoading={activateSubscription.isPending}
+                          {/* Removed unsupported isLoading prop */}
                         >
-                          Select Plan
-                          <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                          {activateSubscription.isPending ? 'Activating...' : 'Select Plan'}
+                          {!activateSubscription.isPending && (
+                            <ChevronRight size={20} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                          )}
                         </Button>
                       ) : (
                         <Button
