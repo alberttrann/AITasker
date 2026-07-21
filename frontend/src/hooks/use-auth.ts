@@ -123,14 +123,8 @@ const loginNoRedirect = useMutation({
 
   const registerHandoff = useMutation({
     mutationFn: async (payload: { invite_token: string; email: string; fullName: string; password: string }) => {
-      const { data } = await apiClient.post<{ access_token: string; refresh_token: string }>('/auth/register/handoff', payload);
+      const { data } = await apiClient.post<{ email: string; message: string }>('/auth/register/handoff', payload);
       return data;
-    },
-    onSuccess: async (data) => {
-      store.setTokens(data.access_token, data.refresh_token);
-      const { data: user } = await apiClient.get<UserDto>('/users/me');
-      store.setUser(user);
-      redirectByRole(user, navigate);
     },
   });
 

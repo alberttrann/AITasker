@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Input';
-import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/input';
+import { Loader2, Copyright, UserCheck, LogOut, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 
@@ -49,9 +49,15 @@ function decodeJwt(token: string) {
 export function HandoffRegister() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, logout, user, registerHandoff, loginNoRedirect, claimHandoff } = useAuth();
+  const { isAuthenticated, logout, user, registerHandoff, loginNoRedirect, claimHandoff, verifyOtp, resendOtp } = useAuth();
   
   const [isLoginMode, setIsLoginMode] = useState(false);
+  const [isOtpMode, setIsOtpMode] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isSubmittingOtp, setIsSubmittingOtp] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,7 +103,40 @@ export function HandoffRegister() {
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length !== 6) {
+      setError('Please enter a valid 6-digit verification code.');
+      return;
+    }
+    setIsSubmittingOtp(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await verifyOtp.mutateAsync({ email, otp: otpCode });
+      // verifyOtp.onSuccess in use-auth.ts handles setTokens, setUser, and redirectByRole -> /tech-team
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      setError(typeof msg === 'string' ? msg : 'Invalid or expired verification code.');
+    } finally {
+      setIsSubmittingOtp(false);
+    }
+  };
 
+  const handleResendOtp = async () => {
+    setIsResending(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await resendOtp.mutateAsync({ email });
+      setSuccessMsg(`A fresh verification code has been sent to ${email}`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      setError(typeof msg === 'string' ? msg : 'Failed to resend verification code.');
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -146,6 +185,11 @@ export function HandoffRegister() {
           {error && (
             <div className="mb-6 rounded-lg border border-error/20 bg-error/5 p-3 text-sm text-error text-center">
               {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="mb-6 rounded-lg border border-emerald-500/20 bg-emerald-50 p-3 text-sm text-emerald-700 text-center font-medium">
+              {successMsg}
             </div>
           )}
 
@@ -205,6 +249,75 @@ export function HandoffRegister() {
                 </button>
               </div>
             </div>
+          ) : isOtpMode ? (
+            /* OTP Verification Screen */
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <ShieldCheck size={32} />
+              </div>
+              
+              <div>
+                <h2 className="font-headline text-2xl font-bold text-slate-900 mb-2">
+                  Verify Your Email
+                </h2>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  We sent a 6-digit verification code to <strong className="text-slate-900">{email}</strong>. Enter it below to complete registration.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyOtp} className="space-y-4 text-left">
+                <div className="space-y-2">
+                  <Label htmlFor="otpCode">Verification Code</Label>
+                  <input
+                    id="otpCode"
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    className="w-full rounded-lg border bg-white px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors border-slate-200"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full py-3 font-bold"
+                  disabled={isSubmittingOtp || otpCode.length !== 6}
+                >
+                  {isSubmittingOtp ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Verifying...
+                    </span>
+                  ) : (
+                    'Verify & Complete Registration'
+                  )}
+                </Button>
+
+                <div className="flex flex-col items-center justify-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={isResending}
+                    onClick={handleResendOtp}
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors disabled:opacity-50"
+                  >
+                    {isResending ? 'Resending code...' : "Didn't receive code? Resend OTP"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOtpMode(false);
+                      setError(null);
+                      setSuccessMsg(null);
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-900 underline mt-1"
+                  >
+                    Back to registration
+                  </button>
+                </div>
+              </form>
+            </div>
           ) : (
             <>
               <div className="text-center md:text-left mb-8">
@@ -222,19 +335,29 @@ export function HandoffRegister() {
                 validationSchema={isLoginMode ? loginSchema : registerSchema}
                 onSubmit={async (values, { setSubmitting }) => {
                   setError(null);
+                  setSuccessMsg(null);
                   try {
                     if (isLoginMode) {
                       await loginNoRedirect.mutateAsync({ email: values.email, password: values.password });
                     } else {
-                      await registerHandoff.mutateAsync({
+                      const res = await registerHandoff.mutateAsync({
                         invite_token: token || '',
                         email: values.email,
                         fullName: values.fullName,
                         password: values.password,
                       });
+                      if (res?.message === 'OTP_SENT') {
+                        setIsOtpMode(true);
+                      }
                     }
                   } catch (err: any) {
-                    setError(err.response?.data?.message || `Failed to ${isLoginMode ? 'log in' : 'register'}. Please try again.`);
+                    const msg = err.response?.data?.message;
+                    if (msg === 'EMAIL_UNVERIFIED' || (typeof msg === 'object' && msg?.message === 'EMAIL_UNVERIFIED')) {
+                      setIsOtpMode(true);
+                      setError('Your email is not verified yet. A new verification code has been sent to your email.');
+                    } else {
+                      setError(typeof msg === 'string' ? msg : `Failed to ${isLoginMode ? 'log in' : 'register'}. Please try again.`);
+                    }
                   } finally {
                     setSubmitting(false);
                   }
@@ -378,6 +501,7 @@ export function HandoffRegister() {
                         onClick={() => {
                           setIsLoginMode(!isLoginMode);
                           setError(null);
+                          setSuccessMsg(null);
                           resetForm();
                         }}
                         className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
