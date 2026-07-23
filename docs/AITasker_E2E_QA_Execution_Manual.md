@@ -4,9 +4,17 @@
 
 **Audience:** Manual QA, E2E automation engineers, backend/frontend developers supporting defect triage, product owners, and acceptance-test reviewers.
 
-**Source basis:** The uploaded full codebase snapshot, including React routes and feature screens, NestJS controllers/services/DTOs, FastAPI OpenAPI routes, Prisma schema, simulation scripts, and existing T01–T17 E2E suites.
+**Source basis:** The uploaded full codebase snapshot, including React routes and feature screens, NestJS controllers/services/DTOs, FastAPI OpenAPI routes, Prisma schema, simulation scripts, and existing T01–T17 E2E suites; plus the runtime NestJS Swagger export supplied from branch `feat/Hung/FE-BE-Wiring`.
 
-> **Critical inventory note:** The project handover states a canonical total of **255 endpoints**. Static extraction from this uploaded snapshot identifies **217 NestJS controller declarations plus 12 FastAPI operations = 229 declarations**. After deduplicating one repeated `PUT /milestones/:id/dod/:itemId` declaration, Appendix A contains **228 unique source operations**. This can differ from the canonical count because generated Swagger may expose inherited/aliased/versioned routes, controller parsing may omit dynamically composed decorators, or the handover count may include socket events and external callback contracts. QA must export the running NestJS Swagger JSON and reconcile it against Appendix A before claiming “255/255 covered.” Never mark the release complete solely from the prose checklist.
+> **Authoritative endpoint baseline for this build:** The running NestJS application exposes **222 REST operations** in `swagger.json`, counted only across `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`. This runtime Swagger export is the canonical denominator for frontend-to-backend REST coverage on the tested branch. The earlier claims of **225** or **255 backend endpoints** are not supported by this runtime artifact and must not appear in QA sign-off unless a later release Swagger export proves a different count.
+>
+> The uploaded FastAPI OpenAPI document separately exposes **12 internal AI-service HTTP operations**. These are NestJS-to-FastAPI or operational contracts, not additional browser-consumed NestJS endpoints. Therefore maintain separate coverage totals:
+>
+> - **Frontend ↔ NestJS REST coverage:** `222/222`
+> - **NestJS ↔ FastAPI internal HTTP coverage:** `12/12`
+> - **Socket.io events, email delivery, SePay callbacks, and other non-REST contracts:** tracked separately and never added to the 222 REST denominator
+>
+> The obsolete 228-operation static extraction has been removed from this manual. It mixed runtime NestJS routes with internal AI-service operations and source-level decorator findings, so it is not suitable as a QA inventory.
 
 ---
 
@@ -913,245 +921,309 @@ Recommended final acceptance rule:
 
 ---
 
-# Appendix A — Static Endpoint Inventory from Uploaded Snapshot
+# Appendix A — Canonical Runtime HTTP Contract Inventories
 
-This inventory is a **reconciliation starting point**, not a replacement for exported runtime Swagger. Add columns in the QA tracker for frontend screen, test case IDs, execution date, result, and evidence link.
+This appendix deliberately contains **two separate HTTP inventories**:
 
-| # | Method | Path | Source controller/service | Handler | Coverage classification |
+1. **NestJS public/application API:** 222 runtime Swagger operations.
+2. **FastAPI internal AI service:** 12 OpenAPI operations.
+
+Do not merge them into a single frontend endpoint denominator. The React application is expected to call NestJS. NestJS, in turn, calls FastAPI for AI-assisted operations and technical access checks.
+
+## Appendix A.1 — Full NestJS Runtime Endpoint Inventory
+
+**Authoritative runtime count for `feat/Hung/FE-BE-Wiring`: 222 operations.**
+
+This is the complete inventory supplied from the running Swagger document. QA should use these exact method/path pairs as the endpoint-coverage ledger baseline. No Swagger regeneration instructions are repeated here because the runtime export has already been produced and verified.
+
+| # | Method | Path | Functional area | Primary actor/caller | Typical trigger |
 |---:|---|---|---|---|---|
-| 1 | `GET` | `/health` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 2 | `POST` | `/llm/criterion-check` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 3 | `POST` | `/llm/dispute-eval` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 4 | `POST` | `/llm/elicitation/milestone-chat` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 5 | `POST` | `/llm/elicitation/stage1-extract` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 6 | `POST` | `/llm/elicitation/stage3-vagueness-check` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 7 | `POST` | `/llm/elicitation/stage4-recommend` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 8 | `POST` | `/llm/elicitation/stage5-synthesize` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 9 | `POST` | `/llm/matching` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 10 | `POST` | `/llm/portfolio-eval` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 11 | `POST` | `/llm/service-generate` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 12 | `GET` | `/projects/{project_id}/artifact-b` | `ai-service/openapi.json` | `internal AI route` | _To classify_ |
-| 13 | `GET` | `/admin/analytics` | `backend/src/admin/admin.controller.ts` | `getAnalytics` | _To classify_ |
-| 14 | `GET` | `/admin/decisions` | `backend/src/admin/admin.controller.ts` | `getDecisions` | _To classify_ |
-| 15 | `GET` | `/admin/disputes` | `backend/src/admin/admin.controller.ts` | `getDisputesQueue` | _To classify_ |
-| 16 | `PUT` | `/admin/disputes/:id/resolve` | `backend/src/admin/admin.controller.ts` | `resolveDispute` | _To classify_ |
-| 17 | `GET` | `/admin/engagements` | `backend/src/admin/admin.controller.ts` | `listEngagements` | _To classify_ |
-| 18 | `GET` | `/admin/experts` | `backend/src/admin/admin.controller.ts` | `listExperts` | _To classify_ |
-| 19 | `GET` | `/admin/platform-settings` | `backend/src/admin/admin.controller.ts` | `getPlatformSettings` | _To classify_ |
-| 20 | `PUT` | `/admin/platform-settings` | `backend/src/admin/admin.controller.ts` | `updatePlatformSettings` | _To classify_ |
-| 21 | `GET` | `/admin/projects` | `backend/src/admin/admin.controller.ts` | `listProjects` | _To classify_ |
-| 22 | `GET` | `/admin/projects/:id` | `backend/src/admin/admin.controller.ts` | `getProjectDetail` | _To classify_ |
-| 23 | `PUT` | `/admin/projects/:id/reopen` | `backend/src/admin/admin.controller.ts` | `reopenProject` | _To classify_ |
-| 24 | `PUT` | `/admin/projects/:id/suspend-spec` | `backend/src/admin/admin.controller.ts` | `suspendSpec` | _To classify_ |
-| 25 | `GET` | `/admin/subscriptions/packages` | `backend/src/admin/admin.controller.ts` | `listSubscriptionPackages` | _To classify_ |
-| 26 | `POST` | `/admin/subscriptions/packages` | `backend/src/admin/admin.controller.ts` | `createSubscriptionPackage` | _To classify_ |
-| 27 | `DELETE` | `/admin/subscriptions/packages/:id` | `backend/src/admin/admin.controller.ts` | `deleteSubscriptionPackage` | _To classify_ |
-| 28 | `PUT` | `/admin/subscriptions/packages/:id` | `backend/src/admin/admin.controller.ts` | `updateSubscriptionPackage` | _To classify_ |
-| 29 | `GET` | `/admin/transactions` | `backend/src/admin/admin.controller.ts` | `getTransactions` | _To classify_ |
-| 30 | `GET` | `/admin/users` | `backend/src/admin/admin.controller.ts` | `listUsers` | _To classify_ |
-| 31 | `GET` | `/admin/users/:id` | `backend/src/admin/admin.controller.ts` | `getUser` | _To classify_ |
-| 32 | `PUT` | `/admin/users/:id/reactivate` | `backend/src/admin/admin.controller.ts` | `reactivateUser` | _To classify_ |
-| 33 | `PUT` | `/admin/users/:id/suspend` | `backend/src/admin/admin.controller.ts` | `suspendUser` | _To classify_ |
-| 34 | `GET` | `/admin/withdrawals` | `backend/src/admin/admin.controller.ts` | `getWithdrawalsQueue` | _To classify_ |
-| 35 | `PUT` | `/admin/withdrawals/:id/complete` | `backend/src/admin/admin.controller.ts` | `completeWithdrawal` | _To classify_ |
-| 36 | `PUT` | `/admin/withdrawals/:id/fail` | `backend/src/admin/admin.controller.ts` | `failWithdrawal` | _To classify_ |
-| 37 | `GET` | `/admin/config/domains` | `backend/src/admin/config/admin-config.controller.ts` | `listDomains` | _To classify_ |
-| 38 | `POST` | `/admin/config/domains` | `backend/src/admin/config/admin-config.controller.ts` | `createDomain` | _To classify_ |
-| 39 | `DELETE` | `/admin/config/domains/:id` | `backend/src/admin/config/admin-config.controller.ts` | `deleteDomain` | _To classify_ |
-| 40 | `PUT` | `/admin/config/domains/:id` | `backend/src/admin/config/admin-config.controller.ts` | `updateDomain` | _To classify_ |
-| 41 | `GET` | `/admin/config/probe-questions` | `backend/src/admin/config/admin-config.controller.ts` | `listProbeQuestions` | _To classify_ |
-| 42 | `POST` | `/admin/config/probe-questions` | `backend/src/admin/config/admin-config.controller.ts` | `createProbeQuestion` | _To classify_ |
-| 43 | `DELETE` | `/admin/config/probe-questions/:id` | `backend/src/admin/config/admin-config.controller.ts` | `deleteProbeQuestion` | _To classify_ |
-| 44 | `PUT` | `/admin/config/probe-questions/:id` | `backend/src/admin/config/admin-config.controller.ts` | `updateProbeQuestion` | _To classify_ |
-| 45 | `POST` | `/admin/config/seams` | `backend/src/admin/config/admin-config.controller.ts` | `createSeam` | _To classify_ |
-| 46 | `PUT` | `/admin/config/seams/:id` | `backend/src/admin/config/admin-config.controller.ts` | `updateSeam` | _To classify_ |
-| 47 | `GET` | `/admin/config/void-codes` | `backend/src/admin/config/admin-config.controller.ts` | `listVoidCodes` | _To classify_ |
-| 48 | `POST` | `/admin/config/void-codes` | `backend/src/admin/config/admin-config.controller.ts` | `createVoidCode` | _To classify_ |
-| 49 | `DELETE` | `/admin/config/void-codes/:id` | `backend/src/admin/config/admin-config.controller.ts` | `deleteVoidCode` | _To classify_ |
-| 50 | `PUT` | `/admin/config/void-codes/:id` | `backend/src/admin/config/admin-config.controller.ts` | `updateVoidCode` | _To classify_ |
-| 51 | `GET` | `/admin/prompts` | `backend/src/admin/prompts/admin-prompts.controller.ts` | `listPrompts` | _To classify_ |
-| 52 | `DELETE` | `/admin/prompts/:stage` | `backend/src/admin/prompts/admin-prompts.controller.ts` | `resetToDefault` | _To classify_ |
-| 53 | `GET` | `/admin/prompts/:stage` | `backend/src/admin/prompts/admin-prompts.controller.ts` | `getPrompt` | _To classify_ |
-| 54 | `PUT` | `/admin/prompts/:stage` | `backend/src/admin/prompts/admin-prompts.controller.ts` | `seconds` | _To classify_ |
-| 55 | `GET` | `/health` | `backend/src/app.controller.ts` | `health` | _To classify_ |
-| 56 | `POST` | `/auth/claim-handoff` | `backend/src/auth/auth.controller.ts` | `claimHandoff` | _To classify_ |
-| 57 | `POST` | `/auth/forgot-password` | `backend/src/auth/auth.controller.ts` | `forgotPassword` | _To classify_ |
-| 58 | `POST` | `/auth/login` | `backend/src/auth/auth.controller.ts` | `login` | _To classify_ |
-| 59 | `POST` | `/auth/logout` | `backend/src/auth/auth.controller.ts` | `logout` | _To classify_ |
-| 60 | `PUT` | `/auth/me/password` | `backend/src/auth/auth.controller.ts` | `changePassword` | _To classify_ |
-| 61 | `POST` | `/auth/refresh` | `backend/src/auth/auth.controller.ts` | `refreshToken` | _To classify_ |
-| 62 | `POST` | `/auth/register` | `backend/src/auth/auth.controller.ts` | `register` | _To classify_ |
-| 63 | `POST` | `/auth/register/handoff` | `backend/src/auth/auth.controller.ts` | `registerHandoff` | _To classify_ |
-| 64 | `POST` | `/auth/resend-otp` | `backend/src/auth/auth.controller.ts` | `resendOtp` | _To classify_ |
-| 65 | `POST` | `/auth/reset-password` | `backend/src/auth/auth.controller.ts` | `resetPassword` | _To classify_ |
-| 66 | `PUT` | `/auth/switch-role` | `backend/src/auth/auth.controller.ts` | `switchRole` | _To classify_ |
-| 67 | `POST` | `/auth/verify-otp` | `backend/src/auth/auth.controller.ts` | `verifyOtp` | _To classify_ |
-| 68 | `GET` | `/auth/verify-reset-token/:token` | `backend/src/auth/auth.controller.ts` | `verifyResetToken` | _To classify_ |
-| 69 | `POST` | `/auth/verify-tax-code` | `backend/src/auth/auth.controller.ts` | `verifyTaxCode` | _To classify_ |
-| 70 | `GET` | `/bids` | `backend/src/bids/bids.controller.ts` | `findAll` | _To classify_ |
-| 71 | `POST` | `/bids` | `backend/src/bids/bids.controller.ts` | `create` | _To classify_ |
-| 72 | `DELETE` | `/bids/:id` | `backend/src/bids/bids.controller.ts` | `withdraw` | _To classify_ |
-| 73 | `GET` | `/bids/:id` | `backend/src/bids/bids.controller.ts` | `ADMIN` | _To classify_ |
-| 74 | `PUT` | `/bids/:id` | `backend/src/bids/bids.controller.ts` | `id` | _To classify_ |
-| 75 | `PUT` | `/bids/:id/ceo-decision` | `backend/src/bids/bids.controller.ts` | `ceoDecision` | _To classify_ |
-| 76 | `PUT` | `/bids/:id/counter-offer` | `backend/src/bids/bids.controller.ts` | `counterOffer` | _To classify_ |
-| 77 | `POST` | `/bids/:id/offers` | `backend/src/bids/bids.controller.ts` | `createOffer` | _To classify_ |
-| 78 | `POST` | `/bids/:id/offers/:offerId/accept` | `backend/src/bids/bids.controller.ts` | `acceptOffer` | _To classify_ |
-| 79 | `POST` | `/bids/:id/offers/:offerId/decline` | `backend/src/bids/bids.controller.ts` | `declineOffer` | _To classify_ |
-| 80 | `POST` | `/bids/:id/reconcile` | `backend/src/bids/bids.controller.ts` | `reconcileLegacyBid` | _To classify_ |
-| 81 | `PUT` | `/bids/:id/tech-review` | `backend/src/bids/bids.controller.ts` | `Roles` | _To classify_ |
-| 82 | `GET` | `/config/all` | `backend/src/config/config.controller.ts` | `call` | _To classify_ |
-| 83 | `GET` | `/config/archetypes` | `backend/src/config/config.controller.ts` | `getArchetypes` | _To classify_ |
-| 84 | `GET` | `/config/archetypes/:code/probe-questions` | `backend/src/config/config.controller.ts` | `getProbeQuestions` | _To classify_ |
-| 85 | `GET` | `/config/domains` | `backend/src/config/config.controller.ts` | `getDomains` | _To classify_ |
-| 86 | `GET` | `/config/seams` | `backend/src/config/config.controller.ts` | `getSeams` | _To classify_ |
-| 87 | `GET` | `/config/subscription-packages` | `backend/src/config/config.controller.ts` | `price` | _To classify_ |
-| 88 | `GET` | `/config/void-codes` | `backend/src/config/config.controller.ts` | `getVoidCodes` | _To classify_ |
-| 89 | `GET` | `/disputes` | `backend/src/disputes/disputes.controller.ts` | `findAll` | _To classify_ |
-| 90 | `POST` | `/disputes` | `backend/src/disputes/disputes.controller.ts` | `criterion` | _To classify_ |
-| 91 | `GET` | `/disputes/:id` | `backend/src/disputes/disputes.controller.ts` | `findById` | _To classify_ |
-| 92 | `GET` | `/elicitation/sessions` | `backend/src/elicitation/elicitation.controller.ts` | `getSessionsList` | _To classify_ |
-| 93 | `POST` | `/elicitation/sessions` | `backend/src/elicitation/elicitation.controller.ts` | `createSession` | _To classify_ |
-| 94 | `DELETE` | `/elicitation/sessions/:id` | `backend/src/elicitation/elicitation.controller.ts` | `deleteSession` | _To classify_ |
-| 95 | `GET` | `/elicitation/sessions/:id` | `backend/src/elicitation/elicitation.controller.ts` | `getSession` | _To classify_ |
-| 96 | `PUT` | `/elicitation/sessions/:id/abandon` | `backend/src/elicitation/elicitation.controller.ts` | `abandonSession` | _To classify_ |
-| 97 | `PUT` | `/elicitation/sessions/:id/continue` | `backend/src/elicitation/elicitation.controller.ts` | `continueSession` | _To classify_ |
-| 98 | `PATCH` | `/elicitation/sessions/:id/draft` | `backend/src/elicitation/elicitation.controller.ts` | `saveDraft` | _To classify_ |
-| 99 | `POST` | `/elicitation/sessions/:id/generate-handoff-link` | `backend/src/elicitation/elicitation.controller.ts` | `inviteTechTeam` | _To classify_ |
-| 100 | `POST` | `/elicitation/sessions/:id/retry-synthesis` | `backend/src/elicitation/elicitation.controller.ts` | `retryFailedSynthesis` | _To classify_ |
-| 101 | `PUT` | `/elicitation/sessions/:id/revert` | `backend/src/elicitation/elicitation.controller.ts` | `revertSession` | _To classify_ |
-| 102 | `PUT` | `/elicitation/sessions/:id/self-technical` | `backend/src/elicitation/elicitation.controller.ts` | `setSelfTechnical` | _To classify_ |
-| 103 | `PUT` | `/elicitation/sessions/:id/stage1` | `backend/src/elicitation/elicitation.controller.ts` | `processStage1` | _To classify_ |
-| 104 | `PUT` | `/elicitation/sessions/:id/stage2` | `backend/src/elicitation/elicitation.controller.ts` | `processStage2` | _To classify_ |
-| 105 | `PUT` | `/elicitation/sessions/:id/stage3` | `backend/src/elicitation/elicitation.controller.ts` | `processStage3` | _To classify_ |
-| 106 | `PUT` | `/elicitation/sessions/:id/stage4` | `backend/src/elicitation/elicitation.controller.ts` | `processStage4` | _To classify_ |
-| 107 | `PATCH` | `/elicitation/sessions/:id/stage4-draft` | `backend/src/elicitation/elicitation.controller.ts` | `saveStage4Draft` | _To classify_ |
-| 108 | `PUT` | `/elicitation/sessions/:id/stage4-handoff` | `backend/src/elicitation/elicitation.controller.ts` | `processStage4Handoff` | _To classify_ |
-| 109 | `POST` | `/elicitation/sessions/:id/stage4-recommend` | `backend/src/elicitation/elicitation.controller.ts` | `recommendTechContext` | _To classify_ |
-| 110 | `POST` | `/elicitation/sessions/:id/stage5` | `backend/src/elicitation/elicitation.controller.ts` | `processStage5` | _To classify_ |
-| 111 | `GET` | `/elicitation/sessions/active` | `backend/src/elicitation/elicitation.controller.ts` | `getActiveSession` | _To classify_ |
-| 112 | `GET` | `/elicitation/sessions/history` | `backend/src/elicitation/elicitation.controller.ts` | `getSessionHistory` | _To classify_ |
-| 113 | `GET` | `/engagements` | `backend/src/engagements/engagements.controller.ts` | `findAll` | _To classify_ |
-| 114 | `GET` | `/engagements/:id` | `backend/src/engagements/engagements.controller.ts` | `findById` | _To classify_ |
-| 115 | `PUT` | `/engagements/:id/accept-nda` | `backend/src/engagements/engagements.controller.ts` | `acceptNda` | _To classify_ |
-| 116 | `GET` | `/engagements/:id/bid` | `backend/src/engagements/engagements.controller.ts` | `getEngagementBid` | _To classify_ |
-| 117 | `PUT` | `/engagements/:id/cancel` | `backend/src/engagements/engagements.controller.ts` | `cancelEngagement` | _To classify_ |
-| 118 | `POST` | `/engagements/:id/connect` | `backend/src/engagements/engagements.controller.ts` | `acceptConnect` | _To classify_ |
-| 119 | `PUT` | `/engagements/:id/decline` | `backend/src/engagements/engagements.controller.ts` | `decline` | _To classify_ |
-| 120 | `GET` | `/engagements/:id/disputes` | `backend/src/engagements/engagements.controller.ts` | `getEngagementDisputes` | _To classify_ |
-| 121 | `GET` | `/engagements/:id/milestones` | `backend/src/engagements/engagements.controller.ts` | `getEngagementMilestones` | _To classify_ |
-| 122 | `GET` | `/engagements/:id/submissions` | `backend/src/engagements/engagements.controller.ts` | `getEngagementSubmissions` | _To classify_ |
-| 123 | `POST` | `/expert-profile/domains` | `backend/src/expert-profiles/domain-depths.controller.ts` | `createDomainDepth` | _To classify_ |
-| 124 | `DELETE` | `/expert-profile/domains/:id` | `backend/src/expert-profiles/domain-depths.controller.ts` | `deleteDomainDepth` | _To classify_ |
-| 125 | `PUT` | `/expert-profile/domains/:id` | `backend/src/expert-profiles/domain-depths.controller.ts` | `updateDomainDepth` | _To classify_ |
-| 126 | `POST` | `/expert-profile/domains/sync` | `backend/src/expert-profiles/domain-depths.controller.ts` | `syncDomainDepths` | _To classify_ |
-| 127 | `GET` | `/expert-profile/:userId` | `backend/src/expert-profiles/expert-profiles.controller.ts` | `getExpertProfile` | _To classify_ |
-| 128 | `GET` | `/expert-profile/me` | `backend/src/expert-profiles/expert-profiles.controller.ts` | `getMyProfile` | _To classify_ |
-| 129 | `PATCH` | `/expert-profile/me` | `backend/src/expert-profiles/expert-profiles.controller.ts` | `updateMyProfile` | _To classify_ |
-| 130 | `GET` | `/expert-profile/me/domains` | `backend/src/expert-profiles/expert-profiles.controller.ts` | `getMyDomains` | _To classify_ |
-| 131 | `GET` | `/expert-profile/me/seams` | `backend/src/expert-profiles/expert-profiles.controller.ts` | `getMySeams` | _To classify_ |
-| 132 | `GET` | `/expert-profile/search` | `backend/src/expert-profiles/expert-profiles.controller.ts` | `searchExperts` | _To classify_ |
-| 133 | `GET` | `/portfolio-submissions` | `backend/src/expert-profiles/portfolio.controller.ts` | `getMySubmissions` | _To classify_ |
-| 134 | `POST` | `/portfolio-submissions` | `backend/src/expert-profiles/portfolio.controller.ts` | `submit` | _To classify_ |
-| 135 | `GET` | `/portfolio-submissions/:id` | `backend/src/expert-profiles/portfolio.controller.ts` | `getById` | _To classify_ |
-| 136 | `DELETE` | `/portfolio-submissions/me/portfolio/:id` | `backend/src/expert-profiles/portfolio.controller.ts` | `deletePortfolioEntry` | _To classify_ |
-| 137 | `GET` | `/portfolio-submissions/me/portfolio/:id` | `backend/src/expert-profiles/portfolio.controller.ts` | `getPortfolioEntry` | _To classify_ |
-| 138 | `POST` | `/expert-profile/seams` | `backend/src/expert-profiles/seam-claims.controller.ts` | `createSeamClaim` | _To classify_ |
-| 139 | `POST` | `/expert-profile/seams/sync` | `backend/src/expert-profiles/seam-claims.controller.ts` | `syncSeamClaims` | _To classify_ |
-| 140 | `GET` | `/internal/prompts/:stage` | `backend/src/internal/internal.controller.ts` | `getPromptTemplate` | _To classify_ |
-| 141 | `GET` | `/invitations` | `backend/src/invitations/invitations.controller.ts` | `invitation` | _To classify_ |
-| 142 | `DELETE` | `/invitations/:id` | `backend/src/invitations/invitations.controller.ts` | `retractInvitation` | _To classify_ |
-| 143 | `POST` | `/invitations/:id/decline` | `backend/src/invitations/invitations.controller.ts` | `declineInvitation` | _To classify_ |
-| 144 | `GET` | `/invitations/sent` | `backend/src/invitations/invitations.controller.ts` | `getSentInvitations` | _To classify_ |
-| 145 | `GET` | `/services` | `backend/src/listings/listings.controller.ts` | `marketplace` | _To classify_ |
-| 146 | `POST` | `/services` | `backend/src/listings/listings.controller.ts` | `Roles` | _To classify_ |
-| 147 | `DELETE` | `/services/:id` | `backend/src/listings/listings.controller.ts` | `delete` | _To classify_ |
-| 148 | `GET` | `/services/:id` | `backend/src/listings/listings.controller.ts` | `detail` | _To classify_ |
-| 149 | `PUT` | `/services/:id` | `backend/src/listings/listings.controller.ts` | `Guard` | _To classify_ |
-| 150 | `PUT` | `/services/:id/publish` | `backend/src/listings/listings.controller.ts` | `publish` | _To classify_ |
-| 151 | `POST` | `/services/:id/purchase` | `backend/src/listings/listings.controller.ts` | `Guard` | _To classify_ |
-| 152 | `PUT` | `/services/:id/unpublish` | `backend/src/listings/listings.controller.ts` | `unpublish` | _To classify_ |
-| 153 | `GET` | `/services/me` | `backend/src/listings/listings.controller.ts` | `myListings` | _To classify_ |
-| 154 | `GET` | `/services/me/purchases` | `backend/src/listings/listings.controller.ts` | `myPurchases` | _To classify_ |
-| 155 | `GET` | `/conversations` | `backend/src/messages/messages.controller.ts` | `getConversations` | _To classify_ |
-| 156 | `POST` | `/conversations/:engagementId/read` | `backend/src/messages/messages.controller.ts` | `readEngagement` | _To classify_ |
-| 157 | `POST` | `/conversations/read-all` | `backend/src/messages/messages.controller.ts` | `readAll` | _To classify_ |
-| 158 | `GET` | `/engagements/:id/messages` | `backend/src/messages/messages.controller.ts` | `page` | _To classify_ |
-| 159 | `GET` | `/engagements/:id/messages/unread-count` | `backend/src/messages/messages.controller.ts` | `getUnreadCount` | _To classify_ |
-| 160 | `POST` | `/messages/:id/read` | `backend/src/messages/messages.controller.ts` | `markAsRead` | _To classify_ |
-| 161 | `GET` | `/projects/:id/messages` | `backend/src/messages/messages.controller.ts` | `page` | _To classify_ |
-| 162 | `GET` | `/projects/:id/messages/unread-count` | `backend/src/messages/messages.controller.ts` | `getProjectUnreadCount` | _To classify_ |
-| 163 | `DELETE` | `/criteria/:id` | `backend/src/milestones/criteria.controller.ts` | `deleteCriterion` | _To classify_ |
-| 164 | `PUT` | `/criteria/:id/revision` | `backend/src/milestones/criteria.controller.ts` | `rejectCriterion` | _To classify_ |
-| 165 | `PUT` | `/criteria/:id/verify` | `backend/src/milestones/criteria.controller.ts` | `verifyCriterion` | _To classify_ |
-| 166 | `GET` | `/criteria/:milestoneId` | `backend/src/milestones/criteria.controller.ts` | `listCriteria` | _To classify_ |
-| 167 | `POST` | `/criteria/:milestoneId` | `backend/src/milestones/criteria.controller.ts` | `createCriterion` | _To classify_ |
-| 168 | `GET` | `/milestones/:id/dod` | `backend/src/milestones/dod.controller.ts` | `listDodItems` | _To classify_ |
-| 169 | `DELETE` | `/milestones/:id/dod/:itemId` | `backend/src/milestones/dod.controller.ts` | `deleteDodItem` | _To classify_ |
-| 170 | `PUT` | `/milestones/:id/dod/:itemId` | `backend/src/milestones/dod.controller.ts` | `Roles` | _To classify_ |
-| 171 | `POST` | `/milestones/:id/dod/items` | `backend/src/milestones/dod.controller.ts` | `createDodItem` | _To classify_ |
-| 172 | `POST` | `/milestones/:id/dod/items/bulk` | `backend/src/milestones/dod.controller.ts` | `createBulkDodItems` | _To classify_ |
-| 173 | `GET` | `/milestones` | `backend/src/milestones/milestones.controller.ts` | `listMilestones` | _To classify_ |
-| 174 | `POST` | `/milestones` | `backend/src/milestones/milestones.controller.ts` | `createMilestone` | _To classify_ |
-| 175 | `DELETE` | `/milestones/:id` | `backend/src/milestones/milestones.controller.ts` | `deleteMilestone` | _To classify_ |
-| 176 | `GET` | `/milestones/:id` | `backend/src/milestones/milestones.controller.ts` | `getMilestone` | _To classify_ |
-| 177 | `PATCH` | `/milestones/:id` | `backend/src/milestones/milestones.controller.ts` | `updateMilestone` | _To classify_ |
-| 178 | `GET` | `/milestones/:id/disputes` | `backend/src/milestones/milestones.controller.ts` | `getMilestoneDisputes` | _To classify_ |
-| 179 | `PUT` | `/milestones/:id/fund` | `backend/src/milestones/milestones.controller.ts` | `fundMilestone` | _To classify_ |
-| 180 | `POST` | `/milestones/bulk` | `backend/src/milestones/milestones.controller.ts` | `bulkInitialize` | _To classify_ |
-| 181 | `DELETE` | `/notifications/:id` | `backend/src/notifications/notifications.controller.ts` | `deleteNotification` | _To classify_ |
-| 182 | `PUT` | `/notifications/:id/read` | `backend/src/notifications/notifications.controller.ts` | `markRead` | _To classify_ |
-| 183 | `GET` | `/notifications/me` | `backend/src/notifications/notifications.controller.ts` | `listMyNotifications` | _To classify_ |
-| 184 | `GET` | `/notifications/me/unread-count` | `backend/src/notifications/notifications.controller.ts` | `getUnreadCount` | _To classify_ |
-| 185 | `PUT` | `/notifications/read-all` | `backend/src/notifications/notifications.controller.ts` | `markAllRead` | _To classify_ |
-| 186 | `POST` | `/bank-hub/initiate-link` | `backend/src/payments/bank-hub.controller.ts` | `initiateBankLink` | _To classify_ |
-| 187 | `GET` | `/bank-hub/link` | `backend/src/payments/bank-hub.controller.ts` | `getBankLink` | _To classify_ |
-| 188 | `PUT` | `/bank-hub/link` | `backend/src/payments/bank-hub.controller.ts` | `updateBankLink` | _To classify_ |
-| 189 | `POST` | `/webhooks/sepay/bank-linked` | `backend/src/payments/webhooks.controller.ts` | `handleBankLinked` | _To classify_ |
-| 190 | `POST` | `/webhooks/sepay/chi-ho-credit` | `backend/src/payments/webhooks.controller.ts` | `handleChiHo` | _To classify_ |
-| 191 | `POST` | `/webhooks/sepay/ipn` | `backend/src/payments/webhooks.controller.ts` | `handleIpn` | _To classify_ |
-| 192 | `GET` | `/matching/:projectId/shortlist` | `backend/src/projects/matching.controller.ts` | `getShortlist` | _To classify_ |
-| 193 | `GET` | `/projects` | `backend/src/projects/projects.controller.ts` | `getProjects` | _To classify_ |
-| 194 | `GET` | `/projects/:id` | `backend/src/projects/projects.controller.ts` | `getProjectDetails` | _To classify_ |
-| 195 | `GET` | `/projects/:id/artifact-a` | `backend/src/projects/projects.controller.ts` | `getProjectArtifactA` | _To classify_ |
-| 196 | `GET` | `/projects/:id/artifact-b` | `backend/src/projects/projects.controller.ts` | `getProjectArtifactB` | _To classify_ |
-| 197 | `POST` | `/projects/:id/milestone-chat` | `backend/src/projects/projects.controller.ts` | `milestoneChatMessage` | _To classify_ |
-| 198 | `GET` | `/projects/:id/milestone-chat/sessions` | `backend/src/projects/projects.controller.ts` | `listChatSessions` | _To classify_ |
-| 199 | `GET` | `/projects/:id/milestone-chat/sessions/:sessionId` | `backend/src/projects/projects.controller.ts` | `getChatSession` | _To classify_ |
-| 200 | `PUT` | `/projects/:id/milestones` | `backend/src/projects/projects.controller.ts` | `updateProjectMilestones` | _To classify_ |
-| 201 | `PUT` | `/projects/:id/name` | `backend/src/projects/projects.controller.ts` | `updateProjectName` | _To classify_ |
-| 202 | `GET` | `/projects/marketplace` | `backend/src/projects/projects.controller.ts` | `getMarketplace` | _To classify_ |
-| 203 | `POST` | `/reviews` | `backend/src/reviews/reviews.controller.ts` | `createReview` | _To classify_ |
-| 204 | `GET` | `/reviews/:engagementId` | `backend/src/reviews/reviews.controller.ts` | `getAllReview` | _To classify_ |
-| 205 | `GET` | `/reviews/me` | `backend/src/reviews/reviews.controller.ts` | `getMyReviews` | _To classify_ |
-| 206 | `GET` | `/reviews/me/received` | `backend/src/reviews/reviews.controller.ts` | `getMyReceivedReviews` | _To classify_ |
-| 207 | `GET` | `/reviews/users/:userId` | `backend/src/reviews/reviews.controller.ts` | `getReviewsForUser` | _To classify_ |
-| 208 | `GET` | `/milestones/:id/paygated-docs` | `backend/src/submissions/submissions.controller.ts` | `downloadDocument` | _To classify_ |
-| 209 | `POST` | `/milestones/:id/paygated-docs` | `backend/src/submissions/submissions.controller.ts` | `uploadDocument` | _To classify_ |
-| 210 | `POST` | `/milestones/:id/paygated-docs/bulk` | `backend/src/submissions/submissions.controller.ts` | `uploadBulkDocuments` | _To classify_ |
-| 211 | `GET` | `/milestones/:id/submissions` | `backend/src/submissions/submissions.controller.ts` | `getSubmissions` | _To classify_ |
-| 212 | `DELETE` | `/milestones/:id/submissions/latest` | `backend/src/submissions/submissions.controller.ts` | `retractSubmission` | _To classify_ |
-| 213 | `GET` | `/milestones/:id/submissions/latest` | `backend/src/submissions/submissions.controller.ts` | `getLatestSubmission` | _To classify_ |
-| 214 | `POST` | `/milestones/:id/submit` | `backend/src/submissions/submissions.controller.ts` | `submitMilestone` | _To classify_ |
-| 215 | `POST` | `/subscriptions/activate` | `backend/src/subscriptions/subscriptions.controller.ts` | `activateSubscription` | _To classify_ |
-| 216 | `GET` | `/subscriptions/history` | `backend/src/subscriptions/subscriptions.controller.ts` | `getSubscriptionHistory` | _To classify_ |
-| 217 | `GET` | `/subscriptions/status` | `backend/src/subscriptions/subscriptions.controller.ts` | `getSubscriptionStatus` | _To classify_ |
-| 218 | `GET` | `/users/:userId/public-profile` | `backend/src/users/users.controller.ts` | `getPublicProfile` | _To classify_ |
-| 219 | `GET` | `/users/me` | `backend/src/users/users.controller.ts` | `getUserProfile` | _To classify_ |
-| 220 | `PUT` | `/users/me` | `backend/src/users/users.controller.ts` | `updateUserProfile` | _To classify_ |
-| 221 | `POST` | `/users/me/add-role` | `backend/src/users/users.controller.ts` | `addRole` | _To classify_ |
-| 222 | `PUT` | `/users/me/tax-code` | `backend/src/users/users.controller.ts` | `updateTaxCode` | _To classify_ |
-| 223 | `GET` | `/wallets/me` | `backend/src/wallet/wallet.controller.ts` | `getWalletBalance` | _To classify_ |
-| 224 | `GET` | `/wallets/me/transactions` | `backend/src/wallet/wallet.controller.ts` | `getWalletTransaction` | _To classify_ |
-| 225 | `POST` | `/wallets/virtual-accounts/topup` | `backend/src/wallet/wallet.controller.ts` | `getTopupWallet` | _To classify_ |
-| 226 | `GET` | `/withdrawals` | `backend/src/wallet/withdrawals.controller.ts` | `getMyWithdrawals` | _To classify_ |
-| 227 | `POST` | `/withdrawals` | `backend/src/wallet/withdrawals.controller.ts` | `requestWithdrawal` | _To classify_ |
-| 228 | `DELETE` | `/withdrawals/:id` | `backend/src/wallet/withdrawals.controller.ts` | `cancelWithdrawal` | _To classify_ |
+| 1 | `GET` | `/health` | Health / Operations | System | Health probe |
+| 2 | `POST` | `/auth/register` | Authentication | All / Anonymous | Auth screen or session action |
+| 3 | `POST` | `/auth/login` | Authentication | All / Anonymous | Auth screen or session action |
+| 4 | `PUT` | `/auth/switch-role` | Authentication | All / Anonymous | Auth screen or session action |
+| 5 | `POST` | `/auth/refresh` | Authentication | All / Anonymous | Auth screen or session action |
+| 6 | `POST` | `/auth/register/handoff` | Authentication | All / Anonymous | Auth screen or session action |
+| 7 | `POST` | `/auth/verify-otp` | Authentication | All / Anonymous | Auth screen or session action |
+| 8 | `POST` | `/auth/verify-tax-code` | Authentication | All / Anonymous | Auth screen or session action |
+| 9 | `POST` | `/auth/claim-handoff` | Authentication | All / Anonymous | Auth screen or session action |
+| 10 | `POST` | `/auth/forgot-password` | Authentication | All / Anonymous | Auth screen or session action |
+| 11 | `POST` | `/auth/reset-password` | Authentication | All / Anonymous | Auth screen or session action |
+| 12 | `GET` | `/auth/verify-reset-token/{token}` | Authentication | All / Anonymous | Auth screen or session action |
+| 13 | `POST` | `/auth/logout` | Authentication | All / Anonymous | Auth screen or session action |
+| 14 | `PUT` | `/auth/me/password` | Authentication | All / Anonymous | Auth screen or session action |
+| 15 | `POST` | `/auth/resend-otp` | Authentication | All / Anonymous | Auth screen or session action |
+| 16 | `POST` | `/users/me/add-role` | Users & Roles | Authenticated user | Profile or role action |
+| 17 | `GET` | `/users/me` | Users & Roles | Authenticated user | Profile or role action |
+| 18 | `PUT` | `/users/me` | Users & Roles | Authenticated user | Profile or role action |
+| 19 | `GET` | `/users/{userId}/public-profile` | Users & Roles | Authenticated user | Profile or role action |
+| 20 | `PUT` | `/users/me/tax-code` | Users & Roles | Authenticated user | Profile or role action |
+| 21 | `GET` | `/wallets/me` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 22 | `GET` | `/wallets/me/transactions` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 23 | `POST` | `/wallets/virtual-accounts/topup` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 24 | `POST` | `/withdrawals` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 25 | `GET` | `/withdrawals` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 26 | `DELETE` | `/withdrawals/{id}` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 27 | `POST` | `/webhooks/sepay/ipn` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 28 | `POST` | `/webhooks/sepay/chi-ho-credit` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 29 | `POST` | `/webhooks/sepay/bank-linked` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 30 | `POST` | `/bank-hub/initiate-link` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 31 | `PUT` | `/bank-hub/link` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 32 | `GET` | `/bank-hub/link` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 33 | `POST` | `/subscriptions/activate` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 34 | `GET` | `/subscriptions/status` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 35 | `GET` | `/subscriptions/history` | Financials & Subscription | CEO / Expert / Admin / System | Wallet, payment, subscription, or webhook flow |
+| 36 | `POST` | `/elicitation/sessions` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 37 | `GET` | `/elicitation/sessions` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 38 | `GET` | `/elicitation/sessions/active` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 39 | `PUT` | `/elicitation/sessions/{id}/abandon` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 40 | `GET` | `/elicitation/sessions/history` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 41 | `GET` | `/elicitation/sessions/{id}` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 42 | `DELETE` | `/elicitation/sessions/{id}` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 43 | `PUT` | `/elicitation/sessions/{id}/stage1` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 44 | `PUT` | `/elicitation/sessions/{id}/stage2` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 45 | `PUT` | `/elicitation/sessions/{id}/stage3` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 46 | `PUT` | `/elicitation/sessions/{id}/stage4` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 47 | `PUT` | `/elicitation/sessions/{id}/stage4-handoff` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 48 | `POST` | `/elicitation/sessions/{id}/stage5` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 49 | `POST` | `/elicitation/sessions/{id}/generate-handoff-link` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 50 | `PUT` | `/elicitation/sessions/{id}/self-technical` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 51 | `POST` | `/elicitation/sessions/{id}/retry-synthesis` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 52 | `PUT` | `/elicitation/sessions/{id}/revert` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 53 | `PUT` | `/elicitation/sessions/{id}/continue` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 54 | `POST` | `/elicitation/sessions/{id}/stage4-recommend` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 55 | `PATCH` | `/elicitation/sessions/{id}/draft` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 56 | `PATCH` | `/elicitation/sessions/{id}/stage4-draft` | Elicitation | CEO / Tech Team | Elicitation wizard or session management |
+| 57 | `GET` | `/projects/marketplace` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 58 | `GET` | `/projects/{id}` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 59 | `GET` | `/projects` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 60 | `GET` | `/projects/{id}/artifact-a` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 61 | `GET` | `/projects/{id}/artifact-b` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 62 | `PUT` | `/projects/{id}/name` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 63 | `PUT` | `/projects/{id}/milestones` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 64 | `POST` | `/projects/{id}/milestone-chat` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 65 | `GET` | `/projects/{id}/milestone-chat/sessions` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 66 | `GET` | `/projects/{id}/milestone-chat/sessions/{sessionId}` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 67 | `GET` | `/matching/{projectId}/shortlist` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 68 | `GET` | `/expert-profile/me` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 69 | `PUT` | `/expert-profile/me` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 70 | `GET` | `/expert-profile/search` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 71 | `GET` | `/expert-profile/{userId}` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 72 | `GET` | `/expert-profile/me/domains` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 73 | `GET` | `/expert-profile/me/seams` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 74 | `POST` | `/expert-profile/domains` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 75 | `PUT` | `/expert-profile/domains/sync` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 76 | `PUT` | `/expert-profile/domains/{id}` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 77 | `DELETE` | `/expert-profile/domains/{id}` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 78 | `POST` | `/expert-profile/seams` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 79 | `PUT` | `/expert-profile/seams/sync` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 80 | `POST` | `/portfolio-submissions` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 81 | `GET` | `/portfolio-submissions` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 82 | `GET` | `/portfolio-submissions/{id}` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 83 | `DELETE` | `/portfolio-submissions/me/portfolio/{id}` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 84 | `GET` | `/portfolio-submissions/me/portfolio/{id}` | Expert Profile & Verification | Expert / Public / CEO | Profile, capability, or portfolio action |
+| 85 | `GET` | `/services/me` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 86 | `GET` | `/services/me/purchases` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 87 | `GET` | `/services` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 88 | `POST` | `/services` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 89 | `GET` | `/services/{id}` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 90 | `PUT` | `/services/{id}` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 91 | `DELETE` | `/services/{id}` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 92 | `POST` | `/services/{id}/purchase` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 93 | `PUT` | `/services/{id}/publish` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 94 | `PUT` | `/services/{id}/unpublish` | Services Marketplace | CEO / Expert | Service browse, manage, publish, or purchase |
+| 95 | `GET` | `/engagements` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 96 | `GET` | `/engagements/{id}` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 97 | `PUT` | `/engagements/{id}/accept-nda` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 98 | `POST` | `/engagements/{id}/connect` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 99 | `PUT` | `/engagements/{id}/decline` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 100 | `GET` | `/engagements/{id}/milestones` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 101 | `GET` | `/engagements/{id}/submissions` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 102 | `GET` | `/engagements/{id}/bid` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 103 | `GET` | `/engagements/{id}/disputes` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 104 | `PUT` | `/engagements/{id}/cancel` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 105 | `POST` | `/bids` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 106 | `GET` | `/bids` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 107 | `GET` | `/bids/{id}` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 108 | `PUT` | `/bids/{id}` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 109 | `DELETE` | `/bids/{id}` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 110 | `PUT` | `/bids/{id}/tech-review` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 111 | `PUT` | `/bids/{id}/ceo-decision` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 112 | `PUT` | `/bids/{id}/counter-offer` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 113 | `POST` | `/bids/{id}/offers` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 114 | `POST` | `/bids/{id}/offers/{offerId}/accept` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 115 | `POST` | `/bids/{id}/offers/{offerId}/decline` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 116 | `POST` | `/bids/{id}/reconcile` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 117 | `POST` | `/disputes` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 118 | `GET` | `/disputes` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 119 | `GET` | `/disputes/{id}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 120 | `POST` | `/milestones` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 121 | `GET` | `/milestones` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 122 | `GET` | `/milestones/{id}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 123 | `PATCH` | `/milestones/{id}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 124 | `DELETE` | `/milestones/{id}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 125 | `PUT` | `/milestones/{id}/fund` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 126 | `GET` | `/milestones/{id}/disputes` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 127 | `POST` | `/milestones/bulk` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 128 | `POST` | `/milestones/{id}/dod/items` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 129 | `POST` | `/milestones/{id}/dod/items/bulk` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 130 | `GET` | `/milestones/{id}/dod` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 131 | `DELETE` | `/milestones/{id}/dod/{itemId}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 132 | `PUT` | `/milestones/{id}/dod/{itemId}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 133 | `PUT` | `/criteria/{id}/verify` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 134 | `PUT` | `/criteria/{id}/revision` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 135 | `GET` | `/criteria/{milestoneId}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 136 | `POST` | `/criteria/{milestoneId}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 137 | `DELETE` | `/criteria/{id}` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 138 | `POST` | `/milestones/{id}/submit` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 139 | `POST` | `/milestones/{id}/paygated-docs` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 140 | `GET` | `/milestones/{id}/paygated-docs` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 141 | `POST` | `/milestones/{id}/paygated-docs/bulk` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 142 | `DELETE` | `/milestones/{id}/submissions/latest` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 143 | `GET` | `/milestones/{id}/submissions/latest` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 144 | `GET` | `/milestones/{id}/submissions` | Milestones, Criteria & Disputes | CEO / Expert / Tech Team / Admin | Milestone execution, review, or dispute action |
+| 145 | `GET` | `/engagements/{id}/messages` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 146 | `GET` | `/projects/{id}/messages` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 147 | `POST` | `/messages/{id}/read` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 148 | `GET` | `/engagements/{id}/messages/unread-count` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 149 | `GET` | `/conversations` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 150 | `GET` | `/projects/{id}/messages/unread-count` | Projects & Matching | CEO / Expert / Tech Team | Project, marketplace, shortlist, or AI chat action |
+| 151 | `POST` | `/conversations/{engagementId}/read` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 152 | `POST` | `/conversations/read-all` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 153 | `GET` | `/invitations` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 154 | `POST` | `/invitations/{id}/decline` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 155 | `GET` | `/invitations/sent` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 156 | `DELETE` | `/invitations/{id}` | Engagements & Bidding | CEO / Expert / Tech Team | Invitation, bid, negotiation, NDA, or engagement action |
+| 157 | `POST` | `/reviews` | Reviews | CEO / Expert / Tech Team | Review submission or history view |
+| 158 | `GET` | `/reviews/{engagementId}` | Reviews | CEO / Expert / Tech Team | Review submission or history view |
+| 159 | `GET` | `/reviews/users/{userId}` | Reviews | CEO / Expert / Tech Team | Review submission or history view |
+| 160 | `GET` | `/reviews/me` | Reviews | CEO / Expert / Tech Team | Review submission or history view |
+| 161 | `GET` | `/reviews/me/received` | Reviews | CEO / Expert / Tech Team | Review submission or history view |
+| 162 | `PUT` | `/admin/projects/{id}/suspend-spec` | Admin | Admin | Admin dashboard action |
+| 163 | `PUT` | `/admin/users/{id}/suspend` | Admin | Admin | Admin dashboard action |
+| 164 | `PUT` | `/admin/users/{id}/reactivate` | Admin | Admin | Admin dashboard action |
+| 165 | `GET` | `/admin/disputes` | Admin | Admin | Admin dashboard action |
+| 166 | `PUT` | `/admin/disputes/{id}/resolve` | Admin | Admin | Admin dashboard action |
+| 167 | `GET` | `/admin/decisions` | Admin | Admin | Admin dashboard action |
+| 168 | `GET` | `/admin/transactions` | Admin | Admin | Admin dashboard action |
+| 169 | `GET` | `/admin/analytics` | Admin | Admin | Admin dashboard action |
+| 170 | `GET` | `/admin/withdrawals` | Admin | Admin | Admin dashboard action |
+| 171 | `PUT` | `/admin/withdrawals/{id}/complete` | Admin | Admin | Admin dashboard action |
+| 172 | `PUT` | `/admin/withdrawals/{id}/fail` | Admin | Admin | Admin dashboard action |
+| 173 | `GET` | `/admin/platform-settings` | Admin | Admin | Admin dashboard action |
+| 174 | `PUT` | `/admin/platform-settings` | Admin | Admin | Admin dashboard action |
+| 175 | `GET` | `/admin/subscriptions/packages` | Admin | Admin | Admin dashboard action |
+| 176 | `POST` | `/admin/subscriptions/packages` | Admin | Admin | Admin dashboard action |
+| 177 | `PUT` | `/admin/subscriptions/packages/{id}` | Admin | Admin | Admin dashboard action |
+| 178 | `DELETE` | `/admin/subscriptions/packages/{id}` | Admin | Admin | Admin dashboard action |
+| 179 | `GET` | `/admin/users` | Admin | Admin | Admin dashboard action |
+| 180 | `GET` | `/admin/users/{id}` | Admin | Admin | Admin dashboard action |
+| 181 | `GET` | `/admin/projects` | Admin | Admin | Admin dashboard action |
+| 182 | `GET` | `/admin/projects/{id}` | Admin | Admin | Admin dashboard action |
+| 183 | `GET` | `/admin/engagements` | Admin | Admin | Admin dashboard action |
+| 184 | `GET` | `/admin/experts` | Admin | Admin | Admin dashboard action |
+| 185 | `PUT` | `/admin/projects/{id}/reopen` | Admin | Admin | Admin dashboard action |
+| 186 | `GET` | `/admin/config/domains` | Admin | Admin | Admin dashboard action |
+| 187 | `POST` | `/admin/config/domains` | Admin | Admin | Admin dashboard action |
+| 188 | `PUT` | `/admin/config/domains/{id}` | Admin | Admin | Admin dashboard action |
+| 189 | `DELETE` | `/admin/config/domains/{id}` | Admin | Admin | Admin dashboard action |
+| 190 | `GET` | `/admin/config/seams` | Admin | Admin | Admin dashboard action |
+| 191 | `POST` | `/admin/config/seams` | Admin | Admin | Admin dashboard action |
+| 192 | `PUT` | `/admin/config/seams/{id}` | Admin | Admin | Admin dashboard action |
+| 193 | `DELETE` | `/admin/config/seams/{id}` | Admin | Admin | Admin dashboard action |
+| 194 | `GET` | `/admin/config/archetypes` | Admin | Admin | Admin dashboard action |
+| 195 | `POST` | `/admin/config/archetypes` | Admin | Admin | Admin dashboard action |
+| 196 | `PUT` | `/admin/config/archetypes/{id}` | Admin | Admin | Admin dashboard action |
+| 197 | `DELETE` | `/admin/config/archetypes/{id}` | Admin | Admin | Admin dashboard action |
+| 198 | `GET` | `/admin/config/probe-questions` | Admin | Admin | Admin dashboard action |
+| 199 | `POST` | `/admin/config/probe-questions` | Admin | Admin | Admin dashboard action |
+| 200 | `PUT` | `/admin/config/probe-questions/{id}` | Admin | Admin | Admin dashboard action |
+| 201 | `DELETE` | `/admin/config/probe-questions/{id}` | Admin | Admin | Admin dashboard action |
+| 202 | `GET` | `/admin/config/void-codes` | Admin | Admin | Admin dashboard action |
+| 203 | `POST` | `/admin/config/void-codes` | Admin | Admin | Admin dashboard action |
+| 204 | `PUT` | `/admin/config/void-codes/{id}` | Admin | Admin | Admin dashboard action |
+| 205 | `DELETE` | `/admin/config/void-codes/{id}` | Admin | Admin | Admin dashboard action |
+| 206 | `GET` | `/admin/prompts` | Admin | Admin | Admin dashboard action |
+| 207 | `GET` | `/admin/prompts/{stage}` | Admin | Admin | Admin dashboard action |
+| 208 | `PUT` | `/admin/prompts/{stage}` | Admin | Admin | Admin dashboard action |
+| 209 | `DELETE` | `/admin/prompts/{stage}` | Admin | Admin | Admin dashboard action |
+| 210 | `GET` | `/config/domains` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 211 | `GET` | `/config/seams` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 212 | `GET` | `/config/archetypes` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 213 | `GET` | `/config/archetypes/{code}/probe-questions` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 214 | `GET` | `/config/subscription-packages` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 215 | `GET` | `/config/void-codes` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 216 | `GET` | `/config/all` | Public Configuration | Authenticated / Public UI | Reference-data loading |
+| 217 | `GET` | `/internal/prompts/{stage}` | Internal | Backend / Internal | Internal service lookup |
+| 218 | `GET` | `/notifications/me` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 219 | `GET` | `/notifications/me/unread-count` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 220 | `PUT` | `/notifications/{id}/read` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 221 | `PUT` | `/notifications/read-all` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
+| 222 | `DELETE` | `/notifications/{id}` | Messaging & Notifications | Authenticated user | Inbox, chat, read-state, or notification action |
 
+### A.1 coverage rules
+
+1. The QA ledger must contain one evidence row for every entry above.
+2. The endpoint number in this table is an inventory index only; it is not an API version or business priority.
+3. Each row must identify the invoking screen, component or system trigger, actor, request evidence, response evidence, state change, negative-path evidence, and final QA status.
+4. Webhooks, health checks, and internal endpoints are valid runtime operations even though they do not correspond to an ordinary browser click.
+5. Socket.io events, email actions, and external provider APIs remain separate contract inventories.
+6. The valid frontend-to-NestJS coverage denominator for this build is **222**, not 228, 234, or 255.
+
+## Appendix A.2 — FastAPI Internal AI-Service Inventory
+
+**Runtime/OpenAPI service:** AITasker LLM Service  
+**Expected operation count:** **12**  
+**Primary caller:** NestJS backend  
+**Direct browser consumption:** Not expected  
+**Coverage denominator:** `12/12`, maintained separately from the NestJS `222/222` ledger.
+
+| AI ID | Method | Path | Business responsibility | Expected NestJS trigger/caller | Minimum QA contract assertions |
+|---|---|---|---|---|---|
+| AI-001 | `POST` | `/llm/elicitation/stage1-extract` | Extract symptoms, scale signals, voids, recommended archetypes, and critical artifacts from CEO free text. | Stage 1 processing in the NestJS elicitation flow. | Validate request mapping, successful structured response, persistence into the session, loading state, malformed response handling, timeout handling, and no direct FE call. |
+| AI-002 | `POST` | `/llm/elicitation/stage3-vagueness-check` | Detect vague or unusable probe answers before Stage 4. | NestJS Stage 3 submission. | Validate flagged-answer feedback, empty-list success, fail-open behavior where implemented, 422 mapping, and retry/error UX. |
+| AI-003 | `POST` | `/llm/elicitation/stage4-recommend` | Recommend technical context for a non-technical CEO. | Stage 4 recommendation action. | Validate recommendation rendering, editability before persistence, request context completeness, and dependency-failure handling. |
+| AI-004 | `POST` | `/llm/elicitation/stage5-synthesize` | Synthesize the complete project specification and milestone framework from Stages 1–4. | Stage 5 synthesis and synthesis retry. | Validate completeness score handling, `PUBLISHED` versus `RETURNED` branch, generated artifacts, idempotency/retry behavior, and partial-failure rollback. |
+| AI-005 | `POST` | `/llm/elicitation/milestone-chat` | Provide context-aware milestone explanations and structured edit suggestions. | NestJS project milestone-chat endpoint. | Validate conversation context, session history, structured edit JSON, CEO apply-edit flow, Expert copy-suggestion flow, invalid JSON fallback, and authorization. |
+| AI-006 | `POST` | `/llm/portfolio-eval` | Evaluate an Expert portfolio submission against seam-boundary competency. | NestJS portfolio submission workflow. | Validate confidence and pass/fail mapping, verification-tier updates, failure counters, lockout threshold, decision logging, and retry behavior without duplicate counters. |
+| AI-007 | `POST` | `/llm/matching` | Score and rank Experts against project requirements. | Project publication or shortlist generation. | Validate candidate filtering, score ordering, gap map, empty candidate list, persistence/caching behavior, and no leakage of restricted profile data. |
+| AI-008 | `POST` | `/llm/dispute-eval` | Perform Layer 1 neutral arbitration against criterion and deliverable evidence. | NestJS dispute creation. | Validate `>= 0.80` auto-resolution branch, `< 0.80` manual-review branch, finding-to-ledger mapping, escrow freeze, reasoning persistence, and AI failure fallback. |
+| AI-009 | `POST` | `/llm/criterion-check` | Detect subjective language in acceptance criteria and suggest measurable wording. | Criterion creation or editing flow. | Validate subjectivity flag, severity, suggestions, optional context fields, UX advisory behavior, and whether saving is blocked or merely warned. |
+| AI-010 | `POST` | `/llm/service-generate` | Generate an editable service-listing draft from Expert capabilities and intended use cases. | “Generate with AI” in service creation. | Validate generated fields, zero-price fallback, no automatic publication, editable draft behavior, cancellation, and provider failure handling. |
+| AI-011 | `GET` | `/projects/{project_id}/artifact-b` | Evaluate the technical Artifact B access gate using engagement state, bid state, and both NDA acceptances. | NestJS project-detail retrieval before including Artifact B. | Test every individual failing condition, all-conditions-pass case, first-denial reason, 403 handling, cross-project access, and absence of Artifact B in denied payloads. |
+| AI-012 | `GET` | `/health` | Report AI-service availability for containers and operational monitoring. | Docker health check and deployment monitoring. | Validate 200 response, dependency status if exposed, container readiness behavior, and NestJS handling while AI service is unavailable. |
+
+### FastAPI execution rules
+
+1. These operations are tested as **NestJS-to-FastAPI contracts**, not as twelve frontend buttons.
+2. Each business-flow test should capture both:
+   - the browser-to-NestJS request, and
+   - the corresponding NestJS-to-FastAPI request where applicable.
+3. At least one direct contract test should also be maintained per AI operation to validate request and response schemas independently of the frontend.
+4. FastAPI `422` responses indicate schema validation failures and must be distinguished from NestJS business-rule errors such as `400`, `403`, `409`, or `422`.
+5. AI provider timeouts, malformed model output, unavailable service, and retry behavior must be tested separately from valid low-confidence model results.
+6. No AI endpoint should be exposed as a browser-configured base URL or called directly from React.
+7. Sensitive Artifact B content must never be sent to the frontend when `AI-011` denies access.
+8. The AI-service ledger is complete only when all **12 operations** have:
+   - a mapped NestJS caller or operational caller,
+   - positive contract evidence,
+   - validation/error evidence,
+   - security classification,
+   - and a linked automated or manual test case.
+
+### Approved combined statement
+
+Use the following wording when a whole-system HTTP total is useful:
+
+> **The release exposes 222 NestJS HTTP operations and 12 internal FastAPI operations, for 234 HTTP operations across the two services. Frontend REST coverage is measured against the 222-operation NestJS contract; internal AI coverage is measured separately against 12 operations.**
+
+Do not present `234` as “234 frontend endpoints.”
+
+---
 
 # Appendix B — Endpoint Coverage Ledger Template
 
-Copy one row per canonical Swagger operation.
+Create exactly one row per runtime NestJS Swagger operation. For this build, the ledger must contain **222 rows** before coverage can reach 100%. Maintain a second 12-row ledger for internal FastAPI operations.
 
 | Endpoint ID | Method/path | Caller screen/component | Actor | Trigger gesture | Request payload assertions | Success assertion | Negative cases | DB/state assertions | Socket/notification | Test IDs | Result/evidence |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -1212,7 +1284,10 @@ Copy one row per canonical Swagger operation.
 
 - [ ] Runtime NestJS Swagger exported from the exact release build.
 - [ ] FastAPI OpenAPI exported from the exact release build.
-- [ ] Canonical count reconciled to the claimed 255.
+- [ ] Runtime NestJS Swagger count confirmed as **222** for the exact release build.
+- [ ] Endpoint Coverage Ledger contains exactly **222 unique method/path rows**.
+- [ ] Internal FastAPI OpenAPI inventory contains exactly **12 operations** and is tracked separately.
+- [ ] No report or sign-off incorrectly uses the unsupported 225/255 counts for this build.
 - [ ] Every endpoint classified and linked to one or more tests.
 - [ ] Every frontend route opened under valid and invalid roles.
 - [ ] Every mutation tested for duplicate click and stale state.
