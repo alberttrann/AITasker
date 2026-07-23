@@ -2,6 +2,7 @@ import { useArtifactB } from '@/hooks/use-projects';
 import { Spinner } from '@/components/ui/Spinner';
 import { Card, CardContent } from '@/components/ui/Card';
 import { LockKeyhole, Database, Code2, FileJson, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { ensureExternalUrl } from '@/lib/utils';
 
 interface ExpertArtifactBViewProps {
   projectId: string;
@@ -102,22 +103,36 @@ export default function ArtifactBView({ projectId, isAuthorized }: ExpertArtifac
               <FileJson size={14} /> Technical Artifacts & Links
             </h4>
             <div className="space-y-3">
-              {artifactB.schemas?.map((url, i) => (
-                <div key={`schema-${i}`} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-emerald-300 transition-colors">
-                  <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded uppercase tracking-wider">Schema</span>
-                  <a href={url} target="_blank" rel="noreferrer" className="text-sm font-mono text-blue-600 hover:text-blue-800 hover:underline truncate">
-                    {url}
-                  </a>
-                </div>
-              ))}
-              {artifactB.contracts?.map((url, i) => (
-                <div key={`contract-${i}`} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-emerald-300 transition-colors">
-                  <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded uppercase tracking-wider">Contract</span>
-                  <a href={url} target="_blank" rel="noreferrer" className="text-sm font-mono text-purple-600 hover:text-purple-800 hover:underline truncate">
-                    {url}
-                  </a>
-                </div>
-              ))}
+              {artifactB.schemas?.map((url, i) => {
+                const { href, isLink } = ensureExternalUrl(url);
+                return (
+                  <div key={`schema-${i}`} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-emerald-300 transition-colors">
+                    <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded uppercase tracking-wider shrink-0">Schema</span>
+                    {isLink ? (
+                      <a href={href} target="_blank" rel="noreferrer" className="text-sm font-mono text-blue-600 hover:text-blue-800 hover:underline truncate">
+                        {url}
+                      </a>
+                    ) : (
+                      <span className="text-sm font-mono text-slate-700 truncate">{url}</span>
+                    )}
+                  </div>
+                );
+              })}
+              {artifactB.contracts?.map((url, i) => {
+                const { href, isLink } = ensureExternalUrl(url);
+                return (
+                  <div key={`contract-${i}`} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-emerald-300 transition-colors">
+                    <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded uppercase tracking-wider shrink-0">Contract</span>
+                    {isLink ? (
+                      <a href={href} target="_blank" rel="noreferrer" className="text-sm font-mono text-purple-600 hover:text-purple-800 hover:underline truncate">
+                        {url}
+                      </a>
+                    ) : (
+                      <span className="text-sm font-mono text-slate-700 truncate">{url}</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

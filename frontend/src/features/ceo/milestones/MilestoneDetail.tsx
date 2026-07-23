@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
-import { formatVND } from "@/lib/utils";
+import { formatVND, ensureExternalUrl } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import CriteriaVerify from "./CriteriaVerify";
 import RevisionRequest from "./RevisionRequest";
@@ -374,17 +374,24 @@ export default function MilestoneDetail() {
                         <div>
                           <span className="text-xs uppercase tracking-wider font-bold text-slate-400 font-headline">Submitted Links & Files</span>
                           <div className="mt-2 space-y-1.5">
-                            {(latest.filesJson as string[]).map((url, idx) => (
-                              <a
-                                key={idx}
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs font-mono text-primary hover:underline block truncate max-w-lg bg-white border border-slate-200 rounded px-2.5 py-1.5 shadow-xs"
-                              >
-                                {url}
-                              </a>
-                            ))}
+                            {(latest.filesJson as string[]).map((url, idx) => {
+                              const { href, isLink } = ensureExternalUrl(url);
+                              return isLink ? (
+                                <a
+                                  key={idx}
+                                  href={href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-mono text-primary hover:underline block truncate max-w-lg bg-white border border-slate-200 rounded px-2.5 py-1.5 shadow-xs"
+                                >
+                                  {url}
+                                </a>
+                              ) : (
+                                <span key={idx} className="text-xs font-mono text-slate-700 block truncate max-w-lg bg-white border border-slate-200 rounded px-2.5 py-1.5 shadow-xs">
+                                  {url}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
