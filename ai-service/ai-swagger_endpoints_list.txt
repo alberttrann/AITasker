@@ -1,0 +1,12 @@
+POST    /llm/elicitation/stage1-extract
+POST    /llm/elicitation/stage3-vagueness-check
+POST    /llm/elicitation/stage4-recommend
+POST    /llm/elicitation/stage5-synthesize
+POST    /llm/elicitation/milestone-chat
+POST    /llm/portfolio-eval
+POST    /llm/matching
+POST    /llm/dispute-eval
+POST    /llm/criterion-check
+POST    /llm/service-generate
+GET     /projects/{project_id}/artifact-b
+GET     /health
