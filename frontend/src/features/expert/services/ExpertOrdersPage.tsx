@@ -256,6 +256,18 @@ export default function ExpertOrdersPage() {
                             <FolderKanban size={14} /> Open Milestone Workspace
                           </Button>
                         )}
+
+                        {/* Leave a Review — only once the engagement is CLOSED */}
+                        {order.state === 'CLOSED' && (
+                          <Button
+                            onClick={() => navigate(`/expert/engagements/${order.id}/review`)}
+                            variant="outline"
+                            className="gap-1.5 text-amber-700 bg-white hover:bg-amber-50 border-amber-200"
+                            size="sm"
+                          >
+                            <CheckCircle2 size={14} /> Leave a Review
+                          </Button>
+                        )}
                       </div>
 
                       {/* Milestones checklist */}

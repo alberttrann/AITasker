@@ -265,12 +265,18 @@ export function useUpdateMilestone() {
 export function useDeleteMilestone() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id }: { id: string; engagementId?: string }) => {
       const { data } = await apiClient.delete(`/milestones/${id}`);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['milestones', variables.id] });
+      if (variables.engagementId) {
+        queryClient.invalidateQueries({
+          queryKey: ['engagements', variables.engagementId, 'milestones'],
+        });
+      }
     }
   });
 }
@@ -338,5 +344,30 @@ export function useSendMilestoneMessage() {
         queryClient.invalidateQueries({ queryKey: ['project', projectId, 'milestone-chat', 'session', chatSessionId] });
       }
     }
+  });
+}
+
+export interface MarketplaceProjectDto {
+  id: string;
+  state: string;
+  archetype: string | null;
+  tier: string | null;
+  artifact_a_json: import('@/types/jsonb.types').ArtifactA | null;
+  projectName: string | null;
+  selfTechnical: boolean;
+  required_domains_json: any[];
+  required_seams_json: any[];
+  milestone_framework_json: any[]; 
+}
+
+export function useMarketplaceProjects(filters?: { archetype?: string; tier?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['projects', 'marketplace', filters],
+    queryFn: async () => {
+      const { data } = await apiClient.get<MarketplaceProjectDto[]>('/projects/marketplace', {
+        params: filters,
+      });
+      return data;
+    },
   });
 }

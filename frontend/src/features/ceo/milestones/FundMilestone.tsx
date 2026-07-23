@@ -16,16 +16,20 @@ export default function FundMilestone() {
   const { data: milestone, isLoading, refetch } = useMilestone(milestoneId);
   const fundMilestone = useFundMilestone();
 
-  // Poll milestone status while payment is pending
+  // Poll milestone status while payment is pending — but stop once the VA
+  // has actually expired, since polling can no longer surface a success and
+  // just wastes calls until the user regenerates
+  const isPastExpiry = !!milestone?.vaExpiresAt && new Date(milestone.vaExpiresAt).getTime() < Date.now();
+
   useEffect(() => {
-    if (milestone?.state !== "AWAITING_PAYMENT") return;
+    if (milestone?.state !== "AWAITING_PAYMENT" || isPastExpiry) return;
 
     const interval = setInterval(() => {
       refetch();
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [milestone?.state, refetch]);
+  }, [milestone?.state, refetch, isPastExpiry]);
 
   if (isLoading) {
     return (
@@ -147,13 +151,38 @@ export default function FundMilestone() {
         {/* AWAITING_PAYMENT State: Render reusable VietQRPanel */}
         {milestone.state === "AWAITING_PAYMENT" && (
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
+              {fundMilestone.isError && (
+                <ErrorBanner
+                  message={
+                    (fundMilestone.error as any)?.response?.data?.message?.message ||
+                    (fundMilestone.error as any)?.response?.data?.message ||
+                    "Failed to regenerate payment info. Please try again."
+                  }
+                />
+              )}
               <VietQRPanel
                 qrCodeUrl={`https://qr.sepay.vn/img?bank=MBBank&acc=0394654576&template=compact&amount=${milestone.paymentAmountVnd}&des=${milestone.vaNumber}`}
                 paymentReference={milestone.vaNumber || ""}
                 amount={Number(milestone.paymentAmountVnd)}
+                expiresAt={milestone.vaExpiresAt}
                 onPaymentConfirmed={() => refetch()}
               />
+              {isPastExpiry && (
+                <Button
+                  onClick={() => fundMilestone.mutate(milestoneId!, { onSuccess: () => refetch() })}
+                  disabled={fundMilestone.isPending}
+                  className="w-full"
+                >
+                  {fundMilestone.isPending ? (
+                    <>
+                      <Spinner className="mr-2 h-4 w-4" /> Regenerating...
+                    </>
+                  ) : (
+                    "Regenerate Payment Info"
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

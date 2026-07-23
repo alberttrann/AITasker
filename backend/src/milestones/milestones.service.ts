@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, ConflictException, 
 import { PrismaService }      from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
+import { VAStatus } from '@common/enums/va-status.enum';
 import { MilestoneState } from '@common/enums/milestone-state.enum';
 import { LedgerService } from '@shared/ledger/ledger.service';
 import { FastapiClient } from '../elicitation/fastapi.client';
@@ -159,8 +160,7 @@ export class MilestonesService {
             });
           }
         } catch (err) {
-          // Advisory-only — swallow and move on. Milestone/criteria are
-          // already safely persisted regardless of this outcome.
+          // Advisory-only
         }
       }
     }
@@ -183,11 +183,42 @@ export class MilestonesService {
     }
     this.assertCeoOwner(user, milestone.engagement);
 
-    if (milestone.state !== 'DEFINED') {
-      throw new UnprocessableEntityException(
-        `Funding requires a DEFINED milestone; current state is ${milestone.state}.`,
-      );
+    const isFreshFunding = milestone.state === 'DEFINED';
+    let staleVa: { id: string; status: string } | null = null;
+
+    if (!isFreshFunding) {
+      if (milestone.state !== 'AWAITING_PAYMENT') {
+        throw new UnprocessableEntityException(
+          `Funding requires a DEFINED milestone, or an AWAITING_PAYMENT milestone with an expired, unpaid VA; current state is ${milestone.state}.`,
+        );
+      }
+      if (!milestone.vaNumber) {
+        throw new ConflictException(
+          'Milestone is AWAITING_PAYMENT but has no associated VA number — cannot determine if regeneration is safe. Contact support.',
+        );
+      }
+      staleVa = await this.prisma.virtualAccount.findUnique({
+        where: { vaNumber: milestone.vaNumber },
+        select: { id: true, status: true },
+      });
+      if (!staleVa) {
+        throw new ConflictException(
+          'Could not find the existing virtual account record for this milestone. Contact support before retrying.',
+        );
+      }
+      if (staleVa.status === VAStatus.USED) {
+        throw new ConflictException(
+          'The existing virtual account for this milestone is marked USED (a payment may already be processing). Contact support before retrying — do not attempt to pay again.',
+        );
+      }
+      const nowExpired = !milestone.vaExpiresAt || new Date(milestone.vaExpiresAt).getTime() < Date.now();
+      if (staleVa.status === VAStatus.ACTIVE && !nowExpired) {
+        throw new UnprocessableEntityException(
+          'This milestone already has an active, unexpired payment window. Use the existing QR/VA instead of regenerating.',
+        );
+      }
     }
+
     if (milestone.engagement.type === 'PROJECT_BASED') {
       const engagement = await this.prisma.engagement.findUnique({
         where: { id: milestone.engagementId },
@@ -208,29 +239,43 @@ export class MilestonesService {
     }
 
     const vaNumber = generateVaNumber(VAEntityType.MILESTONE);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await this.prisma.virtualAccount.create({
-      data: {
-        entityType: VAEntityType.MILESTONE,
-        entityId: milestoneId,
-        vaNumber: vaNumber,
-        fixedAmount: milestone.paymentAmountVnd,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        status: 'ACTIVE',
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      if (staleVa) {
+        const closed = await tx.virtualAccount.updateMany({
+          where: { id: staleVa.id, status: staleVa.status as any },
+          data: { status: VAStatus.EXPIRED },
+        });
+        if (closed.count === 0) {
+          throw new ConflictException(
+            'The existing virtual account changed state while this request was processing (a payment may have just been received). Refresh and check the milestone status before retrying.',
+          );
+        }
+      }
 
-    return this.prisma.milestone.update({
-      where: { id: milestoneId },
-      data: {
-        state: 'AWAITING_PAYMENT',
-        vaNumber: vaNumber,
-        vaExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
+      await tx.virtualAccount.create({
+        data: {
+          entityType: VAEntityType.MILESTONE,
+          entityId: milestoneId,
+          vaNumber: vaNumber,
+          fixedAmount: milestone.paymentAmountVnd,
+          expiresAt,
+          status: 'ACTIVE',
+        },
+      });
+
+      return tx.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          state: 'AWAITING_PAYMENT',
+          vaNumber: vaNumber,
+          vaExpiresAt: expiresAt,
+        },
+      });
     });
   }
 
-  
   async updateMilestone(milestoneId: string, userId: string, dto: UpdateMilestoneDto) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
@@ -263,14 +308,11 @@ export class MilestonesService {
         },
       });
 
-      // 2. If the criteria checklist was updated, replace it atomically (Issue fix)
       if (dto.criteria && dto.criteria.length > 0) {
-        // Delete all old criteria for this milestone
         await tx.acceptanceCriterion.deleteMany({
           where: { milestoneId },
         });
 
-        // Insert the newly provided ones
         for (const c of dto.criteria) {
           await tx.acceptanceCriterion.create({
             data: {
@@ -283,7 +325,6 @@ export class MilestonesService {
         }
       }
 
-      // Return fully populated milestone with its updated criteria checklist included
       return tx.milestone.findUnique({
         where: { id: milestoneId },
         include: { acceptanceCriteria: true, dodItems: true },
@@ -364,7 +405,6 @@ export class MilestonesService {
     await this.assertReviewFlowReady(engagement);
     const signOffAuthority = deriveMilestoneReviewAuthority(engagement.project);
 
-    // Anti-Spam: Block if milestones have already been initialized
     const existingCount = await this.prisma.milestone.count({
       where: { engagementId: dto.engagementId },
     });
@@ -467,8 +507,6 @@ export class MilestonesService {
       }
     }
 
-    // Older handoffs did not record the exact Stage 4 submitter. Repair only
-    // the unambiguous one-profile case.
     const unlinkedProfiles = await this.prisma.techTeamProfile.findMany({
       where: {
         linkedClientId: engagement.clientId,
@@ -493,10 +531,6 @@ export class MilestonesService {
       }
     }
 
-    // Some consumed legacy handoffs overwrote the sole profile with a stale
-    // project link before the invited session published its project. When the
-    // CEO has exactly one Tech Team profile, the intended reviewer is still
-    // unambiguous and can be safely reassigned to this project.
     if (engagement.projectId && engagement.project.elicitationSession?.handoffConsumedAt) {
       const linkedProfiles = await this.prisma.techTeamProfile.findMany({
         where: { linkedClientId: engagement.clientId },

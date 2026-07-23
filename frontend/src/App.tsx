@@ -91,6 +91,9 @@ const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMiles
 const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
 const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
+const CeoReviewForm = lazy(() => import("./features/ceo/review/CeoReviewForm"));
+const ExpertReviewForm = lazy(() => import("./features/expert/review/ExpertReviewForm"));
+const TechTeamReviewForm = lazy(() => import("@features/tech-team/review/TechTeamReviewForm"));
 const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
 const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
 const AdminProjectsPage = lazy(() => import("@features/admin/oversight/AdminProjectsPage"));
@@ -153,6 +156,10 @@ const router = createBrowserRouter(
               element={<MilestoneList />}
             />
             <Route
+              path="engagements/:engagementId/review"
+              element={<CeoReviewForm />}
+            />
+            <Route
               path="engagements/:engagementId/messages"
               element={<MessageThread />}
             />
@@ -204,6 +211,7 @@ const router = createBrowserRouter(
             <Route path="bids/:projectId" element={<BidForm />} />
             <Route path="engagements/:engagementId/bid" element={<CounterOfferReceived />} />
             <Route path="engagements/:engagementId/bid/revision" element={<BidRevision />} />
+            <Route path="engagements/:engagementId/review" element={<ExpertReviewForm />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
@@ -251,6 +259,10 @@ const router = createBrowserRouter(
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
               element={<TechTeamMilestoneDetail />}
+            />
+            <Route
+              path="engagements/:engagementId/review"
+              element={<TechTeamReviewForm />}
             />
             <Route
               path="bids/:bidId/revision"

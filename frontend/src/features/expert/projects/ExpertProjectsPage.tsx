@@ -18,7 +18,7 @@ type UnifiedProject = {
   projectName: string;
   ceoName: string;
   companyName: string | null;
-  status: 'INVITED' | 'BID_SENT' | 'COUNTER_OFFER' | 'NDA_PENDING' | 'IN_PROGRESS' | 'DECLINED' | 'EXPIRED';
+  status: 'INVITED' | 'BID_SENT' | 'COUNTER_OFFER' | 'NDA_PENDING' | 'IN_PROGRESS' | 'CLOSED' | 'DECLINED' | 'EXPIRED';
   negotiationState?: string; 
   updatedAt: number;
   invitation?: InvitationDto;
@@ -75,8 +75,11 @@ export default function ExpertProjectsPage() {
         
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
 
-        // 1. Check if the bid or engagement is dead first
-        if (
+        if (eng.state === 'CLOSED') {
+          status = 'CLOSED';
+        }
+        // 2. Check if the bid or engagement is dead
+        else if (
           eng.state === 'DECLINED' || 
           eng.state === 'CANCELLED' || 
           eng.capabilityBid?.state === 'DECLINED' || 
@@ -316,7 +319,7 @@ export default function ExpertProjectsPage() {
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
                       <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-2">
-                        {['INVITED', 'BID_SENT', 'COUNTER_OFFER', 'IN_PROGRESS', 'DECLINED', 'EXPIRED'].map(status => (
+                        {['INVITED', 'BID_SENT', 'COUNTER_OFFER', 'IN_PROGRESS', 'CLOSED', 'DECLINED', 'EXPIRED'].map(status => (
                           <label key={status} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs">
                             <input 
                               type="checkbox" 
@@ -375,7 +378,11 @@ export default function ExpertProjectsPage() {
                       chipColor = "bg-emerald-100 text-emerald-700"; 
                       chipText = "In Progress"; 
                       break;
-                    case 'DECLINED': 
+                    case 'CLOSED':
+                      chipColor = "bg-blue-100 text-blue-700";
+                      chipText = "Closed";
+                      break;
+                    case 'DECLINED':
                       chipColor = "bg-slate-100 text-slate-600"; 
                       chipText = "Declined"; 
                       break;
@@ -524,6 +531,27 @@ export default function ExpertProjectsPage() {
                           }
                         }}>
                           Open Workspace
+                        </Button>
+                      </>
+                    )}
+
+                    {selectedProject.status === 'CLOSED' && selectedProject.engagement && (
+                      <>
+                        {selectedProject.engagement.serviceId && (
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}
+                            className="mr-2"
+                          >
+                            Chat with Client
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          className="text-amber-700 bg-white hover:bg-amber-50 border-amber-200"
+                          onClick={() => navigate(`/expert/engagements/${selectedProject.engagement!.id}/review`)}
+                        >
+                          Leave a Review
                         </Button>
                       </>
                     )}
@@ -712,8 +740,7 @@ export default function ExpertProjectsPage() {
                   <div className="mb-8">
                     <ArtifactBView 
                       projectId={selectedProject.projectId} 
-                      // Expert is only authorized if engagement is ACTIVE/CONNECTED (mapped to IN_PROGRESS in this UI)
-                      isAuthorized={selectedProject.status === 'IN_PROGRESS'} 
+                      isAuthorized={selectedProject.status === 'IN_PROGRESS' || selectedProject.status === 'CLOSED'} 
                     />
                   </div>
 
