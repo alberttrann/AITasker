@@ -330,13 +330,13 @@ export default function MessageThread({
     if (engagement) {
       if (isClient) {
         return (
-          engagement.expert?.fullName ||
+          (engagement as any).expert?.fullName ||
           (engagement as any).otherParty?.fullName ||
           "Expert"
         );
       } else {
         return (
-          engagement.client?.fullName ||
+          (engagement as any).client?.fullName ||
           (engagement as any).otherParty?.fullName ||
           "Client"
         );
@@ -348,15 +348,9 @@ export default function MessageThread({
   // Lọc luồng bằng UUID giúp khắc phục lỗi biến mất dropdown & hiển thị thiếu luồng [5]
   const [stablePartnerId, setStablePartnerId] = useState<string | null>(null);
 
-  // Reset stablePartnerId khi chuyển sang engagement khác để tránh hiển thị sai danh sách thread
+  // Sync stablePartnerId directly with targetPartnerId (handles loading and switching correctly)
   useEffect(() => {
-    setStablePartnerId(null);
-  }, [engagementId]);
-
-  useEffect(() => {
-    if (targetPartnerId) {
-      setStablePartnerId(targetPartnerId);
-    }
+    setStablePartnerId(targetPartnerId);
   }, [targetPartnerId]);
 
   const partnerEngagements = useMemo(() => {
@@ -460,7 +454,7 @@ export default function MessageThread({
           <div className="flex items-center gap-2 shrink-0">
             {/* Milestones Workspace Button */}
             {engagement &&
-              (engagement.milestones?.length > 0 || !!engagement.projectId) && (
+              ((engagement.milestones?.length || 0) > 0 || !!engagement.projectId) && (
                 <Button
                   type="button"
                   variant="outline"

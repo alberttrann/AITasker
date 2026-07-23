@@ -435,7 +435,7 @@ export default function ExpertMilestoneDetail() {
         engagementId={engagementId || ""}
         clientId={engagement.clientId}
         expertId={engagement.expertId}
-        projectName={engagement.project?.projectName}
+        projectName={(engagement as any).project?.projectName || undefined}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
       />
