@@ -10,6 +10,7 @@ import {
 import { useEngagementMilestones } from '@/hooks/use-engagements';
 import { Button } from '@/components/ui/button';
 import { Loader2, Send, MessageSquare, Bot, CheckCircle2, X } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
 import { useToastActions } from '@/lib/toast-context';
 
 interface MilestoneChatAssistantProps {
@@ -52,6 +53,8 @@ export default function MilestoneChatAssistant({
   const sendMessage = useSendMilestoneMessage();
   const updateMilestone = useUpdateMilestone();
   const updateProjectMilestones = useUpdateProjectMilestones();
+  const activeRole = useAuthStore(s => s.activeRole);
+  const isExpert = activeRole === 'EXPERT';
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +110,14 @@ export default function MilestoneChatAssistant({
       }
     );
     setInputText("");
+  };
+
+  const handleCopyEdit = () => {
+    if (!currentEdit) return;
+    const textToCopy = JSON.stringify(currentEdit.suggested_value, null, 2);
+    navigator.clipboard.writeText(textToCopy);
+    toast.success("Copied to clipboard! You can paste this in your bid counter-offer.");
+    setCurrentEdit(null);
   };
 
   const handleApplyEdit = () => {
@@ -315,14 +326,20 @@ export default function MilestoneChatAssistant({
                   <Button variant="outline" size="sm" onClick={() => setCurrentEdit(null)}>
                     Dismiss
                   </Button>
-                  <Button 
-                    variant="primary" 
-                    size="sm" 
-                    onClick={handleApplyEdit} 
-                    disabled={updateMilestone.isPending || updateProjectMilestones.isPending}
-                  >
-                    {updateMilestone.isPending || updateProjectMilestones.isPending ? 'Applying...' : 'Apply Edit'}
-                  </Button>
+                  {isExpert ? (
+                    <Button variant="primary" size="sm" onClick={handleCopyEdit}>
+                      Copy Suggestion
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      onClick={handleApplyEdit} 
+                      disabled={updateMilestone.isPending || updateProjectMilestones.isPending}
+                    >
+                      {updateMilestone.isPending || updateProjectMilestones.isPending ? 'Applying...' : 'Apply Edit'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

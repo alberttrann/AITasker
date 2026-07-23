@@ -10,6 +10,9 @@ import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
+import { useSentInvitations, useRetractInvitation } from "@/hooks/use-invitations";
+import { Mail } from "lucide-react";
+import { ConfirmModal } from "@/components/ui/modal";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +52,15 @@ export default function ProjectDetailPage() {
   const { data: archetypesList } = useArchetypes();
 
   const { data: projectMilestones } = useProjectMilestones(id || "");
+
+  const { data: sentInvitations } = useSentInvitations();
+  const retractInvitation = useRetractInvitation();
+  const [inviteToRetract, setInviteToRetract] = useState<string | null>(null);
+
+  const projectInvitations = useMemo(() => {
+    if (!sentInvitations) return [];
+    return sentInvitations.filter((inv: any) => inv.project?.id === id);
+  }, [sentInvitations, id]);
 
   // Milestones State
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
@@ -569,6 +581,54 @@ export default function ProjectDetailPage() {
 
       </div>
 
+      {/* Sent Invitations Card */}
+      {projectInvitations.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-8 max-w-[1440px] mx-auto">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-blue-600" />
+              Sent Invitations
+            </h3>
+            <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+              {projectInvitations.length}
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
+            {projectInvitations.map((inv: any) => {
+              const canRetract = inv.status === 'PENDING';
+              let statusColor = "bg-slate-100 text-slate-600";
+              if (inv.status === 'PENDING') statusColor = "bg-amber-100 text-amber-700";
+              else if (inv.status === 'ACCEPTED') statusColor = "bg-emerald-100 text-emerald-700";
+              else if (inv.status === 'DECLINED') statusColor = "bg-rose-100 text-rose-700";
+
+              return (
+                <div key={inv.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div>
+                    <p className="font-semibold text-slate-900 text-sm">{inv.expert?.fullName || 'Expert'}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Sent on {new Date(inv.invitedAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${statusColor}`}>
+                      {inv.status}
+                    </span>
+                    {canRetract && (
+                      <button
+                        onClick={() => setInviteToRetract(inv.id)}
+                        disabled={retractInvitation.isPending}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                        title="Retract Invitation"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {!termsLocked ? (
         <MilestoneChatAssistant
           projectId={project.id}
@@ -579,6 +639,21 @@ export default function ProjectDetailPage() {
           }}
         />
       ) : null}
+
+      <ConfirmModal
+        isOpen={!!inviteToRetract}
+        onClose={() => setInviteToRetract(null)}
+        onConfirm={() => {
+          if (inviteToRetract) retractInvitation.mutate(inviteToRetract);
+          setInviteToRetract(null);
+        }}
+        title="Retract Invitation"
+        confirmText="Retract"
+        cancelText="Cancel"
+        isDestructive
+      >
+        Are you sure you want to retract this invitation? The expert will no longer be able to view or accept it.
+      </ConfirmModal>
     </div>
   );
 }

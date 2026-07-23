@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGetService, usePurchaseService } from '@/hooks/use-services';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,6 +13,7 @@ import { formatVND } from '@/lib/utils';
 export default function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const { data: service, isLoading, error, refetch } = useGetService(id);
   const purchaseMutation = usePurchaseService();
@@ -82,7 +84,7 @@ export default function ServiceDetail() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/ceo/marketplace')}
+          onClick={() => navigate(user?.activeRole === 'EXPERT' ? '/expert/marketplace' : '/ceo/marketplace')}
           className="p-2 rounded-lg text-slate-600 hover:text-slate-900"
           aria-label="Back to marketplace"
         >
@@ -134,32 +136,40 @@ export default function ServiceDetail() {
               </p>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-slate-100">
-              <Button
-                variant="primary"
-                onClick={() => handlePurchaseIntent('PAY')}
-                disabled={purchaseMutation.isPending}
-                className="w-full py-3 justify-center font-bold text-sm tracking-wide shadow-sm"
-              >
-                {purchaseMutation.isPending && purchaseAction === 'PAY' ? 'Processing...' : 'Buy Now'}
-              </Button>
+            {user?.activeRole === 'CLIENT' && user?.clientSubtype === 'CEO' ? (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <Button
+                  variant="primary"
+                  onClick={() => handlePurchaseIntent('PAY')}
+                  disabled={purchaseMutation.isPending}
+                  className="w-full py-3 justify-center font-bold text-sm tracking-wide shadow-sm"
+                >
+                  {purchaseMutation.isPending && purchaseAction === 'PAY' ? 'Processing...' : 'Buy Now'}
+                </Button>
 
-              <Button
-                variant="outline"
-                onClick={() => handlePurchaseIntent('CHAT')}
-                disabled={purchaseMutation.isPending}
-                className="w-full py-3 justify-center gap-2 border-slate-200 text-slate-700 font-semibold"
-              >
-                {purchaseMutation.isPending && purchaseAction === 'CHAT' ? (
-                  'Opening chat...'
-                ) : (
-                  <>
-                    <MessageSquare size={16} />
-                    Chat with Expert First
-                  </>
-                )}
-              </Button>
-            </div>
+                <Button
+                  variant="outline"
+                  onClick={() => handlePurchaseIntent('CHAT')}
+                  disabled={purchaseMutation.isPending}
+                  className="w-full py-3 justify-center gap-2 border-slate-200 text-slate-700 font-semibold"
+                >
+                  {purchaseMutation.isPending && purchaseAction === 'CHAT' ? (
+                    'Opening chat...'
+                  ) : (
+                    <>
+                      <MessageSquare size={16} />
+                      Chat with Expert First
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center text-sm text-slate-500">
+                  Only CEO clients can purchase services.
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4 pt-6 border-t border-slate-100">
               <div className="flex gap-3 text-xs text-slate-600">

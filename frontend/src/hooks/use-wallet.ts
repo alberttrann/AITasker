@@ -100,6 +100,22 @@ export function useCreateWithdrawal() {
   });
 }
 
+export function useCancelWithdrawal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete<{ cancelled: boolean; refundedAmount: number }>(`/withdrawals/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'transactions'] });
+    }
+  })
+}
+
 export function useWithdrawalHistory() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@hooks/use-auth';
-import { useWallet, useUserProfile } from '@/hooks/use-wallet';
+import { useWallet, useUserProfile, useWithdrawalHistory, useCancelWithdrawal } from '@/hooks/use-wallet';
 import { TransactionHistory } from '@/components/wallet/TransactionHistory';
 import WalletTopUp from '@/features/ceo/onboarding/WalletTopUp';
 import { formatVND } from '@/lib/utils';
+import { ConfirmModal } from '@/components/ui/modal';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
 import {
   Wallet,
@@ -17,6 +18,8 @@ import {
   ShieldCheck,
   XCircle,
   Loader2,
+  X,
+  ArrowDownToLine
 } from 'lucide-react';
 
 export default function ExpertWallet() {
@@ -199,15 +202,11 @@ export default function ExpertWallet() {
                 </button>
               ) : (
                 <button
-                  disabled
-                  title="Withdraw feature coming soon"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-100 text-slate-400 text-sm font-semibold rounded-lg cursor-not-allowed border border-slate-200"
+                  onClick={() => navigate('/expert/wallet/withdraw')}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-lg hover:bg-slate-800 transition-all hover:shadow-md active:scale-[0.98]"
                 >
                   <ArrowUpRight size={16} strokeWidth={2.5} />
                   Withdraw to Bank
-                  <span className="ml-1 text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">
-                    Soon
-                  </span>
                 </button>
               )}
             </div>
@@ -217,13 +216,108 @@ export default function ExpertWallet() {
 
       {/* ─── Transaction History & Top-Up ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <TransactionHistory />
+          <WithdrawalHistoryList />
         </div>
         <div className="lg:col-span-1">
           <WalletTopUp showContinue={false} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Withdrawal History Sub-Component ─────────────────────────────────
+
+function WithdrawalHistoryList() {
+  const { data: withdrawals, isLoading } = useWithdrawalHistory();
+  const cancelWithdrawal = useCancelWithdrawal();
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="bg-white p-6 rounded-xl border border-slate-200">
+        <div className="h-6 w-40 bg-slate-200 rounded animate-pulse mb-6" />
+        <div className="flex justify-center py-4"><Loader2 className="animate-spin text-slate-300" /></div>
+      </div>
+    );
+  }
+
+  if (!withdrawals || withdrawals.length === 0) {
+    return null; // Hide the whole section if they've never withdrawn
+  }
+
+  const handleCancel = () => {
+    if (!cancelTarget) return;
+    cancelWithdrawal.mutate(cancelTarget.id, {
+      onSuccess: () => setCancelTarget(null)
+    });
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+        <h3 className="font-bold text-slate-900">Withdrawal Requests</h3>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {withdrawals.map((w: any) => {
+          const isAuto = w.type === 'MILESTONE_RELEASE';
+          const title = isAuto ? 'Auto-Payout (Milestone Release)' : 'Manual Withdrawal';
+          const subTitle = isAuto && w.milestoneId ? `Milestone ID: ${String(w.milestoneId).slice(0,8)}` : `To: ${w.bankAccountXid}`;
+          
+          let statusBadge = null;
+          switch (w.status) {
+            case 'PENDING': statusBadge = <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Pending</span>; break;
+            case 'COMPLETED': statusBadge = <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Completed</span>; break;
+            case 'FAILED': statusBadge = <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">Failed</span>; break;
+            case 'CANCELLED': statusBadge = <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">Cancelled</span>; break;
+          }
+
+          return (
+            <div key={w.id} className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-4 flex-1">
+                <div className={`p-2 rounded-full shrink-0 ${isAuto ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
+                  <ArrowDownToLine size={20} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-slate-900 truncate">{title}</p>
+                    {statusBadge}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">{subTitle}</p>
+                  <p className="text-xs text-slate-400 mt-1">Requested: {new Date(w.requestedAt || w.requested_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:flex-col sm:items-end sm:gap-2">
+                <p className="font-bold text-slate-900">{formatVND(Number(w.amount))}</p>
+                {w.status === 'PENDING' && (
+                  <button 
+                    onClick={() => setCancelTarget(w)}
+                    className="text-xs font-semibold text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <ConfirmModal
+        isOpen={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancel}
+        title="Cancel Withdrawal"
+        confirmText="Yes, Cancel"
+        isDestructive
+      >
+        {cancelTarget?.type === 'MILESTONE_RELEASE' 
+          ? "This will cancel the automatic payout and keep the funds safely in your AITasker wallet instead. You can manually withdraw them to your bank later. Are you sure?"
+          : "Are you sure you want to cancel this withdrawal? The funds will be returned to your available wallet balance immediately."}
+      </ConfirmModal>
     </div>
   );
 }

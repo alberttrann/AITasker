@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
         <div className="relative z-10 text-center p-8 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
           <h2 className="text-xl font-semibold text-slate-800 mb-2">Link Expired or Invalid</h2>
           <p className="text-slate-500 mb-6">This password reset link is invalid or has expired.</p>
-          <Link to="/forgot-password" className="inline-block py-2.5 px-5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm">
+          <Link to="/?action=forgot-password" className="inline-block py-2.5 px-5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm">
             Request a new one
           </Link>
           <div className="mt-6">

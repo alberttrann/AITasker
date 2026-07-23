@@ -52,6 +52,7 @@ const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingP
 const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
 const ExpertWallet = lazy(() => import("@features/expert/wallet/ExpertWallet"));
 const BankHubLink = lazy(() => import("@features/expert/wallet/BankHubLink"));
+const WithdrawForm = lazy(() => import("@features/expert/wallet/WithdrawForm"));
 const ServiceDetail = lazy(() => import("./features/expert/services/ServiceDetail"));
 
 const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
@@ -75,13 +76,13 @@ const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage
 const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
 const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
 const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickThrough"));
+const NotificationSystem = lazy(() => import("@/components/notifications/NotificationSystem"));
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
 const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
 const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
 const ExpertOrdersPage = lazy(() => import("@features/expert/services/ExpertOrdersPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const CounterOfferReceived = lazy(() => import("@features/expert/bidding/CounterOfferReceived"));
-const BidRevision = lazy(() => import("@features/expert/bidding/BidRevision"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
 const BidApprove = lazy(() => import("@features/tech-team/bids/BidApprove"));
@@ -131,7 +132,6 @@ const router = createBrowserRouter(
           <Route path="/ceo" element={<CeoDashboard />}>
             <Route index element={<CeoOverview />} />
             <Route path="projects" element={<ProjectsPage />} />
-            <Route path="project/:id" element={<ProjectDetailPage />} />
             <Route path="projects/:id" element={<ProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
@@ -169,6 +169,7 @@ const router = createBrowserRouter(
             />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="notifications" element={<NotificationSystem />} />
             <Route
               path="engagements/:engagementId/milestones/create"
               element={<CreateMilestone />}
@@ -204,13 +205,14 @@ const router = createBrowserRouter(
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
+            <Route path="wallet/withdraw" element={<WithdrawForm />} />
             <Route path="service/expert-profile/verification-history" element={<VerificationHistoryPage />} />
-            <Route path="verification-history" element={<VerificationHistoryPage />} />
             <Route path="subscriptions" element={<ExpertSubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<ExpertSubscriptionPlans />} />
+            <Route path="marketplace" element={<MarketplaceBrowse />} />
+            <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
             <Route path="bids/:projectId" element={<BidForm />} />
             <Route path="engagements/:engagementId/bid" element={<CounterOfferReceived />} />
-            <Route path="engagements/:engagementId/bid/revision" element={<BidRevision />} />
             <Route path="engagements/:engagementId/review" element={<ExpertReviewForm />} />
             <Route
               path="engagements/:engagementId/nda"
@@ -226,6 +228,7 @@ const router = createBrowserRouter(
             />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="notifications" element={<NotificationSystem />} />
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
               element={<ExpertMilestoneDetail />}
@@ -270,6 +273,7 @@ const router = createBrowserRouter(
             />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="notifications" element={<NotificationSystem />} />
           </Route>
         </Route>
 

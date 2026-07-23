@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useGetServices, useMyPurchase, usePurchaseService } from '@/hooks/use-services';
-import { useExpertSearch } from '@/hooks/use-expert-profile';
+import { useMarketplaceProjects } from '@/hooks/use-projects';
+import { useExpertSearch, useExpertProfile } from '@/hooks/use-expert-profile';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
-import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle } from 'lucide-react';
+import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle, FolderOpen } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatVND } from '@/lib/utils';
 
@@ -12,14 +13,20 @@ export default function MarketplaceBrowse() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'SERVICES' | 'EXPERTS' | 'PURCHASES'>(() => {
-    if (location.state?.tab === 'PURCHASES') return 'PURCHASES';
+  const isExpert = user?.activeRole === 'EXPERT';
+  
+  const [activeTab, setActiveTab] = useState<'SERVICES' | 'EXPERTS' | 'PURCHASES' | 'OPEN_PROJECTS'>(() => {
+    if (location.state?.tab) return location.state.tab;
+    if (isExpert && location.state?.fromProjects) return 'OPEN_PROJECTS';
     return 'SERVICES';
   });
   
   const { data: services, isLoading: isLoadingServices } = useGetServices();
   const { data: experts, isLoading: isLoadingExperts } = useExpertSearch();
   const { data: purchases, isLoading: isLoadingPurchases } = useMyPurchase(user?.id || '');
+  const { data: openProjects, isLoading: isLoadingOpenProjects } = useMarketplaceProjects();
+  const { profile: expertProfile } = useExpertProfile();
+  
   const purchaseMutation = usePurchaseService();
 
   const isClient = user?.activeRole === 'CLIENT';
@@ -53,7 +60,7 @@ export default function MarketplaceBrowse() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex bg-slate-100 p-1 rounded-xl mb-8 w-fit">
+      <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl mb-8 w-fit gap-1">
         <button
           onClick={() => setActiveTab('SERVICES')}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
@@ -62,14 +69,26 @@ export default function MarketplaceBrowse() {
         >
           <Briefcase className="w-4 h-4" /> Ready-to-Buy Services
         </button>
-        <button
-          onClick={() => setActiveTab('EXPERTS')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-            activeTab === 'EXPERTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <User className="w-4 h-4" /> Browse Experts
-        </button>
+        {!isExpert && (
+          <button
+            onClick={() => setActiveTab('EXPERTS')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'EXPERTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <User className="w-4 h-4" /> Browse Experts
+          </button>
+        )}
+        {isExpert && (
+          <button
+            onClick={() => setActiveTab('OPEN_PROJECTS')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'OPEN_PROJECTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Search className="w-4 h-4" /> Open Projects
+          </button>
+        )}
         {isClient && (
           <button
             onClick={() => setActiveTab('PURCHASES')}
@@ -106,7 +125,12 @@ export default function MarketplaceBrowse() {
                         {service.priceVnd ? `${service.priceVnd.toLocaleString('vi-VN')} ₫` : 'Contact for pricing'}
                       </p>
                     </div>
-                    <Button onClick={() => navigate(`/ceo/marketplace/service/${service.id}`)} variant="outline" size="sm" className="gap-2">
+                    <Button 
+                      onClick={() => navigate(isExpert ? `/expert/marketplace/service/${service.id}` : `/ceo/marketplace/service/${service.id}`)} 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                    >
                       View <ArrowRight className="w-4 h-4" />
                     </Button>
                   </div>
@@ -164,6 +188,70 @@ export default function MarketplaceBrowse() {
               <Search className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-slate-900 mb-2">No Experts Found</h3>
               <p className="text-slate-500">We couldn't find any experts matching your criteria.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: OPEN PROJECTS (Expert Only) */}
+      {isExpert && activeTab === 'OPEN_PROJECTS' && (
+        <div className="animate-in fade-in duration-300">
+          {isLoadingOpenProjects ? (
+            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
+          ) : openProjects && openProjects.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {openProjects.map((proj: any) => {
+                // Pre-flight check: do they possess the mandatory requirements?
+                const reqDomains = proj.required_domains_json?.map((d: any) => d.domain_code || d.domainCode) || [];
+                const reqSeams = proj.required_seams_json?.map((s: any) => s.seam_code || s.seamCode) || [];
+                
+                const myDomains = expertProfile?.domainDepths?.map((d: any) => d.domainCode) || [];
+                const mySeams = expertProfile?.seamClaims?.map((s: any) => s.seamCode || s.code) || [];
+
+                const isMissingDomains = reqDomains.some((rd: string) => !myDomains.includes(rd));
+                const isMissingSeams = reqSeams.some((rs: string) => !mySeams.includes(rs));
+                const isMissingReqs = isMissingDomains || isMissingSeams;
+
+                return (
+                  <div key={proj.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded-md">
+                        {proj.tier?.replace('_', ' ') || 'Project'}
+                      </span>
+                      {isMissingReqs && (
+                        <span className="px-2.5 py-1 bg-rose-50 text-rose-700 text-[10px] font-bold uppercase tracking-wider rounded-md border border-rose-100" title="Your profile is missing required domains or seams. Your bid will likely be blocked or rejected.">
+                          Missing Requirements
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2 line-clamp-2">{proj.projectName || `Project ${proj.id.slice(0,8)}`}</h3>
+                    <p className="text-slate-500 text-sm mb-6 line-clamp-3 flex-1">{proj.artifact_a_json?.business_intent || 'No description provided.'}</p>
+                    
+                    <div className="border-t border-slate-100 pt-4 mt-auto flex justify-between items-end">
+                      <div>
+                        <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Est. Budget</p>
+                        <p className="text-lg font-bold text-emerald-600">
+                          {proj.milestone_framework_json ? formatVND(proj.milestone_framework_json.reduce((sum: number, m: any) => sum + (m.payment_amount_vnd || m.paymentAmountVnd || 0), 0)) : 'TBD'}
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => navigate(`/expert/bids/${proj.id}`)} 
+                        variant={isMissingReqs ? "secondary" : "primary"} 
+                        size="sm" 
+                        className="gap-2"
+                      >
+                        Submit Bid <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-24 bg-white border border-slate-200 rounded-2xl">
+              <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-slate-900 mb-2">No Open Projects</h3>
+              <p className="text-slate-500">There are no published projects currently accepting bids.</p>
             </div>
           )}
         </div>

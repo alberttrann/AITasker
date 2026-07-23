@@ -77,9 +77,51 @@ export default function TopNav() {
   const dashboardRoute = getBasePath();
 
   // Notifications store
-  const { notifications, markRead, markAllRead } = useNotificationsStore();
+  const { notifications, markRead, markAllRead, hydrate } = useNotificationsStore();
   const unreadNotifications = notifications.filter(n => !n.read).length;
   const queryClient = useQueryClient();
+
+  // Hydrate notifications from DB on mount/auth
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      apiClient.get('/notifications/me', { params: { limit: 20 } })
+        .then(res => hydrate(res.data))
+        .catch(console.error);
+    }
+  }, [isAuthenticated, user, hydrate]);
+
+  const handleNotificationMarkAllRead = async () => {
+    try {
+      await apiClient.put('/notifications/read-all');
+      markAllRead();
+    } catch (e) {
+      console.error('Failed to mark all notifications read:', e);
+    }
+  };
+
+  const handleNotificationClick = async (notif: any) => {
+    try {
+      if (!notif.read) {
+        await apiClient.put(`/notifications/${notif.id}/read`);
+        markRead(notif.id);
+      }
+    } catch (e) {
+      console.error('Failed to mark notification read:', e);
+    }
+
+    if (notif.link) {
+      let targetLink = notif.link;
+      if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
+        targetLink = '/expert/service/projects';
+      } else if (!targetLink.startsWith('/')) {
+        targetLink = `${dashboardRoute}/${targetLink}`;
+      } else if (targetLink.startsWith('/engagements')) {
+        targetLink = `${dashboardRoute}${targetLink}`;
+      }
+      navigate(targetLink);
+      setActiveDropdown(null);
+    }
+  };
   const unreadCounts = useEngagementStore((s) => s.unreadCounts);
   const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
@@ -265,7 +307,7 @@ const RoleIcon =
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
                       <span className="font-semibold text-primary">Notifications {unreadNotifications > 0 ? `(${unreadNotifications})` : ''}</span>
                       {unreadNotifications > 0 && (
-                        <button onClick={() => markAllRead()} className="text-xs text-primary hover:text-primary-dark transition-colors font-medium">Mark all read</button>
+                        <button onClick={handleNotificationMarkAllRead} className="text-xs text-primary hover:text-primary-dark transition-colors font-medium cursor-pointer">Mark all read</button>
                       )}
                     </div>
                     <div className="max-h-80 overflow-y-auto bg-white">
@@ -279,17 +321,7 @@ const RoleIcon =
                         notifications.map((notif) => (
                           <div 
                             key={notif.id} 
-                            onClick={() => {
-                              markRead(notif.id);
-                              if (notif.link) {
-                                let targetLink = notif.link;
-                                if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
-                                  targetLink = '/expert/service/projects';
-                                }
-                                navigate(targetLink);
-                                setActiveDropdown(null);
-                              }
-                            }} 
+                            onClick={() => handleNotificationClick(notif)} 
                             className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
                           >
                             <div className="flex justify-between items-start mb-1">
@@ -301,6 +333,13 @@ const RoleIcon =
                         ))
                       )}
                     </div>
+                    <Link
+                      to={`${dashboardRoute}/notifications`}
+                      onClick={() => setActiveDropdown(null)}
+                      className="p-3 text-center text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100/80 border-t border-slate-100 block transition-all"
+                    >
+                      View All Notifications
+                    </Link>
                   </div>
                 )}
               </div>
@@ -572,7 +611,7 @@ const RoleIcon =
               </Link>
               
               {rawRole === 'EXPERT' && (
-                <Link to="/expert/service" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <Link to="/expert/service/expert-profile" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Award size={20} className="text-slate-500" /> Expert Profile
                 </Link>
               )}
@@ -584,6 +623,11 @@ const RoleIcon =
               {rawRole === 'CEO' && (
                 <Link to={`${dashboardRoute}/marketplace`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Briefcase size={20} className="text-slate-500" /> Marketplace
+                </Link>
+              )}
+              {rawRole === 'EXPERT' && (
+                <Link to={`/expert/marketplace`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                  <Search size={20} className="text-slate-500" /> Marketplace
                 </Link>
               )}
 
@@ -672,6 +716,15 @@ const RoleIcon =
             )}
             {rawRole === 'EXPERT' && (
               <>
+                <Link 
+                  to={`/expert/marketplace`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/marketplace') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Marketplace
+                  {location.pathname.includes('/marketplace') && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
                 <Link 
                   to={`/expert/service/projects`} 
                   className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/projects') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
