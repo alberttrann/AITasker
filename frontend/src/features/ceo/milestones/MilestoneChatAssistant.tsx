@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  useMilestoneChatSessions, 
-  useMilestoneChatHistory, 
-  useSendMilestoneMessage, 
-  useUpdateMilestone, 
+import {
+  useMilestoneChatSessions,
+  useMilestoneChatHistory,
+  useSendMilestoneMessage,
+  useUpdateMilestone,
   useProject,
   useUpdateProjectMilestones
 } from '@/hooks/use-projects';
@@ -17,7 +17,7 @@ interface MilestoneChatAssistantProps {
   projectId: string;
   engagementId?: string;
   currentMilestones?: any[];
-  onApplyLocalEdit?: (newMilestones: any[]) => void; 
+  onApplyLocalEdit?: (newMilestones: any[]) => void;
 }
 
 // Top-level criteria parser
@@ -32,11 +32,11 @@ const parseCriteria = (raw: any) => {
   });
 };
 
-export default function MilestoneChatAssistant({ 
-  projectId, 
-  engagementId, 
-  currentMilestones, 
-  onApplyLocalEdit 
+export default function MilestoneChatAssistant({
+  projectId,
+  engagementId,
+  currentMilestones,
+  onApplyLocalEdit
 }: MilestoneChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -44,12 +44,12 @@ export default function MilestoneChatAssistant({
   const [currentEdit, setCurrentEdit] = useState<any | null>(null);
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const toast = useToastActions();
-  
+
   const { data: sessions } = useMilestoneChatSessions(projectId);
   const { data: activeSession } = useMilestoneChatHistory(projectId, activeSessionId);
   const { data: project } = useProject(projectId);
   const { data: engagementMilestones } = useEngagementMilestones(engagementId);
-  
+
   const sendMessage = useSendMilestoneMessage();
   const updateMilestone = useUpdateMilestone();
   const updateProjectMilestones = useUpdateProjectMilestones();
@@ -90,14 +90,14 @@ export default function MilestoneChatAssistant({
 
   const handleSend = () => {
     if (!inputText.trim()) return;
-    
+
     setPendingUserMessage(inputText);
     sendMessage.mutate(
-      { 
-        projectId, 
-        message: inputText, 
-        chatSessionId: activeSessionId || undefined, 
-        currentMilestones 
+      {
+        projectId,
+        message: inputText,
+        chatSessionId: activeSessionId || undefined,
+        currentMilestones
       },
       {
         onSuccess: (data) => {
@@ -194,7 +194,7 @@ export default function MilestoneChatAssistant({
       });
 
       if (!cleanPayload.criteria && (payload.criteria || payload.acceptanceCriteria || payload.acceptance_criteria)) {
-         cleanPayload.criteria = parseCriteria(payload.criteria || payload.acceptanceCriteria || payload.acceptance_criteria);
+        cleanPayload.criteria = parseCriteria(payload.criteria || payload.acceptanceCriteria || payload.acceptance_criteria);
       }
 
       updateMilestone.mutate({ id: targetMilestone.id, payload: cleanPayload }, {
@@ -204,7 +204,7 @@ export default function MilestoneChatAssistant({
         }
       });
       return;
-    } 
+    }
 
     // SCENARIO 3: Published Project Blueprint DB update
     if (project) {
@@ -254,12 +254,12 @@ export default function MilestoneChatAssistant({
 
   if (!isOpen) {
     return (
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 p-4 bg-emerald-600 text-white rounded-full shadow-xl hover:bg-emerald-700 hover:-translate-y-1 transition-all z-50 flex items-center justify-center group cursor-pointer"
       >
-        <Bot className="w-6 h-6 mr-0 group-hover:mr-2 transition-all" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all whitespace-nowrap font-medium text-sm">
+        <Bot className="w-6 h-6 transition-all duration-300" />
+        <span className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap font-medium text-sm">
           Milestone Assistant
         </span>
       </button>
@@ -372,8 +372,8 @@ export default function MilestoneChatAssistant({
             className="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             disabled={sendMessage.isPending}
           />
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleSend}
             disabled={!inputText.trim() || sendMessage.isPending}
             className="rounded-xl h-[46px] px-4 cursor-pointer"

@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 import { useSubscription, useSubscriptionHistory, useSubscriptionStatus } from '@/hooks/use-subscription';
 import { useSubscriptionPackages } from '@/hooks/use-config';
+import { useToastActions } from '@/lib/toast-context';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
@@ -17,19 +18,17 @@ export default function SubscriptionPlans() {
   const { data: wallet } = useWallet();
   const { activateSubscription } = useSubscription();
   const { data: packages, isLoading: isLoadingPackages } = useSubscriptionPackages();
-
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const toast = useToastActions();
   const availableBalance = (wallet as any)?.availableBalance ?? (wallet as any)?.available_balance ?? 0;
 
   const { data: subStatus } = useSubscriptionStatus();
   const { data: history } = useSubscriptionHistory();
   const activePackage = history?.find((h) => !h.isExpired);
-  const activePackageNames = subStatus?.isActive && activePackage 
-    ? [activePackage.packageName] 
+  const activePackageNames = subStatus?.isActive && activePackage
+    ? [activePackage.packageName]
     : [];
 
   const handleActivate = (packageId: string) => {
-    setErrorMsg(null);
     activateSubscription.mutate(
       { activeRole: user?.activeRole || 'CLIENT', packageId },
       {
@@ -38,7 +37,7 @@ export default function SubscriptionPlans() {
         },
         onError: (error: any) => {
           const msg = error.response?.data?.message || 'Failed to activate subscription.';
-          setErrorMsg(Array.isArray(msg) ? msg[0] : msg);
+          toast.error(Array.isArray(msg) ? msg[0] : msg);
         }
       }
     );
@@ -54,7 +53,7 @@ export default function SubscriptionPlans() {
       <div className="fixed bottom-1/4 right-1/4 w-75 h-75 bg-blue-300 rounded-full blur-[100px] opacity-20 pointer-events-none" />
 
       <div className="w-full max-w-360 mx-auto flex flex-col gap-8 items-center justify-center relative z-10 px-6">
-        
+
         <div className="text-center max-w-2xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-headline font-extrabold text-slate-900 leading-[1.1] mb-6">
             Unlock the <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-500 to-teal-400">Client Pro</span> Experience
@@ -63,12 +62,6 @@ export default function SubscriptionPlans() {
             Choose the perfect plan to elevate your project management with AI-driven elicitation, priority expert matching, and secure milestone tracking.
           </p>
         </div>
-
-        {errorMsg && (
-          <div className="p-4 bg-red-50 text-red-700 text-sm font-medium rounded-xl border border-red-100 shadow-sm max-w-2xl w-full text-center">
-            {errorMsg}
-          </div>
-        )}
 
         {isLoadingPackages ? (
           <div className="flex justify-center mt-8">

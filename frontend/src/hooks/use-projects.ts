@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth.store';
 import type { ProjectDto, ElicitationSessionDto, PaginatedResponse } from '@/types/api.types';
 import type { ArtifactA, ArtifactB } from '@/types/jsonb.types';
 
@@ -51,12 +52,16 @@ export function useProjects(slim: boolean = false) {
 
 
 export function useActiveElicitationSession() {
+  const { user } = useAuthStore();
+  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+
   const activeSessionQuery = useQuery({
     queryKey: ['elicitation-sessions', 'active'],
     queryFn: async () => {
       const res = await apiClient.get('/elicitation/sessions/active');
       return res.data;
     },
+    enabled: isEligible,
     retry: false
   });
 
@@ -68,12 +73,16 @@ export function useActiveElicitationSession() {
 }
 
 export function useElicitationSessions() {
+  const { user } = useAuthStore();
+  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+
   const sessionsQuery = useQuery({
     queryKey: ['elicitation-sessions'],
     queryFn: async () => {
       const res = await apiClient.get<PaginatedResponse<ElicitationSessionDto>>('/elicitation/sessions');
       return res.data;
     },
+    enabled: isEligible,
   });
 
   return {
@@ -237,12 +246,16 @@ export function useArtifactB(
  * RETURNED = quality gate failed, session sent back for revision.
  */
 export function useSessionHistory() {
+  const { user } = useAuthStore();
+  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+
   return useQuery({
     queryKey: ['elicitation-sessions', 'history'],
     queryFn: async () => {
       const { data } = await apiClient.get('/elicitation/sessions/history');
       return (Array.isArray(data) ? data : (data as any)?.data ?? []) as ElicitationSessionDto[];
     },
+    enabled: isEligible,
     staleTime: 30_000,
   });
 }

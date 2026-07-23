@@ -55,7 +55,7 @@ export default function LandingPage() {
 
     // Config for blobling sharp mask
     const RADIUS = 120;
-    const TRAIL_LIFE_DECAY = 0.08;
+    const TRAIL_LIFE_DECAY = 0.1;
 
     interface Point {
       x: number;

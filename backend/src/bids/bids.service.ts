@@ -78,6 +78,7 @@ export class BidsService {
           clientId: true,
           state: true,
           tier: true,
+          selfTechnical: true,
           milestoneFrameworkJson: true,
         },
       }),
@@ -113,13 +114,14 @@ export class BidsService {
       dto.conditional_pricing_json,
     );
     const offer = this.buildOffer(1, expertUserId, 'EXPERT', 'CEO', terms, 1);
+    const technicalReviewRequired = !project.selfTechnical;
     const envelope: BidNegotiationEnvelope = {
       formatVersion: 1,
       offers: [offer],
       currentOfferId: offer.id,
       technicalReview: {
         scopeVersion: 1,
-        status: 'PENDING',
+        status: technicalReviewRequired ? 'PENDING' : 'APPROVED',
         intendedRecipient: 'CEO',
       },
     };
@@ -142,7 +144,7 @@ export class BidsService {
           approachSummary: dto.approach_summary,
           conditionalPricingJson: envelope as any,
           state: 'SUBMITTED',
-          techStatus: 'PENDING',
+          techStatus: technicalReviewRequired ? 'PENDING' : 'APPROVED',
           ceoStatus: 'PENDING',
           negotiatedPriceVnd: BigInt(totalOfferPrice(terms)),
           versionNumber: 1,
@@ -152,10 +154,12 @@ export class BidsService {
         where: { projectId: project.id, expertId: expertUserId, status: 'PENDING' },
         data: { status: 'ACCEPTED', respondedAt: new Date() },
       });
-      const techTeamMembers = await tx.techTeamProfile.findMany({
-        where: { linkedProjectId: project.id },
-        select: { userId: true },
-      });
+      const techTeamMembers = technicalReviewRequired
+        ? await tx.techTeamProfile.findMany({
+            where: { linkedProjectId: project.id },
+            select: { userId: true },
+          })
+        : [];
       return { engagement, bid, techTeamMembers };
     });
 
@@ -197,6 +201,7 @@ export class BidsService {
     const isTechTeam =
       user.activeRole === 'CLIENT' &&
       user.clientSubtype === 'TECH_TEAM' &&
+      !engagement.project.selfTechnical &&
       Boolean(engagement.projectId) &&
       (await this.isLinkedTechTeam(engagement.projectId!, user.id));
     if (!isAdmin && !isExpert && !isCeo && !isTechTeam) {
@@ -224,7 +229,10 @@ export class BidsService {
       where = {
         engagement: {
           ...(projectId ? { projectId } : {}),
-          project: { techTeamProfiles: { some: { userId: user.id } } },
+          project: {
+            selfTechnical: false,
+            techTeamProfiles: { some: { userId: user.id } },
+          },
         },
       };
     } else if (user.activeRole === 'ADMIN') {
@@ -288,9 +296,10 @@ export class BidsService {
       );
       envelope.offers.push(next);
       envelope.currentOfferId = next.id;
+      const technicalReviewRequired = !bid.engagement.project.selfTechnical;
       envelope.technicalReview = {
         scopeVersion: version,
-        status: 'PENDING',
+        status: technicalReviewRequired ? 'PENDING' : 'APPROVED',
         intendedRecipient: next.recipientRole,
       };
 
@@ -300,9 +309,9 @@ export class BidsService {
           footprintAlignmentJson: dto.footprint_alignment_json as any,
           approachSummary: dto.approach_summary,
           conditionalPricingJson: envelope as any,
-          techStatus: 'PENDING',
+          techStatus: technicalReviewRequired ? 'PENDING' : 'APPROVED',
           techFeedback: null,
-          state: 'TECH_REVIEW',
+          state: technicalReviewRequired ? 'TECH_REVIEW' : 'SUBMITTED',
           negotiatedPriceVnd: BigInt(totalOfferPrice(terms)),
           versionNumber: version,
         },
@@ -325,6 +334,9 @@ export class BidsService {
       if (!bid) throw new NotFoundException('Bid not found.');
       if (['SELECTED', 'DECLINED', 'WITHDRAWN'].includes(bid.state)) {
         throw new UnprocessableEntityException(`Bid is in state ${bid.state}; cannot review.`);
+      }
+      if (bid.engagement.project.selfTechnical) {
+        throw new UnprocessableEntityException('TECH_REVIEW_NOT_REQUIRED');
       }
       if (!(await this.isLinkedTechTeam(bid.engagement.projectId!, user.id, tx))) {
         throw new ForbiddenException('TECH_TEAM is not linked to this project.');
@@ -407,6 +419,7 @@ export class BidsService {
 
       const envelope = this.requireEnvelope(bid);
       const previous = currentOffer(envelope);
+      const technicalReviewRequired = !bid.engagement.project.selfTechnical;
       if (dto.respondingToVersion !== bid.versionNumber || previous.version !== bid.versionNumber) {
         throw new ConflictException('STALE_OFFER_VERSION');
       }
@@ -417,7 +430,7 @@ export class BidsService {
           throw new ForbiddenException('Only the current proposer may submit the requested revision.');
         }
       } else {
-        if (envelope.technicalReview.status !== 'APPROVED') {
+        if (technicalReviewRequired && envelope.technicalReview.status !== 'APPROVED') {
           throw new UnprocessableEntityException('TECH_REVIEW_INCOMPLETE');
         }
         if (previous.recipientRole !== actorRole) {
@@ -435,6 +448,7 @@ export class BidsService {
         : this.oppositeRole(actorRole);
       const scopeChanged =
         isTechnicalRevision || hasTechnicalScopeChange(previous.milestones, terms);
+      const requiresTechnicalReview = technicalReviewRequired && scopeChanged;
       const technicalScopeVersion = scopeChanged ? version : previous.technicalScopeVersion;
 
       previous.state = 'SUPERSEDED';
@@ -451,9 +465,9 @@ export class BidsService {
       envelope.currentOfferId = next.id;
       envelope.technicalReview = {
         scopeVersion: technicalScopeVersion,
-        status: scopeChanged ? 'PENDING' : 'APPROVED',
+        status: requiresTechnicalReview ? 'PENDING' : 'APPROVED',
         intendedRecipient: recipientRole,
-        ...(scopeChanged ? {} : { reviewedAt: envelope.technicalReview.reviewedAt }),
+        ...(requiresTechnicalReview ? {} : { reviewedAt: envelope.technicalReview.reviewedAt }),
       };
 
       const updated = await tx.capabilityBid.update({
@@ -462,16 +476,16 @@ export class BidsService {
           conditionalPricingJson: envelope as any,
           versionNumber: version,
           negotiatedPriceVnd: BigInt(totalOfferPrice(terms)),
-          techStatus: scopeChanged ? 'PENDING' : 'APPROVED',
+          techStatus: requiresTechnicalReview ? 'PENDING' : 'APPROVED',
           techFeedback: null,
           ceoStatus: 'PENDING',
-          state: scopeChanged ? 'TECH_REVIEW' : 'SUBMITTED',
+          state: requiresTechnicalReview ? 'TECH_REVIEW' : 'SUBMITTED',
         },
       });
-      return { updated, engagement: bid.engagement, scopeChanged, recipientRole };
+      return { updated, engagement: bid.engagement, requiresTechnicalReview, recipientRole };
     });
 
-    if (result.scopeChanged) {
+    if (result.requiresTechnicalReview) {
       const reviewers = await this.prisma.techTeamProfile.findMany({
         where: { linkedProjectId: result.engagement.projectId },
         select: { userId: true },
@@ -541,8 +555,9 @@ export class BidsService {
         throw new ForbiddenException('Only the current offer recipient may accept.');
       }
       if (
-        envelope.technicalReview.status !== 'APPROVED' ||
-        envelope.technicalReview.scopeVersion !== offer.technicalScopeVersion
+        !bid.engagement.project.selfTechnical &&
+        (envelope.technicalReview.status !== 'APPROVED' ||
+          envelope.technicalReview.scopeVersion !== offer.technicalScopeVersion)
       ) {
         throw new UnprocessableEntityException('TECH_REVIEW_INCOMPLETE');
       }
@@ -852,7 +867,7 @@ export class BidsService {
         technicalReview: {
           scopeVersion: version,
           status:
-            selected || bid.techStatus === 'APPROVED'
+            selected || bid.engagement.project.selfTechnical || bid.techStatus === 'APPROVED'
               ? 'APPROVED'
               : bid.techStatus === 'REVISION_REQUESTED'
                 ? 'REVISION_REQUESTED'
@@ -903,7 +918,11 @@ export class BidsService {
           conditionalPricingJson: envelope as any,
           versionNumber: version,
           negotiatedPriceVnd: BigInt(totalOfferPrice(terms)),
-          ...(selected ? { state: 'SELECTED', ceoStatus: 'APPROVED' } : {}),
+          ...(selected
+            ? { state: 'SELECTED', ceoStatus: 'APPROVED' }
+            : bid.engagement.project.selfTechnical
+              ? { state: 'SUBMITTED', techStatus: 'APPROVED', techFeedback: null }
+              : {}),
         },
       });
       return { changed: true };
@@ -1010,18 +1029,20 @@ export class BidsService {
       : undefined;
     const offer = envelope ? currentOffer(envelope) : undefined;
     const accepted = envelope ? acceptedOffer(envelope) : undefined;
+    const technicalReviewRequired = !bid.engagement.project.selfTechnical;
     const derived = envelope
-      ? deriveNegotiationState(envelope)
+      ? deriveNegotiationState(envelope, technicalReviewRequired)
       : {
           negotiationState:
             bid.state === 'SELECTED'
               ? 'TERMS_ACCEPTED'
               : bid.state === 'DECLINED'
                 ? 'DECLINED'
-                : bid.techStatus === 'APPROVED'
+                : !technicalReviewRequired || bid.techStatus === 'APPROVED'
                   ? 'AWAITING_CEO'
                   : 'AWAITING_TECH_REVIEW',
-          nextActionBy: bid.techStatus === 'APPROVED' ? 'CEO' : 'TECH_TEAM',
+          nextActionBy:
+            !technicalReviewRequired || bid.techStatus === 'APPROVED' ? 'CEO' : 'TECH_TEAM',
         };
     const ndaComplete = Boolean(
       bid.engagement.clientNdaAcceptedAt && bid.engagement.expertNdaAcceptedAt,
@@ -1061,12 +1082,17 @@ export class BidsService {
       termsLocked: Boolean(accepted),
       ndaComplete,
       termsAcceptedAt: envelope?.termsAcceptedAt,
-      technicalReview: envelope?.technicalReview ?? {
-        scopeVersion: bid.versionNumber,
-        status: bid.techStatus,
-        intendedRecipient: 'CEO',
-        feedback: bid.techFeedback,
-      },
+      technicalReview:
+        envelope?.technicalReview
+          ? !technicalReviewRequired && envelope.technicalReview.status === 'PENDING'
+            ? { ...envelope.technicalReview, status: 'APPROVED' }
+            : envelope.technicalReview
+          : {
+              scopeVersion: bid.versionNumber,
+              status: technicalReviewRequired ? bid.techStatus : 'APPROVED',
+              intendedRecipient: 'CEO',
+              feedback: bid.techFeedback,
+            },
     };
   }
 

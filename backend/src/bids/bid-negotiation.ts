@@ -278,6 +278,7 @@ export function totalOfferPrice(terms: MilestoneOfferTerm[]): number {
 
 export function deriveNegotiationState(
   envelope: BidNegotiationEnvelope,
+  technicalReviewRequired = true,
 ): { negotiationState: NegotiationState; nextActionBy: NegotiationRole | 'TECH_TEAM' | 'NONE' } {
   const accepted = acceptedOffer(envelope);
   if (accepted) return { negotiationState: 'TERMS_ACCEPTED', nextActionBy: 'NONE' };
@@ -292,7 +293,7 @@ export function deriveNegotiationState(
       nextActionBy: offer.proposerRole,
     };
   }
-  if (envelope.technicalReview.status === 'PENDING') {
+  if (technicalReviewRequired && envelope.technicalReview.status === 'PENDING') {
     return { negotiationState: 'AWAITING_TECH_REVIEW', nextActionBy: 'TECH_TEAM' };
   }
   return offer.recipientRole === 'CEO'
