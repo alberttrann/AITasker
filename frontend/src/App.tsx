@@ -100,6 +100,7 @@ const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult
 const AdminProjectsPage = lazy(() => import("@features/admin/oversight/AdminProjectsPage"));
 const AdminEngagementsPage = lazy(() => import("@features/admin/oversight/AdminEngagementsPage"));
 const AdminExpertsPage = lazy(() => import("@features/admin/oversight/AdminExpertsPage"));
+const CeoExpertProfileView = lazy(() => import("@features/ceo/experts/CeoExpertProfileView"));
 
 function RootLayout() {
   return (
@@ -143,6 +144,7 @@ const router = createBrowserRouter(
             <Route path="marketplace" element={<MarketplaceBrowse />} />
             <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
             <Route path="marketplace/service/:id/purchase" element={<CeoServicePurchase />} />
+            <Route path="experts/:userId" element={<CeoExpertProfileView />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
             <Route path="projects/:projectId/bids" element={<BidList />} />
             <Route path="projects/:projectId/bids/:bidId" element={<BidDetail />} />
