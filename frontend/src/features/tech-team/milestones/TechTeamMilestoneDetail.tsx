@@ -361,8 +361,11 @@ export default function TechTeamMilestoneDetail() {
 
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
                   {milestone.acceptanceCriteria && milestone.acceptanceCriteria.map((c, idx) => {
-                    const isVerified = c.verifiedAt !== null;
-                    const canSignOff = c.verifiedByRole === "TECH_TEAM" || milestone.signOffAuthority === "TECH_TEAM" || milestone.signOffAuthority === "JOINT";
+                    const techVerified = Boolean(c.techVerifiedAt);
+                    const ceoVerified = Boolean(c.ceoVerifiedAt || c.verifiedAt);
+                    const canReviewCriterion =
+                      isSubmitted &&
+                      techReviewRequired && !techReviewComplete && !techVerified;
 
                     return (
                       <div
@@ -397,13 +400,14 @@ export default function TechTeamMilestoneDetail() {
                         </div>
 
                         {/* Sign-off Actions */}
-                        {isSubmitted && !isVerified && canSignOff && (
+                        {canReviewCriterion && (
                           <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleOpenRevision(c.id, c.criterionText)}
-                              className="text-[12px] h-8 px-2.5 text-amber-600 border-amber-200 hover:bg-amber-50 inline-flex items-center gap-1"
+                              className="text-[12px] h-8 px-2.5 text-amber-600 border-amber-200 hover:bg-amber-50 inline-flex items-center gap-1 cursor-pointer"
+                              id={`btn-tech-request-criterion-revision-${c.id}`}
                             >
                               <RotateCcw size={13} /> Request Revision
                             </Button>
@@ -411,29 +415,28 @@ export default function TechTeamMilestoneDetail() {
                               variant="primary"
                               size="sm"
                               onClick={() => handleOpenVerify(c.id, c.criterionText)}
-                              className="text-[12px] bg-emerald-600 hover:bg-emerald-700 border-none h-8 px-2.5 inline-flex items-center gap-1 text-white"
+                              className="text-[12px] bg-emerald-600 hover:bg-emerald-700 border-none h-8 px-2.5 inline-flex items-center gap-1 text-white cursor-pointer"
+                              id={`btn-tech-verify-criterion-${c.id}`}
                             >
                               <Check size={14} /> Verify & Approve
                             </Button>
                           </div>
                         )}
 
-                        {isSubmitted && !isVerified && !canSignOff && (
-                          <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded border border-slate-200 shrink-0">
-                            Awaiting {c.verifiedByRole} Sign-off
+                        {isSubmitted && techVerified && !ceoVerified && (
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 shrink-0">
+                            Tech Sign-off Complete
                           </span>
                         )}
 
-                        {isSubmitted && isVerified && (
+                        {isSubmitted && ceoVerified && (
                           <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 shrink-0">
-                            Verified
+                            Fully Verified
                           </span>
                         )}
                       </div>
                     );
                   })}
-                </div>
-              </div>
 
               {/* Expert's Definition of Done (DoD) Checklist - Read-Only Viewer */}
               {isFunded && milestone.dodItems && milestone.dodItems.length > 0 && (

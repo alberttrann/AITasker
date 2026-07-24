@@ -96,7 +96,7 @@ export default function BidDetail() {
         className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
       >
         <div className="h-[80vh] overflow-y-auto">
-          <CeoNdaClickThrough />
+          <CeoNdaClickThrough engagementId={engagementId} />
         </div>
       </Modal>
     </div>
