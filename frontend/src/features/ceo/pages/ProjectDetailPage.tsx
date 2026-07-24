@@ -37,7 +37,12 @@ export default function ProjectDetailPage() {
     );
   }, [engagements, project]);
 
-  const activeBidsCount = Array.isArray(projectBids) ? projectBids.length : 0;
+  const activeBidsCount = useMemo(() => {
+    return (projectBids || []).filter((e: any) =>
+      ['AWAITING_CEO', 'AWAITING_TECH_REVIEW'].includes(e.capabilityBid?.negotiationState) &&
+      e.capabilityBid?.state !== 'SELECTED'
+    ).length;
+  }, [projectBids]);
   const selectedEngagement = Array.isArray(projectBids)
     ? projectBids.find((engagement: any) => engagement.termsLocked || engagement.capabilityBid?.state === 'SELECTED')
     : null;

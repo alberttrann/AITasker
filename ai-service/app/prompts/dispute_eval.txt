@@ -26,4 +26,10 @@ If the criterion contains ONLY subjective language ("easy to use", "looks profes
 "high quality") with no measurable thresholds, set confidence_score ≤ 0.60.
 Such disputes require human judgment.
 
+GIBBERISH & QUALITY SAFETY RULE (CRITICAL):
+If the dispute reason, criterion, or deliverable description contains nonsensical text,
+profanity, random characters (e.g., "sick my duck", "asdfghj"), or lack of technical substance,
+you MUST set confidence_score ≤ 0.40. NEVER grant an automatic "client_wins" or "expert_wins"
+on low-quality or bogus inputs — escalate them directly to human admin review.
+
 Always fill the reasoning field — it is shown to admins for manual review.

@@ -135,10 +135,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       engagement_id: string;
       state:         string;
     }) => {
-      // Invalidate notifications cache (backend persists them) + refresh bids data
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
       queryClient.invalidateQueries({ queryKey: ['bids'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     });
 
     socket.on('project:updated', (data: { project_id: string; project_name: string }) => {
