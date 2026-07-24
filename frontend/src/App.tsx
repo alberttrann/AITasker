@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet } from "react-router-dom";
+import { Route, createBrowserRouter, createRoutesFromElements, RouterProvider, Outlet, Navigate } from "react-router-dom";
 import { AuthProvider } from '@lib/auth-context';
 import { SocketProvider } from '@lib/socket-provider';
 import { ToastProvider } from '@lib/toast-context';
