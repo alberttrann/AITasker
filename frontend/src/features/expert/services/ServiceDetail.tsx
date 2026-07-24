@@ -1,10 +1,12 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGetService, usePublishService, useUnpublishService, useDeleteService } from '@/hooks/use-services';
+import { useEngagements } from '@/hooks/use-engagements';
+import { useMyReceivedReviews } from '@/hooks/use-reviews';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, DollarSign, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, DollarSign, Clock, CheckCircle, XCircle, Trash2, Star, MessageSquare } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/modal';
 import { useState } from 'react';
 
@@ -18,6 +20,13 @@ export default function ServiceDetail() {
   const deleteService = useDeleteService();
   const { data: domainsList } = useDomains();
   const { data: seamsList } = useSeams();
+  
+  const { data: engagements } = useEngagements();
+  const { data: receivedReviews } = useMyReceivedReviews();
+
+  const serviceEngagements = engagements?.filter(e => e.serviceId === id) || [];
+  const serviceEngagementIds = serviceEngagements.map(e => e.id);
+  const serviceReviews = receivedReviews?.filter(r => serviceEngagementIds.includes(r.engagementId)) || [];
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -362,6 +371,66 @@ export default function ServiceDetail() {
               </div>
             </section>
           )}
+
+          {/* Client Reviews Section */}
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+            <div className="p-8 pb-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 font-headline">Client Reviews</h2>
+                <p className="text-sm text-slate-500 mt-1">Feedback from CEOs who purchased this service</p>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg text-amber-700 font-bold border border-amber-200/50">
+                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                <span>
+                  {serviceReviews.length > 0 
+                    ? (serviceReviews.reduce((sum, r) => sum + r.rating, 0) / serviceReviews.length).toFixed(1)
+                    : 'No reviews'}
+                </span>
+                <span className="text-amber-700/60 font-medium ml-1 text-sm">
+                  ({serviceReviews.length})
+                </span>
+              </div>
+            </div>
+            
+            <div className="p-8">
+              {serviceReviews.length > 0 ? (
+                <div className="space-y-6">
+                  {serviceReviews.map((review) => (
+                    <div key={review.id} className="pb-6 border-b border-slate-100 last:pb-0 last:border-b-0">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="font-bold text-slate-900">{review.reviewer?.fullName || 'Anonymous Client'}</div>
+                        </div>
+                        <div className="flex text-amber-400 gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${star <= review.rating ? 'fill-current' : 'text-slate-200 fill-slate-200'}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {review.comment ? (
+                        <p className="text-slate-600 text-sm leading-relaxed">{review.comment}</p>
+                      ) : (
+                        <p className="text-slate-400 text-sm italic">No written feedback provided.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <h4 className="text-base font-bold text-slate-700 mb-1">No reviews yet</h4>
+                  <p className="text-sm text-slate-500 max-w-xs mx-auto">
+                    Reviews left by clients will appear here once an engagement is closed.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         {/* Right Column: Sticky Sidebar */}

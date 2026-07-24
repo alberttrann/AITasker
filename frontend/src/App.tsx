@@ -160,7 +160,7 @@ const router = createBrowserRouter(
               element={<CeoReviewForm />}
             />
 
-            <Route path="messages" element={<Navigate to="/ceo/inbox" replace />} />
+            <Route path="messages" element={<Navigate to="inbox" replace />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />
@@ -212,7 +212,7 @@ const router = createBrowserRouter(
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
             />
-            <Route path="messages" element={<Navigate to="/expert/inbox" replace />} />
+            <Route path="messages" element={<Navigate to="inbox" replace />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />
@@ -288,7 +288,7 @@ const router = createBrowserRouter(
             <Route path="oversight/projects" element={<AdminProjectsPage />} />
             <Route path="oversight/engagements" element={<AdminEngagementsPage />} />
             <Route path="oversight/experts" element={<AdminExpertsPage />} />
-          
+
             <Route path="ledger" element={<TransactionsLedger />} />
             <Route path="withdrawals" element={<WithdrawalRequests />} />
           </Route>

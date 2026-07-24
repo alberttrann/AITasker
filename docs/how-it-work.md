@@ -115,6 +115,16 @@ Based on `08-mainflows_redo.md` specs.
    - When `activeBidsCount > 0`, renders a solid numeric badge at the top-right corner of the **View Experts bids** button displaying the exact count of submitted/pending bids.
    - When `activeBidsCount === 0`, no badge is rendered.
 
+### MF-8: Expert Projects & Review Management (`ExpertProjectsPage.tsx`)
+1. **Dynamic UI for CLOSED Projects/Services**:
+   - The UI intelligently hides the "Project Requirements" (Domains & Integrations) and "Artifact B" blocks for `CLOSED` engagements to prevent rendering useless info and generating 403 Access Denied errors from the backend.
+   - For services, the archetype badge smoothly falls back to displaying `SERVICE` instead of `UNKNOWN ARCHETYPE` because services do not belong to strict archetypes.
+2. **Review Submission & State Tracking**:
+   - A modal-based review flow seamlessly wraps `<ReviewForm>` inside `<Modal>` avoiding disruptive full-page redirects.
+   - The component actively monitors if a review has already been submitted using `useEngagementReviews()` matched against `useAuthStore().user?.id`. 
+   - Note: We query `useAuthStore` to get the reliable `userId` instead of relying on the destructured `useExpertProfile().profile` object because the latter returns a wrapped payload `{ profile, domainDepths, seamClaims }` from the backend, making `profile?.userId` undefined.
+   - If a match is found (`myReview`), the "Leave a Review" button magically hides and instead displays the submitted review payload inline underneath the "Service Workspace Completed!" banner.
+
 ---
 
 ## 4. Component Architecture & Strict Rules

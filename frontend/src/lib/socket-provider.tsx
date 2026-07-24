@@ -152,6 +152,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['engagements'] });
     queryClient.invalidateQueries({ queryKey: ['bids'] });
     queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
     socket.on('milestone:updated', (data: {
       engagement_id:   string;

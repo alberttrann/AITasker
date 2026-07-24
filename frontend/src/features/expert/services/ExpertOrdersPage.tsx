@@ -65,7 +65,12 @@ export default function ExpertOrdersPage() {
           clientName: eng.client?.fullName || 'Client',
           priceVnd: eng.service?.priceVnd ? Number(eng.service.priceVnd) : totalMilestonesPrice,
           state: eng.state as any,
-          updatedAt: new Date(eng.updatedAt || eng.connectedAt || Date.now()).getTime(),
+          updatedAt: Math.max(
+            new Date(eng.updatedAt || 0).getTime(),
+            new Date(eng.connectedAt || 0).getTime(),
+            new Date(eng.createdAt || 0).getTime(),
+            0
+          ),
           engagement: eng,
         };
       })

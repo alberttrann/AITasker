@@ -6,12 +6,15 @@ import { useEngagements } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useExpertProfile } from "@/hooks/use-expert-profile";
-import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2, CheckCircle2, MessageSquare, Star } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import ExpertNdaClickThrough from "../connection/NdaClickThrough";
+import { useEngagementReviews } from "@/hooks/use-reviews";
+import ReviewForm from "@/components/reviews/ReviewForm";
+import { useAuthStore } from "@/store/auth.store";
 
 // Unified type combining Invitation and Engagement logic
 type UnifiedProject = {
@@ -40,6 +43,7 @@ export default function ExpertProjectsPage() {
   const [activeMilestoneId, setActiveMilestoneId] = useState<number | null>(1);
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [ndaEngagementId, setNdaEngagementId] = useState<string | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,7 +138,12 @@ export default function ExpertProjectsPage() {
           companyName: null,
           status,
           negotiationState: eng.capabilityBid?.negotiationState, 
-          updatedAt: getSafeTime((eng as any).updatedAt || eng.connectedAt || Date.now()),
+          updatedAt: Math.max(
+            getSafeTime((eng as any).updatedAt),
+            getSafeTime(eng.connectedAt),
+            getSafeTime((eng as any).createdAt),
+            getSafeTime(eng.capabilityBid?.updatedAt || eng.capabilityBid?.createdAt)
+          ),
           engagement: eng
         });
       });
@@ -223,7 +232,12 @@ export default function ExpertProjectsPage() {
     setActiveMilestoneId(1);
   }, [selectedProjectId]);
 
+  const { user } = useAuthStore();
   const selectedProject = unifiedProjects.find(p => p.projectId === selectedProjectId);
+  const { data: reviews } = useEngagementReviews(selectedProject?.engagement?.id);
+  const myReview = useMemo(() => {
+    return reviews?.find(r => r.reviewerId === user?.id);
+  }, [reviews, user?.id]);
   const isLoading = isLoadingInvites || isLoadingEngagements;
 
   const handleDecline = (invitationId: string) => {
@@ -468,7 +482,8 @@ export default function ExpertProjectsPage() {
                       <h2 className="text-2xl font-bold text-slate-900">{selectedProject.projectName}</h2>
                       <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg uppercase tracking-wider">
                         {(() => {
-                          const code = fullProject?.archetype || fullProject?.artifact_a_json?.archetype;
+                          if (selectedProject?.engagement?.serviceId || selectedProject?.engagement?.service) return 'SERVICE';
+                          const code = fullProject?.archetype || fullProject?.artifact_a_json?.archetype || selectedProject?.engagement?.project?.archetype || selectedProject?.invitation?.project?.archetype;
                           if (!code) return 'UNKNOWN ARCHETYPE';
                           const match = archetypes?.find(a => a.code === code);
                           return match ? match.name : code;
@@ -523,8 +538,8 @@ export default function ExpertProjectsPage() {
 
                     {selectedProject.status === 'NDA_PENDING' && (
                       selectedProject.engagement?.serviceId ? (
-                        <Button onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}>
-                          Chat with Client
+                        <Button className="whitespace-nowrap" onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}>
+                          <MessageSquare className="w-4 h-4 mr-2" /> Chat with Client
                         </Button>
                       ) : (
                         <Button onClick={() => setNdaEngagementId(selectedProject.engagement?.id || null)}>
@@ -539,9 +554,9 @@ export default function ExpertProjectsPage() {
                           <Button
                             variant="outline"
                             onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}
-                            className="mr-2"
+                            className="mr-2 whitespace-nowrap"
                           >
-                            Chat with Client
+                            <MessageSquare className="w-4 h-4 mr-2" /> Chat with Client
                           </Button>
                         )}
                         <Button onClick={() => {
@@ -560,22 +575,23 @@ export default function ExpertProjectsPage() {
 
                     {selectedProject.status === 'CLOSED' && selectedProject.engagement && (
                       <>
+                        {!selectedProject.engagement.serviceId && !myReview && (
+                          <Button
+                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                            onClick={() => setIsReviewModalOpen(true)}
+                          >
+                            Leave a Review
+                          </Button>
+                        )}
                         {selectedProject.engagement.serviceId && (
                           <Button
                             variant="outline"
                             onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}
-                            className="mr-2"
+                            className="text-slate-600 bg-white border-slate-200 shadow-sm hover:bg-slate-50 whitespace-nowrap"
                           >
-                            Chat with Client
+                            <MessageSquare className="w-4 h-4 mr-2" /> Chat with Client
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          className="text-amber-700 bg-white hover:bg-amber-50 border-amber-200"
-                          onClick={() => navigate(`/expert/engagements/${selectedProject.engagement!.id}/review`)}
-                        >
-                          Leave a Review
-                        </Button>
                       </>
                     )}
 
@@ -590,15 +606,40 @@ export default function ExpertProjectsPage() {
                 <hr className="border-slate-100 my-6" />
 
                 {selectedProject.status === 'CLOSED' && selectedProject.engagement?.serviceId && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex gap-4 text-emerald-950 shadow-xs animate-in fade-in mb-6">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-base font-bold text-emerald-900 leading-snug">Service Workspace Completed!</h4>
-                      <p className="text-sm text-emerald-800 leading-relaxed font-body mt-1">
-                        Great job! The client has signed off on the deliverables for this service. 
-                        The escrow payment of <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number((selectedProject.engagement.service as any)?.price_vnd || (selectedProject.engagement.service as any)?.priceVnd || selectedProject.engagement.milestones?.[0]?.paymentAmountVnd || 0))}</strong> has been released and credited to your wallet.
-                      </p>
+                  <div className="mb-6">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex gap-4 text-emerald-950 shadow-xs animate-in fade-in mb-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-base font-bold text-emerald-900 leading-snug">Service Workspace Completed!</h4>
+                        <p className="text-sm text-emerald-800 leading-relaxed font-body mt-1">
+                          Great job! The client has signed off on the deliverables for this service. 
+                          The escrow payment of <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number((selectedProject.engagement.service as any)?.price_vnd || (selectedProject.engagement.service as any)?.priceVnd || selectedProject.engagement.milestones?.[0]?.paymentAmountVnd || 0))}</strong> has been released and credited to your wallet.
+                        </p>
+                      </div>
                     </div>
+                    
+                    {!myReview ? (
+                      <Button
+                        className="w-full bg-amber-600 hover:bg-amber-700 text-white shadow-sm h-11"
+                        onClick={() => setIsReviewModalOpen(true)}
+                      >
+                        Leave a Review
+                      </Button>
+                    ) : (
+                      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="text-sm font-bold text-slate-800">Your Review</h4>
+                          <div className="flex text-amber-400">
+                            {[1, 2, 3, 4, 5].map(star => (
+                              <Star key={star} className={`w-3.5 h-3.5 ${star <= myReview.rating ? 'fill-current' : 'text-slate-200'}`} />
+                            ))}
+                          </div>
+                        </div>
+                        {myReview.comment && (
+                          <p className="text-sm text-slate-600 italic">"{myReview.comment}"</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -661,9 +702,10 @@ export default function ExpertProjectsPage() {
                   )}
 
                   {/* Requirements Section */}
-                  <div className="mb-8">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                      Project Requirements
+                  {selectedProject.status !== 'CLOSED' && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        Project Requirements
                     </h3>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -771,14 +813,17 @@ export default function ExpertProjectsPage() {
                       </div>
                     </div>
                   </div>
+                )}
 
                   {/* ARTIFACT B */}
-                  <div className="mb-8">
-                    <ArtifactBView 
-                      projectId={selectedProject.projectId} 
-                      isAuthorized={selectedProject.status === 'IN_PROGRESS' || selectedProject.status === 'CLOSED'} 
-                    />
-                  </div>
+                  {selectedProject.status !== 'CLOSED' && (
+                    <div className="mb-8">
+                      <ArtifactBView 
+                        projectId={selectedProject.projectId} 
+                        isAuthorized={selectedProject.status === 'IN_PROGRESS'} 
+                      />
+                    </div>
+                  )}
 
                   {/* Milestone Framework */}
                   {fullProject?.milestone_framework_json && fullProject.milestone_framework_json.length > 0 && (
@@ -884,11 +929,34 @@ export default function ExpertProjectsPage() {
       <Modal
         isOpen={!!ndaEngagementId}
         onClose={() => setNdaEngagementId(null)}
-        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+        className="w-full max-w-7xl sm:max-w-7xl p-0 overflow-hidden bg-slate-50"
       >
-        <div className="h-[80vh] overflow-y-auto">
+        <div className="h-[85vh] overflow-y-auto">
           {ndaEngagementId && (
             <ExpertNdaClickThrough engagementId={ndaEngagementId} />
+          )}
+        </div>
+      </Modal>
+
+      {/* Review Modal */}
+      <Modal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        className="w-full max-w-lg p-0 overflow-hidden bg-slate-50"
+      >
+        <div className="p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-slate-900">Leave a Review</h2>
+            <p className="text-sm text-slate-500">Rate your experience working with {selectedProject?.ceoName}</p>
+          </div>
+          {selectedProject?.engagement && (
+            <ReviewForm
+              engagementId={selectedProject.engagement.id}
+              targetId={selectedProject.engagement.clientId}
+              targetLabel={selectedProject.ceoName || 'the client'}
+              requireStructuredSignals={false}
+              onSuccess={() => setIsReviewModalOpen(false)}
+            />
           )}
         </div>
       </Modal>

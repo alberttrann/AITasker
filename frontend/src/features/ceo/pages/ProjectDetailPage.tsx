@@ -43,10 +43,23 @@ export default function ProjectDetailPage() {
       e.capabilityBid?.state !== 'SELECTED'
     ).length;
   }, [projectBids]);
-  const selectedEngagement = Array.isArray(projectBids)
-    ? projectBids.find((engagement: any) => engagement.termsLocked || engagement.capabilityBid?.state === 'SELECTED')
-    : null;
-  const connectedEngagement = selectedEngagement && ['CONNECTED', 'ACTIVE', 'DISPUTED'].includes(selectedEngagement.state)
+  const selectedEngagement = useMemo(() => {
+    if (!engagements || !project) return null;
+    
+    // 1. Look for a directly connected/active/closed/disputed engagement (covers both Services and Projects)
+    const activeOrClosed = engagements.find((e: any) => 
+      (e.projectId === project.id || e.project_id === project.id) && 
+      ['CONNECTED', 'ACTIVE', 'CLOSED', 'DISPUTED'].includes(e.state)
+    );
+    if (activeOrClosed) return activeOrClosed;
+
+    // 2. Fallback to finding a bid that is selected
+    if (Array.isArray(projectBids)) {
+       return projectBids.find((engagement: any) => engagement.termsLocked || engagement.capabilityBid?.state === 'SELECTED') || null;
+    }
+    return null;
+  }, [engagements, project, projectBids]);
+  const connectedEngagement = selectedEngagement && ['CONNECTED', 'ACTIVE', 'DISPUTED', 'CLOSED'].includes(selectedEngagement.state)
     ? selectedEngagement
     : null;
   const termsLocked = Boolean(selectedEngagement?.termsLocked);
@@ -211,11 +224,13 @@ export default function ProjectDetailPage() {
   const archetypeData = archetype && archetypesList ? archetypesList.find(a => a.code === archetype) : null;
 
   const getDomainName = (code: string) => {
+    if (!code || typeof code !== 'string') return '';
     const d = dynamicDomains?.find(domain => domain.code === code);
     return d ? d.name : code.replace(/_/g, ' ');
   };
 
   const getSeamName = (code: string) => {
+    if (!code || typeof code !== 'string') return '';
     const s = dynamicSeams?.find(seam => seam.code === code);
     return s ? s.name : code.replace(/_/g, ' ');
   };
@@ -283,13 +298,15 @@ export default function ProjectDetailPage() {
           {selectedEngagement ? (
             <div className="flex items-center gap-3">
               {!connectedEngagement ? (
-                <button
-                  id="btn-review-selected-bid-nda"
-                  onClick={() => setShowNdaModal(true)}
-                  className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
-                >
-                  Review & Sign NDA
-                </button>
+                !selectedEngagement.serviceId && (
+                  <button
+                    id="btn-review-selected-bid-nda"
+                    onClick={() => setShowNdaModal(true)}
+                    className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
+                  >
+                    Review & Sign NDA
+                  </button>
+                )
               ) : (
                 <div className="flex items-center gap-3">
                   <Link
@@ -299,13 +316,15 @@ export default function ProjectDetailPage() {
                   >
                     <Target size={18} /> Go to Workspace
                   </Link>
-                  <button
-                    id="btn-view-signed-nda"
-                    onClick={() => setShowNdaModal(true)}
-                    className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
-                  >
-                    View NDA
-                  </button>
+                  {!connectedEngagement.serviceId && (
+                    <button
+                      id="btn-view-signed-nda"
+                      onClick={() => setShowNdaModal(true)}
+                      className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                    >
+                      View NDA
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -382,16 +401,18 @@ export default function ProjectDetailPage() {
         {/* Left Column: Intent & Capabilities */}
         <div className="lg:col-span-1 space-y-8">
           {/* Business Intent Card */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-4 border-b border-slate-100 pb-2">Business Intent</h3>
-            <div className="prose prose-slate prose-sm max-w-none text-slate-600 leading-relaxed">
-              {artifactA?.business_intent ? (
-                <p className="whitespace-pre-wrap">{artifactA.business_intent}</p>
-              ) : (
-                <p className="italic text-slate-400">No description provided.</p>
-              )}
+          {(!connectedEngagement?.serviceId && project.archetype !== 'SERVICE') && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-4 border-b border-slate-100 pb-2">Business Intent</h3>
+              <div className="prose prose-slate prose-sm max-w-none text-slate-600 leading-relaxed">
+                {artifactA?.business_intent ? (
+                  <p className="whitespace-pre-wrap">{artifactA.business_intent}</p>
+                ) : (
+                  <p className="italic text-slate-400">No description provided.</p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Capabilities Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -402,16 +423,22 @@ export default function ProjectDetailPage() {
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Domains</h4>
                 {domains.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {domains.map((d: any) => (
-                      <span key={d.domainCode || d.domain_code} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
-                        <span className="font-semibold text-slate-900">{d.domainCode || d.domain_code}</span>
-                        <span className="mx-1.5 text-slate-300">|</span>
-                        {getDomainName(d.domainCode || d.domain_code)}
-                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-600">
-                          {d.required_depth || d.requiredDepth}
+                    {domains.map((d: any, idx: number) => {
+                      const code = typeof d === 'string' ? d : (d?.domainCode || d?.domain_code);
+                      if (!code) return null;
+                      return (
+                        <span key={`${code}-${idx}`} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+                          <span className="font-semibold text-slate-900">{code}</span>
+                          <span className="mx-1.5 text-slate-300">|</span>
+                          {getDomainName(code)}
+                          {typeof d === 'object' && (d?.required_depth || d?.requiredDepth) && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-600">
+                              {d?.required_depth || d?.requiredDepth}
+                            </span>
+                          )}
                         </span>
-                      </span>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500 italic">No specific domains required.</p>
@@ -422,16 +449,22 @@ export default function ProjectDetailPage() {
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Seams</h4>
                 {seams.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {seams.map((s: any) => (
-                      <span key={s.seamCode || s.seam_code} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
-                        <span className="font-semibold text-slate-900">{s.seamCode || s.seam_code}</span>
-                        <span className="mx-1.5 text-slate-300">|</span>
-                        {getSeamName(s.seamCode || s.seam_code)}
-                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">
-                          {s.criticality}
+                    {seams.map((s: any, idx: number) => {
+                      const code = typeof s === 'string' ? s : (s?.seamCode || s?.seam_code);
+                      if (!code) return null;
+                      return (
+                        <span key={`${code}-${idx}`} className="px-3 py-1.5 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+                          <span className="font-semibold text-slate-900">{code}</span>
+                          <span className="mx-1.5 text-slate-300">|</span>
+                          {getSeamName(code)}
+                          {typeof s === 'object' && s?.criticality && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">
+                              {s.criticality}
+                            </span>
+                          )}
                         </span>
-                      </span>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500 italic">No specific seams required.</p>

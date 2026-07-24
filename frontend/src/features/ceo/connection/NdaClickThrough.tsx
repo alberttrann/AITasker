@@ -110,197 +110,121 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
     );
   }
 
-  // ── Already Connected ──────────────────────────────────────────
-
-  if (isConnected) {
-    return (
-      <div className="mx-auto max-w-[768px] space-y-4 pb-8 p-6">
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3 shrink-0">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
-          <div>
-            <p className="text-[14px] font-medium text-[#16A34A]">
-              NDA Signed ✓
-            </p>
-            <p className="text-[12px] text-[#15803D]">
-              Both parties have signed this agreement. The workspace is active.
-            </p>
-          </div>
-        </div>
-
-        <AcceptedOfferSummary
-          offer={engagement.capabilityBid?.acceptedOffer}
-          termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
-        />
-
-        {/* NDA text */}
-        <Card className="flex h-[clamp(320px,45vh,480px)] flex-col overflow-hidden">
-          <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div
-              id="nda-agreement-scroll-ceo"
-              ref={scrollRef}
-              onScroll={updateScrollState}
-              tabIndex={0}
-              aria-label="Non-disclosure agreement text"
-              className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="h-5 w-5 text-[#0F172A]" />
-                <h2 className="font-headline text-[18px] font-semibold text-[#0F172A]">
-                  NDA Agreement Text
-                </h2>
-              </div>
-              <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-[#334155] border-t border-slate-100 pt-4">
-                {NDA_TEXT}
-              </pre>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Button
-          variant="primary"
-          className="cursor-pointer w-full mt-4"
-          onClick={() =>
-            navigate(`/ceo/inbox/${engagementId}`)
-          }
-        >
-          Open Messages
-        </Button>
-      </div>
-    );
-  }
-
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-[768px] space-y-4 pb-8 p-6">
-      <div className="shrink-0">
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
+    <div className="mx-auto p-6 md:p-8 h-full flex flex-col max-w-7xl">
+      <div className="shrink-0 mb-6">
+        <h1 className="font-headline text-3xl font-bold text-slate-900">
           Non-Disclosure Agreement
         </h1>
-        <p className="mt-1 text-body text-[#64748B]">
-          Please review and sign the NDA to connect with the expert.
+        <p className="mt-2 text-slate-500 font-medium">
+          {alreadySigned 
+            ? "You have signed the NDA for this engagement."
+            : "Please review the terms and sign the NDA to connect with the expert."}
         </p>
       </div>
 
-      {/* Already signed by CEO */}
-      {alreadySigned && (
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3 shrink-0">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
-          <div>
-            <p className="text-[14px] font-medium text-[#16A34A]">
-              NDA Signed ✓
-            </p>
-            <p className="text-[12px] text-[#15803D]">
-              Signed on{' '}
-              {new Date(engAny.clientNdaAcceptedAt).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Server error */}
       {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3 shrink-0">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
-          <p className="text-[14px] text-[#DC2626]">{serverError}</p>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3 mb-6 shrink-0">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+          <p className="text-sm font-medium text-red-600">{serverError}</p>
         </div>
       )}
 
-      <AcceptedOfferSummary
-        offer={engagement.capabilityBid?.acceptedOffer}
-        termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
-      />
+      <div className="flex-1 min-h-0 grid md:grid-cols-12 gap-8 lg:gap-10">
+        {/* Left Column: NDA Text */}
+        <div className="md:col-span-7 lg:col-span-8 flex flex-col min-h-[400px] md:h-full min-h-0">
+          <Card className="flex flex-col h-full overflow-hidden shadow-sm border-slate-200 bg-white">
+            <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div
+                id="nda-agreement-scroll-ceo"
+                ref={scrollRef}
+                onScroll={updateScrollState}
+                tabIndex={0}
+                aria-label="Non-disclosure agreement text"
+                className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Shield className="h-5 w-5 text-slate-700" />
+                  <h2 className="font-headline text-lg font-bold text-slate-900">
+                    NDA Agreement Text
+                  </h2>
+                </div>
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-600 border-t border-slate-100 pt-6">
+                  {NDA_TEXT}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* NDA text */}
-      <Card className="flex h-[clamp(320px,45vh,480px)] flex-col overflow-hidden">
-        <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div
-            id="nda-agreement-scroll-ceo"
-            ref={scrollRef}
-            onScroll={updateScrollState}
-            tabIndex={0}
-            aria-label="Non-disclosure agreement text"
-            className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="h-5 w-5 text-[#0F172A]" />
-              <h2 className="font-headline text-[18px] font-semibold text-[#0F172A]">
-                NDA Agreement
-              </h2>
+        {/* Right Column: Status & Terms */}
+        <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-6 overflow-y-auto md:pr-2">
+          {alreadySigned && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 flex items-start gap-4 shrink-0 shadow-sm">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+              <div>
+                <h3 className="text-base font-bold text-emerald-900">NDA Signed</h3>
+                <p className="text-sm font-medium text-emerald-700 mt-1">
+                  Signed on {new Date(engAny.clientNdaAcceptedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+                {expertSigned && (
+                  <p className="text-sm font-medium text-emerald-700 mt-2">
+                    Expert also signed on {new Date(engAny.expertNdaAcceptedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
             </div>
-            <pre className="font-body text-[14px] leading-[1.7] text-[#334155] whitespace-pre-wrap">
-              {NDA_TEXT}
-            </pre>
+          )}
+
+          <div className="shrink-0">
+            <AcceptedOfferSummary
+              offer={engagement.capabilityBid?.acceptedOffer}
+              termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
+            />
           </div>
-          {!hasScrolledToBottom && !alreadySigned && (
-            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-3 shrink-0">
-              <p className="text-[12px] text-[#94A3B8] text-center">
-                Scroll to the bottom to enable signing
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Sign button / Waiting state */}
-      {!alreadySigned ? (
-        <div className="space-y-3 shrink-0">
-          <Button
-            id="btn-sign-ceo-nda"
-            variant="primary"
-            className="w-full cursor-pointer disabled:cursor-not-allowed"
-            disabled={!hasScrolledToBottom || acceptNda.isPending}
-            onClick={() => setShowSignConfirm(true)}
-          >
-            {acceptNda.isPending ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" /> Signing…
-              </span>
+          <div className="mt-auto pt-4 shrink-0">
+            {alreadySigned ? (
+              expertSigned ? (
+                <Button
+                  variant="primary"
+                  className="w-full h-12 text-base font-bold shadow-md shadow-blue-500/20"
+                  onClick={() => navigate(`/ceo/inbox/${engagementId}`)}
+                >
+                  Open Messages
+                </Button>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm">
+                  <Clock className="h-6 w-6 text-amber-500 mx-auto mb-2 animate-pulse" />
+                  <p className="text-sm font-bold text-amber-900">Waiting for Expert</p>
+                  <p className="text-sm font-medium text-amber-700 mt-1">The expert still needs to sign the NDA to connect.</p>
+                </div>
+              )
             ) : (
-              'Sign NDA'
+              <div className="space-y-3">
+                <Button
+                  variant="primary"
+                  className="w-full h-12 text-base font-bold shadow-md shadow-blue-500/20"
+                  disabled={!hasScrolledToBottom || acceptNda.isPending}
+                  onClick={() => setShowSignConfirm(true)}
+                >
+                  {acceptNda.isPending ? 'Signing...' : 'Sign NDA'}
+                </Button>
+                {!hasScrolledToBottom && (
+                  <p className="text-center text-sm font-medium text-slate-500 animate-pulse">
+                    Please scroll to the bottom of the NDA to sign
+                  </p>
+                )}
+              </div>
             )}
-          </Button>
-          {!hasScrolledToBottom && (
-            <p className="text-[12px] text-[#94A3B8] text-center">
-              Please scroll through the entire agreement before signing.
-            </p>
-          )}
+          </div>
         </div>
-      ) : expertSigned ? (
-        /* Both signed — connected */
-        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 text-center shrink-0">
-          <CheckCircle2 className="mx-auto h-6 w-6 text-[#22C55E]" />
-          <p className="mt-2 text-[14px] font-medium text-[#16A34A]">
-            Both parties have signed! You are now connected.
-          </p>
-          <Button
-            variant="primary"
-            className="mt-3 cursor-pointer"
-            onClick={() =>
-              navigate(`/ceo/inbox/${engagementId}`)
-            }
-          >
-            Open Messages
-          </Button>
-        </div>
-      ) : (
-        /* CEO signed, waiting for expert */
-        <div className="rounded-[8px] border border-[#BFDBFE] bg-[#EFF6FF] p-4 text-center shrink-0">
-          <Clock className="mx-auto h-6 w-6 text-[#0EA5E9] animate-pulse" />
-          <p className="mt-2 text-[14px] font-medium text-[#1E40AF]">
-            Waiting for expert to sign…
-          </p>
-          <p className="text-[12px] text-[#3B82F6]">
-            We'll notify you when both parties have signed.
-          </p>
-        </div>
-      )}
+      </div>
+
+
 
       {/* Sign Confirmation */}
       <ConfirmModal
