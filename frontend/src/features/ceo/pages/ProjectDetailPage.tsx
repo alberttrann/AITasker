@@ -345,9 +345,9 @@ export default function ProjectDetailPage() {
                 className="relative flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
               >
                 View Experts bids
-                {pendingBidsCount > 0 && (
+                {activeBidsCount > 0 && (
                   <span className="absolute -top-2 -right-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold leading-none text-white bg-rose-500 rounded-full border-2 border-white shadow-sm">
-                    {pendingBidsCount}
+                    {activeBidsCount}
                   </span>
                 )}
               </Link>

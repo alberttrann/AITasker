@@ -1,26 +1,19 @@
-import React from 'react';
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotification } from '@/hooks/use-notifications';
 import { Bell, CheckCircle2, Trash2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/Spinner';
 import { resolveNotificationLink } from '@/lib/utils'; 
 import { useAuth } from '@/hooks/use-auth';
+
 export default function NotificationSystem() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: notifications = [], isLoading } = useNotifications(100);
   const markAsReadMutation = useMarkNotificationRead();
   const markAllReadMutation = useMarkAllNotificationsRead();
   const deleteMutation = useDeleteNotification();
 
   const hasUnread = notifications.some(n => !n.isRead);
-
-  export default function NotificationSystem() {
-  const navigate = useNavigate();
-  const { user } = useAuth(); // Lấy thông tin user hiện tại
-  const { data: notifications = [], isLoading } = useNotifications(100);
-  const markAsReadMutation = useMarkNotificationRead();
-  const markAllReadMutation = useMarkAllNotificationsRead();
-  const deleteMutation = useDeleteNotification();
 
   const handleNotificationClick = (notif: any) => {
     if (!notif.isRead) {

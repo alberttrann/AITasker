@@ -142,7 +142,7 @@ export default function ExpertProjectsPage() {
             getSafeTime((eng as any).updatedAt),
             getSafeTime(eng.connectedAt),
             getSafeTime((eng as any).createdAt),
-            getSafeTime(eng.capabilityBid?.updatedAt || eng.capabilityBid?.createdAt)
+            getSafeTime((eng.capabilityBid as any)?.updatedAt || (eng.capabilityBid as any)?.createdAt)
           ),
           engagement: eng
         });

@@ -3,6 +3,9 @@ export type UserRoleItem = 'CLIENT_CEO' | 'EXPERT'
 export type ClientSubtype = 'CEO' | 'TECH_TEAM';
 export type SubscriptionTier = 'free' | 'pro';
 
+export type DomainCode = string;
+export type SeamCode = string;
+export type ArchetypeCode = string;
 
 
 export type EngagementModel  = 'MILESTONE' | 'HOURLY' | 'HYBRID';
@@ -13,7 +16,6 @@ export type VerificationTier = 'CLAIMED' | 'EVIDENCE_BACKED';
 
 export type SeamCriticality = 'load_bearing' | 'significant' | 'contributing';
 
-export type ArchetypeCode    = '1' | '2' | '3' | '4' | '5' | '6';
 export type ScenarioType     = 'STANDARD' | 'SCENARIO_A' | 'SCENARIO_B';
 export type ElicitationState = 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED' | 'RETURNED';
 
