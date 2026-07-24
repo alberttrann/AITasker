@@ -163,6 +163,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['milestone'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      // Xóa thêm cache submissions để UI hiện file vừa nộp ngay lập tức
+      queryClient.invalidateQueries({ queryKey: ['submissions'] });
     });
 
     socket.on('payment:confirmed', (data: {

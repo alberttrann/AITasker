@@ -19,6 +19,9 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
   const createBulkDodMutation = useCreateBulkDodItems();
   const updateDodMutation = useUpdateDodStatus();
 
+  // State to track which specific item is updating
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+
   // State for new DoD item form
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [description, setDescription] = useState("");
@@ -32,15 +35,20 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
     status: 'PENDING' | 'COMPLETED' | 'NOT_APPLICABLE',
     note: string
   ) => {
-    return updateDodMutation.mutateAsync({
-      milestoneId,
-      itemId,
-      body: {
-        status,
-        ...(status === "COMPLETED" && { completion_note: note }),
-        ...(status === "NOT_APPLICABLE" && { not_applicable_note: note }),
-      }
-    });
+    setUpdatingItemId(itemId);
+    try {
+      return await updateDodMutation.mutateAsync({
+        milestoneId,
+        itemId,
+        body: {
+          status,
+          ...(status === "COMPLETED" && { completion_note: note }),
+          ...(status === "NOT_APPLICABLE" && { not_applicable_note: note }),
+        }
+      });
+    } finally {
+      setUpdatingItemId(null);
+    }
   };
 
   const handleAddItem = async (e: React.FormEvent) => {
@@ -162,7 +170,7 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
                   item={item}
                   milestoneId={milestoneId}
                   onUpdateStatus={handleUpdateStatus}
-                  isUpdating={updateDodMutation.isPending}
+                  isUpdating={updatingItemId === item.id}
                 />
               ))}
             </div>
@@ -182,7 +190,7 @@ export default function DodChecklist({ milestoneId, dodItems = [], acceptanceCri
                   item={item}
                   milestoneId={milestoneId}
                   onUpdateStatus={handleUpdateStatus}
-                  isUpdating={updateDodMutation.isPending}
+                  isUpdating={updatingItemId === item.id}
                 />
               ))}
             </div>

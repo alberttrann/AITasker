@@ -102,16 +102,32 @@ export class SubmissionsService {
         : [{ userId: engagement.clientId, rolePath: 'ceo' }];
 
       for (const recipient of recipients) {
-        this.eventEmitter.emit('socket.broadcast', {
-          userId: recipient.userId,
-          event: 'milestone:updated',
-          payload: {
-            engagement_id: engagement.id,
-            milestone_number: milestone.milestoneNumber,
-            state: 'SUBMITTED',
-            link: `/${recipient.rolePath}/engagements/${engagement.id}/milestones/${milestone.id}`,
-          },
-        });
+        try {
+          this.eventEmitter.emit('socket.broadcast', {
+            userId: recipient.userId,
+            event: 'milestone:updated',
+            payload: {
+              engagement_id: engagement.id,
+              milestone_number: milestone.milestoneNumber,
+              state: 'SUBMITTED',
+              link: `/${recipient.rolePath}/engagements/${engagement.id}/milestones/${milestone.id}`,
+            },
+          });
+
+          // Bắn thêm notification để hiện chuông đỏ
+          this.eventEmitter.emit('socket.broadcast', {
+            userId: recipient.userId,
+            event: 'notification:generic',
+            payload: {
+              type: 'system',
+              title: 'Deliverables Submitted',
+              body: `The expert has submitted deliverables for Milestone #${milestone.milestoneNumber}. Please review them.`,
+              link: `/${recipient.rolePath}/engagements/${engagement.id}/milestones/${milestone.id}`,
+            },
+          });
+        } catch (_err) {
+          // Best-effort: Nếu Socket/Redis lỗi thì vẫn cho qua, không làm rollback transaction của DB
+        }
       }
 
       return submission;
