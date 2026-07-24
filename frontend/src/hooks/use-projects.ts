@@ -373,7 +373,10 @@ export interface MarketplaceProjectDto {
   milestone_framework_json: any[]; 
 }
 
-export function useMarketplaceProjects(filters?: { archetype?: string; tier?: string; limit?: number }) {
+export function useMarketplaceProjects(
+  filters?: { archetype?: string; tier?: string; limit?: number },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ['projects', 'marketplace', filters],
     queryFn: async () => {
@@ -382,5 +385,6 @@ export function useMarketplaceProjects(filters?: { archetype?: string; tier?: st
       });
       return data;
     },
+    ...options
   });
 }
