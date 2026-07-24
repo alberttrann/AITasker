@@ -86,7 +86,7 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
 
             return (
               <div
-                key={conv.partnerId}
+                key={conv.primaryEngagementId}
                 onClick={() => {
                   const targetId = isSelected && activeEngagementId ? activeEngagementId : conv.primaryEngagementId;
                   navigate(`${dashboardRoute}/engagements/${targetId}/messages`);

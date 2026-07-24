@@ -27,7 +27,7 @@ export default function BidDecisionConfirm() {
     if (action === 'accept') {
       acceptOffer.mutate(
         { bidId: bid.id, offerId: offer.id },
-        { onSuccess: (result) => navigate(`/ceo/engagements/${result.engagementId}/nda`, { replace: true }) },
+        { onSuccess: () => navigate(`/ceo/projects/${projectId}/bids/${bid.id}`, { replace: true }) },
       );
       return;
     }

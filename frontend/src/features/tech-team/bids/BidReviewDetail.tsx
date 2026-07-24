@@ -14,6 +14,7 @@ const TECH_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   PENDING: { bg: 'bg-[#EAB30815]', text: 'text-[#CA8A04]', label: 'Pending Review', icon: Clock },
   APPROVED: { bg: 'bg-[#22C55E15]', text: 'text-[#16A34A]', label: 'Approved', icon: CheckCircle2 },
   REVISION_REQUESTED: { bg: 'bg-[#EF444415]', text: 'text-[#DC2626]', label: 'Revision Requested', icon: AlertCircle },
+  DECLINED: { bg: 'bg-slate-100', text: 'text-slate-500', label: 'Declined by CEO', icon: AlertCircle },
 };
 
 
@@ -51,7 +52,8 @@ export default function BidReviewDetail() {
   }
 
   const bidAny = bid as any;
-  const techStatus = bidAny.techStatus || 'PENDING';
+  // If the overall bid state is DECLINED or WITHDRAWN, override the Tech display status
+  const techStatus = ['DECLINED', 'WITHDRAWN'].includes(bidAny.state) ? 'DECLINED' : (bidAny.techStatus || 'PENDING');
   const style = TECH_STATUS_STYLES[techStatus] || TECH_STATUS_STYLES.PENDING;
   const StatusIcon = style.icon;
 

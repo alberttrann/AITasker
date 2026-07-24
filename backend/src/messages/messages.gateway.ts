@@ -66,26 +66,27 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     // Map all legacy broadcast events to a standardized notification format for DB persistence
     let notifData: any = null;
+    const providedLink = payload.payload?.link;
 
     if (payload.event === 'notification:generic' && payload.payload?.title) {
       notifData = {
         type: payload.payload.type ?? 'system',
         title: payload.payload.title,
         body: payload.payload.body ?? null,
-        link: payload.payload.link ?? null,
+        link: providedLink ?? null,
       };
     } else if (payload.event === 'dispute:filed') {
-      notifData = { type: 'dispute', title: 'Dispute filed', body: 'A dispute has been raised on one of your milestones', link: `/engagements/${payload.payload.engagement_id}` };
+      notifData = { type: 'dispute', title: 'Dispute filed', body: 'A dispute has been raised on one of your milestones', link: providedLink || `/engagements/${payload.payload.engagement_id}` };
     } else if (payload.event === 'dispute:resolved') {
-      notifData = { type: 'dispute', title: 'Dispute resolved', body: `The dispute was resolved.`, link: `/engagements/${payload.payload.engagement_id}` };
+      notifData = { type: 'dispute', title: 'Dispute resolved', body: `The dispute was resolved.`, link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones/${payload.payload.milestone_id || ''}/dispute/result` };
     } else if (payload.event === 'payment:confirmed') {
-      notifData = { type: 'payment', title: 'Payment confirmed', body: `Milestone ${payload.payload.milestone_number} funded`, link: `/engagements/${payload.payload.engagement_id}/milestones` };
+      notifData = { type: 'payment', title: 'Payment confirmed', body: `Milestone ${payload.payload.milestone_number} funded`, link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones` };
     } else if (payload.event === 'milestone:updated') {
-      notifData = { type: 'milestone_update', title: `Milestone ${payload.payload.milestone_number} updated`, body: `Status: ${payload.payload.state}`, link: `/engagements/${payload.payload.engagement_id}/milestones` };
+      notifData = { type: 'milestone_update', title: `Milestone ${payload.payload.milestone_number} updated`, body: `Status: ${payload.payload.state}`, link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones` };
     } else if (payload.event === 'bid:updated') {
-      notifData = { type: 'bid_update', title: 'Bid status changed', body: `Your bid is now ${payload.payload.state}`, link: `/engagements/${payload.payload.engagement_id}` };
+      notifData = { type: 'bid_update', title: 'Bid status changed', body: `Your bid is now ${payload.payload.state}`, link: providedLink || `/engagements/${payload.payload.engagement_id}/bid` };
     } else if (payload.event === 'portfolio:result') {
-      notifData = { type: 'portfolio_eval', title: 'Portfolio evaluation complete', body: payload.payload.passed ? 'Tier 2 verified' : 'Did not meet threshold', link: '/expert/service/expert-profile/verification-history' };
+      notifData = { type: 'portfolio_eval', title: 'Portfolio evaluation complete', body: payload.payload.passed ? 'Tier 2 verified' : 'Did not meet threshold', link: providedLink || '/expert/service/expert-profile/verification-history' };
     }
 
     if (notifData) {

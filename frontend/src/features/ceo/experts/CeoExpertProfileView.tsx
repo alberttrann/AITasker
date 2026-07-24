@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePublicProfile } from '@/hooks/use-user';
 import { useUserReviews } from '@/hooks/use-reviews';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
-import { ArrowLeft, Star, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Star, CheckCircle, Send, CheckCircle2 } from 'lucide-react';
 import { formatVND, formatSeamCode } from '@/lib/utils';
 import { useDomains, useSeams } from '@/hooks/use-config';
+import { useProjects } from '@/hooks/use-projects';
+import { useSocket } from '@/hooks/use-socket';
+import { Modal } from '@/components/ui/modal';
 
 export default function CeoExpertProfileView() {
   const { userId } = useParams<{ userId: string }>();
@@ -17,6 +20,41 @@ export default function CeoExpertProfileView() {
   const { data: reviews } = useUserReviews(userId);
   const { data: domainsList } = useDomains();
   const { data: seamsList } = useSeams();
+  const socket = useSocket();
+  const { projects, isLoadingProjects } = useProjects(true); // Slim projects fetch
+  
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
+
+  const publishedProjects = projects?.filter((p: any) => p.state === 'PUBLISHED') || [];
+
+  const handleInvite = () => {
+    if (!socket || !selectedProjectId) return;
+    setIsInviting(true);
+    
+    // Join room & emit invite event (Matches the logic from MatchCard.tsx)
+    socket.emit('joinRoom', { projectId: selectedProjectId });
+    socket.emit('inviteExpert', {
+      expertId: userId,
+      projectId: selectedProjectId,
+      content: inviteMessage || `Hi ${profileData?.fullName || 'there'},\n\nI'd like to invite you to submit a bid for my project. Your expertise looks like a great fit!`,
+    });
+
+    // Simulate short network delay for UX
+    setTimeout(() => {
+      setIsInviting(false);
+      setInviteSuccess(true);
+      setTimeout(() => {
+        setIsInviteModalOpen(false);
+        setInviteSuccess(false);
+        setInviteMessage('');
+        setSelectedProjectId('');
+      }, 2000);
+    }, 600);
+  };
 
   if (isLoading) {
     return (
@@ -53,21 +91,26 @@ export default function CeoExpertProfileView() {
   return (
     <div className="w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 space-y-6">
       {/* Header Back Button */}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="p-2 text-slate-500 hover:text-slate-900 cursor-pointer"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-        <div>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Expert Directory
-          </span>
-          <h1 className="text-xl font-bold text-slate-900">Public Profile</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="p-2 text-slate-500 hover:text-slate-900 cursor-pointer"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <div>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Expert Directory
+            </span>
+            <h1 className="text-xl font-bold text-slate-900">Public Profile</h1>
+          </div>
         </div>
+        <Button onClick={() => setIsInviteModalOpen(true)} className="gap-2">
+          <Send size={16} /> Invite to Project
+        </Button>
       </div>
 
       {/* Profile Card Header */}
@@ -242,6 +285,66 @@ export default function CeoExpertProfileView() {
           </Card>
         )}
       </div>
+
+      {/* Invite to Project Modal */}
+      <Modal 
+        isOpen={isInviteModalOpen} 
+        onClose={() => setIsInviteModalOpen(false)} 
+        title="Invite Expert to Project"
+        className="sm:max-w-[500px]"
+      >
+        {inviteSuccess ? (
+          <div className="py-8 flex flex-col items-center justify-center text-center">
+            <CheckCircle2 size={48} className="text-emerald-500 mb-4 animate-in zoom-in" />
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Invitation Sent!</h3>
+            <p className="text-slate-500 text-sm">The expert will be notified and can submit a bid to your project.</p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Project</label>
+              {publishedProjects.length === 0 ? (
+                <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200">
+                  You don't have any published projects. Please complete an elicitation session and publish a project first.
+                </div>
+              ) : (
+                <select 
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="" disabled>-- Select a published project --</option>
+                  {publishedProjects.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.projectName || `Project ${p.id.slice(0,8)}`}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Message (Optional)</label>
+              <textarea 
+                value={inviteMessage}
+                onChange={(e) => setInviteMessage(e.target.value)}
+                placeholder={`Hi ${fullName?.split(' ')[0] || 'there'},\n\nI'd like to invite you to submit a bid for my project...`}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 min-h-[120px] resize-none"
+              />
+            </div>
+
+            <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+              <Button variant="ghost" onClick={() => setIsInviteModalOpen(false)}>Cancel</Button>
+              <Button 
+                onClick={handleInvite} 
+                disabled={!selectedProjectId || isInviting || !socket}
+                className="gap-2"
+              >
+                {isInviting ? <Spinner size="sm" className="text-white" /> : <Send size={16} />}
+                {isInviting ? 'Sending...' : 'Send Invitation'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

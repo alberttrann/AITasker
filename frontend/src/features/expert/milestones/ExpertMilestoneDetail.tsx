@@ -14,7 +14,7 @@ import { formatVND } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
-import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 import { BankLinkReminder } from "@/components/wallet/BankLinkReminder";
@@ -222,6 +222,51 @@ export default function ExpertMilestoneDetail() {
                   <p className="text-2xl font-bold text-emerald-600 mt-1">{formatVND(milestone.paymentAmountVnd)}</p>
                 </div>
               </div>
+
+              {/* Service Scope & Timeline (For Service Orders) */}
+              {isServiceOrder && engagement?.service && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Service Scope & Timeline</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Scope of Work</h4>
+                      <ul className="space-y-2 text-sm text-slate-700">
+                        {(() => {
+                          const scope = engagement.service.scope;
+                          if (!scope) return <span className="italic text-slate-500">Not specified</span>;
+                          try {
+                            const parsed = JSON.parse(scope);
+                            if (Array.isArray(parsed)) {
+                              return parsed.map((item, i) => <li key={i} className="flex gap-2"><span className="text-emerald-500 font-bold">•</span><span className="leading-relaxed">{item}</span></li>);
+                            }
+                          } catch {
+                            return scope.split('\n').filter(Boolean).map((line: string, i: number) => <li key={i} className="flex gap-2"><span className="text-emerald-500 font-bold">•</span><span className="leading-relaxed">{line.replace(/^- /, '')}</span></li>);
+                          }
+                          return <li>{scope}</li>;
+                        })()}
+                      </ul>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estimated Timeline</h4>
+                      <div className="space-y-2 text-sm text-slate-700">
+                        {(() => {
+                          const timeline = engagement.service.timeline;
+                          if (!timeline) return <span className="italic text-slate-500">Not specified</span>;
+                          return timeline.split('\n').filter(Boolean).map((line: string, i: number) => {
+                            const isTotal = line.toLowerCase().includes('total');
+                            return (
+                              <div key={i} className={`flex items-center gap-2 ${isTotal ? 'font-bold text-slate-900 mt-3 pt-3 border-t border-slate-200' : ''}`}>
+                                {isTotal ? <Clock size={14} className="text-blue-500" /> : <span className="text-blue-500 font-bold">•</span>}
+                                <span>{line}</span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* LOCKED STATE: DEFINED or AWAITING_PAYMENT */}
               {isLocked && (

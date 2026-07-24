@@ -20,6 +20,9 @@ const changePasswordSchema = Yup.object({
     .required('New password is required.')
     .test('strong-password', 'Please satisfy all password rules.', value => {
       return passwordRules.every(r => r.test(value || ''));
+    })
+    .test('different-password', 'New password must be different from current password.', function(value) {
+      return value !== this.parent.currentPassword;
     }),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('newPassword'), undefined], 'Passwords must match')

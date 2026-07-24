@@ -12,7 +12,8 @@ import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
 import { useSentInvitations, useRetractInvitation } from "@/hooks/use-invitations";
 import { Mail } from "lucide-react";
-import { ConfirmModal } from "@/components/ui/modal";
+import { ConfirmModal, Modal } from "@/components/ui/modal";
+import CeoNdaClickThrough from "../connection/NdaClickThrough";
 import { useToastActions } from '@/lib/toast-context';
 
 export default function ProjectDetailPage() {
@@ -58,6 +59,7 @@ export default function ProjectDetailPage() {
   const { data: sentInvitations } = useSentInvitations();
   const retractInvitation = useRetractInvitation();
   const [inviteToRetract, setInviteToRetract] = useState<string | null>(null);
+  const [showNdaModal, setShowNdaModal] = useState(false);
 
   const projectInvitations = useMemo(() => {
     if (!sentInvitations) return [];
@@ -275,13 +277,13 @@ export default function ProjectDetailPage() {
           {selectedEngagement ? (
             <div className="flex items-center gap-3">
               {!connectedEngagement ? (
-                <Link
-                  id="link-review-selected-bid-nda"
-                  to={`/ceo/engagements/${selectedEngagement.id}/nda`}
+                <button
+                  id="btn-review-selected-bid-nda"
+                  onClick={() => setShowNdaModal(true)}
                   className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
                 >
                   Review & Sign NDA
-                </Link>
+                </button>
               ) : (
                 <Link
                   id="link-open-selected-engagement-workspace"
@@ -671,6 +673,18 @@ export default function ProjectDetailPage() {
           }}
         />
       ) : null}
+
+      <Modal
+        isOpen={showNdaModal}
+        onClose={() => setShowNdaModal(false)}
+        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+      >
+        <div className="h-[80vh] overflow-y-auto">
+          {selectedEngagement && (
+            <CeoNdaClickThrough engagementId={selectedEngagement.id} />
+          )}
+        </div>
+      </Modal>
 
       <ConfirmModal
         isOpen={!!inviteToRetract}
