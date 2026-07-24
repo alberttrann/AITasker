@@ -32,8 +32,9 @@ This Agreement shall be governed by and construed in accordance with the laws of
 By signing below, both parties acknowledge that they have read and understood this Agreement and agree to be bound by its terms.
 `.trim();
 
-export default function CeoNdaClickThrough() {
-  const { engagementId } = useParams<{ engagementId: string }>();
+export default function CeoNdaClickThrough({ engagementId: propEngagementId }: { engagementId?: string }) {
+  const params = useParams<{ engagementId: string }>();
+  const engagementId = propEngagementId || params.engagementId;
   const navigate = useNavigate();
 
   const { data: engagement, isLoading, error, refetch } = useEngagement(engagementId);
@@ -138,15 +139,8 @@ export default function CeoNdaClickThrough() {
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-[768px] space-y-4 pb-8">
+    <div className="mx-auto max-w-[768px] space-y-4 pb-8 p-6">
       <div className="shrink-0">
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors cursor-pointer mb-2"
-        >
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
           Non-Disclosure Agreement
         </h1>

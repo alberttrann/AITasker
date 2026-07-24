@@ -372,7 +372,7 @@ export default function ProfilePage() {
               onClick={() => {
                 if (isClient) navigate('/ceo/subscriptions');
                 else if (isExpert) navigate('/expert/subscriptions');
-                else navigate('/subscriptions');
+                else navigate('/');
               }}
               disabled={!isFree}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-md transition-colors group ${!isFree ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50 text-slate-900'

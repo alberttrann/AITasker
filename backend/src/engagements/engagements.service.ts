@@ -25,6 +25,7 @@ const PROJECT_SUMMARY_SELECT = {
     state: true,
     archetype: true,
     tier: true,
+    selfTechnical: true,
     createdAt: true,
   },
 } as const;
@@ -287,6 +288,7 @@ export class EngagementsService {
 
   private withContractFlags<T extends {
     capabilityBid?: { conditionalPricingJson: unknown; negotiatedPriceVnd?: bigint | null } | null;
+    project?: { selfTechnical: boolean } | null;
     clientNdaAcceptedAt: Date | null;
     expertNdaAcceptedAt: Date | null;
   }>(engagement: T, restrictedTechnicalView = false) {
@@ -296,7 +298,10 @@ export class EngagementsService {
       : undefined;
     const accepted = envelope ? acceptedOffer(envelope) : undefined;
     const current = envelope ? currentOffer(envelope) : undefined;
-    const negotiation = envelope ? deriveNegotiationState(envelope) : undefined;
+    const negotiation = envelope
+      ? deriveNegotiationState(envelope, engagement.project?.selfTechnical !== true)
+      : undefined;
+    const isService = (engagement as any).type === 'SERVICE_PURCHASE' || (engagement as any).type === 'TECH_DISCOVERY';
     return {
       ...engagement,
       ...(capabilityBid
@@ -323,8 +328,8 @@ export class EngagementsService {
             },
           }
         : {}),
-      termsLocked: bidHasAcceptedTerms(capabilityBid),
-      ndaComplete: Boolean(
+      termsLocked: isService || bidHasAcceptedTerms(capabilityBid),
+      ndaComplete: isService || Boolean(
         engagement.clientNdaAcceptedAt && engagement.expertNdaAcceptedAt,
       ),
     };

@@ -27,11 +27,10 @@ const CeoOverview = lazy(() => import("@features/ceo/CeoDashboard").then(m => ({
 const ExpertDashboard = lazy(() => import("@features/expert/ExpertDashboard"));
 const ExpertOverview = lazy(() => import("@features/expert/ExpertDashboard").then(m => ({ default: m.ExpertOverview })));
 const TechTeamDashboard = lazy(() => import("@features/tech-team/TechTeamDashboard"));
-const TechTeamOverview = lazy(() => import("@features/tech-team/TechTeamOverview"));
 const TechTeamProjectsPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectsPage"));
 const TechTeamProjectDetailPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectDetailPage"));
 const TechTeamMilestoneList = lazy(() => import("@features/tech-team/milestones/MilestoneList"));
-const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/MilestoneDetail"));
+const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/TechTeamMilestoneDetail"));
 const Stage4Submitted = lazy(() => import("@features/tech-team/stage4/Stage4Submitted"));
 const AdminDashboard = lazy(() => import("@features/admin/AdminDashboard"));
 const AdminOverview = lazy(() => import("@features/admin/AdminOverview"));
@@ -52,6 +51,7 @@ const ProfileSettingPage = lazy(() => import("./components/pages/ProfileSettingP
 const WalletPage = lazy(() => import("./components/wallet/WalletPage"));
 const ExpertWallet = lazy(() => import("@features/expert/wallet/ExpertWallet"));
 const BankHubLink = lazy(() => import("@features/expert/wallet/BankHubLink"));
+const WithdrawForm = lazy(() => import("@features/expert/wallet/WithdrawForm"));
 const ServiceDetail = lazy(() => import("./features/expert/services/ServiceDetail"));
 
 const SubscriptionManagement = lazy(() => import("@features/ceo/onboarding/SubscriptionManagement"));
@@ -75,13 +75,13 @@ const SessionsListPage = lazy(() => import("@features/ceo/pages/SessionsListPage
 const ExpertProfilePage = lazy(() => import("@features/expert/profile/ExpertProfilePage"));
 const VerificationHistoryPage = lazy(() => import("@features/expert/verification/VerificationHistoryPage"));
 const CeoNdaClickThrough = lazy(() => import("@features/ceo/connection/NdaClickThrough"));
+const NotificationSystem = lazy(() => import("@/components/notifications/NotificationSystem"));
 const ExpertNdaClickThrough = lazy(() => import("@features/expert/connection/NdaClickThrough"));
 const ExpertProjectsPage = lazy(() => import("@features/expert/projects/ExpertProjectsPage"));
 const ExpertServicesPage = lazy(() => import("@features/expert/services/ExpertServicesPage"));
 const ExpertOrdersPage = lazy(() => import("@features/expert/services/ExpertOrdersPage"));
 const BidForm = lazy(() => import("@features/expert/bidding/BidForm"));
 const CounterOfferReceived = lazy(() => import("@features/expert/bidding/CounterOfferReceived"));
-const BidRevision = lazy(() => import("@features/expert/bidding/BidRevision"));
 const BidReviewList = lazy(() => import("@features/tech-team/bids/BidReviewList"));
 const BidReviewDetail = lazy(() => import("@features/tech-team/bids/BidReviewDetail"));
 const BidApprove = lazy(() => import("@features/tech-team/bids/BidApprove"));
@@ -91,11 +91,15 @@ const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMiles
 const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
 const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
+const CeoReviewForm = lazy(() => import("./features/ceo/review/CeoReviewForm"));
+const ExpertReviewForm = lazy(() => import("./features/expert/review/ExpertReviewForm"));
+const TechTeamReviewForm = lazy(() => import("@features/tech-team/review/TechTeamReviewForm"));
 const DisputeFile = lazy(() => import("./features/ceo/milestones/DisputeFile"));
 const DisputeResult = lazy(() => import("./features/ceo/milestones/DisputeResult"));
 const AdminProjectsPage = lazy(() => import("@features/admin/oversight/AdminProjectsPage"));
 const AdminEngagementsPage = lazy(() => import("@features/admin/oversight/AdminEngagementsPage"));
 const AdminExpertsPage = lazy(() => import("@features/admin/oversight/AdminExpertsPage"));
+const CeoExpertProfileView = lazy(() => import("@features/ceo/experts/CeoExpertProfileView"));
 
 function RootLayout() {
   return (
@@ -128,7 +132,6 @@ const router = createBrowserRouter(
           <Route path="/ceo" element={<CeoDashboard />}>
             <Route index element={<CeoOverview />} />
             <Route path="projects" element={<ProjectsPage />} />
-            <Route path="project/:id" element={<ProjectDetailPage />} />
             <Route path="projects/:id" element={<ProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="account-setting" element={<ProfileSettingPage />} />
@@ -140,6 +143,7 @@ const router = createBrowserRouter(
             <Route path="marketplace" element={<MarketplaceBrowse />} />
             <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
             <Route path="marketplace/service/:id/purchase" element={<CeoServicePurchase />} />
+            <Route path="experts/:userId" element={<CeoExpertProfileView />} />
             <Route path="projects/:projectId/shortlist" element={<ShortlistView />} />
             <Route path="projects/:projectId/bids" element={<BidList />} />
             <Route path="projects/:projectId/bids/:bidId" element={<BidDetail />} />
@@ -153,6 +157,10 @@ const router = createBrowserRouter(
               element={<MilestoneList />}
             />
             <Route
+              path="engagements/:engagementId/review"
+              element={<CeoReviewForm />}
+            />
+            <Route
               path="engagements/:engagementId/messages"
               element={<MessageThread />}
             />
@@ -162,6 +170,7 @@ const router = createBrowserRouter(
             />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="notifications" element={<NotificationSystem />} />
             <Route
               path="engagements/:engagementId/milestones/create"
               element={<CreateMilestone />}
@@ -197,13 +206,15 @@ const router = createBrowserRouter(
             <Route path="account-setting" element={<ProfileSettingPage />} />
             <Route path="wallet" element={<ExpertWallet />} />
             <Route path="wallet/link-bank" element={<BankHubLink />} />
+            <Route path="wallet/withdraw" element={<WithdrawForm />} />
             <Route path="service/expert-profile/verification-history" element={<VerificationHistoryPage />} />
-            <Route path="verification-history" element={<VerificationHistoryPage />} />
             <Route path="subscriptions" element={<ExpertSubscriptionManagement />} />
             <Route path="subscriptions/plans" element={<ExpertSubscriptionPlans />} />
+            <Route path="marketplace" element={<MarketplaceBrowse />} />
+            <Route path="marketplace/service/:id" element={<CeoServiceDetail />} />
             <Route path="bids/:projectId" element={<BidForm />} />
             <Route path="engagements/:engagementId/bid" element={<CounterOfferReceived />} />
-            <Route path="engagements/:engagementId/bid/revision" element={<BidRevision />} />
+            <Route path="engagements/:engagementId/review" element={<ExpertReviewForm />} />
             <Route
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
@@ -218,6 +229,7 @@ const router = createBrowserRouter(
             />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="notifications" element={<NotificationSystem />} />
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
               element={<ExpertMilestoneDetail />}
@@ -235,7 +247,7 @@ const router = createBrowserRouter(
 
         <Route element={<RoleRoute requiredSubtype="TECH_TEAM" />}>
           <Route path="/tech-team" element={<TechTeamDashboard />}>
-            <Route index element={<TechTeamOverview />} />
+            <Route index element={<TechTeamProjectsPage />} />
             <Route path="projects" element={<TechTeamProjectsPage />} />
             <Route path="projects/:id" element={<TechTeamProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
@@ -253,11 +265,16 @@ const router = createBrowserRouter(
               element={<TechTeamMilestoneDetail />}
             />
             <Route
+              path="engagements/:engagementId/review"
+              element={<TechTeamReviewForm />}
+            />
+            <Route
               path="bids/:bidId/revision"
               element={<BidRevisionRequest />}
             />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
+            <Route path="notifications" element={<NotificationSystem />} />
           </Route>
         </Route>
 

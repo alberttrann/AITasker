@@ -3,25 +3,32 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useMilestone } from "@/hooks/use-milestones";
 import { useMilestoneSettlement } from "@/hooks/use-disputes";
+import { useDownloadDocument, useRetractLatestSubmission } from "@/hooks/use-submissions";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/modal";
 import { formatVND } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
-import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
-
+import { BankLinkReminder } from "@/components/wallet/BankLinkReminder";
+import PaygatedDocsStaging from "./PaygatedDocsStaging";
 export default function ExpertMilestoneDetail() {
   const { engagementId, milestoneId } = useParams<{ engagementId: string; milestoneId: string }>();
   const navigate = useNavigate();
 
   // State for workspace chat drawer (additive — keeps existing inbox navigation intact)
   const [isChatOpen, setIsChatOpen] = useState(false);
+  // retract submission confirm dialog + error surfacing
+  const [showRetractConfirm, setShowRetractConfirm] = useState(false);
+  const [retractError, setRetractError] = useState<string | null>(null);
+  const retractSubmission = useRetractLatestSubmission();
 
   // Fetch data
   const { data: engagement, isLoading: isLoadingEngagement, error: engagementError } = useEngagement(engagementId);
@@ -216,17 +223,67 @@ export default function ExpertMilestoneDetail() {
                 </div>
               </div>
 
+              {/* Service Scope & Timeline (For Service Orders) */}
+              {isServiceOrder && engagement?.service && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Service Scope & Timeline</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Scope of Work</h4>
+                      <ul className="space-y-2 text-sm text-slate-700">
+                        {(() => {
+                          const scope = engagement.service.scope;
+                          if (!scope) return <span className="italic text-slate-500">Not specified</span>;
+                          try {
+                            const parsed = JSON.parse(scope);
+                            if (Array.isArray(parsed)) {
+                              return parsed.map((item, i) => <li key={i} className="flex gap-2"><span className="text-emerald-500 font-bold">•</span><span className="leading-relaxed">{item}</span></li>);
+                            }
+                          } catch {
+                            return scope.split('\n').filter(Boolean).map((line: string, i: number) => <li key={i} className="flex gap-2"><span className="text-emerald-500 font-bold">•</span><span className="leading-relaxed">{line.replace(/^- /, '')}</span></li>);
+                          }
+                          return <li>{scope}</li>;
+                        })()}
+                      </ul>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estimated Timeline</h4>
+                      <div className="space-y-2 text-sm text-slate-700">
+                        {(() => {
+                          const timeline = engagement.service.timeline;
+                          if (!timeline) return <span className="italic text-slate-500">Not specified</span>;
+                          return timeline.split('\n').filter(Boolean).map((line: string, i: number) => {
+                            const isTotal = line.toLowerCase().includes('total');
+                            return (
+                              <div key={i} className={`flex items-center gap-2 ${isTotal ? 'font-bold text-slate-900 mt-3 pt-3 border-t border-slate-200' : ''}`}>
+                                {isTotal ? <Clock size={14} className="text-blue-500" /> : <span className="text-blue-500 font-bold">•</span>}
+                                <span>{line}</span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* LOCKED STATE: DEFINED or AWAITING_PAYMENT */}
               {isLocked && (
-                <div className="flex flex-col items-center justify-center text-center py-12 px-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4">
-                    <Lock size={22} />
+                <>
+                  <div className="flex flex-col items-center justify-center text-center py-12 px-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                      <Lock size={22} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Milestone Locked</h3>
+                    <p className="text-sm text-slate-500 max-w-md">
+                      Work has not started on this milestone because it is awaiting payment. Once the client funds this milestone into escrow, the status will update automatically and unlock your checklist.
+                    </p>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">Milestone Locked</h3>
-                  <p className="text-sm text-slate-500 max-w-md">
-                    Work has not started on this milestone because it is awaiting payment. Once the client funds this milestone into escrow, the status will update automatically and unlock your checklist.
-                  </p>
-                </div>
+
+                  {/* stage pay-gated docs now — they'll auto-unlock the moment funding clears */}
+                  {milestoneId && <PaygatedDocsStaging milestoneId={milestoneId} />}
+                </>
               )}
 
               {/* SUBMITTED STATE: Deliverables Awaiting Signoff */}
@@ -251,6 +308,10 @@ export default function ExpertMilestoneDetail() {
                       File Dispute
                     </Button>
                   </div>
+
+                  <BankLinkReminder
+                    context="If this milestone gets approved before you link a bank account, your payout can't be processed automatically."
+                  />
 
                   {/* Submitted contents preview */}
                   {milestone.submissions && milestone.submissions.length > 0 && (() => {
@@ -285,6 +346,27 @@ export default function ExpertMilestoneDetail() {
                               </div>
                             </div>
                           )}
+
+                          {retractError && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                              {retractError}
+                            </div>
+                          )}
+                          <div className="border-t border-slate-100 pt-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setRetractError(null);
+                                setShowRetractConfirm(true);
+                              }}
+                              disabled={retractSubmission.isPending}
+                              className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed"
+                            >
+                              <RotateCcw size={14} className="mr-1.5" />
+                              Retract Submission
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -425,6 +507,8 @@ export default function ExpertMilestoneDetail() {
                   </div>
                 </div>
               )}
+
+              <ReleasedDocsSection milestoneId={milestone.id} />
             </CardContent>
           </Card>
         </div>
@@ -435,10 +519,74 @@ export default function ExpertMilestoneDetail() {
         engagementId={engagementId || ""}
         clientId={engagement.clientId}
         expertId={engagement.expertId}
-        projectName={engagement.project?.projectName}
+        projectName={engagement.project?.projectName ?? undefined}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
       />
+
+      {/* Retract Submission confirm modal */}
+      <ConfirmModal
+        isOpen={showRetractConfirm}
+        onClose={() => setShowRetractConfirm(false)}
+        onConfirm={() => {
+          if (!milestoneId) return;
+          retractSubmission.mutate(
+            { milestoneId },
+            {
+              onSuccess: () => {
+                setShowRetractConfirm(false);
+                refetch();
+              },
+              onError: (err: any) => {
+                setRetractError(
+                  err?.response?.data?.message || "Failed to retract submission.",
+                );
+                setShowRetractConfirm(false);
+              },
+            },
+          );
+        }}
+        title="Retract this submission?"
+        confirmText="Retract Submission"
+        isDestructive
+      >
+        <p className="text-sm text-slate-600">
+          This will delete your submitted deliverable and revert this milestone
+          back to in-progress. You'll need to resubmit once you're ready. This
+          action cannot be undone.
+        </p>
+      </ConfirmModal>
+    </div>
+  );
+}
+
+function ReleasedDocsSection({ milestoneId }: { milestoneId: string }) {
+  const { data: docs, isLoading } = useDownloadDocument(milestoneId);
+
+  if (isLoading || !docs || docs.length === 0) return null;
+
+  return (
+    <div className="border-t border-slate-100 pt-6">
+      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">
+        Pay-Gated Documents
+      </h3>
+      <div className="space-y-2">
+        {docs.map((doc) => (
+          <a
+            key={doc.id}
+            href={doc.documentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-sm transition-colors"
+          >
+            <FileText size={14} className="text-slate-400 shrink-0" />
+            <span className="truncate flex-1 text-slate-700">{doc.documentUrl}</span>
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+              Released
+            </span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

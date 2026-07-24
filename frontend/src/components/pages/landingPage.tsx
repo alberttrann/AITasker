@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import AuthModal from "@/components/auth/AuthModal";
 import { ArrowRight } from "lucide-react";
@@ -13,6 +13,15 @@ export default function LandingPage() {
 
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'forgot-password') {
+      setAuthMode('forgotPassword' as any);
+      setIsAuthModalOpen(true);
+    }
+  }, [location.search]);
 
   const maskRef = useRef<HTMLDivElement>(null);
   const disabledRef = useRef(false);
@@ -46,7 +55,7 @@ export default function LandingPage() {
 
     // Config for blobling sharp mask
     const RADIUS = 120;
-    const TRAIL_LIFE_DECAY = 0.08;
+    const TRAIL_LIFE_DECAY = 0.1;
 
     interface Point {
       x: number;

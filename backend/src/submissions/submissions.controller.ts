@@ -44,7 +44,7 @@ export class SubmissionsController {
   }
 
   @Get(':id/paygated-docs')
-  @Roles('TECH_TEAM', 'EXPERT') 
+  @Roles('CLIENT', 'EXPERT') 
   @ApiOperation({ summary: 'TECH_TEAM or EXPERT downloads unlocked documents (CEO is excluded)' })
   async downloadDocument(
     @Param('id') milestoneId: string,

@@ -86,7 +86,7 @@ export function useCreateWithdrawal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { amount: number; bank_account_xid: string }) => {
+    mutationFn: async (payload: { amount: number }) => {
       const { data } = await apiClient.post<import('@t/api.types').WithdrawalRequestDto>(
         '/withdrawals',
         payload
@@ -98,6 +98,22 @@ export function useCreateWithdrawal() {
       queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
     },
   });
+}
+
+export function useCancelWithdrawal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete<{ cancelled: boolean; refundedAmount: number }>(`/withdrawals/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'transactions'] });
+    }
+  })
 }
 
 export function useWithdrawalHistory() {
@@ -114,4 +130,74 @@ export function useWithdrawalHistory() {
     enabled: isAuthenticated,
   });
 }
-
+
+export interface BankLinkPayload {
+  bank_account_xid: string;
+  holder_name: string;
+}
+
+export interface BankLinkStatusDto {
+  isLinked: boolean;
+  bankAccountXid: string | null;
+  holderName: string | null;
+  linkedAt: string | null;
+}
+
+/**
+ * Current bank-link status, backed by GET /bank-hub/link. Lets BankHubLink.tsx
+ * render "already linked" vs "not yet linked" without piggybacking on the
+ * full user-profile payload.
+ */
+export function useBankLinkStatus() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  return useQuery({
+    queryKey: ['bank-link'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<BankLinkStatusDto>('/bank-hub/link');
+      return data;
+    },
+    enabled: isAuthenticated,
+  });
+}
+
+/**
+ * First-time bank link. Backend rejects with 409 if a link already exists —
+ * use useUpdateBankLink() in that case instead.
+ */
+export function useInitiateBankLink() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: BankLinkPayload) => {
+      const { data } = await apiClient.post('/bank-hub/initiate-link', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-link'] });
+    },
+  });
+}
+
+/**
+ * Correct/change an already-linked bank account. Backend rejects
+ * with 409 if no link exists yet — use useInitiateBankLink() in that case.
+ */
+export function useUpdateBankLink() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: BankLinkPayload) => {
+      const { data } = await apiClient.put('/bank-hub/link', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-link'] });
+    },
+  });
+}
+
+
+

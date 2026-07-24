@@ -51,6 +51,15 @@ export interface AuthTokens {
   refresh_token: string;
 }
 
+/** Bid conditional pricing entry — used by ConditionalPricing.tsx and BidForm.tsx */
+export interface PricingItem {
+  milestone_number: number;
+  price_vnd?: number;
+  condition: string;
+  estimated_duration_days?: number;
+}
+
+
 export interface UserDto {
   id: string;
   email: string;
@@ -188,6 +197,8 @@ export interface ServiceDto {
   price_vnd: number;
   state: ServiceState;
   service_type: ServiceType;
+  scope?: string | null;
+  timeline?: string | null;
 }
 
 export interface EngagementDto {

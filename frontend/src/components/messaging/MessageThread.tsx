@@ -11,7 +11,9 @@ import {
   useMessages,
   useProjectMessages,
   useSendMessage,
+  useSendWorkspaceMessage,
   useConversations,
+  useReadConversation,
 } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,7 +21,6 @@ import { useAuthStore } from "@/store/auth.store";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useEngagementStore } from "@store/engagement.store";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import ChatSidebar from "@/components/messaging/ChatSidebar";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,8 @@ export default function MessageThread({
     useProjectMessages(projectId);
   const { data: conversationsResponse } = useConversations();
   const sendMessage = useSendMessage();
+  const readConversation = useReadConversation();
+  const sendWorkspaceMessage = useSendWorkspaceMessage();
 
   const activeRole = useAuthStore((s) => s.activeRole);
   const queryClient = useQueryClient();
@@ -172,17 +175,11 @@ export default function MessageThread({
     dispatch({ type: "RESET" });
   }, [scopeId]);
 
-  // Thực hiện đọc tin nhắn realtime khi mở hội thoại [5]
+  // Mark conversation as read when opening a thread
   useEffect(() => {
     if (!engagementId) return;
-
-    apiClient
-      .post(`/conversations/${engagementId}/read`)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      })
-      .catch((err) => console.error("Error marking messages as read:", err));
-  }, [engagementId, queryClient]);
+    readConversation.mutate(engagementId);
+  }, [engagementId]);
 
   useEffect(() => {
     if (!socket || !scopeId) return;
@@ -230,12 +227,7 @@ export default function MessageThread({
       dispatch({ type: "APPEND", message: msg });
 
       if (engagementId && msg.senderId !== user?.id) {
-        apiClient
-          .post(`/conversations/${engagementId}/read`)
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: ["conversations"] });
-          })
-          .catch((err) => console.error("Error auto-reading message:", err));
+        readConversation.mutate(engagementId);
       }
     };
 
@@ -254,11 +246,12 @@ export default function MessageThread({
     const payload: any = { content: trimmed };
     if (engagementId) {
       payload.engagement_id = engagementId;
+      sendWorkspaceMessage(payload); // Thay bằng workspace emitter để đẩy noti cho Tech Team
     } else if (projectId) {
       payload.project_id = projectId;
+      sendMessage(payload);
     }
 
-    sendMessage(payload);
     setText("");
   };
 
@@ -330,13 +323,13 @@ export default function MessageThread({
     if (engagement) {
       if (isClient) {
         return (
-          engagement.expert?.fullName ||
+          (engagement as any).expert?.fullName ||
           (engagement as any).otherParty?.fullName ||
           "Expert"
         );
       } else {
         return (
-          engagement.client?.fullName ||
+          (engagement as any).client?.fullName ||
           (engagement as any).otherParty?.fullName ||
           "Client"
         );
@@ -348,16 +341,11 @@ export default function MessageThread({
   // Lọc luồng bằng UUID giúp khắc phục lỗi biến mất dropdown & hiển thị thiếu luồng [5]
   const [stablePartnerId, setStablePartnerId] = useState<string | null>(null);
 
-  // Reset stablePartnerId khi chuyển sang engagement khác để tránh hiển thị sai danh sách thread
+  // Reset hoặc cập nhật stablePartnerId khi chuyển sang engagement khác
+  // Phải phụ thuộc vào cả targetPartnerId VÀ engagementId để tránh lỗi stuck ở null khi chuyển thread của cùng 1 partner
   useEffect(() => {
-    setStablePartnerId(null);
-  }, [engagementId]);
-
-  useEffect(() => {
-    if (targetPartnerId) {
-      setStablePartnerId(targetPartnerId);
-    }
-  }, [targetPartnerId]);
+    setStablePartnerId(targetPartnerId || null);
+  }, [targetPartnerId, engagementId]);
 
   const partnerEngagements = useMemo(() => {
   const pid = stablePartnerId;
@@ -460,7 +448,7 @@ export default function MessageThread({
           <div className="flex items-center gap-2 shrink-0">
             {/* Milestones Workspace Button */}
             {engagement &&
-              (engagement.milestones?.length > 0 || !!engagement.projectId) && (
+              ((engagement.milestones?.length || 0) > 0 || !!engagement.projectId) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -632,7 +620,10 @@ export default function MessageThread({
                 msg.senderId === user?.id || msg.sender?.id === user?.id;
               const senderName = msg.sender?.fullName || "User";
               const senderInitial = senderName.charAt(0).toUpperCase();
-              const senderRole = msg.sender?.activeRole || "";
+              let senderRole = msg.sender?.activeRole || "";
+              if (senderRole === "CLIENT" && engagement && (msg.senderId || msg.sender?.id) !== engagement.clientId) {
+                senderRole = "TECH_TEAM";
+              }
 
               return (
                 <div
@@ -676,22 +667,25 @@ export default function MessageThread({
                     )}
 
                     <div
-                      className={`w-fit max-w-full p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                        isMe
-                          ? "bg-emerald-600 text-white rounded-br-none"
-                          : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60"
-                      }`}
-                    >
-                      <p className="break-words whitespace-pre-wrap">
-                        {msg.content}
-                      </p>
-                    </div>
-                    <p
-                      className={`text-[10px] text-slate-400 font-medium ${isMe ? "text-right" : "text-left"}`}
-                    >
-                      {msg.timestamp ? formatTime(msg.timestamp) : ""}
+                    className={`w-fit max-w-full p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                      isMe
+                        ? "bg-emerald-600 text-white rounded-br-none"
+                        : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60"
+                    }`}
+                  >
+                    <p className="break-words whitespace-pre-wrap">
+                      {msg.content}
                     </p>
                   </div>
+                  <div className={`flex items-center gap-1.5 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      {msg.timestamp ? formatTime(msg.timestamp) : ""}
+                    </p>
+                    {isMe && (
+                       <span title="Sent"><Check size={12} className="text-emerald-500" /></span>
+                    )}
+                  </div>
+                </div>
                 </div>
               );
             })
@@ -710,7 +704,7 @@ export default function MessageThread({
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={`Message ${peerName}...`}
-            className="flex-1 px-4 py-2.5 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all text-slate-800 shadow-sm"
+            className="flex-1 px-4 py-2.5 bg-white border border-slate-200/80 border-b-2 focus:border-b-emerald-500 rounded-xl text-sm focus:outline-none transition-all text-slate-800 shadow-sm"
           />
           <Button
             type="submit"

@@ -27,6 +27,24 @@ export default function WithdrawalRequests() {
   const columns = [
     { key: 'requestedAt', label: 'Requested', render: (w: any) => <span className="text-xs text-slate-500 font-mono">{new Date(w.requestedAt).toLocaleString()}</span> },
     { key: 'expertId', label: 'Expert ID', render: (w: any) => <span className="text-xs font-mono text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-200">{w.expertId.slice(0, 13)}...</span> },
+    { key: 'type', label: 'Type', render: (w: any) => (
+      w.type === 'MILESTONE_RELEASE' ? (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800">
+            Auto: Milestone Release
+          </span>
+          {w.milestoneId && (
+            <span className="text-[10px] font-mono text-slate-400">
+              Milestone: {String(w.milestoneId).slice(0, 8)}...
+            </span>
+          )}
+        </div>
+      ) : (
+        <span className="inline-flex w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+          Manual (Chi Hộ)
+        </span>
+      )
+    )},
     { key: 'bankAccountXid', label: 'Bank Acc Ref (SePay)', render: (w: any) => <span className="font-bold text-slate-900">{w.bankAccountXid}</span> },
     { key: 'amount', label: 'Amount', render: (w: any) => <span className="font-bold text-emerald-600">{formatVND(Number(w.amount))}</span> },
     { key: 'status', label: 'Status', render: (w: any) => {

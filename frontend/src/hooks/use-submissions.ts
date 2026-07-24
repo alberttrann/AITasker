@@ -66,12 +66,21 @@ export function useDownloadDocument(milestoneId: string) {
     enabled: isAuthenticated && !!milestoneId,
   });
 }
+export interface BulkStagePaygatedDocsDto {
+  documentUrls: string[];
+}
+
+export interface BulkStagePaygatedDocsVariable {
+  milestoneId: string;
+  body: BulkStagePaygatedDocsDto;
+}
+
 export function useUploadBulkDocuments() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ milestoneId, body }: any) => {
-      const { data } = await apiClient.post(
+    mutationFn: async ({ milestoneId, body }: BulkStagePaygatedDocsVariable) => {
+      const { data } = await apiClient.post<{ success: boolean; count: number }>(
         `/milestones/${milestoneId}/paygated-docs/bulk`,
         body,
       );
@@ -93,7 +102,7 @@ export function useRetractLatestSubmission() {
 
   return useMutation({
     mutationFn: async ({ milestoneId }: { milestoneId: string }) => {
-      const { data } = await apiClient.delete(
+      const { data } = await apiClient.delete<{ success: boolean; message: string }>(
         `/milestones/${milestoneId}/submissions/latest`,
       );
       return data;

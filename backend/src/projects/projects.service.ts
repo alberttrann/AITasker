@@ -599,6 +599,8 @@ export class ProjectsService {
         requiredDomainsJson: true,
         requiredSeamsJson: true,
         artifactAJson: true,
+        milestoneFrameworkJson: true,
+        selfTechnical: true,
       },
       orderBy: { createdAt: 'desc' },
       take: Math.min(filters.limit ?? 20, 50),

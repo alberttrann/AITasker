@@ -1,30 +1,54 @@
-import { useNotificationsStore, type AppNotification } from '@store/notifications.store';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth.store';
 
-/**
- * useNotifications — reads and manages the notification store.
- * Used by NotificationSystem component (bell icon + dropdown).
- */
-export function useNotifications() {
-  const notifications = useNotificationsStore((s) => s.notifications);
-  const unreadCount   = useNotificationsStore((s) => s.unreadCount);
-  const markRead      = useNotificationsStore((s) => s.markRead);
-  const markAllRead   = useNotificationsStore((s) => s.markAllRead);
-  const remove        = useNotificationsStore((s) => s.remove);
-  const clear         = useNotificationsStore((s) => s.clear);
-
-  const unread = notifications.filter((n) => !n.read);
-  const read   = notifications.filter((n) => n.read);
-
-  return {
-    notifications,
-    unread,
-    read,
-    unreadCount,
-    markRead,
-    markAllRead,
-    remove,
-    clear,
-  };
+export interface NotificationDto {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
-export type { AppNotification };
+/**
+ * useNotifications — fetches server-persisted notifications from the backend DB.
+ * Source of truth is now the backend Notification table, not localStorage.
+ */
+export function useNotifications(limit = 50) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return useQuery<NotificationDto[]>({
+    queryKey: ['notifications', limit],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/notifications/me', { params: { limit } });
+      return Array.isArray(data) ? data : (data?.data ?? []);
+    },
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.put(`/notifications/${id}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.put('/notifications/read-all'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+export function useDeleteNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/notifications/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}

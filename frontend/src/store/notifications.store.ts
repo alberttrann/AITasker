@@ -41,6 +41,7 @@ interface NotificationsState {
   markAllRead:      () => void;
   remove:           (id: string) => void;
   clear:            () => void;
+  hydrate:          (dbNotifs: any[]) => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>()(
@@ -89,6 +90,15 @@ export const useNotificationsStore = create<NotificationsState>()(
         }),
 
       clear: () => set({ notifications: [], unreadCount: 0 }),
+
+      hydrate: (dbNotifs) => set({
+        notifications: dbNotifs.map((n) => ({
+          ...n,
+          read: n.isRead,
+          createdAt: n.createdAt,
+        })),
+        unreadCount: dbNotifs.filter((n) => !n.isRead).length,
+      }),
     }),
     {
       name: 'aitasker-notifications',

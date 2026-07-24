@@ -8,7 +8,7 @@ import TooltipIcon from '@/components/ui/TooltipIcon';
 
 interface SeamClaimsGridProps {
   onSave: (seams: SeamClaim[]) => void;
-  initialSeams?: SeamClaim[];
+  initialSeams?: any[];
   selectedDomainCodes?: string[];
 }
 
@@ -18,10 +18,29 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
   const { data: dynamicSeams, isLoading } = useSeams();
   const [seamStates, setSeamStates] = useState<SeamClaim[]>([]);
 
+  const combinedSeams = React.useMemo(() => {
+    if (!dynamicSeams) return [];
+    const list = [...dynamicSeams];
+    const dynamicCodes = new Set(list.map(s => s.code));
+    
+    (initialSeams || []).forEach((is: any) => {
+      const code = is.seamCode || is.code;
+      if (!dynamicCodes.has(code)) {
+        list.push({
+          code: code,
+          name: code,
+          description: 'This seam has been retired by the platform, but your legacy claim is preserved.',
+          isLegacy: true
+        } as any);
+      }
+    });
+    return list;
+  }, [dynamicSeams, initialSeams]);
+
   React.useEffect(() => {
-    if (dynamicSeams && seamStates.length === 0) {
+    if (combinedSeams.length > 0 && seamStates.length === 0) {
       setSeamStates(
-        dynamicSeams.map(s => {
+        combinedSeams.map(s => {
           const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === s.code);
           return {
             code: s.code,
@@ -30,7 +49,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
         })
       );
     }
-  }, [dynamicSeams, initialSeams]);
+  }, [combinedSeams, initialSeams]);
   const { saveSeams } = useExpertProfile();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +82,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
       const existing = (initialSeams || []).find((is: any) => (is.seamCode || is.code) === vs.code);
       return { ...existing, code: vs.code, seamCode: vs.code };
     });
-    
+
     if (selectedSeams.length < 2 || selectedSeams.length > 5) {
       setError('Please select between 2 and 5 seams.');
       return;
@@ -106,7 +125,7 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(dynamicSeams || []).map(seam => {
+          {combinedSeams.map(seam => {
             const currentState = seamStates.find(s => s.code === seam.code);
             const isChecked = currentState?.checked || false;
             const existing = initialSeams.find((is: any) => (is.seamCode || is.code) === seam.code);
@@ -145,6 +164,11 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
                     </span>
                     {seam.name}
                     <TooltipIcon text={seam.description} />
+                    {(seam as any).isLegacy && (
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200">
+                        Inactive
+                      </span>
+                    )}
                     {isVerified && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
                         <CheckCircle className="h-3 w-3" /> AI Verified

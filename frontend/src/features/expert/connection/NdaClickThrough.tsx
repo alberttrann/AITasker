@@ -39,8 +39,9 @@ This Agreement shall be governed by and construed in accordance with the laws of
 By signing below, both parties acknowledge that they have read and understood this Agreement and agree to be bound by its terms.
 `.trim();
 
-export default function ExpertNdaClickThrough() {
-  const { engagementId } = useParams<{ engagementId: string }>();
+export default function ExpertNdaClickThrough({ engagementId: propEngagementId }: { engagementId?: string }) {
+  const params = useParams<{ engagementId: string }>();
+  const engagementId = propEngagementId || params.engagementId;
   const navigate = useNavigate();
 
   const { data: engagement, isLoading, error, refetch } =
@@ -175,15 +176,8 @@ export default function ExpertNdaClickThrough() {
   // ── Render: CEO signed, expert needs to sign ───────────────────
 
   return (
-    <div className="mx-auto max-w-[768px] space-y-4 pb-8">
+    <div className="mx-auto max-w-[768px] space-y-4 pb-8 p-6">
       <div className="shrink-0">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer mb-2"
-          aria-label="Go back"
-        >
-          <ArrowLeft size={20} />
-        </button>
         <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
           Non-Disclosure Agreement
         </h1>

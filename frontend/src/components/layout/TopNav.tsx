@@ -6,13 +6,12 @@ import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
-import { useNotificationsStore } from '@/store/notifications.store';
+import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-notifications';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
 import SpotlightSearch from '@/components/layout/SpotlightSearch';
 import { useEngagementStore } from '@store/engagement.store';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-import { useConversations } from '@/hooks/use-messages';
+import { useQueryClient } from '@tanstack/react-query';
+import { useConversations, useReadConversation, useReadAllConversations } from '@/hooks/use-messages';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -76,13 +75,41 @@ export default function TopNav() {
 
   const dashboardRoute = getBasePath();
 
-  // Notifications store
-  const { notifications, markRead, markAllRead } = useNotificationsStore();
-  const unreadNotifications = notifications.filter(n => !n.read).length;
+  // Notifications via React Query (source of truth is backend DB)
+  const { data: notifications = [] } = useNotifications(20);
+  const unreadNotifications = notifications.filter(n => !n.isRead).length;
   const queryClient = useQueryClient();
+  const markAsReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+
+  const handleNotificationMarkAllRead = () => {
+    markAllReadMutation.mutate();
+  };
+
+  const handleNotificationClick = async (notif: any) => {
+    if (!notif.isRead) {
+      markAsReadMutation.mutate(notif.id);
+    }
+
+    if (notif.link) {
+      let targetLink = notif.link;
+      if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
+        targetLink = '/expert/service/projects';
+      } else if (!targetLink.startsWith('/')) {
+        targetLink = `${dashboardRoute}/${targetLink}`;
+      } else if (targetLink.startsWith('/engagements')) {
+        targetLink = `${dashboardRoute}${targetLink}`;
+      }
+      navigate(targetLink);
+      setActiveDropdown(null);
+    }
+  };
+
   const unreadCounts = useEngagementStore((s) => s.unreadCounts);
   const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
+  const readConversationMutation = useReadConversation();
+  const readAllConversationsMutation = useReadAllConversations();
 
   const rawThreads = conversationsResponse?.data || [];
   const filteredThreads = rawThreads.filter((t: any) => !!t.lastMessage && !!t.lastMessage.content);
@@ -95,24 +122,14 @@ export default function TopNav() {
   // Show top 5 conversations in the dropdown
   const conversations = filteredThreads.slice(0, 5);
 
-  const handleConversationClick = async (id: string) => {
+  const handleConversationClick = (id: string) => {
     setActiveDropdown(null);
-    try {
-      await apiClient.post(`/conversations/${id}/read`);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch (err) {
-      console.error("Failed to mark conversation as read:", err);
-    }
+    readConversationMutation.mutate(id);
     navigate(`${dashboardRoute}/inbox/${id}`);
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      await apiClient.post('/conversations/read-all');
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch (err) {
-      console.error("Failed to mark all as read:", err);
-    }
+  const handleMarkAllRead = () => {
+    readAllConversationsMutation.mutate();
   };
 
   // Safely grab the first letter of the name
@@ -156,7 +173,6 @@ const RoleIcon =
   };
 
   const confirmSignOut = () => {
-    clearAllUnread();
     logout(); // Clears Zustand state
     navigate('/');
   };
@@ -265,7 +281,7 @@ const RoleIcon =
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
                       <span className="font-semibold text-primary">Notifications {unreadNotifications > 0 ? `(${unreadNotifications})` : ''}</span>
                       {unreadNotifications > 0 && (
-                        <button onClick={() => markAllRead()} className="text-xs text-primary hover:text-primary-dark transition-colors font-medium">Mark all read</button>
+                        <button onClick={handleNotificationMarkAllRead} className="text-xs text-primary hover:text-primary-dark transition-colors font-medium cursor-pointer">Mark all read</button>
                       )}
                     </div>
                     <div className="max-h-80 overflow-y-auto bg-white">
@@ -279,28 +295,25 @@ const RoleIcon =
                         notifications.map((notif) => (
                           <div 
                             key={notif.id} 
-                            onClick={() => {
-                              markRead(notif.id);
-                              if (notif.link) {
-                                let targetLink = notif.link;
-                                if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
-                                  targetLink = '/expert/service/projects';
-                                }
-                                navigate(targetLink);
-                                setActiveDropdown(null);
-                              }
-                            }} 
-                            className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
+                            onClick={() => handleNotificationClick(notif)} 
+                            className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.isRead ? 'bg-primary/5' : ''}`}
                           >
                             <div className="flex justify-between items-start mb-1">
-                              <span className={`text-sm font-semibold ${!notif.read ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
-                              {!notif.read && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}
+                              <span className={`text-sm font-semibold ${!notif.isRead ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
+                              {!notif.isRead && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}
                             </div>
                             <p className="text-xs text-slate-500">{notif.body}</p>
                           </div>
                         ))
                       )}
                     </div>
+                    <Link
+                      to={`${dashboardRoute}/notifications`}
+                      onClick={() => setActiveDropdown(null)}
+                      className="p-3 text-center text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100/80 border-t border-slate-100 block transition-all"
+                    >
+                      View All Notifications
+                    </Link>
                   </div>
                 )}
               </div>
@@ -489,7 +502,7 @@ const RoleIcon =
 
                     {!isPro && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                       <Link
-                        to={`${dashboardRoute}/profile`}
+                        to={`${dashboardRoute}/subscriptions`}
                         onClick={() => setActiveDropdown(null)}
                         className="px-5 py-3 text-sm text-left font-headline font-extrabold text-purple-700 bg-transparent hover:bg-purple-50 transition-colors mx-2 mb-2 rounded-lg flex items-center justify-between"
                       >
@@ -572,7 +585,7 @@ const RoleIcon =
               </Link>
               
               {rawRole === 'EXPERT' && (
-                <Link to="/expert/service" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                <Link to="/expert/service/expert-profile" onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Award size={20} className="text-slate-500" /> Expert Profile
                 </Link>
               )}
@@ -584,6 +597,11 @@ const RoleIcon =
               {rawRole === 'CEO' && (
                 <Link to={`${dashboardRoute}/marketplace`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                   <Briefcase size={20} className="text-slate-500" /> Marketplace
+                </Link>
+              )}
+              {rawRole === 'EXPERT' && (
+                <Link to={`/expert/marketplace`} onClick={() => setActiveDropdown(null)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+                  <Search size={20} className="text-slate-500" /> Marketplace
                 </Link>
               )}
 
@@ -673,6 +691,15 @@ const RoleIcon =
             {rawRole === 'EXPERT' && (
               <>
                 <Link 
+                  to={`/expert/marketplace`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/marketplace') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Marketplace
+                  {location.pathname.includes('/marketplace') && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+                <Link 
                   to={`/expert/service/projects`} 
                   className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/projects') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
                 >
@@ -687,6 +714,15 @@ const RoleIcon =
                 >
                   Services
                   {location.pathname === '/expert/service' && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+                <Link 
+                  to={`/expert/service/orders`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/orders') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Orders
+                  {location.pathname.includes('/orders') && (
                     <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                   )}
                 </Link>
@@ -721,7 +757,7 @@ const RoleIcon =
         </div>
       )}
     </header>
-    {/* ΓöÇΓöÇ Render the Modal ΓöÇΓöÇ */}
+    {/*Render the Modal*/}
     <AuthModal 
       isOpen={isAuthModalOpen} 
       onClose={() => setIsAuthModalOpen(false)} 

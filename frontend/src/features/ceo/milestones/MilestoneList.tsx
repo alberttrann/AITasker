@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useEngagement, useEngagementMilestones } from "@/hooks/use-engagements";
-import { useProject } from "@/hooks/use-projects";
+import { useEngagement, useEngagementMilestones, useCancelEngagement } from "@/hooks/use-engagements";
+import { useProject, useDeleteMilestone } from "@/hooks/use-projects";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/modal";
 import { formatVND } from "@/lib/utils";
-import { ArrowLeft, Plus, CheckCircle, MessageSquare } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle, MessageSquare, Trash2, Ban, History, Star} from "lucide-react";
 import MilestoneChatAssistant from "./MilestoneChatAssistant";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
+import EngagementActivity from "./EngagementActivity";
 
 export default function MilestoneList() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -37,6 +39,15 @@ export default function MilestoneList() {
 
   // State for workspace chat drawer (additive)
   const [isChatOpen, setIsChatOpen] = useState(false);
+  // engagement-scoped activity view
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+
+  // delete milestone + cancel engagement
+  const deleteMilestone = useDeleteMilestone();
+  const cancelEngagement = useCancelEngagement();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isLoading = isLoadingEngagement || isLoadingMilestones || isLoadingProject;
   const error = engagementError || milestonesError;
@@ -70,7 +81,7 @@ export default function MilestoneList() {
     );
   }
 
-  const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const jsonMilestones = project?.milestone_framework_json || (project as any)?.milestone_framework_json || [];
   const instantiatedMilestones = milestonesData ?? engagement.milestones ?? [];
   const milestones = instantiatedMilestones.length > 0 ? instantiatedMilestones : jsonMilestones;
 
@@ -135,12 +146,32 @@ export default function MilestoneList() {
         <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="outline"
+            onClick={() => setIsActivityOpen(true)}
+            className="inline-flex items-center gap-2"
+            id="btn-view-engagement-activity"
+          >
+            <History size={16} /> Activity
+          </Button>
+
+          <Button
+            variant="outline"
             onClick={() => setIsChatOpen(true)}
             className="inline-flex items-center gap-2"
             id="btn-create-new-milestone"
           >
             <MessageSquare size={16} /> Discuss with Team
           </Button>
+
+          {engagement.state === "CLOSED" && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/ceo/engagements/${engagementId}/review`)}
+              className="inline-flex items-center gap-2 text-amber-700 border-amber-200 hover:bg-amber-50"
+              id="btn-leave-review"
+            >
+              <Star size={16} /> Leave a Review
+            </Button>
+          )}
 
           {/* Create Milestone action - Only for project-based engagements */}
           {engagement.type === "PROJECT_BASED" && (
@@ -154,8 +185,29 @@ export default function MilestoneList() {
               <Plus size={16} /> Create New Milestone
             </Button>
           )}
+
+          {/* Cancel Engagement — either party */}
+          {engagement.state !== "CLOSED" && engagement.state !== "DISPUTED" && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setActionError(null);
+                setShowCancelConfirm(true);
+              }}
+              className="inline-flex items-center gap-2 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+              id="btn-cancel-engagement"
+            >
+              <Ban size={16} /> Cancel Engagement
+            </Button>
+          )}
         </div>
       </div>
+
+      {actionError && (
+        <div className="mb-4">
+          <ErrorBanner message={actionError} />
+        </div>
+      )}
 
       {/* Main List Layout */}
       {milestones.length === 0 ? (
@@ -261,6 +313,26 @@ export default function MilestoneList() {
                         Pending Creation
                       </Button>
                     )}
+
+                    {/* Delete Milestone — only while DEFINED.*/}
+                    {m.id && state.toUpperCase() === "DEFINED" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setActionError(null);
+                          setDeleteTarget({
+                            id: m.id,
+                            label: `Milestone #${m.milestoneNumber || m.milestone_number}`,
+                          });
+                        }}
+                        className="whitespace-nowrap w-full md:w-auto cursor-pointer text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        id={`btn-delete-milestone-${m.id}`}
+                      >
+                        <Trash2 size={14} className="mr-1.5" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
                 {(m.acceptanceCriteria?.length > 0 || m.dodItems?.length > 0) && (
@@ -311,6 +383,84 @@ export default function MilestoneList() {
           projectName={(engagement as any).project?.projectName || project?.projectName}
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
+        />
+      )}
+
+      {/* Delete Milestone confirm modal */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteMilestone.mutate(
+            { id: deleteTarget.id, engagementId },
+            {
+              onSuccess: () => {
+                setDeleteTarget(null);
+                refetch();
+              },
+              onError: (err: any) => {
+                const code = err?.response?.data?.error;
+                const message =
+                  code === "MILESTONE_TERMS_LOCKED"
+                    ? "This milestone can't be deleted because the bid terms for this engagement have already been accepted."
+                    : err?.response?.data?.message || "Failed to delete milestone.";
+                setActionError(message);
+                setDeleteTarget(null);
+              },
+            },
+          );
+        }}
+        title="Delete this milestone?"
+        confirmText="Delete Milestone"
+        isDestructive
+      >
+        <p className="text-sm text-slate-600">
+          This will permanently delete <strong>{deleteTarget?.label}</strong>{" "}
+          and any acceptance criteria or DoD items attached to it. This
+          action cannot be undone.
+        </p>
+      </ConfirmModal>
+
+      {/* Cancel Engagement confirm modal */}
+      <ConfirmModal
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={() => {
+          if (!engagementId) return;
+          cancelEngagement.mutate(engagementId, {
+            onSuccess: () => {
+              setShowCancelConfirm(false);
+              navigate(
+                projectId ? `/ceo/projects/${projectId}` : "/ceo/marketplace",
+              );
+            },
+            onError: (err: any) => {
+              setActionError(
+                err?.response?.data?.message ||
+                  "Failed to cancel engagement.",
+              );
+              setShowCancelConfirm(false);
+            },
+          });
+        }}
+        title="Cancel this engagement?"
+        confirmText="Cancel Engagement"
+        isDestructive
+      >
+        <p className="text-sm text-slate-600">
+          This will end the engagement with the expert. If any milestone is
+          currently funded and in progress or under review, cancellation
+          will be blocked until that's resolved. This action cannot be
+          undone.
+        </p>
+      </ConfirmModal>
+      {/* Engagement Activity view */}
+      {engagementId && (
+        <EngagementActivity
+          engagementId={engagementId}
+          isOpen={isActivityOpen}
+          onClose={() => setIsActivityOpen(false)}
         />
       )}
     </div>

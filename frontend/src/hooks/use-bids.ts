@@ -200,3 +200,45 @@ export function useCounterOffer() {
     },
   });
 }
+
+export function useWithdrawBid() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bidId: string) => {
+      // Backend returns { withdrawn: true, bidId } — not the full bid DTO.
+      const { data } = await apiClient.delete<{ withdrawn: boolean; bidId: string }>(`/bids/${bidId}`);
+      return data;
+    },
+    onSuccess: (data) => {
+      invalidateBidFlow(queryClient, data?.bidId);
+    },
+  });
+}
+
+export function useReconcileBid() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bidId: string) => {
+      // Backend returns { reconciled: boolean, bid: CapabilityBidDto } —
+      // the bid is nested, not returned directly.
+      const { data } = await apiClient.post<{ reconciled: boolean; bid: CapabilityBidDto }>(
+        `/bids/${bidId}/reconcile`,
+      );
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.bid) {
+        queryClient.setQueryData(bidQueryKeys.detail(data.bid.id), data.bid);
+      }
+      invalidateBidFlow(queryClient, data?.bid?.id);
+    },
+  });
+}
+
+
+export function isReconciliationRequiredError(error: unknown): boolean {
+  const code = (error as any)?.response?.data?.error;
+  return code === "BID_NEGOTIATION_RECONCILIATION_REQUIRED";
+}

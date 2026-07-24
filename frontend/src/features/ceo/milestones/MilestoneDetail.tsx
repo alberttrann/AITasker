@@ -8,11 +8,11 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
-import { formatVND } from "@/lib/utils";
+import { formatVND, ensureExternalUrl } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import CriteriaVerify from "./CriteriaVerify";
 import RevisionRequest from "./RevisionRequest";
-import { ArrowLeft, Check, RotateCcw, AlertTriangle, FileText, Calendar, CheckCircle2, Scale, MessageSquare } from "lucide-react";
+import { ArrowLeft, Check, RotateCcw, AlertTriangle, FileText, Calendar, CheckCircle2, Scale, MessageSquare, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 
@@ -254,6 +254,51 @@ export default function MilestoneDetail() {
                 </div>
               </div>
 
+              {/* Service Scope & Timeline (For Service Orders) */}
+              {isServiceOrder && engagement?.service && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Service Scope & Timeline</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Scope of Work</h4>
+                      <ul className="space-y-2 text-sm text-slate-700">
+                        {(() => {
+                          const scope = engagement.service.scope;
+                          if (!scope) return <span className="italic text-slate-500">Not specified</span>;
+                          try {
+                            const parsed = JSON.parse(scope);
+                            if (Array.isArray(parsed)) {
+                              return parsed.map((item, i) => <li key={i} className="flex gap-2"><span className="text-emerald-500 font-bold">•</span><span className="leading-relaxed">{item}</span></li>);
+                            }
+                          } catch {
+                            return scope.split('\n').filter(Boolean).map((line: string, i: number) => <li key={i} className="flex gap-2"><span className="text-emerald-500 font-bold">•</span><span className="leading-relaxed">{line.replace(/^- /, '')}</span></li>);
+                          }
+                          return <li>{scope}</li>;
+                        })()}
+                      </ul>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estimated Timeline</h4>
+                      <div className="space-y-2 text-sm text-slate-700">
+                        {(() => {
+                          const timeline = engagement.service.timeline;
+                          if (!timeline) return <span className="italic text-slate-500">Not specified</span>;
+                          return timeline.split('\n').filter(Boolean).map((line: string, i: number) => {
+                            const isTotal = line.toLowerCase().includes('total');
+                            return (
+                              <div key={i} className={`flex items-center gap-2 ${isTotal ? 'font-bold text-slate-900 mt-3 pt-3 border-t border-slate-200' : ''}`}>
+                                {isTotal ? <Clock size={14} className="text-blue-500" /> : <span className="text-blue-500 font-bold">•</span>}
+                                <span>{line}</span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Status Alert Banners */}
               {!isFunded && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex gap-3 text-slate-800">
@@ -374,17 +419,24 @@ export default function MilestoneDetail() {
                         <div>
                           <span className="text-xs uppercase tracking-wider font-bold text-slate-400 font-headline">Submitted Links & Files</span>
                           <div className="mt-2 space-y-1.5">
-                            {(latest.filesJson as string[]).map((url, idx) => (
-                              <a
-                                key={idx}
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs font-mono text-primary hover:underline block truncate max-w-lg bg-white border border-slate-200 rounded px-2.5 py-1.5 shadow-xs"
-                              >
-                                {url}
-                              </a>
-                            ))}
+                            {(latest.filesJson as string[]).map((url, idx) => {
+                              const { href, isLink } = ensureExternalUrl(url);
+                              return isLink ? (
+                                <a
+                                  key={idx}
+                                  href={href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-mono text-primary hover:underline block truncate max-w-lg bg-white border border-slate-200 rounded px-2.5 py-1.5 shadow-xs"
+                                >
+                                  {url}
+                                </a>
+                              ) : (
+                                <span key={idx} className="text-xs font-mono text-slate-700 block truncate max-w-lg bg-white border border-slate-200 rounded px-2.5 py-1.5 shadow-xs">
+                                  {url}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

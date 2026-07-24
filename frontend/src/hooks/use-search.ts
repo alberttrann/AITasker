@@ -14,7 +14,7 @@ export function useSearchData(isAuthenticated: boolean, activeRole: string) {
   const { data: rawServices } = useQuery({
     queryKey: ['services', { limit: 30 }],
     queryFn: async () => {
-      const res = await apiClient.get('/services', { params: { limit: 30 } });
+      const res = await apiClient.get('/services');
       return res.data;
     },
     enabled: isAuthenticated && (activeRole === 'CLIENT_CEO' || activeRole === 'EXPERT'),

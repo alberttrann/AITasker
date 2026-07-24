@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth.store';
 import type { ProjectDto, ElicitationSessionDto, PaginatedResponse } from '@/types/api.types';
 import type { ArtifactA, ArtifactB } from '@/types/jsonb.types';
 
@@ -34,6 +35,9 @@ export function updateProjectNameInCache(
   );
 }
 export function useProjects(slim: boolean = false) {
+  const { user, activeRole } = useAuthStore();
+  const isTechTeam = activeRole === 'CLIENT' && user?.clientSubtype === 'TECH_TEAM';
+
   const projectsQuery = useQuery({
     queryKey: ['projects', { slim }],
     queryFn: async () => {
@@ -41,6 +45,7 @@ export function useProjects(slim: boolean = false) {
       const res = await apiClient.get<PaginatedResponse<ProjectDto>>(url);
       return res.data;
     },
+    ...(isTechTeam ? { refetchInterval: 5000, staleTime: 10000 } : {})
   });
 
   return {
@@ -51,12 +56,16 @@ export function useProjects(slim: boolean = false) {
 
 
 export function useActiveElicitationSession() {
+  const { user } = useAuthStore();
+  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+
   const activeSessionQuery = useQuery({
     queryKey: ['elicitation-sessions', 'active'],
     queryFn: async () => {
       const res = await apiClient.get('/elicitation/sessions/active');
       return res.data;
     },
+    enabled: isEligible,
     retry: false
   });
 
@@ -68,12 +77,16 @@ export function useActiveElicitationSession() {
 }
 
 export function useElicitationSessions() {
+  const { user } = useAuthStore();
+  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+
   const sessionsQuery = useQuery({
     queryKey: ['elicitation-sessions'],
     queryFn: async () => {
       const res = await apiClient.get<PaginatedResponse<ElicitationSessionDto>>('/elicitation/sessions');
       return res.data;
     },
+    enabled: isEligible,
   });
 
   return {
@@ -237,12 +250,16 @@ export function useArtifactB(
  * RETURNED = quality gate failed, session sent back for revision.
  */
 export function useSessionHistory() {
+  const { user } = useAuthStore();
+  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+
   return useQuery({
     queryKey: ['elicitation-sessions', 'history'],
     queryFn: async () => {
       const { data } = await apiClient.get('/elicitation/sessions/history');
       return (Array.isArray(data) ? data : (data as any)?.data ?? []) as ElicitationSessionDto[];
     },
+    enabled: isEligible,
     staleTime: 30_000,
   });
 }
@@ -265,12 +282,18 @@ export function useUpdateMilestone() {
 export function useDeleteMilestone() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id }: { id: string; engagementId?: string }) => {
       const { data } = await apiClient.delete(`/milestones/${id}`);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['milestones', variables.id] });
+      if (variables.engagementId) {
+        queryClient.invalidateQueries({
+          queryKey: ['engagements', variables.engagementId, 'milestones'],
+        });
+      }
     }
   });
 }
@@ -338,5 +361,34 @@ export function useSendMilestoneMessage() {
         queryClient.invalidateQueries({ queryKey: ['project', projectId, 'milestone-chat', 'session', chatSessionId] });
       }
     }
+  });
+}
+
+export interface MarketplaceProjectDto {
+  id: string;
+  state: string;
+  archetype: string | null;
+  tier: string | null;
+  artifact_a_json: import('@/types/jsonb.types').ArtifactA | null;
+  projectName: string | null;
+  selfTechnical: boolean;
+  required_domains_json: any[];
+  required_seams_json: any[];
+  milestone_framework_json: any[]; 
+}
+
+export function useMarketplaceProjects(
+  filters?: { archetype?: string; tier?: string; limit?: number },
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ['projects', 'marketplace', filters],
+    queryFn: async () => {
+      const { data } = await apiClient.get<MarketplaceProjectDto[]>('/projects/marketplace', {
+        params: filters,
+      });
+      return data;
+    },
+    ...options
   });
 }

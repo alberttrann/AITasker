@@ -3,17 +3,23 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName, useUpdateProjectMilestones, useProjectMilestones } from "@/hooks/use-projects";
 import {
   ArrowLeft, Loader2, PlayCircle, Pencil, Check, X,
-  Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
+  Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote, CheckCircle2
 } from "lucide-react";
 import { formatVND } from '@/lib/utils';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useEngagements } from "@/hooks/use-engagements";
 import MilestoneChatAssistant from "@/features/ceo/milestones/MilestoneChatAssistant";
+import { useSentInvitations, useRetractInvitation } from "@/hooks/use-invitations";
+import { Mail } from "lucide-react";
+import { ConfirmModal, Modal } from "@/components/ui/modal";
+import CeoNdaClickThrough from "../connection/NdaClickThrough";
+import { useToastActions } from '@/lib/toast-context';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToastActions();
   const { projects, isLoadingProjects } = useProjects();
 
   const project = useMemo(() => projects.find((p: any) => p.id === id), [projects, id]);
@@ -50,11 +56,25 @@ export default function ProjectDetailPage() {
 
   const { data: projectMilestones } = useProjectMilestones(id || "");
 
+  const { data: sentInvitations } = useSentInvitations();
+  const retractInvitation = useRetractInvitation();
+  const [inviteToRetract, setInviteToRetract] = useState<string | null>(null);
+  const [showNdaModal, setShowNdaModal] = useState(false);
+
+  const projectInvitations = useMemo(() => {
+    if (!sentInvitations) return [];
+    return sentInvitations.filter((inv: any) => inv.project?.id === id);
+  }, [sentInvitations, id]);
+
   // Milestones State
   const [isEditingMilestones, setIsEditingMilestones] = useState(false);
   const [editedMilestones, setEditedMilestones] = useState<any[]>([]);
 
-  const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const rawJsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const jsonMilestones = rawJsonMilestones.map((m: any) => ({
+    ...m,
+    payment_amount_vnd: m.payment_amount_vnd || m.estimated_cost_vnd || 0
+  }));
   const acceptedMilestones = selectedEngagement?.milestones ?? [];
   const displayMilestones = termsLocked && acceptedMilestones.length > 0
     ? acceptedMilestones
@@ -67,6 +87,7 @@ export default function ProjectDetailPage() {
       deliverable_statement: pm.deliverableStatement,
       payment_amount_vnd: pm.paymentAmountVnd,
       estimated_duration_days: pm.estimatedDurationDays,
+      estimated_cost_vnd: pm.estimatedCostVnd,
     })) : jsonMilestones;
 
     setEditedMilestones(JSON.parse(JSON.stringify(toEdit)));
@@ -81,6 +102,7 @@ export default function ProjectDetailPage() {
         deliverable_statement: "",
         payment_amount_vnd: 0,
         estimated_duration_days: 0,
+        estimated_cost_vnd: 0,
       }
     ]);
   };
@@ -106,16 +128,27 @@ export default function ProjectDetailPage() {
       deliverable_statement: m.deliverable_statement || '',
       payment_amount_vnd: m.payment_amount_vnd || 0,
       estimated_duration_days: m.estimated_duration_days || 0,
+      estimated_cost_vnd: m.estimated_cost_vnd || 0,
       criteria: m.criteria || m.acceptanceCriteria || m.acceptance_criteria,
       tech_stack: m.tech_stack || m.techStack,
       condition: m.condition,
     }));
+
+    // Validation to match backend DTO (@Min(1) for payment_amount_vnd)
+    const hasZeroPayment = cleanMilestones.some(m => !m.payment_amount_vnd || m.payment_amount_vnd <= 0);
+    if (hasZeroPayment) {
+      toast.error("Please ensure all milestones have a Payment Amount greater than 0 before saving changes.");
+      return;
+    }
 
     updateProjectMilestones.mutate(
       { id: project.id, milestones: cleanMilestones },
       {
         onSuccess: () => {
           setIsEditingMilestones(false);
+        },
+        onError: (err: any) => {
+          toast.error("Failed to save milestones: " + (err.response?.data?.message || err.message));
         }
       }
     );
@@ -244,13 +277,13 @@ export default function ProjectDetailPage() {
           {selectedEngagement ? (
             <div className="flex items-center gap-3">
               {!connectedEngagement ? (
-                <Link
-                  id="link-review-selected-bid-nda"
-                  to={`/ceo/engagements/${selectedEngagement.id}/nda`}
+                <button
+                  id="btn-review-selected-bid-nda"
+                  onClick={() => setShowNdaModal(true)}
                   className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
                 >
                   Review & Sign NDA
-                </Link>
+                </button>
               ) : (
                 <Link
                   id="link-open-selected-engagement-workspace"
@@ -314,6 +347,19 @@ export default function ProjectDetailPage() {
           </span>
         )}
       </div>
+
+      {selectedEngagement?.state === 'CLOSED' && selectedEngagement?.serviceId && (
+        <div className="mb-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex gap-4 text-emerald-950 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" id="service-completed-icon" />
+          <div>
+            <h4 className="text-lg font-bold text-emerald-900 leading-snug">Service Completed!</h4>
+            <p className="text-sm text-emerald-800 leading-relaxed font-body mt-1">
+              All milestones for this service have been completed and verified. 
+              The escrow payment of <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number((selectedEngagement.service as any)?.price_vnd || (selectedEngagement.service as any)?.priceVnd || selectedEngagement.milestones?.[0]?.paymentAmountVnd || 0))}</strong> has been released to the Expert.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -473,13 +519,13 @@ export default function ProjectDetailPage() {
                                 Payment Amount
                               </p>
                               <p className="text-lg font-bold text-emerald-600">
-                                {m.paymentAmountVnd !== undefined ? (m.paymentAmountVnd).toLocaleString('vi-VN') + ' ₫' : (m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—')}
+                                {m.paymentAmountVnd !== undefined ? Number(m.paymentAmountVnd).toLocaleString('vi-VN') + ' ₫' : (m.payment_amount_vnd ? m.payment_amount_vnd.toLocaleString('vi-VN') + ' ₫' : '—')}
                               </p>
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -569,6 +615,54 @@ export default function ProjectDetailPage() {
 
       </div>
 
+      {/* Sent Invitations Card */}
+      {projectInvitations.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-8 max-w-[1440px] mx-auto">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-blue-600" />
+              Sent Invitations
+            </h3>
+            <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+              {projectInvitations.length}
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
+            {projectInvitations.map((inv: any) => {
+              const canRetract = inv.status === 'PENDING';
+              let statusColor = "bg-slate-100 text-slate-600";
+              if (inv.status === 'PENDING') statusColor = "bg-amber-100 text-amber-700";
+              else if (inv.status === 'ACCEPTED') statusColor = "bg-emerald-100 text-emerald-700";
+              else if (inv.status === 'DECLINED') statusColor = "bg-rose-100 text-rose-700";
+
+              return (
+                <div key={inv.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div>
+                    <p className="font-semibold text-slate-900 text-sm">{inv.expert?.fullName || 'Expert'}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Sent on {new Date(inv.invitedAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${statusColor}`}>
+                      {inv.status}
+                    </span>
+                    {canRetract && (
+                      <button
+                        onClick={() => setInviteToRetract(inv.id)}
+                        disabled={retractInvitation.isPending}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                        title="Retract Invitation"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {!termsLocked ? (
         <MilestoneChatAssistant
           projectId={project.id}
@@ -579,6 +673,33 @@ export default function ProjectDetailPage() {
           }}
         />
       ) : null}
+
+      <Modal
+        isOpen={showNdaModal}
+        onClose={() => setShowNdaModal(false)}
+        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+      >
+        <div className="h-[80vh] overflow-y-auto">
+          {selectedEngagement && (
+            <CeoNdaClickThrough engagementId={selectedEngagement.id} />
+          )}
+        </div>
+      </Modal>
+
+      <ConfirmModal
+        isOpen={!!inviteToRetract}
+        onClose={() => setInviteToRetract(null)}
+        onConfirm={() => {
+          if (inviteToRetract) retractInvitation.mutate(inviteToRetract);
+          setInviteToRetract(null);
+        }}
+        title="Retract Invitation"
+        confirmText="Retract"
+        cancelText="Cancel"
+        isDestructive
+      >
+        Are you sure you want to retract this invitation? The expert will no longer be able to view or accept it.
+      </ConfirmModal>
     </div>
   );
 }

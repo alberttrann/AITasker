@@ -30,21 +30,24 @@ export default function DeliverableSubmit({ milestoneId, dodItems = [], onSucces
 
   const handleAddFile = (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (e) e.preventDefault();
-    if (!fileUrlInput.trim()) return;
+    const input = fileUrlInput.trim();
+    if (!input) return;
 
-    // Simple URL validation
-    try {
-      new URL(fileUrlInput.trim());
-    } catch (_) {
-      // Allow relative or standard text links too, but warn
+    // Strict URL validation
+    const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+    if (!urlPattern.test(input) && !input.startsWith('http')) {
+      setErrorMsg("Please enter a valid URL (e.g., https://github.com/...)");
+      return;
     }
 
-    if (fileUrls.includes(fileUrlInput.trim())) {
+    const finalUrl = input.startsWith('http') ? input : `https://${input}`;
+
+    if (fileUrls.includes(finalUrl)) {
       setErrorMsg("This file URL is already added.");
       return;
     }
 
-    setFileUrls([...fileUrls, fileUrlInput.trim()]);
+    setFileUrls([...fileUrls, finalUrl]);
     setFileUrlInput("");
     setErrorMsg("");
   };

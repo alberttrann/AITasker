@@ -2,13 +2,9 @@ import { cn } from '@/lib/utils';
 import { Plus, Trash2, Clock } from 'lucide-react';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import type { MilestoneFrameworkItem } from '@/types/jsonb.types';
+import type { PricingItem } from '@/types/api.types';
 
-export interface PricingItem {
-  milestone_number: number;
-  price_vnd?: number;
-  condition: string;
-  estimated_duration_days?: number;
-}
+export type { PricingItem }; // re-export for backwards-compatibility with BidForm.tsx
 
 interface ConditionalPricingProps {
   frameworkItems: MilestoneFrameworkItem[];

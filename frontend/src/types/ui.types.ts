@@ -1,5 +1,7 @@
+import type React from 'react';
 import type { DomainCode, DepthLevel, SeamCode } from "./enums";
 import type { MatchResult } from "./jsonb.types";
+
 
 export interface Stage4ScenarioBProps {
   sessionId: string;

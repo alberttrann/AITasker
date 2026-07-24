@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
-import { ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
+import { ArrowLeft, CheckCircle, MessageSquare, Star } from "lucide-react";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 
 export default function MilestoneList() {
@@ -69,7 +69,7 @@ export default function MilestoneList() {
     );
   }
 
-  const jsonMilestones = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const jsonMilestones = project?.milestone_framework_json || (project as any)?.milestone_framework_json || [];
   const instantiatedMilestones = milestonesData ?? engagement.milestones ?? [];
   const milestones = instantiatedMilestones.length > 0 ? instantiatedMilestones : jsonMilestones;
 
@@ -129,7 +129,17 @@ export default function MilestoneList() {
         </div>
 
         {/* Workspace Chat Trigger */}
-        <div className="flex items-center shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
+          {engagement.state === "CLOSED" && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/tech-team/engagements/${engagementId}/review`)}
+              className="inline-flex items-center gap-2 text-amber-700 border-amber-200 hover:bg-amber-50 font-semibold"
+              id="btn-tech-leave-review"
+            >
+              <Star size={16} /> Leave a Review
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => setIsChatOpen(true)}

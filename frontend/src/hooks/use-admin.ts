@@ -131,7 +131,7 @@ export function useAdminConfigItems(activeTab: 'domains' | 'seams') {
   });
 }
 
-export function useSaveAdminConfigItem(activeTab: 'domains' | 'seams', options?: { onSuccess?: () => void }) {
+export function useSaveAdminConfigItem(activeTab: 'domains' | 'seams', options?: { onSuccess?: () => void, onError?: (error: any) => void }) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: any) => {
@@ -146,18 +146,27 @@ export function useSaveAdminConfigItem(activeTab: 'domains' | 'seams', options?:
         return apiClient.put(`/admin/config/${activeTab}/${data.id}`, payload);
       } else {
         // Create
-        const payload = {
+        const payload: any = {
           code: data.code,
           name: data.name,
           description: data.description,
           sortOrder: data.sortOrder
         };
+        if (activeTab === 'seams') {
+          const parts = data.code.split('↔');
+          payload.domainCode1 = parts[0];
+          payload.domainCode2 = parts[1];
+        }
         return apiClient.post(`/admin/config/${activeTab}`, payload);
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-config', activeTab] });
+      qc.invalidateQueries({ queryKey: ['config-all'] });
       options?.onSuccess?.();
+    },
+    onError: (error) => {
+      options?.onError?.(error);
     }
   });
 }
@@ -489,6 +498,7 @@ export function useDeleteAdminConfigItem(type: 'domains' | 'seams' | 'archetypes
     mutationFn: (id: string) => apiClient.delete(`/admin/config/${type}/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-config'] });
+      qc.invalidateQueries({ queryKey: ['config-all'] });
     }
   });
 }

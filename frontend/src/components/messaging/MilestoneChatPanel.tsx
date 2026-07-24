@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { useSocket } from '@/hooks/use-socket';
-import { useMessages, useSendWorkspaceMessage } from '@/hooks/use-messages';
+import { useMessages, useSendWorkspaceMessage, useReadConversation } from '@/hooks/use-messages';
 import { useAuthStore } from '@/store/auth.store';
 import { useEngagementStore } from '@/store/engagement.store';
-import { useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
 import { Send, X, MessageSquare, Inbox } from 'lucide-react';
@@ -47,7 +46,7 @@ export default function MilestoneChatPanel({
   const user = useAuthStore(s => s.user);
   const activeRole = useAuthStore(s => s.activeRole);
   const { setActiveEngagement, clearUnread } = useEngagementStore();
-  const queryClient = useQueryClient();
+  const readConversation = useReadConversation();
 
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -90,13 +89,8 @@ export default function MilestoneChatPanel({
   // Auto-read messages when chat is opened
   useEffect(() => {
     if (!isOpen || !engagementId) return;
-
-    apiClient.post(`/conversations/${engagementId}/read`)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      })
-      .catch(err => console.error("Error marking messages as read:", err));
-  }, [isOpen, engagementId, queryClient]);
+    readConversation.mutate(engagementId);
+  }, [isOpen, engagementId]);
 
   // Handle joining room
   useEffect(() => {
@@ -130,17 +124,14 @@ export default function MilestoneChatPanel({
       dispatch({ type: 'APPEND', message: msg });
       
       if (msg.senderId !== user?.id) {
-        apiClient.post(`/conversations/${engagementId}/read`)
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          })
-          .catch(err => console.error("Error auto-reading message:", err));
+        readConversation.mutate(engagementId);
       }
     };
 
     socket.on('newMessage', handler);
     return () => { socket.off('newMessage', handler); };
-  }, [socket, engagementId, isOpen, user, queryClient]);
+  }, [socket, engagementId, isOpen, user]);
+
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { DepthLevel } from '@/types/enums';
 
-export function useExpertProfile() {
+export function useExpertProfile(options?: { enabled?: boolean }) {
   const queryClient = useQueryClient();
 
   const profileQuery = useQuery({
@@ -11,6 +11,7 @@ export function useExpertProfile() {
       const { data } = await apiClient.get('/expert-profile/me');
       return data;
     },
+    ...options,
   });
 
   const getPublicProfile = async (expertId: string) => {
@@ -76,13 +77,14 @@ export function useUpdateDomainDepth() {
 
 // ── Phase 6 Hooks: CEO Browsing Experts ────────────────────────────────────────
 
-export function useExpertSearch(queryParams?: Record<string, any>) {
+export function useExpertSearch(queryParams?: Record<string, any>, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['expert-profile', 'search', queryParams],
     queryFn: async () => {
       const { data } = await apiClient.get('/expert-profile/search', { params: queryParams });
       return Array.isArray(data) ? data : (data as any)?.data ?? [];
     },
+    ...options,
   });
 }
 

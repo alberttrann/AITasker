@@ -33,7 +33,7 @@ export default function ExpertOrdersPage() {
     if (!engagements) return [];
     
     // Filter engagements where user is expert and it's a service order (even if service listing is deleted)
-    const serviceEngagements = engagements.filter((eng) => !eng.project && (eng.type === 'SERVICE_PURCHASE' || eng.type === 'TECH_DISCOVERY'));
+    const serviceEngagements = engagements.filter((eng) => eng.type === 'SERVICE_PURCHASE' || eng.type === 'TECH_DISCOVERY');
     
     // Find active combination of (serviceId, clientId)
     const activeCombinations = new Set<string>();
@@ -254,6 +254,18 @@ export default function ExpertOrdersPage() {
                             size="sm"
                           >
                             <FolderKanban size={14} /> Open Milestone Workspace
+                          </Button>
+                        )}
+
+                        {/* Leave a Review — only once the engagement is CLOSED */}
+                        {order.state === 'CLOSED' && (
+                          <Button
+                            onClick={() => navigate(`/expert/engagements/${order.id}/review`)}
+                            variant="outline"
+                            className="gap-1.5 text-amber-700 bg-white hover:bg-amber-50 border-amber-200"
+                            size="sm"
+                          >
+                            <CheckCircle2 size={14} /> Leave a Review
                           </Button>
                         )}
                       </div>

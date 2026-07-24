@@ -35,6 +35,32 @@ export class IpnHandlerService {
       throw new ConflictException('This user VANumber is not valid!');
     }
 
+    if (
+      userVirtualAccount.expiresAt &&
+      userVirtualAccount.expiresAt < new Date() &&
+      userVirtualAccount.status === VAStatus.ACTIVE
+    ) {
+      await this.prisma.virtualAccount.update({
+        where: { id: userVirtualAccount.id },
+        data: { status: VAStatus.EXPIRED },
+      });
+      // eslint-disable-next-line no-console
+      console.error(
+        '[IPN] Rejected payment against an expired VA:',
+        JSON.stringify({
+          vaNumber: userVirtualAccount.vaNumber,
+          entityType: userVirtualAccount.entityType,
+          entityId: userVirtualAccount.entityId,
+          fixedAmount: userVirtualAccount.fixedAmount?.toString(),
+          transferAmountReceived: transferAmount.toString(),
+          referenceCode,
+          vaExpiresAt: userVirtualAccount.expiresAt,
+          rejectedAt: new Date().toISOString(),
+        }),
+      );
+      throw new ConflictException('VA has expired, generate a new one');
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       switch (userVirtualAccount.entityType) {
         case VAEntityType.MILESTONE:
@@ -46,14 +72,6 @@ export class IpnHandlerService {
       }
     });
 
-    /*
-      IMPORTANT: ONLY EMIT WEBSOCKET AFTER TRANSACTION COMMITS SO A BROADCAST OR A FAILURE CAN NEVER ROLL BACK A WALLET TOP UP -> DO NOT PLACE ANY EVENT EMITTER/WEB SOCKET RELATED INSIDE THE TRANSACTIONS!
-
-      EXPLANATION: ONCE THE WEB SOCKET/EVENT EMITTER FAIL, THE WHOLE PROCESS CHAIN IS DOWN!
-    */
-
-    // payment:confirmed for milestone escrow lock (MILESTONE VA type)
-    // Guard: skip emit on idempotent retry ("Already processed") to avoid duplicate events
     if (userVirtualAccount.entityType === VAEntityType.MILESTONE && result && 'success' in result && (result as any).message !== 'Already processed') {
       const milestone = await this.prisma.milestone.findUnique({
         where: { id: userVirtualAccount.entityId },
@@ -92,7 +110,6 @@ export class IpnHandlerService {
               rolePath = 'tech-team';
             }
 
-            // 1. Emit payment:confirmed (for query invalidation)
             this.eventEmitter.emit('socket.broadcast', {
               userId,
               event: 'payment:confirmed',
@@ -104,7 +121,6 @@ export class IpnHandlerService {
               },
             });
 
-            // 2. Emit milestone:updated (for instant UI state transition)
             this.eventEmitter.emit('socket.broadcast', {
               userId,
               event: 'milestone:updated',
@@ -117,7 +133,6 @@ export class IpnHandlerService {
               },
             });
 
-            // 3. Emit notification:generic (shows Bell notification icon alert on Expert and Tech Team screens)
             if (userId !== engagement.clientId) {
               this.eventEmitter.emit('socket.broadcast', {
                 userId,
@@ -166,8 +181,7 @@ export class IpnHandlerService {
             payload: {
               type: 'system',
               title: 'Top-up Successful',
-              body: `Your wallet has been credited with ${transferAmount.toLocaleString('vi-VN')}
- VND.`,
+              body: `Your wallet has been credited with ${transferAmount.toLocaleString('vi-VN')} VND.`,
             },
           });
         } catch (_err) {
@@ -316,7 +330,6 @@ export class IpnHandlerService {
     if (!clientWallet) throw new NotFoundException('Client wallet not found.');
     if (!expertWallet) throw new NotFoundException('Expert wallet not found.');
 
-    // Idempotency check
     const isExistedIdempotency = await tx.walletTransaction.findFirst({
       where: {
         walletId: clientWallet.id,
@@ -339,7 +352,6 @@ export class IpnHandlerService {
       },
     });
 
-    // Create a default Acceptance Criterion for the auto-created service milestone
     await tx.acceptanceCriterion.create({
       data: {
         milestoneId: milestone.id,
@@ -358,13 +370,26 @@ export class IpnHandlerService {
       referenceCode,
     );
 
+    const serviceProject = await tx.project.create({
+      data: {
+        clientId: engagement.clientId,
+        projectName: engagement.service?.title || 'Service Purchase',
+        state: 'PUBLISHED',
+        selfTechnical: true,
+        requiredDomainsJson: engagement.service?.domainsJson || [],
+        requiredSeamsJson: engagement.service?.seamsJson || [],
+      },
+    });
+
     await tx.engagement.update({
       where: { id: engagement.id },
-      data: { state: EngagementState.ACTIVE },
+      data: { 
+        state: EngagementState.ACTIVE,
+        projectId: serviceProject.id,
+      },
     });
 
     try {
-      // 1. Notify the expert
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.expertId,
         event: 'notification:generic',
@@ -376,7 +401,6 @@ export class IpnHandlerService {
         },
       });
 
-      // 2. Notify the client (buyer)
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.clientId,
         event: 'notification:generic',
@@ -388,7 +412,6 @@ export class IpnHandlerService {
         },
       });
 
-      // 3. Emit payment:confirmed for query invalidation
       this.eventEmitter.emit('socket.broadcast', {
         userId: engagement.clientId,
         event: 'payment:confirmed',
@@ -398,9 +421,7 @@ export class IpnHandlerService {
           amount_vnd: Number(transferAmount),
         },
       });
-    } catch (_err) {
-      // best-effort broadcast
-    }
+    } catch (_err) {}
 
     await tx.virtualAccount.update({
       where: { id: userVirtualAccount.id },
