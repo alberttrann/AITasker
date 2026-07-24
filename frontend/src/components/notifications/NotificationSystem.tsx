@@ -3,7 +3,8 @@ import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
 import { Bell, CheckCircle2, Trash2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/Spinner';
-
+import { resolveNotificationLink } from '@/lib/utils'; 
+import { useAuth } from '@/hooks/use-auth';
 export default function NotificationSystem() {
   const navigate = useNavigate();
   const { data: notifications = [], isLoading } = useNotifications(100);
@@ -13,38 +14,24 @@ export default function NotificationSystem() {
 
   const hasUnread = notifications.some(n => !n.isRead);
 
+  export default function NotificationSystem() {
+  const navigate = useNavigate();
+  const { user } = useAuth(); // Lấy thông tin user hiện tại
+  const { data: notifications = [], isLoading } = useNotifications(100);
+  const markAsReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+  const deleteMutation = useDeleteNotification();
+
   const handleNotificationClick = (notif: any) => {
     if (!notif.isRead) {
       markAsReadMutation.mutate(notif.id);
     }
     if (notif.link) {
-      let targetLink = notif.link;
-      if (targetLink.startsWith('/expert/projects') || targetLink.includes('/expert/invitations')) {
-        targetLink = '/expert/service/projects';
-      } else if (targetLink.startsWith('/engagements')) {
-        const basePath = window.location.pathname.split('/')[1];
-        const match = targetLink.match(/^\/engagements\/([^/]+)$/);
-        if (match) {
-          const engagementId = match[1];
-          if (basePath === 'ceo') {
-            targetLink = `/ceo/engagements/${engagementId}/milestones`;
-          } else if (basePath === 'expert') {
-            targetLink = `/expert/inbox/${engagementId}`;
-          } else {
-            targetLink = `/${basePath}${targetLink}`;
-          }
-        } else if (basePath === 'expert' && targetLink.endsWith('/milestones')) {
-          const matchMilestones = targetLink.match(/\/engagements\/([^/]+)/);
-          const engagementId = matchMilestones ? matchMilestones[1] : '';
-          targetLink = `/expert/inbox/${engagementId}`;
-        } else if (basePath === 'ceo' && targetLink.endsWith('/bid')) {
-          const matchBid = targetLink.match(/\/engagements\/([^/]+)/);
-          const engagementId = matchBid ? matchBid[1] : '';
-          targetLink = `/ceo/inbox/${engagementId}`;
-        } else {
-          targetLink = `/${basePath}${targetLink}`;
-        }
-      }
+      const targetLink = resolveNotificationLink(
+        notif.link,
+        user?.activeRole || '',
+        user?.clientSubtype
+      );
       navigate(targetLink);
     }
   };

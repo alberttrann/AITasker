@@ -293,7 +293,7 @@ export class EngagementsService {
           type: 'system',
           title: 'Project Connected!',
           body: 'The CEO has signed the NDA. You now have access to Artifact B (Technical Specs).',
-          link: `/expert/projects/${engagement.projectId}`,
+          link: `/expert/service/projects`, // <-- Sửa từ /expert/projects/${engagement.projectId} thành /expert/service/projects
         },
       });
     }

@@ -4,7 +4,7 @@ import { useAuth } from '@hooks/use-auth';
 import { Bell, BellOff, MessageSquare, Wallet, ChevronRight, Briefcase, Award, Code, Shield, User, Menu, X, ChevronDown, LogIn, UserPlus, Search, RefreshCw, Sparkles, Lock, Inbox } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/modal';
-import { formatVND } from '@/lib/utils';
+import { formatVND, resolveNotificationLink } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-notifications';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
@@ -92,14 +92,11 @@ export default function TopNav() {
     }
 
     if (notif.link) {
-      let targetLink = notif.link;
-      if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
-        targetLink = '/expert/service/projects';
-      } else if (!targetLink.startsWith('/')) {
-        targetLink = `${dashboardRoute}/${targetLink}`;
-      } else if (targetLink.startsWith('/engagements')) {
-        targetLink = `${dashboardRoute}${targetLink}`;
-      }
+      const targetLink = resolveNotificationLink(
+        notif.link,
+        user?.activeRole || '',
+        user?.clientSubtype
+      );
       navigate(targetLink);
       setActiveDropdown(null);
     }
