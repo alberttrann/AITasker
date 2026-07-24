@@ -15,7 +15,7 @@ interface DodItemRowProps {
 export default function DodItemRow({ item, milestoneId, onUpdateStatus, isUpdating }: DodItemRowProps) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState("");
-  const [pendingStatus, setPendingStatus] = useState<'COMPLETED' | 'NOT_APPLICABLE' | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<'PENDING' | 'COMPLETED' | 'NOT_APPLICABLE' | null>(null);
   const [validationError, setValidationError] = useState("");
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {

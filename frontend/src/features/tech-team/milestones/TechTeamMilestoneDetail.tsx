@@ -3,16 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useMilestone } from "@/hooks/use-milestones";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useDownloadDocument } from "@/hooks/use-submissions";
+import { useMilestoneSettlement } from "@/hooks/use-disputes";
 import { StatusBadge, variantFromStatus } from "@/components/ui/StatusBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { formatVND } from "@/lib/utils";
+import { getSettlementCopy } from "@/lib/dispute-resolution";
 import CriteriaVerify from "@/features/ceo/milestones/CriteriaVerify";
 import RevisionRequest from "@/features/ceo/milestones/RevisionRequest";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
-import { ArrowLeft, Check, RotateCcw, FileText, Calendar, CheckCircle2, MessageSquare, Download } from "lucide-react";
+import { ArrowLeft, Check, RotateCcw, FileText, Calendar, CheckCircle2, MessageSquare, Download, AlertTriangle, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TechTeamMilestoneDetail() {
@@ -23,13 +25,18 @@ export default function TechTeamMilestoneDetail() {
   const { data: milestone, isLoading: isLoadingMilestone, error: milestoneError, refetch } = useMilestone(milestoneId);
   const { data: engagement, isLoading: isLoadingEngagement } = useEngagement(engagementId);
   const { data: paygatedDocs } = useDownloadDocument(milestoneId || "");
+  const {
+    settlementOutcome,
+    isLoading: isLoadingSettlement,
+    isError: isSettlementError,
+  } = useMilestoneSettlement(milestoneId);
 
   // States for verification, revision, and chat drawer
   const [selectedCriterion, setSelectedCriterion] = useState<{ id: string; text: string } | null>(null);
   const [activeModal, setActiveModal] = useState<"VERIFY" | "REVISION" | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const isLoading = isLoadingMilestone || isLoadingEngagement;
+  const isLoading = isLoadingMilestone || isLoadingEngagement || isLoadingSettlement;
   const error = milestoneError;
 
   if (isLoading) {

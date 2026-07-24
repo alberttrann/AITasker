@@ -44,7 +44,7 @@ export default function BidDetail() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-headline text-2xl font-semibold text-slate-900">Bid from {bid.engagement?.expert?.fullName ?? 'Expert'}</h1>
-          <p className="mt-1 text-sm text-slate-500">Offer v{offer?.version ?? bid.versionNumber} · {bid.negotiationState?.replaceAll('_', ' ').toLowerCase()}</p>
+          <p className="mt-1 text-sm text-slate-500">Offer v{offer?.version ?? bid.versionNumber} · {String(bid.negotiationState || '').replace(/_/g, ' ').toLowerCase()}</p>
         </div>
         {bid.termsLocked ? <span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"><LockKeyhole size={16} /> Terms locked</span> : null}
       </div>

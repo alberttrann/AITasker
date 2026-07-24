@@ -188,6 +188,8 @@ export interface ServiceDto {
   price_vnd: number;
   state: ServiceState;
   service_type: ServiceType;
+  scope?: string | null;
+  timeline?: string | null;
 }
 
 export interface EngagementDto {

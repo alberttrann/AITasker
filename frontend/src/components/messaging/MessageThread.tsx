@@ -330,13 +330,13 @@ export default function MessageThread({
     if (engagement) {
       if (isClient) {
         return (
-          engagement.expert?.fullName ||
+          (engagement as any).expert?.fullName ||
           (engagement as any).otherParty?.fullName ||
           "Expert"
         );
       } else {
         return (
-          engagement.client?.fullName ||
+          (engagement as any).client?.fullName ||
           (engagement as any).otherParty?.fullName ||
           "Client"
         );
@@ -460,7 +460,7 @@ export default function MessageThread({
           <div className="flex items-center gap-2 shrink-0">
             {/* Milestones Workspace Button */}
             {engagement &&
-              (engagement.milestones?.length > 0 || !!engagement.projectId) && (
+              ((engagement.milestones?.length || 0) > 0 || !!engagement.projectId) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -694,7 +694,7 @@ export default function MessageThread({
                       {msg.timestamp ? formatTime(msg.timestamp) : ""}
                     </p>
                     {isMe && (
-                       <Check size={12} className="text-emerald-500" title="Sent" />
+                       <span title="Sent"><Check size={12} className="text-emerald-500" /></span>
                     )}
                   </div>
                 </div>
