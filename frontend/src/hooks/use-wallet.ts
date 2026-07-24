@@ -86,7 +86,7 @@ export function useCreateWithdrawal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { amount: number; bank_account_xid: string }) => {
+    mutationFn: async (payload: { amount: number }) => {
       const { data } = await apiClient.post<import('@t/api.types').WithdrawalRequestDto>(
         '/withdrawals',
         payload

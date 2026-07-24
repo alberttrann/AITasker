@@ -44,7 +44,7 @@ export default function WithdrawForm() {
     }
 
     createWithdrawal.mutate(
-      { amount, bank_account_xid: bankStatus.bankAccountXid! },
+      { amount },
       {
         onSuccess: () => {
           navigate('/expert/wallet');

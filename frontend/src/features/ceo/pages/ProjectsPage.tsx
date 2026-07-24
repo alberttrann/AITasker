@@ -229,7 +229,7 @@ export default function ProjectsPage() {
                   (e: any) =>
                     (e.projectId === project.id || e.project_id === project.id) &&
                     e.capabilityBid &&
-                    (e.capabilityBid.state === 'SUBMITTED' || e.capabilityBid.state === 'TECH_REVIEW_PASSED')
+                    e.capabilityBid.negotiationState === 'AWAITING_CEO'
                 );
 
                 return (
@@ -313,7 +313,7 @@ export default function ProjectsPage() {
                       >
                         View Details
                         {hasNewBids && (
-                          <span className="relative flex h-2.5 w-2.5" title="New bids waiting for review">
+                          <span className="relative flex h-2.5 w-2.5" title="Action required: Bids waiting for your decision">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                           </span>
