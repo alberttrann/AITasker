@@ -9,12 +9,12 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
-import { formatVND } from "@/lib/utils";
+import { ensureExternalUrl, formatVND } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import CriteriaVerify from "@/features/ceo/milestones/CriteriaVerify";
 import RevisionRequest from "@/features/ceo/milestones/RevisionRequest";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
-import { ArrowLeft, Check, RotateCcw, FileText, Calendar, CheckCircle2, MessageSquare, Download, AlertTriangle, Scale } from "lucide-react";
+import { ArrowLeft, Check, RotateCcw, FileText, Calendar, CheckCircle2, MessageSquare, ExternalLink, AlertTriangle, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TechTeamMilestoneDetail() {
@@ -340,22 +340,26 @@ export default function TechTeamMilestoneDetail() {
                       These technical documents were released upon milestone approval.
                     </p>
                     <div className="space-y-2">
-                      {paygatedDocs.map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-xs">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FileText size={16} className="text-emerald-600 shrink-0" />
-                            <span className="text-xs font-medium text-slate-700 truncate">{doc.documentUrl}</span>
+                      {paygatedDocs.map((doc) => {
+                        // Vá lỗi 404: Tự động thêm https:// nếu Expert nhập thiếu
+                        const { href } = ensureExternalUrl(doc.documentUrl);
+                        return (
+                          <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText size={16} className="text-emerald-600 shrink-0" />
+                              <span className="text-xs font-medium text-slate-700 truncate">{doc.documentUrl}</span>
+                            </div>
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded transition-colors"
+                            >
+                              <ExternalLink size={12} /> Open Link
+                            </a>
                           </div>
-                          <a
-                            href={doc.documentUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded transition-colors"
-                          >
-                            <Download size={12} /> Download
-                          </a>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

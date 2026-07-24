@@ -10,11 +10,11 @@ import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/modal";
-import { formatVND } from "@/lib/utils";
+import { ensureExternalUrl, formatVND } from "@/lib/utils";
 import { getSettlementCopy } from "@/lib/dispute-resolution";
 import DodChecklist from "./DodChecklist";
 import DeliverableSubmit from "./DeliverableSubmit";
-import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare, Clock } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, FileText, CheckCircle2, AlertTriangle, ShieldAlert, RotateCcw, Scale, MessageSquare, Clock, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MilestoneChatPanel from "@/components/messaging/MilestoneChatPanel";
 import { BankLinkReminder } from "@/components/wallet/BankLinkReminder";
@@ -571,21 +571,32 @@ function ReleasedDocsSection({ milestoneId }: { milestoneId: string }) {
         Pay-Gated Documents
       </h3>
       <div className="space-y-2">
-        {docs.map((doc) => (
-          <a
-            key={doc.id}
-            href={doc.documentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-sm transition-colors"
-          >
-            <FileText size={14} className="text-slate-400 shrink-0" />
-            <span className="truncate flex-1 text-slate-700">{doc.documentUrl}</span>
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-              Released
-            </span>
-          </a>
-        ))}
+        {docs.map((doc) => {
+          // Vá lỗi 404: Tự động thêm https:// nếu Expert nhập thiếu
+          const { href } = ensureExternalUrl(doc.documentUrl);
+          return (
+            <a
+              key={doc.id}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-sm transition-colors group"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <FileText size={14} className="text-slate-400 shrink-0" />
+                <span className="truncate text-slate-700">{doc.documentUrl}</span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                  Released
+                </span>
+                <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">
+                  <ExternalLink size={12} /> Open
+                </span>
+              </div>
+            </a>
+          );
+        })}
       </div>
     </div>
   );
