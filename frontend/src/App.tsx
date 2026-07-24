@@ -30,7 +30,7 @@ const TechTeamDashboard = lazy(() => import("@features/tech-team/TechTeamDashboa
 const TechTeamProjectsPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectsPage"));
 const TechTeamProjectDetailPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectDetailPage"));
 const TechTeamMilestoneList = lazy(() => import("@features/tech-team/milestones/MilestoneList"));
-const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/MilestoneDetail"));
+const TechTeamMilestoneDetail = lazy(() => import("@features/tech-team/milestones/TechTeamMilestoneDetail"));
 const Stage4Submitted = lazy(() => import("@features/tech-team/stage4/Stage4Submitted"));
 const AdminDashboard = lazy(() => import("@features/admin/AdminDashboard"));
 const AdminOverview = lazy(() => import("@features/admin/AdminOverview"));
