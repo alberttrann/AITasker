@@ -393,7 +393,7 @@ export class ListingsService {
           type: 'system',
           title: 'New Service Order / Chat',
           body: `${buyerUser?.fullName || 'A client'} has initiated a workspace chat for your service "${service.title}".`,
-          link: `/expert/messages`,
+          link: `/expert/inbox/${result.engagement.id}`,
         },
       });
     } catch (_err) {

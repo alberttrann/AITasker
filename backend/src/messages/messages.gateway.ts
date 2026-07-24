@@ -14,7 +14,7 @@ import { CreateMessageDto }   from './dto/create-message.dto';
 import { InviteExpertDto }    from './dto/invite-expert.dto';
 import { JwtService }         from '@nestjs/jwt';
 import { UsePipes, ValidationPipe, Logger } from '@nestjs/common'; 
-import { OnEvent }            from '@nestjs/event-emitter';
+import { OnEvent, EventEmitter2 }            from '@nestjs/event-emitter';
 import { PrismaService }      from '../database/prisma.service';
 @WebSocketGateway({
   cors: {
@@ -32,6 +32,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     private readonly invitationsService: InvitationsService,
     private readonly jwtService:         JwtService,
     private readonly prisma:             PrismaService, 
+    private readonly eventEmitter:       EventEmitter2,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -269,12 +270,16 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
         message:   dto.content ?? null,
       });
 
-      // 3. Push real-time notification to the expert's personal socket room
-      this.server.to(dto.expertId).emit('notification:generic', {
-        type:  'system',
-        title: 'Project Invitation',
-        body:  'A CEO has invited you to submit a bid for their project.',
-        link:  `/expert/invitations`,   // now points to the new Invitations page
+      // 3. Push real-time notification to the expert's personal socket room & persist to DB
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: dto.expertId,
+        event: 'notification:generic',
+        payload: {
+          type:  'system',
+          title: 'Project Invitation',
+          body:  'A CEO has invited you to submit a bid for their project.',
+          link:  `/expert/invitations`,   // now points to the new Invitations page
+        },
       });
 
       // 4. Create the initial chat message in the DB for the project chat thread

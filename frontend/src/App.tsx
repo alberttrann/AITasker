@@ -160,7 +160,7 @@ const router = createBrowserRouter(
               element={<CeoReviewForm />}
             />
 
-            <Route path="messages" element={<Navigate to="inbox" replace />} />
+            <Route path="messages" element={<Navigate to="/ceo/inbox" replace />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />
@@ -212,7 +212,7 @@ const router = createBrowserRouter(
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
             />
-            <Route path="messages" element={<Navigate to="inbox" replace />} />
+            <Route path="messages" element={<Navigate to="/expert/inbox" replace />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />

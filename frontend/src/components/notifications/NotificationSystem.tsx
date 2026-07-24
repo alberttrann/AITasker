@@ -19,11 +19,31 @@ export default function NotificationSystem() {
     }
     if (notif.link) {
       let targetLink = notif.link;
-      if (targetLink === '/expert/projects' || targetLink.includes('/expert/invitations')) {
+      if (targetLink.startsWith('/expert/projects') || targetLink.includes('/expert/invitations')) {
         targetLink = '/expert/service/projects';
       } else if (targetLink.startsWith('/engagements')) {
         const basePath = window.location.pathname.split('/')[1];
-        targetLink = `/${basePath}${targetLink}`;
+        const match = targetLink.match(/^\/engagements\/([^/]+)$/);
+        if (match) {
+          const engagementId = match[1];
+          if (basePath === 'ceo') {
+            targetLink = `/ceo/engagements/${engagementId}/milestones`;
+          } else if (basePath === 'expert') {
+            targetLink = `/expert/inbox/${engagementId}`;
+          } else {
+            targetLink = `/${basePath}${targetLink}`;
+          }
+        } else if (basePath === 'expert' && targetLink.endsWith('/milestones')) {
+          const matchMilestones = targetLink.match(/\/engagements\/([^/]+)/);
+          const engagementId = matchMilestones ? matchMilestones[1] : '';
+          targetLink = `/expert/inbox/${engagementId}`;
+        } else if (basePath === 'ceo' && targetLink.endsWith('/bid')) {
+          const matchBid = targetLink.match(/\/engagements\/([^/]+)/);
+          const engagementId = matchBid ? matchBid[1] : '';
+          targetLink = `/ceo/inbox/${engagementId}`;
+        } else {
+          targetLink = `/${basePath}${targetLink}`;
+        }
       }
       navigate(targetLink);
     }
