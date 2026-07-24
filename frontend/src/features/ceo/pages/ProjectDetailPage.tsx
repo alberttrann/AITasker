@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProjects, useUpdateProjectName, useUpdateProjectMilestones, useProjectMilestones } from "@/hooks/use-projects";
 import {
   ArrowLeft, Loader2, PlayCircle, Pencil, Check, X,
-  Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote
+  Plus, Trash2, Edit2, Save, FileText, LayoutGrid, Target, Briefcase, Clock, Banknote, CheckCircle2
 } from "lucide-react";
 import { formatVND } from '@/lib/utils';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
@@ -345,6 +345,19 @@ export default function ProjectDetailPage() {
           </span>
         )}
       </div>
+
+      {selectedEngagement?.state === 'CLOSED' && selectedEngagement?.serviceId && (
+        <div className="mb-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex gap-4 text-emerald-950 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" id="service-completed-icon" />
+          <div>
+            <h4 className="text-lg font-bold text-emerald-900 leading-snug">Service Completed!</h4>
+            <p className="text-sm text-emerald-800 leading-relaxed font-body mt-1">
+              All milestones for this service have been completed and verified. 
+              The escrow payment of <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number((selectedEngagement.service as any)?.price_vnd || (selectedEngagement.service as any)?.priceVnd || selectedEngagement.milestones?.[0]?.paymentAmountVnd || 0))}</strong> has been released to the Expert.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

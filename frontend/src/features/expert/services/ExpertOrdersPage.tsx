@@ -33,7 +33,7 @@ export default function ExpertOrdersPage() {
     if (!engagements) return [];
     
     // Filter engagements where user is expert and it's a service order (even if service listing is deleted)
-    const serviceEngagements = engagements.filter((eng) => !eng.project && (eng.type === 'SERVICE_PURCHASE' || eng.type === 'TECH_DISCOVERY'));
+    const serviceEngagements = engagements.filter((eng) => eng.type === 'SERVICE_PURCHASE' || eng.type === 'TECH_DISCOVERY');
     
     // Find active combination of (serviceId, clientId)
     const activeCombinations = new Set<string>();

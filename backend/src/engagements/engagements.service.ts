@@ -301,6 +301,7 @@ export class EngagementsService {
     const negotiation = envelope
       ? deriveNegotiationState(envelope, engagement.project?.selfTechnical !== true)
       : undefined;
+    const isService = (engagement as any).type === 'SERVICE_PURCHASE' || (engagement as any).type === 'TECH_DISCOVERY';
     return {
       ...engagement,
       ...(capabilityBid
@@ -327,8 +328,8 @@ export class EngagementsService {
             },
           }
         : {}),
-      termsLocked: bidHasAcceptedTerms(capabilityBid),
-      ndaComplete: Boolean(
+      termsLocked: isService || bidHasAcceptedTerms(capabilityBid),
+      ndaComplete: isService || Boolean(
         engagement.clientNdaAcceptedAt && engagement.expertNdaAcceptedAt,
       ),
     };

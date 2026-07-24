@@ -135,6 +135,20 @@ export class CriteriaService {
 
       if (approval.count === 1) {
         await this.ledgerService.releaseMilestoneWithTx(tx, criterion.milestoneId);
+
+        const unapprovedCount = await tx.milestone.count({
+          where: {
+            engagementId: criterion.milestone.engagementId,
+            state: { notIn: ['APPROVED', 'RELEASED'] },
+          },
+        });
+
+        if (unapprovedCount === 0) {
+          await tx.engagement.update({
+            where: { id: criterion.milestone.engagementId },
+            data: { state: 'CLOSED' },
+          });
+        }
       }
 
       return {

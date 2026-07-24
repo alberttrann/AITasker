@@ -6,7 +6,7 @@ import { useEngagements } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useExpertProfile } from "@/hooks/use-expert-profile";
-import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2, CheckCircle2 } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -581,6 +581,19 @@ export default function ExpertProjectsPage() {
                 </div>
 
                 <hr className="border-slate-100 my-6" />
+
+                {selectedProject.status === 'CLOSED' && selectedProject.engagement?.serviceId && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex gap-4 text-emerald-950 shadow-xs animate-in fade-in mb-6">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-base font-bold text-emerald-900 leading-snug">Service Workspace Completed!</h4>
+                      <p className="text-sm text-emerald-800 leading-relaxed font-body mt-1">
+                        Great job! The client has signed off on the deliverables for this service. 
+                        The escrow payment of <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number((selectedProject.engagement.service as any)?.price_vnd || (selectedProject.engagement.service as any)?.priceVnd || selectedProject.engagement.milestones?.[0]?.paymentAmountVnd || 0))}</strong> has been released and credited to your wallet.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-8">
                   {/* Message / Status banner */}

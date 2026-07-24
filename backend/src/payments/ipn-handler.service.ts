@@ -370,9 +370,23 @@ export class IpnHandlerService {
       referenceCode,
     );
 
+    const serviceProject = await tx.project.create({
+      data: {
+        clientId: engagement.clientId,
+        projectName: engagement.service?.title || 'Service Purchase',
+        state: 'PUBLISHED',
+        selfTechnical: true,
+        requiredDomainsJson: engagement.service?.domainsJson || [],
+        requiredSeamsJson: engagement.service?.seamsJson || [],
+      },
+    });
+
     await tx.engagement.update({
       where: { id: engagement.id },
-      data: { state: EngagementState.ACTIVE },
+      data: { 
+        state: EngagementState.ACTIVE,
+        projectId: serviceProject.id,
+      },
     });
 
     try {
