@@ -93,17 +93,16 @@ export interface PartnerConversationSummary {
 }
 
 export function groupConversationsByPartner(conversations: any[] = []): PartnerConversationSummary[] {
-  // Use Engagement ID as the unique key, not the Partner ID, so multiple projects 
-  // with the same partner don't collapse into a single thread.
+  // Use Partner ID as the unique key to group all projects with the same partner
   const map = new Map<string, PartnerConversationSummary>();
 
   conversations.forEach((conv) => {
-    const threadKey = conv.id; 
+    const threadKey = conv.otherParty?.id || 'unknown'; 
     const partnerName = conv.otherParty?.fullName || 'Partner';
 
     if (!map.has(threadKey)) {
       map.set(threadKey, {
-        partnerId: conv.otherParty?.id || 'unknown',
+        partnerId: threadKey,
         partnerName,
         primaryEngagementId: conv.id,
         projectName: conv.projectName || 'Direct Chat',
@@ -111,6 +110,19 @@ export function groupConversationsByPartner(conversations: any[] = []): PartnerC
         unreadCount: conv.unreadCount || 0,
         allEngagements: [conv],
       });
+    } else {
+      const existing = map.get(threadKey)!;
+      existing.allEngagements.push(conv);
+      existing.unreadCount += (conv.unreadCount || 0);
+      
+      // Update lastMessage if the new conversation has a more recent one
+      const existingTime = existing.lastMessage?.timestamp ? new Date(existing.lastMessage.timestamp).getTime() : 0;
+      const newTime = conv.lastMessage?.timestamp ? new Date(conv.lastMessage.timestamp).getTime() : 0;
+      if (newTime > existingTime) {
+        existing.lastMessage = conv.lastMessage;
+        existing.primaryEngagementId = conv.id; // Make the most recent active
+        existing.projectName = conv.projectName || existing.projectName;
+      }
     }
   });
 

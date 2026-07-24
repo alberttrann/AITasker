@@ -570,7 +570,7 @@ const RoleIcon =
                   </span>
                 )}
               </Link>
-              <Link to={`${dashboardRoute}/messages`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
+              <Link to={`${dashboardRoute}/inbox`} onClick={() => setActiveDropdown(null)} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 rounded-lg font-headline text-primary-dark font-medium">
                 <div className="flex items-center gap-3">
                   <MessageSquare size={20} className="text-slate-500" /> Messages
                 </div>

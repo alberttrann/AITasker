@@ -442,10 +442,22 @@ export default function MessageThread({
     return (
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white">
         {/* 1. Header Toolbar */}
-        <div className="flex flex-row items-center justify-end py-4 border-b border-slate-200/80 shrink-0 gap-4">
-          <div className="flex items-center gap-2 shrink-0"></div>
+        <div className="flex flex-row items-center justify-between px-6 py-4 bg-white border-b border-slate-200/80 shrink-0 gap-4 z-10 relative">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 border border-slate-200/60 shadow-sm">
+              {peerName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 leading-tight">{peerName}</h2>
+              <span className={`inline-block mt-0.5 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md ${
+                isClient ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60" : "bg-blue-50 text-blue-700 border border-blue-200/60"
+              }`}>
+                {isClient ? "EXPERT" : "CLIENT"}
+              </span>
+            </div>
+          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             {/* Milestones Workspace Button */}
             {engagement &&
               ((engagement.milestones?.length || 0) > 0 || !!engagement.projectId) && (
@@ -543,7 +555,7 @@ export default function MessageThread({
                                   onSelectEngagement(eng.id);
                                 } else {
                                   navigate(
-                                    `${dashboardRoute}/engagements/${eng.id}/messages`,
+                                    `${dashboardRoute}/inbox/${eng.id}`,
                                   );
                                 }
                               }
@@ -696,7 +708,7 @@ export default function MessageThread({
         {/* 3. Send Input Form */}
         <form
           onSubmit={handleSend}
-          className="flex items-center gap-2 pt-3 pl-4 border-t border-slate-200/80 shrink-0"
+          className="flex items-center gap-3 p-4 bg-white border-t border-slate-200/80 shrink-0"
         > 
           <input
             type="text"

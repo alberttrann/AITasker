@@ -147,7 +147,7 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
           variant="primary"
           className="cursor-pointer"
           onClick={() =>
-            navigate(`/expert/engagements/${engagementId}/messages`)
+            navigate(`/expert/inbox/${engagementId}`)
           }
         >
           Open Messages

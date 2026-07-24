@@ -13,6 +13,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ApproachSummary from './ApproachSummary';
 import FootprintAlignment, { type FootprintAlignmentData } from './FootprintAlignment';
 import ConditionalPricing, { type PricingItem } from './ConditionalPricing';
+import { useToastActions } from '@/lib/toast-context';
 import type { MilestoneFrameworkItem } from '@/types/jsonb.types';
 
 type CompatibleMilestoneFrameworkItem = MilestoneFrameworkItem & {
@@ -156,7 +157,7 @@ export default function BidForm() {
 
   const [fieldErrors, setFieldErrors] = useState<BidFormErrors>({});
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const toast = useToastActions();
 
   const isDirty = approach.length > 0 || pricing.length > 0;
   const isReadOnly = !!bid && (bid as any).techStatus !== 'REVISION_REQUESTED' && (bid as any).tech_status !== 'REVISION_REQUESTED';
@@ -223,7 +224,6 @@ export default function BidForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setServerError(null);
     if (!actualProjectId) return;
 
     const submittedPricing = mergePricingWithProjectDefaults(
@@ -247,7 +247,7 @@ export default function BidForm() {
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.message || 'Failed to submit bid.';
-          setServerError(Array.isArray(msg) ? msg[0] : msg);
+          toast.error(Array.isArray(msg) ? msg[0] : msg);
         },
       }
     );
@@ -301,13 +301,6 @@ export default function BidForm() {
         </p>
       </div>
 
-      {/* Server error */}
-      {serverError && (
-        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-[#EF4444] mt-0.5" />
-          <p className="text-[14px] text-[#DC2626]">{serverError}</p>
-        </div>
-      )}
 
       {/* Success state */}
       {createBid.isSuccess && (

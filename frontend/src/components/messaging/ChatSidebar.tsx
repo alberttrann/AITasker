@@ -89,7 +89,7 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
                 key={conv.primaryEngagementId}
                 onClick={() => {
                   const targetId = isSelected && activeEngagementId ? activeEngagementId : conv.primaryEngagementId;
-                  navigate(`${dashboardRoute}/engagements/${targetId}/messages`);
+                  navigate(`${dashboardRoute}/inbox/${targetId}`);
                 }}
                 className={`p-3.5 rounded-xl cursor-pointer transition-all flex gap-3 select-none mb-1 border ${
                   isSelected

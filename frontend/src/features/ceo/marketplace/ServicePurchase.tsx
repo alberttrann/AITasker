@@ -212,7 +212,7 @@ export default function ServicePurchase() {
 
             <div className="space-y-3 pt-6 border-t border-slate-100">
               <Link
-                to={`/ceo/engagements/${state.engagementId}/messages`}
+                to={`/ceo/inbox/${state.engagementId}`}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-all shadow-sm"
               >
                 <MessageSquare size={16} />

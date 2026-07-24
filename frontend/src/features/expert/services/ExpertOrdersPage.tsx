@@ -240,7 +240,7 @@ export default function ExpertOrdersPage() {
                       <div className="flex items-center gap-2">
                         <Button 
                           variant="outline"
-                          onClick={() => navigate(`/expert/engagements/${order.id}/messages`)}
+                          onClick={() => navigate(`/expert/inbox/${order.id}`)}
                           className="gap-1.5 text-slate-700 bg-white hover:bg-slate-50 border-slate-200"
                           size="sm"
                         >

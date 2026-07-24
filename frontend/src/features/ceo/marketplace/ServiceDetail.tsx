@@ -60,7 +60,7 @@ export default function ServiceDetail() {
 
         if (purchaseAction === 'CHAT') {
           // Redirect straight to pre-payment workspace chat
-          navigate(`/ceo/engagements/${engagementId}/messages`);
+          navigate(`/ceo/inbox/${engagementId}`);
         } else {
           // Redirect to checkout QR payment page
           navigate(`/ceo/marketplace/service/${id}/purchase`, {

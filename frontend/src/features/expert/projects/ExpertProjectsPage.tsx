@@ -523,7 +523,7 @@ export default function ExpertProjectsPage() {
 
                     {selectedProject.status === 'NDA_PENDING' && (
                       selectedProject.engagement?.serviceId ? (
-                        <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}>
+                        <Button onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}>
                           Chat with Client
                         </Button>
                       ) : (
@@ -538,7 +538,7 @@ export default function ExpertProjectsPage() {
                         {selectedProject.engagement?.serviceId && (
                           <Button
                             variant="outline"
-                            onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}
+                            onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}
                             className="mr-2"
                           >
                             Chat with Client
@@ -563,7 +563,7 @@ export default function ExpertProjectsPage() {
                         {selectedProject.engagement.serviceId && (
                           <Button
                             variant="outline"
-                            onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/messages`)}
+                            onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}
                             className="mr-2"
                           >
                             Chat with Client

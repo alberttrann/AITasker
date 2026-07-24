@@ -127,7 +127,7 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
           variant="primary"
           className="cursor-pointer"
           onClick={() =>
-            navigate(`/ceo/engagements/${engagementId}/messages`)
+            navigate(`/ceo/inbox/${engagementId}`)
           }
         >
           Open Messages
@@ -250,7 +250,7 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
             variant="primary"
             className="mt-3 cursor-pointer"
             onClick={() =>
-              navigate(`/ceo/engagements/${engagementId}/messages`)
+              navigate(`/ceo/inbox/${engagementId}`)
             }
           >
             Open Messages

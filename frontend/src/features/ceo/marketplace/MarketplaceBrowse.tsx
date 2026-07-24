@@ -296,7 +296,7 @@ export default function MarketplaceBrowse() {
                       <Button size="sm" onClick={() => handlePayNow(p.serviceId)} className="gap-1.5"><CreditCard size={14} /> Pay Now</Button>
                     ) : (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/ceo/engagements/${p.id}/messages`)} className="gap-1.5 text-slate-600"><MessageSquare size={14} /> Chat</Button>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/ceo/inbox/${p.id}`)} className="gap-1.5 text-slate-600"><MessageSquare size={14} /> Chat</Button>
                         <Button size="sm" onClick={() => navigate(`/ceo/engagements/${p.id}/milestones`)}>Workspace</Button>
                       </>
                     )}

@@ -153,7 +153,7 @@ export default function SpotlightSearch({ user, isAuthenticated }: SpotlightSear
             category: 'Active Workspaces',
             title: pName,
             subtitle: `Status: ${(eng.state || '').replace(/_/g, ' ')}`,
-            route: `/engagements/${eng.id}/messages`,
+            route: `/inbox/${eng.id}`,
           });
         }
       });
@@ -181,7 +181,7 @@ export default function SpotlightSearch({ user, isAuthenticated }: SpotlightSear
             category: 'Assigned Workspaces',
             title: pName,
             subtitle: `State: ${(eng.state || '').replace(/_/g, ' ')}`,
-            route: `/engagements/${eng.id}/messages`,
+            route: `/inbox/${eng.id}`,
           });
         }
       });

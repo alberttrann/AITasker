@@ -59,10 +59,9 @@ const SubscriptionPlans = lazy(() => import("@features/ceo/onboarding/Subscripti
 const MarketplaceBrowse = lazy(() => import("@features/ceo/marketplace/MarketplaceBrowse"));
 const CeoServiceDetail = lazy(() => import("@features/ceo/marketplace/ServiceDetail"));
 const CeoServicePurchase = lazy(() => import("@features/ceo/marketplace/ServicePurchase"));
-const MessageThread = lazy(() => import("@/components/messaging/MessageThread"));
-const ConversationsList = lazy(() => import("@/components/messaging/ConversationsList"));
-const InboxPage = lazy(() => import("@/components/messaging/InboxPage"));
 const ExpertSubscriptionManagement = lazy(() => import("@features/expert/onboarding/SubscriptionManagement"));
+const MessageThread = lazy(() => import("@/components/messaging/MessageThread"));
+const InboxPage = lazy(() => import("@/components/messaging/InboxPage"));
 const ExpertSubscriptionPlans = lazy(() => import("@features/expert/onboarding/SubscriptionPlans"));
 const ElicitationWizard = lazy(() => import("@features/ceo/elicitation/ElicitationWizard"));
 const ShortlistView = lazy(() => import("@features/ceo/shortlist/ShortlistView"));
@@ -160,14 +159,8 @@ const router = createBrowserRouter(
               path="engagements/:engagementId/review"
               element={<CeoReviewForm />}
             />
-            <Route
-              path="engagements/:engagementId/messages"
-              element={<MessageThread />}
-            />
-            <Route
-              path="messages"
-              element={<ConversationsList />}
-            />
+
+            <Route path="messages" element={<Navigate to="inbox" replace />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />
@@ -219,14 +212,7 @@ const router = createBrowserRouter(
               path="engagements/:engagementId/nda"
               element={<ExpertNdaClickThrough />}
             />
-            <Route
-              path="engagements/:engagementId/messages"
-              element={<MessageThread />}
-            />
-            <Route
-              path="messages"
-              element={<ConversationsList />}
-            />
+            <Route path="messages" element={<Navigate to="inbox" replace />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />

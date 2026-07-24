@@ -7,21 +7,9 @@ export type SubscriptionTier = 'free' | 'pro';
 
 export type EngagementModel  = 'MILESTONE' | 'HOURLY' | 'HYBRID';
 
-export type DomainCode =
-  | 'A'   // LLM Application Engineering
-  | 'B'   // MLOps / LLMOps
-  | 'C'   // AI Evaluation & Quality
-  | 'D'   // Vector DB & Embeddings
-  | 'E'   // Data & Pipeline Engineering
-  | 'F';  // ML Modeling & Fine-Tuning
-
 export type DepthLevel       = 'SURFACE' | 'OPERATIONAL' | 'DEEP';
 export type VerificationTier = 'CLAIMED' | 'EVIDENCE_BACKED';
 
-export type SeamCode =
-  | 'A↔C' | 'A↔F' | 'A↔D'
-  | 'D↔E' | 'D↔F' | 'C↔F'
-  | 'E↔F' | 'A↔B' | 'B↔E' | 'C↔E';
 
 export type SeamCriticality = 'load_bearing' | 'significant' | 'contributing';
 

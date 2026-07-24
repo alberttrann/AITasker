@@ -1,11 +1,14 @@
 import { useProjects } from "@/hooks/use-projects";
-import { Loader2, PlayCircle, ArrowRight, Clock } from "lucide-react";
+import { Loader2, PlayCircle, ArrowRight, Clock, FolderOpen, Link2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTechTeamEngagements } from "@/hooks/use-engagements";
+import DashboardGreeting from "@/components/layout/DashboardGreeting";
+import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 
 export default function TechTeamProjectsPage() {
   const { projects, isLoadingProjects } = useProjects(true);
   const { data: engagements, isLoading: isLoadingEngagements } = useTechTeamEngagements();
+  
   const activeProject = projects?.[0];
   const activeEngagement = engagements?.find(
     (engagement) =>
@@ -15,8 +18,40 @@ export default function TechTeamProjectsPage() {
   const currentProjectName =
     activeProject?.projectName ?? activeEngagement?.project?.projectName;
 
+  const projectMetrics: WidgetMetric[] = [
+    {
+      id: "linked-projects",
+      label: "Linked Projects",
+      value: projects?.length || 0,
+      icon: <FolderOpen className="w-5 h-5" />,
+      href: "/tech-team/projects",
+      subValue: "Projects currently accessible",
+    }
+  ];
+
+  const engagementMetrics: WidgetMetric[] = [
+    {
+      id: "active-engagements",
+      label: "Active Engagements",
+      value: engagements?.filter(e => !["PENDING", "CLOSED", "CANCELLED", "DECLINED"].includes(e.state)).length || 0,
+      icon: <Link2 className="w-5 h-5" />,
+      href: "/tech-team/projects",
+      subValue: "Active handoffs",
+    }
+  ];
+
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-300">
+      <DashboardGreeting />
+
+      <div className="mb-8">
+        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 lg:auto-rows-[180px]">
+          <Widget metrics={projectMetrics} variant="blue" className="h-full" />
+          <Widget metrics={engagementMetrics} variant="emerald" className="h-full" />
+        </div>
+      </div>
+
       <div className="mb-8">
         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Linked Project</h4>
         
