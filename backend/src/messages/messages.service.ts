@@ -181,31 +181,23 @@ export class MessagesService {
             where: {
                 engagementId,
                 senderId: { not: userId },
-                reads: {
-                    none: {
-                        userId,
-                    },
-                },
+                reads: { none: { userId } },
             },
+            select: { id: true }
         });
 
-        await Promise.all(
-            unreadMessages.map(msg =>
-                this.prisma.messageRead.upsert({
-                    where: {
-                        messageId_userId: {
-                            messageId: msg.id,
-                            userId,
-                        },
-                    },
-                    update: {},
-                    create: {
-                        messageId: msg.id,
-                        userId,
-                    },
-                })
-            )
-        );
+        if (unreadMessages.length === 0) {
+            return { success: true, count: 0 };
+        }
+
+        // Atomic bulk insert that ignores duplicates, immune to race conditions
+        await this.prisma.messageRead.createMany({
+            data: unreadMessages.map(msg => ({
+                messageId: msg.id,
+                userId,
+            })),
+            skipDuplicates: true,
+        });
 
         return { success: true, count: unreadMessages.length };
     }
@@ -214,31 +206,23 @@ export class MessagesService {
         const unreadMessages = await this.prisma.message.findMany({
             where: {
                 senderId: { not: userId },
-                reads: {
-                    none: {
-                        userId,
-                    },
-                },
+                reads: { none: { userId } },
             },
+            select: { id: true }
         });
 
-        await Promise.all(
-            unreadMessages.map(msg =>
-                this.prisma.messageRead.upsert({
-                    where: {
-                        messageId_userId: {
-                            messageId: msg.id,
-                            userId,
-                        },
-                    },
-                    update: {},
-                    create: {
-                        messageId: msg.id,
-                        userId,
-                    },
-                })
-            )
-        );
+        if (unreadMessages.length === 0) {
+            return { success: true, count: 0 };
+        }
+
+        // Atomic bulk insert that ignores duplicates, immune to race conditions
+        await this.prisma.messageRead.createMany({
+            data: unreadMessages.map(msg => ({
+                messageId: msg.id,
+                userId,
+            })),
+            skipDuplicates: true,
+        });
 
         return { success: true, count: unreadMessages.length };
     }
