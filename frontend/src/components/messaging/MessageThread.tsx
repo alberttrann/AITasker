@@ -11,6 +11,7 @@ import {
   useMessages,
   useProjectMessages,
   useSendMessage,
+  useSendWorkspaceMessage,
   useConversations,
   useReadConversation,
 } from "@/hooks/use-messages";
@@ -80,6 +81,7 @@ export default function MessageThread({
   const { data: conversationsResponse } = useConversations();
   const sendMessage = useSendMessage();
   const readConversation = useReadConversation();
+  const sendWorkspaceMessage = useSendWorkspaceMessage();
 
   const activeRole = useAuthStore((s) => s.activeRole);
   const queryClient = useQueryClient();
@@ -244,11 +246,12 @@ export default function MessageThread({
     const payload: any = { content: trimmed };
     if (engagementId) {
       payload.engagement_id = engagementId;
+      sendWorkspaceMessage(payload); // Thay bằng workspace emitter để đẩy noti cho Tech Team
     } else if (projectId) {
       payload.project_id = projectId;
+      sendMessage(payload);
     }
 
-    sendMessage(payload);
     setText("");
   };
 

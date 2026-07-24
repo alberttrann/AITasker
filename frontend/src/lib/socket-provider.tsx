@@ -93,6 +93,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     }
 
     queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    // Xóa cache chat để các màn hình khác tự sync data mới
+    queryClient.invalidateQueries({ queryKey: ['messages', engagementId] });
+    queryClient.invalidateQueries({ queryKey: ['messages', 'project', engagementId] });
       
       // Only show notification if user is not currently in that conversation
       // Note: We no longer call addNotification here to prevent direct chat messages from
