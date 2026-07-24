@@ -94,7 +94,7 @@ export default function CreateMilestone() {
 
   // Filter draft blueprint milestones that have not yet been instantiated in the database
   const instantiatedMilestones = milestonesData ?? [];
-  const draftFramework = project?.milestoneFrameworkJson || (project as any)?.milestone_framework_json || [];
+  const draftFramework = project?.milestone_framework_json || (project as any)?.milestoneFrameworkJson || [];
   const requiresTechReview = project?.selfTechnical === false;
 
   if (engagement.termsLocked) {
@@ -255,9 +255,9 @@ export default function CreateMilestone() {
             <FieldArray name="milestones">
               {({ push, remove }) => (
                 <div className="space-y-8">
-                  {values.milestones.map((m, index) => {
-                    const milestoneErrors = (errors.milestones?.[index] as any) || {};
-                    const milestoneTouched = (touched.milestones?.[index] as any) || {};
+                  {values.milestones.map((m: any, index: number) => {
+                    const milestoneErrors = ((errors.milestones as any)?.[index] as any) || {};
+                    const milestoneTouched = ((touched.milestones as any)?.[index] as any) || {};
 
                     return (
                       <Card
@@ -388,7 +388,7 @@ export default function CreateMilestone() {
                             <FieldArray name={`milestones[${index}].criteria`}>
                               {({ push: pushCrit, remove: removeCrit }) => (
                                 <div className="space-y-3">
-                                  {m.criteria.map((_, critIndex) => {
+                                  {m.criteria.map((_: any, critIndex: number) => {
                                     const criterionErrors =
                                       (milestoneErrors.criteria?.[critIndex] as any) || {};
                                     const criterionTouched =
@@ -509,7 +509,7 @@ export default function CreateMilestone() {
                     <p className="text-sm text-slate-500 mt-1">
                       {bulkInitializeMutation.isPending
                         ? "Initializing all milestones via contract transaction..."
-                        : `Instantiating milestone ${creatingIndex + 1} of ${values.milestones.length}...`}
+                        : `Instantiating milestone ${(creatingIndex ?? 0) + 1} of ${values.milestones.length}...`}
                     </p>
                   </div>
                 </div>
