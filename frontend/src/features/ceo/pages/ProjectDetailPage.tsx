@@ -32,7 +32,8 @@ export default function ProjectDetailPage() {
     return engagements.filter(
       (e: any) =>
         (e.projectId === project.id || e.project_id === project.id) &&
-        e.capabilityBid
+        e.capabilityBid &&
+        !['CANCELLED', 'DECLINED'].includes(e.state)
     );
   }, [engagements, project]);
 

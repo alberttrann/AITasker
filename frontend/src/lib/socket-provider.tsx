@@ -96,20 +96,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     // Xóa cache chat để các màn hình khác tự sync data mới
     queryClient.invalidateQueries({ queryKey: ['messages', engagementId] });
     queryClient.invalidateQueries({ queryKey: ['messages', 'project', engagementId] });
-      
-      // Only show notification if user is not currently in that conversation
-      // Note: We no longer call addNotification here to prevent direct chat messages from
-      // cluttering the Bell icon notification list. Unread state is tracked separately
-      // via incrementUnread and shown under the Messages/Chat icon.
-      if (activeEngagement !== engagementId) {
-        // addNotification({
-        //   type:  'message',
-        //   title: `New message from ${data.sender?.fullName || 'someone'}`,
-        //   body:  data.content ? (data.content.length > 50 ? data.content.substring(0, 50) + '...' : data.content) : 'Attachment',
-        //   link:  data.engagementId ? `/engagements/${engagementId}/messages` : `/projects/${engagementId}`,
-        //   meta:  { engagement_id: engagementId },
-        // });
-      }
     });
 
     socket.on('notification:generic', (data: {
@@ -178,9 +164,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
     });
-    
-    queryClient.invalidateQueries({ queryKey: ['milestones'] });
-    queryClient.invalidateQueries({ queryKey: ['engagements'] });
 
     socket.on('payment:confirmed', (data: {
       engagement_id:   string;

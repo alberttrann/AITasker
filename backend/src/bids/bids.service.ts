@@ -385,6 +385,16 @@ export class BidsService {
             ? `/expert/engagements/${result.engagement.id}/bid`
             : `/ceo/projects/${result.engagement.projectId}/bids/${bidId}`,
       });
+      // Bắn event bid:updated để FE tự reload data (Best-effort, non-blocking)
+      try {
+        this.eventEmitter.emit('socket.broadcast', {
+          userId: result.proposerUserId,
+          event: 'bid:updated',
+          payload: { engagement_id: result.engagement.id, state: 'REVISION_REQUESTED' }
+        });
+      } catch (_err) {
+        // Socket lỗi cũng không được phép làm gián đoạn API
+      }
     } else {
       const recipientId =
         result.recipientRole === 'CEO'
@@ -399,6 +409,16 @@ export class BidsService {
             ? `/ceo/projects/${result.engagement.projectId}/bids/${bidId}`
             : `/expert/engagements/${result.engagement.id}/bid`,
       });
+      // Bắn event bid:updated để FE tự reload data (Best-effort, non-blocking)
+      try {
+        this.eventEmitter.emit('socket.broadcast', {
+          userId: recipientId,
+          event: 'bid:updated',
+          payload: { engagement_id: result.engagement.id, state: 'TECH_APPROVED' }
+        });
+      } catch (_err) {
+        // Socket lỗi cũng không được phép làm gián đoạn API
+      }
     }
 
     return this.findById(result.updated.id, user);
