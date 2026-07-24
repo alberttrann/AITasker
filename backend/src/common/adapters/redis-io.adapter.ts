@@ -10,12 +10,21 @@ export class RedisIoAdapter extends IoAdapter {
 
   async connectToRedis(redisUrl: string): Promise<void> {
     const isTls = redisUrl.startsWith('rediss://');
-    const socketOptions = isTls ? { tls: true, rejectUnauthorized: false } : {};
-
-    const pubClient = createClient({
+    
+    const redisOptions = {
       url: redisUrl,
-      socket: socketOptions,
-    });
+      pingInterval: 10000, 
+      socket: {
+        tls: isTls,
+        rejectUnauthorized: false,
+        keepAlive: 10000, 
+        reconnectStrategy: (retries: number) => {
+          return Math.min(retries * 500, 5000); 
+        }
+      },
+    };
+
+    const pubClient = createClient(redisOptions);
     const subClient = pubClient.duplicate();
 
     // Attach error listeners to catch connection drops and prevent unhandled exceptions from crashing the process

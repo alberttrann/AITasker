@@ -101,7 +101,12 @@ export class BidsService {
     const [isShortlisted, existing] = await Promise.all([
       this.shortlistService.isExpertShortlisted(project.id, expertUserId),
       this.prisma.engagement.findFirst({
-        where: { projectId: project.id, expertId: expertUserId, type: 'PROJECT_BASED' },
+        where: { 
+          projectId: project.id, 
+          expertId: expertUserId, 
+          type: 'PROJECT_BASED',
+          state: { notIn: ['DECLINED', 'CANCELLED'] }
+        },
       }),
     ]);
     if (!isShortlisted) throw new ForbiddenException('Expert is not in this project shortlist.');

@@ -84,6 +84,11 @@ export default function ExpertProjectsPage() {
       const now = Date.now();
       engagements.forEach((eng, index) => {
         if (!eng.project) return;
+        
+        const projectId = eng.projectId || eng.id;
+        // Vì API trả về mảng xếp theo Mới -> Cũ, 
+        // nếu Map đã có dự án này rồi thì bỏ qua, không để hợp đồng cũ (Declined) đè lên cái mới
+        if (projectMap.has(projectId)) return;
 
         let status: UnifiedProject['status'] = 'IN_PROGRESS';
 
@@ -118,7 +123,6 @@ export default function ExpertProjectsPage() {
           }
         }
 
-        const projectId = eng.projectId || eng.id;
         const projectName = eng.project?.projectName || eng.service?.title || 'Service Order';
         const ceoName = eng.client?.fullName || (eng as any).client_id || 'Client';
 

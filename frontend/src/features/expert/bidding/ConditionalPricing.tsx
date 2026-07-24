@@ -262,6 +262,7 @@ export default function ConditionalPricing({
                           <input
                             type="number"
                             min="1"
+                            max="1000"
                             value={offer.estimated_duration_days || ''}
                             onChange={(e) => updateOffer(fwItem.milestone_number, { estimated_duration_days: parseInt(e.target.value, 10) || undefined })}
                             disabled={disabled}

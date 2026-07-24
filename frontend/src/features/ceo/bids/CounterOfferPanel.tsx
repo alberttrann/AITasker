@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Form, Formik } from 'formik';
 import * as Yup from 'yup';
 import { Button } from '@/components/ui/button';
+import { ConfirmModal } from '@/components/ui/modal';
 import { useCreateOffer } from '@/hooks/use-bids';
 import type { BidOfferDto, MilestoneOfferTermDto } from '@/types/api.types';
 
@@ -8,8 +10,16 @@ const schema = Yup.object({
   milestones: Yup.array().of(
     Yup.object({
       deliverable_statement: Yup.string().trim().required('Deliverable is required'),
-      price_vnd: Yup.number().integer().positive().required('Price is required'),
-      estimated_duration_days: Yup.number().integer().positive().optional(),
+      price_vnd: Yup.number()
+        .integer()
+        .positive()
+        .max(100000000000, 'Price must be realistic (Max 100 Billion VND)')
+        .required('Price is required'),
+      estimated_duration_days: Yup.number()
+        .integer()
+        .positive()
+        .max(1000, 'Duration must be realistic (Max 1000 days)')
+        .optional(),
       criteria_text: Yup.string().trim().required('At least one criterion is required'),
     }),
   ).min(1).required(),
@@ -29,6 +39,9 @@ export default function CounterOfferPanel({
   onSuccess: () => void;
 }) {
   const createOffer = useCreateOffer();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
+
   const initialValues = {
     milestones: currentOffer.milestones.map((term): EditableTerm => ({
       ...term,
@@ -38,26 +51,39 @@ export default function CounterOfferPanel({
   };
 
   return (
-    <Formik
-      initialValues={initialValues}
-      validationSchema={schema}
-      onSubmit={(values, helpers) => {
-        const milestones = values.milestones.map(({ criteria_text, ...term }) => ({
-          ...term,
-          price_vnd: Number(term.price_vnd),
-          estimated_duration_days: term.estimated_duration_days
-            ? Number(term.estimated_duration_days)
-            : undefined,
-          criteria: criteria_text
-            .split('\n')
-            .map((criterion) => criterion.trim())
-            .filter(Boolean)
-            .map((criterion_text) => ({ criterion_text, is_required: true })),
-        }));
-        createOffer.mutate(
-          { bidId, body: { respondingToVersion: currentOffer.version, milestones } },
-          { onSuccess, onSettled: () => helpers.setSubmitting(false) },
-        );
+    <>
+      <Formik
+        initialValues={initialValues}
+        validationSchema={schema}
+        onSubmit={(values, helpers) => {
+        const isUnchanged = JSON.stringify(values.milestones) === JSON.stringify(initialValues.milestones);
+        
+        const submitFn = () => {
+          const milestones = values.milestones.map(({ criteria_text, ...term }) => ({
+            ...term,
+            price_vnd: Number(term.price_vnd),
+            estimated_duration_days: term.estimated_duration_days
+              ? Number(term.estimated_duration_days)
+              : undefined,
+            criteria: criteria_text
+              .split('\n')
+              .map((criterion) => criterion.trim())
+              .filter(Boolean)
+              .map((criterion_text) => ({ criterion_text, is_required: true })),
+          }));
+          createOffer.mutate(
+            { bidId, body: { respondingToVersion: currentOffer.version, milestones } },
+            { onSuccess, onSettled: () => helpers.setSubmitting(false) },
+          );
+        };
+
+        if (isUnchanged) {
+          setPendingSubmit(() => submitFn);
+          setShowConfirm(true);
+          helpers.setSubmitting(false);
+        } else {
+          submitFn();
+        }
       }}
     >
       {({ values, errors, touched, handleChange, isSubmitting }) => (
@@ -88,7 +114,13 @@ export default function CounterOfferPanel({
                 <textarea id={`input-counter-criteria-${index}`} name={`milestones.${index}.criteria_text`} value={milestone.criteria_text} onChange={handleChange} rows={3} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </label>
               {touched.milestones?.[index] && errors.milestones?.[index] ? (
-                <p className="text-xs text-red-600">Please correct the milestone fields.</p>
+                <div className="text-xs text-red-600">
+                  {typeof errors.milestones[index] === 'string' 
+                    ? errors.milestones[index] 
+                    : Object.values(errors.milestones[index] as Record<string, string>).map((err, i) => (
+                        <p key={i}>• {err}</p>
+                      ))}
+                </div>
               ) : null}
             </fieldset>
           ))}
@@ -102,5 +134,25 @@ export default function CounterOfferPanel({
         </Form>
       )}
     </Formik>
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => {
+          setShowConfirm(false);
+          setPendingSubmit(null);
+        }}
+        onConfirm={() => {
+          if (pendingSubmit) pendingSubmit();
+          setShowConfirm(false);
+          setPendingSubmit(null);
+        }}
+        title="No Changes Detected"
+        confirmText="Submit Anyway"
+        cancelText="Review Again"
+        isInfo
+      >
+        You haven't made any changes to the milestones, prices, or criteria. Are you sure you want to submit the exact same offer back?
+      </ConfirmModal>
+    </>
   );
 }

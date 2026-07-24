@@ -22,7 +22,8 @@ const validationSchema = Yup.object().shape({
       payment_amount_vnd: Yup.number()
         .required("Payment amount is required")
         .positive("Payment amount must be greater than zero")
-        .min(10000, "Minimum payment amount is 10,000 VND"),
+        .min(10000, "Minimum payment amount is 10,000 VND")
+        .max(100000000000, "Maximum payment amount is 100,000,000,000 VND"),
       criteria: Yup.array()
         .of(
           Yup.object().shape({

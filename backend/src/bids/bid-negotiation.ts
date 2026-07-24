@@ -172,18 +172,20 @@ export function normalizeMilestoneTerms(
       );
     }
 
-    const price = positiveInteger(
+    const rawPrice = positiveInteger(
       offered.price_vnd ??
         offered.priceVnd ??
         offered.payment_amount_vnd ??
         offered.paymentAmountVnd,
     );
-    if (!price) {
+    if (!rawPrice) {
       throwValidation(
         'BID_MILESTONE_PRICE_INVALID',
         `Milestone ${number} requires a positive integer price.`,
       );
     }
+    // Bảo vệ Database: Ép trần giá trị ở mức 100 Tỷ VND để chống tràn bộ nhớ (Overflow)
+    const price = Math.min(rawPrice, 100_000_000_000);
 
     const condition = nonEmptyString(offered.condition ?? blueprint.condition);
     const offeredCriteria = normalizeCriteria(
@@ -206,12 +208,14 @@ export function normalizeMilestoneTerms(
       );
     }
 
-    const duration = positiveInteger(
+    const rawDuration = positiveInteger(
       offered.estimated_duration_days ??
         offered.estimatedDurationDays ??
         blueprint.estimated_duration_days ??
         blueprint.estimatedDurationDays,
     );
+    // Bảo vệ Database (Cột INT4 max là 2.14 tỷ): Ép trần tối đa 3650 ngày (10 năm)
+    const duration = rawDuration !== undefined ? Math.min(rawDuration, 3650) : undefined;
     const rawTechStack =
       offered.tech_stack ?? offered.techStack ?? blueprint.tech_stack ?? blueprint.techStack;
     const techStack = Array.isArray(rawTechStack)

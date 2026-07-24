@@ -113,9 +113,12 @@ export default function BidForm() {
 
   const actualProjectId = routeId;
 
-  // Find if we have an existing engagement for this project
+  // Find if we have an existing active/pending engagement for this project
   const { data: engagements } = useEngagements();
-  const matchedEngagement = engagements?.find((e: any) => e.projectId === actualProjectId || e.project_id === actualProjectId);
+  const matchedEngagement = engagements?.find((e: any) => 
+    (e.projectId === actualProjectId || e.project_id === actualProjectId) &&
+    !['DECLINED', 'CANCELLED'].includes(e.state)
+  );
   const engagementId = searchParams.get('engagementId') || matchedEngagement?.id;
 
   // Fetch full engagement to get the capabilityBid
@@ -183,10 +186,19 @@ export default function BidForm() {
     submittedPricing.forEach((item) => {
       const itemErrors: PricingFieldErrors = {};
       if (!Number.isInteger(item.price_vnd) || item.price_vnd <= 0) {
-        itemErrors.price = 'Set a positive counter price because the client milestone has no valid budget.';
+        itemErrors.price = 'Price is required and must be positive.';
+      } else if (item.price_vnd > 100_000_000_000) {
+        itemErrors.price = 'Maximum price is 100,000,000,000 VND.';
       }
+      
+      if (item.estimated_duration_days && item.estimated_duration_days > 1000) {
+        itemErrors.condition = 'Maximum duration is 1000 days.';
+      }
+
       if (!item.condition.trim()) {
-        itemErrors.condition = 'Describe the milestone condition.';
+        itemErrors.condition = itemErrors.condition 
+          ? `${itemErrors.condition} Also, describe the milestone condition.` 
+          : 'Describe the milestone condition.';
       }
       if (Object.keys(itemErrors).length === 0) return;
 
