@@ -59,6 +59,8 @@ export function TransactionHistory() {
         return { label: 'Dispute Settlement (Split)', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       case 'WITHDRAWAL':
         return { label: 'Withdrawal', color: 'text-red-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-red-100' };
+      case 'WITHDRAWAL_REFUND':
+        return { label: 'Withdrawal Refund', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       default:
         return { label: 'Transaction', color: 'text-slate-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-slate-100' };
     }
@@ -74,7 +76,7 @@ export function TransactionHistory() {
           const config = getTxConfig(tx.transactionType);
           const isPositive = isClient
             ? ['TOP_UP', 'ESCROW_REFUND'].includes(tx.transactionType)
-            : ['TOP_UP', 'ESCROW_RELEASE', 'ESCROW_REFUND', 'ESCROW_SPLIT'].includes(tx.transactionType);
+            : ['TOP_UP', 'ESCROW_RELEASE', 'ESCROW_REFUND', 'ESCROW_SPLIT', 'WITHDRAWAL_REFUND'].includes(tx.transactionType);
           
           return (
              <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">

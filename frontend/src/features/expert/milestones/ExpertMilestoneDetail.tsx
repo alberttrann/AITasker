@@ -212,7 +212,7 @@ export default function ExpertMilestoneDetail() {
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> Registered: <strong>{new Date(milestone.updatedAt).toLocaleDateString()}</strong>
                     </span>
-                    <span>ΓÇó</span>
+                    <span>•</span>
                     <span>Sign-off Authority: <strong className="text-slate-700">{milestone.signOffAuthority.replace(/_/g, " ")}</strong></span>
                   </div>
                 </div>

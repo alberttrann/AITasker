@@ -154,6 +154,20 @@ export class EngagementsService {
         capabilityBid: true,
         milestones: true,
         service: true,
+        expert: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
       },
     });
 

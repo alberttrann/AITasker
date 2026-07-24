@@ -234,7 +234,7 @@ export class AdminService {
         data: {
           walletId: wallet.id,
           amount: withdrawal.amount,
-          transactionType: TransactionType.WITHDRAWAL,
+          transactionType: 'WITHDRAWAL_REFUND',
           referenceId: `WD-${withdrawal.id}-REVERSAL`,
         },
       });

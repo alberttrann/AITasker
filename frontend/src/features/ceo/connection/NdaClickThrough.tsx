@@ -37,7 +37,7 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
   const engagementId = propEngagementId || params.engagementId;
   const navigate = useNavigate();
 
-  const { data: engagement, isLoading, error, refetch } = useEngagement(engagementId);
+  const { data: engagement, isLoading, error, refetch } = useEngagement(engagementId, { refetchInterval: 2000 });
   const acceptNda = useAcceptNda();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -114,18 +114,51 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
 
   if (isConnected) {
     return (
-      <div className="mx-auto max-w-[640px] py-16 text-center space-y-4">
-        <CheckCircle2 className="mx-auto h-12 w-12 text-[#22C55E]" />
-        <h1 className="font-headline text-[24px] font-semibold text-[#0F172A]">
-          NDA Signed & Connected
-        </h1>
-        <p className="text-body text-[#64748B]">
-          Both parties have signed the NDA. You can now communicate
-          directly with the expert.
-        </p>
+      <div className="mx-auto max-w-[768px] space-y-4 pb-8 p-6">
+        <div className="rounded-[8px] border border-[#BBF7D0] bg-[#F0FDF4] p-4 flex items-start gap-3 shrink-0">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#22C55E] mt-0.5" />
+          <div>
+            <p className="text-[14px] font-medium text-[#16A34A]">
+              NDA Signed ✓
+            </p>
+            <p className="text-[12px] text-[#15803D]">
+              Both parties have signed this agreement. The workspace is active.
+            </p>
+          </div>
+        </div>
+
+        <AcceptedOfferSummary
+          offer={engagement.capabilityBid?.acceptedOffer}
+          termsAcceptedAt={engagement.capabilityBid?.termsAcceptedAt}
+        />
+
+        {/* NDA text */}
+        <Card className="flex h-[clamp(320px,45vh,480px)] flex-col overflow-hidden">
+          <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div
+              id="nda-agreement-scroll-ceo"
+              ref={scrollRef}
+              onScroll={updateScrollState}
+              tabIndex={0}
+              aria-label="Non-disclosure agreement text"
+              className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="h-5 w-5 text-[#0F172A]" />
+                <h2 className="font-headline text-[18px] font-semibold text-[#0F172A]">
+                  NDA Agreement Text
+                </h2>
+              </div>
+              <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-[#334155] border-t border-slate-100 pt-4">
+                {NDA_TEXT}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
+
         <Button
           variant="primary"
-          className="cursor-pointer"
+          className="cursor-pointer w-full mt-4"
           onClick={() =>
             navigate(`/ceo/inbox/${engagementId}`)
           }

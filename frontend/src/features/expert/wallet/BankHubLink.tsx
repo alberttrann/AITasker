@@ -90,7 +90,7 @@ export default function BankHubLink() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <button
-          onClick={() => navigate('/expert/wallet')}
+          onClick={() => navigate(-1)}
           className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
           aria-label="Go back"
         >
