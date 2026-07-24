@@ -70,6 +70,11 @@ export default function TechTeamMilestoneDetail() {
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
   
+  // Logic review checks (added to fix the undefined variables)
+  const techReviewRequired = milestone.signOffAuthority === "JOINT";
+  const requiredCriteria = (milestone.acceptanceCriteria ?? []).filter((criterion: any) => criterion.isRequired);
+  const techReviewComplete = !techReviewRequired || requiredCriteria.every((criterion: any) => Boolean(criterion.techVerifiedAt));
+  
   const approvedSettlement = isSettlementError
     ? "UNKNOWN"
     : settlementOutcome ?? "EXPERT_RELEASED";
@@ -176,7 +181,7 @@ export default function TechTeamMilestoneDetail() {
                     key={m.id}
                     onClick={() => handleMilestoneSwitch(m.id)}
                     className={cn(
-                      "w-full text-left p-3 rounded-lg flex items-center justify-between transition-all border",
+                      "w-full text-left p-3 rounded-lg flex items-center justify-between transition-all border cursor-pointer",
                       isActive
                         ? "bg-primary-bg border-primary/20 text-primary font-semibold"
                         : "bg-white border-transparent hover:bg-slate-50 text-slate-700"
@@ -190,6 +195,7 @@ export default function TechTeamMilestoneDetail() {
                       <StatusBadge
                         label={m.state.replace(/_/g, " ")}
                         variant={variantFromStatus(m.state)}
+                        className="px-2 py-0.5 text-[10px]"
                       />
                     </span>
                   </button>
@@ -360,7 +366,7 @@ export default function TechTeamMilestoneDetail() {
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Acceptance Criteria</h3>
 
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
-                  {milestone.acceptanceCriteria && milestone.acceptanceCriteria.map((c, idx) => {
+                  {milestone.acceptanceCriteria && milestone.acceptanceCriteria.map((c: any, idx: number) => {
                     const techVerified = Boolean(c.techVerifiedAt);
                     const ceoVerified = Boolean(c.ceoVerifiedAt || c.verifiedAt);
                     const canReviewCriterion =
@@ -382,9 +388,9 @@ export default function TechTeamMilestoneDetail() {
                           </p>
 
                           <div className="flex items-center gap-2 flex-wrap">
-                            {isVerified && c.verifiedAt && (
+                            {techVerified && c.techVerifiedAt && (
                               <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-max">
-                                Signed off on {new Date(c.verifiedAt).toLocaleDateString()}
+                                Signed off on {new Date(c.techVerifiedAt).toLocaleDateString()}
                               </p>
                             )}
                             <span className="text-[9px] font-black bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded tracking-wide uppercase">
@@ -437,6 +443,8 @@ export default function TechTeamMilestoneDetail() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
 
               {/* Expert's Definition of Done (DoD) Checklist - Read-Only Viewer */}
               {isFunded && milestone.dodItems && milestone.dodItems.length > 0 && (
@@ -447,7 +455,7 @@ export default function TechTeamMilestoneDetail() {
                   </div>
 
                   <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/20 divide-y divide-slate-100">
-                    {milestone.dodItems.map((item) => {
+                    {milestone.dodItems.map((item: any) => {
                       const completed = item.status === "COMPLETED";
                       const na = item.status === "NOT_APPLICABLE";
                       return (
