@@ -276,8 +276,19 @@ export default function MarketplaceBrowse() {
                 { key: 'date', label: 'Date', render: (p: any) => <span className="text-xs text-slate-500 font-medium">{new Date(p.createdAt || p.updatedAt || p.connectedAt).toLocaleDateString()}</span> },
                 { key: 'amount', label: 'Escrow Amount', render: (p: any) => <span className="font-bold text-emerald-600">{formatVND(p.service?.priceVnd || 0)}</span> },
                 { key: 'status', label: 'Status', render: (p: any) => {
-                  const isPending = p.state === 'PENDING';
-                  return <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${isPending ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{isPending ? 'Pending Payment' : 'Active'}</span>;
+                  return (
+                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${
+                      p.state === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      p.state === 'CLOSED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      p.state === 'CANCELLED' ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                      'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                      {p.state === 'PENDING' ? 'Pending Payment' :
+                       p.state === 'CLOSED' ? 'Closed' :
+                       p.state === 'CANCELLED' ? 'Cancelled' :
+                       'Active'}
+                    </span>
+                  );
                 }},
                 { key: 'actions', label: '', render: (p: any) => (
                   <div className="flex justify-end gap-2">
