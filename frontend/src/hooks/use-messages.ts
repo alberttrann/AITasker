@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@lib/api-client";
 import { useSocket } from "./use-socket";
 
@@ -51,6 +51,22 @@ export function useConversations() {
   return useQuery({
     queryKey: ["conversations"],
     queryFn: () => apiClient.get("/conversations"),
+  });
+}
+
+export function useReadConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (engagementId: string) => apiClient.post(`/conversations/${engagementId}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+}
+
+export function useReadAllConversations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.post('/conversations/read-all'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['conversations'] }),
   });
 }
 

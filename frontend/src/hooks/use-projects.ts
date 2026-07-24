@@ -35,6 +35,9 @@ export function updateProjectNameInCache(
   );
 }
 export function useProjects(slim: boolean = false) {
+  const { user, activeRole } = useAuthStore();
+  const isTechTeam = activeRole === 'CLIENT' && user?.clientSubtype === 'TECH_TEAM';
+
   const projectsQuery = useQuery({
     queryKey: ['projects', { slim }],
     queryFn: async () => {
@@ -42,6 +45,7 @@ export function useProjects(slim: boolean = false) {
       const res = await apiClient.get<PaginatedResponse<ProjectDto>>(url);
       return res.data;
     },
+    ...(isTechTeam ? { refetchInterval: 5000, staleTime: 10000 } : {})
   });
 
   return {

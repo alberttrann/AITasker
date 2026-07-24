@@ -10,7 +10,6 @@ import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@store/auth.store';
 import { formatSeamCode } from '@/lib/utils';
 import { formatResolutionNotification } from '@/lib/dispute-resolution';
-import { useNotificationsStore } from '@store/notifications.store';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateProjectNameInCache } from '@/hooks/use-projects';
@@ -41,8 +40,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user        = useAuthStore((s) => s.user);
   const activeRole  = useAuthStore((s) => s.activeRole);
-  const queryClient = useQueryClient(); 
-  const addNotification  = useNotificationsStore((s) => s.addNotification);
+  const queryClient = useQueryClient();
   const incrementUnread  = useEngagementStore((s) => s.incrementUnread);
   const activeEngagement = useEngagementStore((s) => s.activeEngagementId);
 
@@ -117,12 +115,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       body: string;
       link?: string;
     }) => {
-      addNotification({
-        type:  data.type as any || 'system',
-        title: data.title,
-        body:  data.body,
-        link:  data.link || '',
-      });
+      // Always invalidate the server-side notifications cache (source of truth is the DB now)
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
       // 1. Tech Team submitted Stage 4 -> Auto-advance CEO's Wizard
       if (data.title === 'Technical Context Submitted') {
@@ -135,8 +129,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
       }
 
-      // 3. New Bids or Tech Reviews -> Refresh CEO/Expert dashboards
-      if (data.title.includes('New Expert Bid') || data.title.includes('Tech Review Passed')) {
+      // 3. New Bids or Tech Reviews -> Refresh CEO/Expert/TechTeam dashboards
+      if (data.title.includes('New Expert Bid') || data.title.includes('New Bid Awaiting Review') || data.title.includes('Tech Review Passed')) {
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
         queryClient.invalidateQueries({ queryKey: ['bids'] });
       }
@@ -152,14 +146,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       engagement_id: string;
       state:         string;
     }) => {
-      addNotification({
-        type:  'bid_update',
-        title: 'Bid status changed',
-        body:  `Your bid is now ${data.state.replace('_', ' ').toLowerCase()}`,
-        link:  `/engagements/${data.engagement_id}`,
-        meta:  { engagement_id: data.engagement_id },
-      });
-      // Refresh bids and engagements when a bid is updated
+      // Invalidate notifications cache (backend persists them) + refresh bids data
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
       queryClient.invalidateQueries({ queryKey: ['bids'] });
     });
@@ -181,14 +169,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       milestone_number: number;
       state:            string;
     }) => {
-      addNotification({
-        type:  'milestone_update',
-        title: `Milestone ${data.milestone_number} updated`,
-        body:  `Status: ${data.state.replace('_', ' ').toLowerCase()}`,
-        link:  `/engagements/${data.engagement_id}/milestones`,
-        meta:  { engagement_id: data.engagement_id },
-      });
-      // Refresh milestones and engagements when a milestone is updated
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['milestones'] });
       queryClient.invalidateQueries({ queryKey: ['milestone'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
@@ -203,14 +184,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       milestone_number: number;
       amount_vnd:       number;
     }) => {
-      addNotification({
-        type:  'payment',
-        title: 'Payment confirmed',
-        body:  `Milestone ${data.milestone_number} funded — ₫${data.amount_vnd.toLocaleString()}`,
-        link:  `/engagements/${data.engagement_id}/milestones`,
-        meta:  { engagement_id: data.engagement_id },
-      });
-      // Invalidate queries to instantly update UI state
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['milestones'] });
       queryClient.invalidateQueries({ queryKey: ['milestone'] });
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
@@ -218,50 +192,17 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
     });
 
-    socket.on('dispute:filed', (data: { engagement_id: string }) => {
-      addNotification({
-        type:  'dispute',
-        title: 'Dispute filed',
-        body:  'A dispute has been raised on one of your milestones',
-        link:  `/engagements/${data.engagement_id}`,
-        meta:  { engagement_id: data.engagement_id },
-      });
+    socket.on('dispute:filed', () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     });
 
-    socket.on('dispute:resolved', (data: {
-      engagement_id: string;
-      dispute_id?:   string;
-      milestone_id?: string | null;
-      resolution:    string;
-    }) => {
-      addNotification({
-        type:  'dispute',
-        title: 'Dispute resolved',
-        body:  formatResolutionNotification(
-          data.resolution,
-          activeRole === 'EXPERT' ? 'EXPERT' : 'CLIENT',
-        ),
-        link:  `/engagements/${data.engagement_id}`,
-        meta:  {
-          engagement_id: data.engagement_id,
-          ...(data.dispute_id ? { dispute_id: data.dispute_id } : {}),
-          ...(data.milestone_id ? { milestone_id: data.milestone_id } : {}),
-        },
-      });
+    socket.on('dispute:resolved', () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     });
 
-    socket.on('portfolio:result', (data: {
-      seam_code: string;
-      passed:    boolean;
-    }) => {
-      addNotification({
-        type:  'portfolio_eval',
-        title: 'Portfolio evaluation complete',
-        body:  data.passed
-          ? `${formatSeamCode(data.seam_code)} — Tier 2 verified ✓`
-          : `${formatSeamCode(data.seam_code)} — did not meet the threshold`,
-        link:  '/profile/seams',
-      });
+    socket.on('portfolio:result', () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['expert-profile'] });
     });
 
     socketRef.current = socket;

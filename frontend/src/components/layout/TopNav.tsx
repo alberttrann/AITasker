@@ -6,13 +6,12 @@ import AuthModal from '@/components/auth/AuthModal';
 import { ConfirmModal, Modal } from '@/components/ui/modal';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
-import { useNotificationsStore } from '@/store/notifications.store';
+import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-notifications';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
 import SpotlightSearch from '@/components/layout/SpotlightSearch';
 import { useEngagementStore } from '@store/engagement.store';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-import { useConversations } from '@/hooks/use-messages';
+import { useQueryClient } from '@tanstack/react-query';
+import { useConversations, useReadConversation, useReadAllConversations } from '@/hooks/use-messages';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -76,37 +75,20 @@ export default function TopNav() {
 
   const dashboardRoute = getBasePath();
 
-  // Notifications store
-  const { notifications, markRead, markAllRead, hydrate } = useNotificationsStore();
-  const unreadNotifications = notifications.filter(n => !n.read).length;
+  // Notifications via React Query (source of truth is backend DB)
+  const { data: notifications = [] } = useNotifications(20);
+  const unreadNotifications = notifications.filter(n => !n.isRead).length;
   const queryClient = useQueryClient();
+  const markAsReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
 
-  // Hydrate notifications from DB on mount/auth
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      apiClient.get('/notifications/me', { params: { limit: 20 } })
-        .then(res => hydrate(res.data))
-        .catch(console.error);
-    }
-  }, [isAuthenticated, user, hydrate]);
-
-  const handleNotificationMarkAllRead = async () => {
-    try {
-      await apiClient.put('/notifications/read-all');
-      markAllRead();
-    } catch (e) {
-      console.error('Failed to mark all notifications read:', e);
-    }
+  const handleNotificationMarkAllRead = () => {
+    markAllReadMutation.mutate();
   };
 
   const handleNotificationClick = async (notif: any) => {
-    try {
-      if (!notif.read) {
-        await apiClient.put(`/notifications/${notif.id}/read`);
-        markRead(notif.id);
-      }
-    } catch (e) {
-      console.error('Failed to mark notification read:', e);
+    if (!notif.isRead) {
+      markAsReadMutation.mutate(notif.id);
     }
 
     if (notif.link) {
@@ -122,9 +104,12 @@ export default function TopNav() {
       setActiveDropdown(null);
     }
   };
+
   const unreadCounts = useEngagementStore((s) => s.unreadCounts);
   const clearAllUnread = useEngagementStore((s) => s.clearAllUnread);
   const { data: conversationsResponse } = useConversations();
+  const readConversationMutation = useReadConversation();
+  const readAllConversationsMutation = useReadAllConversations();
 
   const rawThreads = conversationsResponse?.data || [];
   const filteredThreads = rawThreads.filter((t: any) => !!t.lastMessage && !!t.lastMessage.content);
@@ -137,24 +122,14 @@ export default function TopNav() {
   // Show top 5 conversations in the dropdown
   const conversations = filteredThreads.slice(0, 5);
 
-  const handleConversationClick = async (id: string) => {
+  const handleConversationClick = (id: string) => {
     setActiveDropdown(null);
-    try {
-      await apiClient.post(`/conversations/${id}/read`);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch (err) {
-      console.error("Failed to mark conversation as read:", err);
-    }
+    readConversationMutation.mutate(id);
     navigate(`${dashboardRoute}/inbox/${id}`);
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      await apiClient.post('/conversations/read-all');
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    } catch (err) {
-      console.error("Failed to mark all as read:", err);
-    }
+  const handleMarkAllRead = () => {
+    readAllConversationsMutation.mutate();
   };
 
   // Safely grab the first letter of the name
@@ -321,11 +296,11 @@ const RoleIcon =
                           <div 
                             key={notif.id} 
                             onClick={() => handleNotificationClick(notif)} 
-                            className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
+                            className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors ${!notif.isRead ? 'bg-primary/5' : ''}`}
                           >
                             <div className="flex justify-between items-start mb-1">
-                              <span className={`text-sm font-semibold ${!notif.read ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
-                              {!notif.read && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}
+                              <span className={`text-sm font-semibold ${!notif.isRead ? 'text-primary' : 'text-slate-700'}`}>{notif.title}</span>
+                              {!notif.isRead && <span className="w-2 h-2 bg-error rounded-full mt-1.5 shrink-0" />}
                             </div>
                             <p className="text-xs text-slate-500">{notif.body}</p>
                           </div>
@@ -527,7 +502,7 @@ const RoleIcon =
 
                     {!isPro && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                       <Link
-                        to={`${dashboardRoute}/subscriptions/plans`}
+                        to={`${dashboardRoute}/subscriptions`}
                         onClick={() => setActiveDropdown(null)}
                         className="px-5 py-3 text-sm text-left font-headline font-extrabold text-purple-700 bg-transparent hover:bg-purple-50 transition-colors mx-2 mb-2 rounded-lg flex items-center justify-between"
                       >
@@ -782,7 +757,7 @@ const RoleIcon =
         </div>
       )}
     </header>
-    {/* ΓöÇΓöÇ Render the Modal ΓöÇΓöÇ */}
+    {/*Render the Modal*/}
     <AuthModal 
       isOpen={isAuthModalOpen} 
       onClose={() => setIsAuthModalOpen(false)} 

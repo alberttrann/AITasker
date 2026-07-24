@@ -12,6 +12,7 @@ import {
   useProjectMessages,
   useSendMessage,
   useConversations,
+  useReadConversation,
 } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,7 +20,6 @@ import { useAuthStore } from "@/store/auth.store";
 import { useEngagement } from "@/hooks/use-engagements";
 import { useEngagementStore } from "@store/engagement.store";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import ChatSidebar from "@/components/messaging/ChatSidebar";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,7 @@ export default function MessageThread({
     useProjectMessages(projectId);
   const { data: conversationsResponse } = useConversations();
   const sendMessage = useSendMessage();
+  const readConversation = useReadConversation();
 
   const activeRole = useAuthStore((s) => s.activeRole);
   const queryClient = useQueryClient();
@@ -172,17 +173,11 @@ export default function MessageThread({
     dispatch({ type: "RESET" });
   }, [scopeId]);
 
-  // Thực hiện đọc tin nhắn realtime khi mở hội thoại [5]
+  // Mark conversation as read when opening a thread
   useEffect(() => {
     if (!engagementId) return;
-
-    apiClient
-      .post(`/conversations/${engagementId}/read`)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      })
-      .catch((err) => console.error("Error marking messages as read:", err));
-  }, [engagementId, queryClient]);
+    readConversation.mutate(engagementId);
+  }, [engagementId]);
 
   useEffect(() => {
     if (!socket || !scopeId) return;
@@ -230,12 +225,7 @@ export default function MessageThread({
       dispatch({ type: "APPEND", message: msg });
 
       if (engagementId && msg.senderId !== user?.id) {
-        apiClient
-          .post(`/conversations/${engagementId}/read`)
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: ["conversations"] });
-          })
-          .catch((err) => console.error("Error auto-reading message:", err));
+        readConversation.mutate(engagementId);
       }
     };
 
@@ -348,16 +338,11 @@ export default function MessageThread({
   // Lọc luồng bằng UUID giúp khắc phục lỗi biến mất dropdown & hiển thị thiếu luồng [5]
   const [stablePartnerId, setStablePartnerId] = useState<string | null>(null);
 
-  // Reset stablePartnerId khi chuyển sang engagement khác để tránh hiển thị sai danh sách thread
+  // Reset hoặc cập nhật stablePartnerId khi chuyển sang engagement khác
+  // Phải phụ thuộc vào cả targetPartnerId VÀ engagementId để tránh lỗi stuck ở null khi chuyển thread của cùng 1 partner
   useEffect(() => {
-    setStablePartnerId(null);
-  }, [engagementId]);
-
-  useEffect(() => {
-    if (targetPartnerId) {
-      setStablePartnerId(targetPartnerId);
-    }
-  }, [targetPartnerId]);
+    setStablePartnerId(targetPartnerId || null);
+  }, [targetPartnerId, engagementId]);
 
   const partnerEngagements = useMemo(() => {
   const pid = stablePartnerId;

@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { apiClient } from '@/lib/api-client';
+import { useConversations } from '@/hooks/use-messages';
 import { useEngagementStore } from '@/store/engagement.store';
 import { useAuthStore } from '@/store/auth.store';
 import { Spinner } from '@/components/ui/Spinner';
@@ -25,11 +24,7 @@ export default function ConversationList({ onSelect, selectedId }: ConversationL
     return 'tech-team';
   };
 
-  const { data: threads, isLoading } = useQuery({
-    queryKey: ['conversations'],
-    queryFn: () => apiClient.get('/conversations').then(r => r.data),
-    refetchInterval: 10_000,
-  });
+  const { data: threads, isLoading } = useConversations();
 
   const effectiveSelectedId = selectedId ?? urlEngagementId ?? null;
 

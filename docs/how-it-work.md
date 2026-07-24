@@ -117,12 +117,15 @@ Based on `08-mainflows_redo.md` specs.
 
 ---
 
-## 4. Component Architecture
-- **Dashboards (src/features/*)**: Code is sliced by role. `admin`, `ceo`, `expert`, and `tech-team` all have their own isolated modules and overview components. Feature components contain ZERO inline Axios calls, `useQuery`, or `useMutation` definitions; they strictly consume custom hooks.
-- **Data Fetching (src/hooks/*)**: All API calls are encapsulated in centralized custom React Query hooks organized by entity (e.g., `use-projects.ts`, `use-bids.ts`, `use-elicitation.ts`, `use-engagements.ts`, `use-admin-config.ts`). **Rule:** API actions must stay in `hooks/`. No component should import `apiClient` directly.
-- **Type Definitions (src/types/*)**: Interface definitions and enums are separated from business logic. **Rule:** Enums and interfaces must stay in `types/` (e.g., `api.types.ts`, `admin.types.ts`, `bids.types.ts`). Feature components import types instead of defining them inline.
-- **Global Store (src/store/*)**: Centralized state management using Zustand for session data (e.g., `auth.store.ts` for JWT tokens/roles, `wallet.store.ts` for balances). **Rule:** Never import `useAuthStore` directly in feature components. Instead, always use the `useAuth()` hook which wraps auth store values and provides mutation methods cleanly.
-- **Lazy Loading (src/App.tsx)**: All major feature pages are lazy-loaded using `React.lazy` to ensure the initial JavaScript bundle remains small and performant.
+## 4. Component Architecture & Strict Rules
+- **Dashboards (`src/features/*`)**: Code is sliced by role. `admin`, `ceo`, `expert`, and `tech-team` all have their own isolated modules and overview components.
+- **API Calls (`src/hooks/*`)**: ALL `apiClient` calls **must** live exclusively in the `hooks/` directory. No component file may ever import `apiClient` directly.
+  - Exceptions: `MessageThread.tsx` and `MilestoneChatPanel.tsx` historically made direct `apiClient.post('/conversations/:id/read')` calls. These have been migrated to `useReadConversation()` (from `use-messages.ts`), and `ConversationList.tsx` was migrated from an inline `useQuery` to `useConversations()`.
+  - `TopNav.tsx` historically made direct notification and conversation `apiClient` calls. These have been replaced by `useMarkNotificationRead()`, `useMarkAllNotificationsRead()` from `use-notifications.ts`, and `useReadConversation()`, `useReadAllConversations()` from `use-messages.ts`.
+- **Type Definitions (`src/types/*`)**: Shared, cross-feature interfaces and types **must** live in the `types/` directory. Interfaces used only by a single component internally (like `WidgetProps`, `ConversationListProps`) may stay co-located. Shared types like `PricingItem` (used by `BidForm.tsx` + `ConditionalPricing.tsx`) are now in `api.types.ts`.
+- **Global Store (`src/store/*`)**: Only for truly client-side persistent state (auth tokens, engagement unread counts). **Server data is never stored in Zustand.**
+  - **`notifications.store.ts` is deprecated and should be considered removed**: The backend now persists notifications in a DB table. The frontend uses `useNotifications()` from `use-notifications.ts` (React Query) as the single source of truth. The old `persist` to localStorage is gone.
+- **Lazy Loading (`src/App.tsx`)**: All major feature pages are lazy-loaded using `React.lazy`.
 
 ---
 
@@ -259,5 +262,51 @@ The platform navigation across non-admin roles (`CLIENT_CEO`, `EXPERT`, `TECH_TE
   - The UI now handles `vague_answers` and `irrelevant_answers` as non-blocking advisory warnings. If the backend proceeds and increments the session stage (`data.advanced === true`), the frontend treats the warnings purely as information without locking the user.
 - **Critical Artifacts Banner (`Stage4ScenarioA.tsx`)**:
   - If the AI identifies missing required artifacts (`missingArtifactsWarning`), the frontend intelligently renders a confirmation modal ("Incomplete spec — proceed anyway?"). This maintains high data quality without hard-blocking the CEO from advancing.
+
+## 19. Tech Team Real-Time Updates & Backend Interference (Frontend Polling Strategy)
+- **The Missing Event Problem**: In the Tech Team app flow, the backend does not inherently broadcast `socket.broadcast` events when a project is linked to the Tech Team or when some engagement states change, leading to a stale "Waiting for CEO" screen unless manually refreshed.
+- **Strict Frontend Boundary Enforcement**: Under the strict "no backend interference" rule, we avoided adding missing `socket.emit` calls in backend services (`elicitation.service.ts` or `engagements.service.ts`).
+- **The Polling Fallback Solution (`useProjects.ts`)**: Instead, we enhanced the `useProjects` query to conditionally enable `refetchInterval: 5000` only when `user?.clientSubtype === 'TECH_TEAM'`. This mirrors the pattern already established in `useTechTeamEngagements()`, providing a simulated real-time experience entirely managed on the client side.
+- **Socket Invalidation Expansion (`socket-provider.tsx`)**: We also expanded the frontend socket listener for generic notifications to explicitly catch `data.title.includes('New Bid Awaiting Review')` (the exact notification string sent to the Tech Team). When received, it invalidates `['engagements']` and `['bids']` to refresh the dashboard instantly without polling delays.
+
+## 20. Real-Time Event Management (`SocketProvider`)
+The `SocketProvider` (`src/lib/socket-provider.tsx`) sits near the root of the React tree and manages the single, persistent Socket.io connection for the authenticated session. It has distinct global and local responsibilities:
+
+**Globally (System-Wide State & Caches):**
+1. **Connection Lifecycle**: It automatically connects when a valid `accessToken` is present in the `auth.store`, handles reconnection logic, and cleans up (disconnects) on logout.
+2. **React Query Cache Synchronization**: Instead of relying on individual components to detect data changes, the provider intercepts incoming backend events (`notification:generic`, `bid:updated`, `milestone:updated`, `payment:confirmed`). By analyzing the payload, it intelligently issues `queryClient.invalidateQueries(...)` for relevant cache keys (like `['engagements']`, `['bids']`, `['projects']`). This guarantees that no matter what page the user is on, any underlying stale data is instantly refetched and the UI updates in real-time.
+3. **Notifications (DB-driven)**: On socket events (`notification:generic`, `bid:updated`, `milestone:updated`, `payment:confirmed`, `dispute:filed`, `dispute:resolved`, `portfolio:result`), the provider calls `queryClient.invalidateQueries({ queryKey: ['notifications'] })`. The backend always persists notifications to the DB table first; the FE simply re-fetches. There is **no longer** a local in-memory/localStorage notification store.
+4. **Unread Message Counts**: The provider intercepts `newMessage` events to increment unread counts in the `engagement.store` if the user is not actively viewing that specific conversation.
+
+**Locally (Component-Level Interactions):**
+1. **The `useSocket()` Hook**: Downstream components (like `MessageThread.tsx` or `MilestoneChatPanel.tsx`) consume the `useSocket()` hook to access the active socket instance.
+2. **Contextual Emission**: Local components use this instance to emit contextual actions directly to the backend—such as `joinRoom`, `leaveRoom`, `sendMessage`, or typing indicators—without needing to manage connection logic or authentication themselves.
+
+## 21. Lessons Learned: React State Desyncs on Navigation (`MessageThread.tsx`)
+- **The Stale Filter Bug**: In the `MessageThread.tsx` header dropdown, switching from one thread to another with the *same partner* caused the dropdown to collapse and lose all other threads.
+- **The Cause (Split `useEffect` Dependencies)**: The component used one `useEffect` to reset the `stablePartnerId` filter to `null` whenever the `engagementId` (route) changed. It used a separate `useEffect` depending solely on `[targetPartnerId]` to re-apply the filter. Because switching to a thread with the same partner did not change the `targetPartnerId` value, the second effect never fired, leaving the filter permanently stuck at `null` (which incorrectly fell back to showing only the current thread).
+- **The Solution**: Always combine interconnected state resets. By merging them into a single `useEffect` depending on `[targetPartnerId, engagementId]`, we guarantee that the partner filter is actively and explicitly re-evaluated and applied upon every navigation event without getting stuck in intermediate reset states.
+
+## 22. Architecture Cleanup: Notifications Overhaul & API Discipline
+
+### Notification System: LocalStorage → Backend DB
+- **Problem**: `notifications.store.ts` used Zustand `persist` to cache notifications in `localStorage`. When the backend introduced a `Notification` DB table (with full CRUD), this created desync bugs — the store and the DB diverged on read status.
+- **Solution**: Deprecated the Zustand store. Created `use-notifications.ts` with four clean React Query hooks:
+  - `useNotifications(limit)` → `GET /notifications/me`
+  - `useMarkNotificationRead()` → `PUT /notifications/:id/read`
+  - `useMarkAllNotificationsRead()` → `PUT /notifications/read-all`
+  - `useDeleteNotification()` → `DELETE /notifications/:id`
+- **SocketProvider**: On all notification-triggering events, it now simply calls `queryClient.invalidateQueries({ queryKey: ['notifications'] })`. Backend DB is always the source of truth.
+- **Components updated**: `NotificationSystem.tsx` (full notification page) and `TopNav.tsx` (bell icon dropdown) now consume these hooks directly.
+
+### Messaging Read State: Inline apiClient → Hooks
+- Added `useReadConversation()` and `useReadAllConversations()` mutations to `use-messages.ts`.
+- `MessageThread.tsx`, `MilestoneChatPanel.tsx`, and `TopNav.tsx` no longer import `apiClient` directly — all use the hook mutations.
+- `ConversationList.tsx` now uses the shared `useConversations()` hook instead of an inline `useQuery`.
+
+### Type Migrations
+- `PricingItem` (previously in `ConditionalPricing.tsx`) moved to `src/types/api.types.ts`. `ConditionalPricing.tsx` re-exports it for backward compatibility.
+- `WidgetMetric` stays in `Widget.tsx` (component-specific prop with unique fields: `id`, `trend`, `href`).
+- `FilterTab` stays in `AdminTableToolbar.tsx` (used only internally).
 
 *(This document is a living record and will be expanded as we touch more components.)*

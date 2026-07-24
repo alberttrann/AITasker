@@ -1,53 +1,20 @@
-import React, { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-import { useNotificationsStore } from '@/store/notifications.store';
+import React from 'react';
+import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotification } from '@/hooks/use-notifications';
 import { Bell, CheckCircle2, Trash2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/Spinner';
 
 export default function NotificationSystem() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { notifications, hydrate, markRead, markAllRead, remove } = useNotificationsStore();
+  const { data: notifications = [], isLoading } = useNotifications(100);
+  const markAsReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+  const deleteMutation = useDeleteNotification();
 
-  const { data: dbNotifs, isLoading } = useQuery({
-    queryKey: ['notifications', 'all'],
-    queryFn: () => apiClient.get('/notifications/me', { params: { limit: 100 } }).then(r => r.data),
-  });
-
-  useEffect(() => {
-    if (dbNotifs) {
-      hydrate(dbNotifs);
-    }
-  }, [dbNotifs, hydrate]);
-
-  const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => apiClient.put(`/notifications/${id}/read`),
-    onSuccess: (_, id) => {
-      markRead(id);
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'all'] });
-    }
-  });
-
-  const markAllReadMutation = useMutation({
-    mutationFn: () => apiClient.put('/notifications/read-all'),
-    onSuccess: () => {
-      markAllRead();
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'all'] });
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/notifications/${id}`),
-    onSuccess: (_, id) => {
-      remove(id);
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'all'] });
-    }
-  });
+  const hasUnread = notifications.some(n => !n.isRead);
 
   const handleNotificationClick = (notif: any) => {
-    if (!notif.read && !notif.isRead) {
+    if (!notif.isRead) {
       markAsReadMutation.mutate(notif.id);
     }
     if (notif.link) {
@@ -85,7 +52,7 @@ export default function NotificationSystem() {
           <p className="text-sm text-slate-500 mt-1">Updates about your projects, bids, and wallet.</p>
         </div>
         
-        {notifications.some(n => !n.read) && (
+        {hasUnread && (
           <button 
             onClick={() => markAllReadMutation.mutate()}
             disabled={markAllReadMutation.isPending}
@@ -108,9 +75,9 @@ export default function NotificationSystem() {
             {notifications.map((notif) => (
               <div 
                 key={notif.id}
-                className={`p-4 sm:p-5 flex items-start gap-4 transition-colors group ${!notif.read ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}
+                className={`p-4 sm:p-5 flex items-start gap-4 transition-colors group ${!notif.isRead ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}
               >
-                {!notif.read && (
+                {!notif.isRead && (
                   <div className="mt-2 w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-sm" />
                 )}
                 
@@ -119,7 +86,7 @@ export default function NotificationSystem() {
                   onClick={() => handleNotificationClick(notif)}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4 mb-1">
-                    <h4 className={`text-sm ${!notif.read ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                    <h4 className={`text-sm ${!notif.isRead ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
                       {notif.title}
                     </h4>
                     <span className="text-xs font-medium text-slate-400 shrink-0">
