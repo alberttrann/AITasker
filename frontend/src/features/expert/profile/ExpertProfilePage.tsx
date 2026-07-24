@@ -178,9 +178,14 @@ export default function ExpertProfilePage() {
                 <div key={s.seamCode || s.code} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3 border-b border-gray-50 last:border-0">
                   <div className="flex items-center gap-3 flex-1">
                     <span className="px-2 py-0.5 bg-gray-100 text-gray-800 font-bold text-xs rounded border">{s.seamCode || s.code}</span>
-                    <span className="font-medium text-gray-700 flex items-center gap-2">
+                    <span className="font-medium text-gray-700 flex items-center gap-2 flex-wrap">
                       {getSeamLabel(s.seamCode || s.code)}
                       <TooltipIcon text={getSeamDescription(s.seamCode || s.code)} />
+                      {!dynamicSeams?.some(ds => ds.code === (s.seamCode || s.code)) && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200">
+                          Inactive
+                        </span>
+                      )}
                       {(s.verificationTier === 'EVIDENCE_BACKED' || s.verificationTier === 'VERIFIED') && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
                           <CheckCircle className="h-3 w-3" /> AI Verified

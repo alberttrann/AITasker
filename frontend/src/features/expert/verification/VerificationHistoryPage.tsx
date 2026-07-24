@@ -3,19 +3,7 @@ import { CheckCircle2, XCircle, Clock, Lock, ArrowLeft } from 'lucide-react';
 import { formatSeamCode } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-
-const SEAM_LABELS: Record<string, string> = {
-  'A↔B': 'Applied Agents',
-  'A↔C': 'Prompt Engineering Apps',
-  'A↔D': 'Fine-Tuned Apps',
-  'A↔F': 'Production LLMs',
-  'B↔E': 'Agents with Memory',
-  'C↔E': 'Retrieval Prompting',
-  'C↔F': 'PromptOps',
-  'D↔E': 'Fine-Tuned RAG',
-  'D↔F': 'MLOps for LLMs',
-  'E↔F': 'Scalable RAG',
-};
+import { useSeams } from '@/hooks/use-config';
 
 const STATUS_CONFIG = {
   APPROVED: {
@@ -45,7 +33,13 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function VerificationHistoryPage() {
   const { data: submissions = [], isLoading } = useMyPortfolioSubmissions();
+  const { data: dynamicSeams } = useSeams();
   const navigate = useNavigate();
+
+  const getSeamLabel = (code: string) => {
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam ? seam.name : code;
+  };
 
   if (isLoading) {
     return (
@@ -102,7 +96,7 @@ export default function VerificationHistoryPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 mb-1">
-                    {formatSeamCode(SEAM_LABELS[sub.seamClaim.seamCode] ?? sub.seamClaim.seamCode)}
+                    {formatSeamCode(getSeamLabel(sub.seamClaim.seamCode))}
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Submitted {formatDate(sub.createdAt)}

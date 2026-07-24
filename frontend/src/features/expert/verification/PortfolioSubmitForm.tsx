@@ -8,8 +8,10 @@ import { AlertTriangle, ChevronRight, FileText, Plus, Search, Send, X, AlertCirc
 import { ConfirmModal } from '@/components/ui/modal';
 import { formatSeamCode } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { useSeams } from '@/hooks/use-config';
 
 export default function PortfolioSubmitForm() {
+  const { data: dynamicSeams } = useSeams();
   const [eligibleSeams, setEligibleSeams] = useState<any[]>([]);
   const [selectedSeamId, setSelectedSeamId] = useState<string>('');
   const [description, setDescription] = useState('');
@@ -25,30 +27,24 @@ export default function PortfolioSubmitForm() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const getSeamLabel = (code: string) => {
-    const map: Record<string, string> = {
-      'A↔B': 'Applied Agents',
-      'A↔C': 'Prompt Engineering Apps',
-      'A↔D': 'Fine-Tuned Apps',
-      'A↔F': 'Production LLMs',
-      'B↔E': 'Agents with Memory',
-      'C↔E': 'Retrieval Prompting',
-      'C↔F': 'PromptOps',
-      'D↔E': 'Fine-Tuned RAG',
-      'D↔F': 'MLOps for LLMs',
-      'E↔F': 'Scalable RAG',
-    };
-    return map[code] || code;
+    const seam = dynamicSeams?.find(s => s.code === code);
+    return seam ? seam.name : code;
   };
 
   useEffect(() => {
-    if (profile?.seamClaims) {
+    if (profile?.seamClaims && dynamicSeams) {
+      // Normalize all active codes from CMS to use '↔' consistently
+      const activeSeamCodes = new Set(dynamicSeams.map((ds: any) => formatSeamCode(ds.code)));
+      
       const eligible = profile.seamClaims.filter(
-        (s: any) => s.verificationTier === 'CLAIMED' && 
-          (!s.lockedUntil || new Date(s.lockedUntil) < new Date())
+        (s: any) => 
+          s.verificationTier === 'CLAIMED' && 
+          (!s.lockedUntil || new Date(s.lockedUntil) < new Date()) &&
+          activeSeamCodes.has(formatSeamCode(s.seamCode || s.code)) // Safely check against normalized code
       );
       setEligibleSeams(eligible);
     }
-  }, [profile, resultView]);
+  }, [profile, resultView, dynamicSeams]);
 
   const handleOpenModal = () => {
     if (!selectedSeamId) {

@@ -284,9 +284,9 @@ export default function TechTeamMilestoneDetail() {
               })()}
 
               {/* Paygated technical documents released to Tech Team */}
-              {isApproved && paygatedDocs && paygatedDocs.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Technical Deliverables & Code</h3>
+              {paygatedDocs && paygatedDocs.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Technical Vault (Pay-Gated)</h3>
                   <div className="bg-emerald-50/30 border border-emerald-200/50 rounded-xl p-5 space-y-4">
                     <p className="text-xs text-slate-500">
                       These technical documents were released upon milestone approval.

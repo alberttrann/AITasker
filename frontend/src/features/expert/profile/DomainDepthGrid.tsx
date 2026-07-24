@@ -18,11 +18,30 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
   const { saveDomains } = useExpertProfile();
   const [domainStates, setDomainStates] = useState<DomainDepth[]>([]);
 
+  const combinedDomains = React.useMemo(() => {
+    if (!dynamicDomains) return [];
+    const list = [...dynamicDomains];
+    const dynamicCodes = new Set(list.map(d => d.code));
+    
+    (initialDomains || []).forEach((id: any) => {
+      const code = id.domainCode || id.code;
+      if (!dynamicCodes.has(code)) {
+        list.push({
+          code: code,
+          name: code,
+          description: 'This domain is no longer actively offered by the platform, but your legacy claim is preserved.',
+          isLegacy: true
+        } as any);
+      }
+    });
+    return list;
+  }, [dynamicDomains, initialDomains]);
+
   // Initialize state once domains are loaded
   React.useEffect(() => {
-    if (dynamicDomains && domainStates.length === 0) {
+    if (combinedDomains.length > 0 && domainStates.length === 0) {
       setDomainStates(
-        dynamicDomains.map((d) => {
+        combinedDomains.map((d) => {
           const existing = initialDomains.find((id) => id.domainCode === d.code);
           return {
             domainCode: d.code,
@@ -31,7 +50,7 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
         })
       );
     }
-  }, [dynamicDomains, initialDomains]);
+  }, [combinedDomains, initialDomains]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,7 +125,7 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
         </div>
       ) : (
         <div className="grid gap-4">
-          {(dynamicDomains || []).map(domain => {
+          {combinedDomains.map(domain => {
             const currentState = domainStates.find(d => d.domainCode === domain.code);
             const isSelected = currentState?.depthLevel !== null;
             const lockedBySeam = lockedDomainsRecord[domain.code];
@@ -118,6 +137,11 @@ export default function DomainDepthGrid({ onSave, initialDomains = [], lockedDom
                     <h3 className="font-semibold flex items-center gap-2">
                       {domain.code} &middot; {domain.name}
                       <TooltipIcon text={domain.description} />
+                      {(domain as any).isLegacy && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200">
+                          Inactive
+                        </span>
+                      )}
                       {lockedBySeam && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wide border border-blue-200">
                           <Lock className="h-3 w-3" /> Required for Seam {lockedBySeam}

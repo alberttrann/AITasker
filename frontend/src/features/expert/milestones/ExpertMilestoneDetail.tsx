@@ -452,8 +452,6 @@ export default function ExpertMilestoneDetail() {
                     </div>
                   )}
 
-                  <ReleasedDocsSection milestoneId={milestone.id} />
-
                   {/* Deliverable Submission Panel */}
                   <div className="border-t border-slate-100 pt-6">
                     <DeliverableSubmit
@@ -464,6 +462,8 @@ export default function ExpertMilestoneDetail() {
                   </div>
                 </div>
               )}
+
+              <ReleasedDocsSection milestoneId={milestone.id} />
             </CardContent>
           </Card>
         </div>
