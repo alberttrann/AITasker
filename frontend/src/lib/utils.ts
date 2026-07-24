@@ -92,3 +92,38 @@ export function resolveNotificationLink(
   // SCENARIO 1: Các link hợp lệ sẵn (vd: /expert/inbox/:id) sẽ lọt qua đây và được giữ nguyên
   return link;
 }
+
+/**
+ * Calculates monthly revenue for a given year based on transaction data.
+ * @param transactions Array of transactions containing amount and createdAt fields.
+ * @param year The year to calculate revenue for.
+ * @returns Array of 12 objects { month: string, revenue: number }
+ */
+export function calculateMonthlyRevenue(
+  transactions: { amount: number; createdAt: string | Date }[],
+  year: number
+) {
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+  
+  const monthlyData = months.map(month => ({
+    month,
+    revenue: 0
+  }));
+
+  if (!transactions || !Array.isArray(transactions)) return monthlyData;
+
+  transactions.forEach(tx => {
+    if (!tx.createdAt || typeof tx.amount !== 'number') return;
+    
+    const date = new Date(tx.createdAt);
+    if (date.getFullYear() === year) {
+      const monthIndex = date.getMonth(); // 0 to 11
+      monthlyData[monthIndex].revenue += tx.amount;
+    }
+  });
+
+  return monthlyData;
+}

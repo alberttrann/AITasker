@@ -1,5 +1,15 @@
-import { useState, useEffect } from "react";
-import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/use-admin";
+import { useState, useEffect, useMemo } from "react";
+import { usePlatformSettings, useUpdatePlatformSettings, useAdminTransactions } from "@/hooks/use-admin";
+import { calculateMonthlyRevenue } from "@/lib/utils";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import {
@@ -19,6 +29,13 @@ export default function PlatformSettings() {
 
   const [feePct, setFeePct] = useState<number>(5);
   const [saved, setSaved] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  const { data: transactions } = useAdminTransactions({ type: 'PLATFORM_FEE' });
+
+  const monthlyRevenueData = useMemo(() => {
+    return calculateMonthlyRevenue(transactions || [], selectedYear);
+  }, [transactions, selectedYear]);
 
   // Sync local state when data loads
   useEffect(() => {
@@ -70,7 +87,7 @@ export default function PlatformSettings() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <Settings className="h-8 w-8 text-slate-600" />
-          Platform Settings
+          Platform Revenue
         </h1>
         <p className="text-slate-500 mt-2">
           Configure platform-wide parameters. Changes take effect on the next
@@ -80,15 +97,59 @@ export default function PlatformSettings() {
 
       {/* Platform Wallet Info */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Info className="h-4 w-4" />
-          Platform Wallet
-        </h2>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400">Wallet ID:</span>
-          <code className="text-sm font-mono bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700">
-            {platformWalletId}
-          </code>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            Revenue
+          </h2>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="text-sm border-slate-200 rounded-lg text-slate-700 bg-slate-50"
+          >
+            {[...Array(5)].map((_, i) => {
+              const year = new Date().getFullYear() - i;
+              return (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={monthlyRevenueData}
+              margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                dy={10}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                tickFormatter={(value) => `₫${(value / 1000000).toFixed(0)}M`}
+              />
+              <Tooltip 
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                formatter={(value: number) => [new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value), 'Revenue']}
+              />
+              <Bar 
+                dataKey="revenue" 
+                fill="#10b981" 
+                radius={[4, 4, 0, 0]}
+                maxBarSize={50}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

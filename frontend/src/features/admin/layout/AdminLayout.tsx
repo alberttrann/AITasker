@@ -14,6 +14,7 @@ import {
   Award,
   Briefcase,
   Handshake,
+  Banknote,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -60,9 +61,9 @@ const NAV_ITEMS = [
     icon: Award, // Note: import Award from lucide-react
   },
   {
-    label: "Platform Settings",
+    label: "Platform Revenue",
     path: "/admin/settings",
-    icon: Settings,
+    icon: Banknote,
   },
   {
     label: "Ledger",

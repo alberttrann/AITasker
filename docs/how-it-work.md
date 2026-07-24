@@ -319,4 +319,22 @@ The `SocketProvider` (`src/lib/socket-provider.tsx`) sits near the root of the R
 - `WidgetMetric` stays in `Widget.tsx` (component-specific prop with unique fields: `id`, `trend`, `href`).
 - `FilterTab` stays in `AdminTableToolbar.tsx` (used only internally).
 
+## 23. Admin Analytics & Revenue Visualization
+- **Dynamic Revenue Charting (`PlatformSettings.tsx`)**:
+  - The Admin Platform Revenue page integrates real-time platform earnings charting using Recharts.
+  - Instead of creating a redundant backend endpoint, the frontend directly leverages the existing `useAdminTransactions` hook, passing `{ type: 'PLATFORM_FEE' }` to query all collected escrow fees.
+  - The raw transaction data is aggregated locally on the frontend via a pure helper function (`calculateMonthlyRevenue` in `lib/utils.ts`). This function maps the raw data into 12 monthly buckets for any selected year, dynamically updating the column chart without requiring backend structural changes.
+- **Chart Cleanup (`AnalyticsDashboard.tsx`)**:
+  - Unused or low-value charts (like "Active Projects by Archetype & Tier") have been fully excised from the codebase, including all of their underlying `useMemo` formatting logic and `recharts` imports, to ensure the UI remains clean and focused.
+
+## 24. CEO Project State & Direct Service UI Alignment
+- **Unblocking Closed/Suspended Projects (`ProjectsPage.tsx`)**:
+  - The "View Details" action button on the main CEO dashboard no longer arbitrarily disables itself when a project is `CLOSED` or `SUSPENDED`. This guarantees the CEO always retains access to historical invoices and project workspaces.
+- **State Inference in Project Detail (`ProjectDetailPage.tsx`)**:
+  - The logic defining `connectedEngagement` was expanded to explicitly recognize `CLOSED` and `DISPUTED` states, as well as `SERVICE_PURCHASE` type engagements. This ensures the UI properly surfaces the "Go to Workspace" button for completed engagements, rather than erroneously reverting to a "Review & Sign NDA" state.
+- **Direct Service UI Cleanup**:
+  - When the CEO views a Direct Service (identified definitively by the presence of `connectedEngagement.serviceId`), the UI intentionally hides the "View NDA" button and the "Business Intent" module. Since services operate on pre-defined scopes and terms accepted at checkout, these components (which belong exclusively to custom-negotiated bid projects) are suppressed to reduce visual clutter and prevent context confusion.
+- **Defensive Rendering (`getDomainName`, `getSeamName`)**:
+  - Direct services occasionally persist domain/seam mappings as flat strings rather than complex objects. The lookup utilities in `ProjectDetailPage.tsx` enforce strict type checking and null-safety to prevent React application crashes when attempting to parse arrays of strings.
+
 *(This document is a living record and will be expanded as we touch more components.)*
