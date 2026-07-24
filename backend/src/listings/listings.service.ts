@@ -446,6 +446,7 @@ export class ListingsService {
       include: {
         service: true,
         milestones: true,
+        expert: { select: { fullName: true } }
       },
       orderBy: { id: 'desc' },
     });

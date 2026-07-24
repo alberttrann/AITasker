@@ -62,6 +62,43 @@ export default function TechTeamMilestoneDetail() {
   const isRevisionPhase = milestone.state === "IN_REVISION";
   const isApproved = milestone.state === "APPROVED" || milestone.state === "RELEASED";
   const isDisputed = milestone.state === "DISPUTED";
+  
+  const approvedSettlement = isSettlementError
+    ? "UNKNOWN"
+    : settlementOutcome ?? "EXPERT_RELEASED";
+  const settlementText = getSettlementCopy(approvedSettlement, "CLIENT");
+  const settlementCopy = approvedSettlement === "CLIENT_REFUNDED"
+    ? {
+        ...settlementText,
+        wrapperClass: "bg-emerald-50 border-emerald-100 text-emerald-900",
+        iconClass: "text-emerald-600",
+        bodyClass: "text-emerald-800",
+        icon: RotateCcw,
+      }
+    : approvedSettlement === "SPLIT"
+      ? {
+          ...settlementText,
+          wrapperClass: "bg-amber-50 border-amber-200 text-amber-900",
+          iconClass: "text-amber-600",
+          bodyClass: "text-amber-800",
+          icon: Scale,
+        }
+      : approvedSettlement === "UNKNOWN" || approvedSettlement === "FUNDS_HELD" || approvedSettlement === "FUNDS_FROZEN"
+        ? {
+            ...settlementText,
+            wrapperClass: "bg-slate-50 border-slate-200 text-slate-900",
+            iconClass: "text-slate-500",
+            bodyClass: "text-slate-700",
+            icon: AlertTriangle,
+          }
+        : {
+            ...settlementText,
+            wrapperClass: "bg-emerald-50 border-emerald-100 text-emerald-900",
+            iconClass: "text-emerald-600",
+            bodyClass: "text-emerald-800",
+            icon: CheckCircle2,
+          };
+  const SettlementIcon = settlementCopy.icon;
 
   // List of milestones to switch between
   const milestones = engagement?.milestones ?? [];
@@ -222,13 +259,11 @@ export default function TechTeamMilestoneDetail() {
               )}
 
               {isApproved && (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3 text-emerald-900">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
+                <div className={`${settlementCopy.wrapperClass} border rounded-xl p-4 flex gap-3`}>
+                  <SettlementIcon className={`w-5 h-5 shrink-0 mt-0.5 ${settlementCopy.iconClass}`} />
                   <div className="text-sm">
-                    <p className="font-bold">Milestone Approved & Released</p>
-                    <p className="text-emerald-800">
-                      All criteria have been signed off. Escrow funds have been successfully disbursed to the Expert.
-                    </p>
+                    <p className="font-bold">{settlementCopy.title}</p>
+                    <p className={settlementCopy.bodyClass}>{settlementCopy.body}</p>
                   </div>
                 </div>
               )}

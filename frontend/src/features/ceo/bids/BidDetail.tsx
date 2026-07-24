@@ -7,11 +7,14 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useBid } from '@/hooks/use-bids';
 import { formatVND } from '@/lib/utils';
 import CounterOfferPanel from './CounterOfferPanel';
+import CeoNdaClickThrough from '../connection/NdaClickThrough';
+import { Modal } from '@/components/ui/modal';
 
 export default function BidDetail() {
   const { projectId, bidId } = useParams<{ projectId: string; bidId: string }>();
   const navigate = useNavigate();
   const [showCounter, setShowCounter] = useState(false);
+  const [showNdaModal, setShowNdaModal] = useState(false);
   const { data: bid, isLoading, error, refetch } = useBid(bidId ?? '', { refetchInterval: 5_000 });
 
   if (isLoading) return <div className="flex justify-center py-24"><Spinner size="xl" /></div>;
@@ -27,7 +30,8 @@ export default function BidDetail() {
 
   const offer = bid.acceptedOffer ?? bid.currentOffer;
   const canAct = bid.nextActionBy === 'CEO' && bid.negotiationState === 'AWAITING_CEO';
-  const canRevise = bid.technicalReview?.status === 'REVISION_REQUESTED' && bid.currentOffer?.proposerRole === 'CEO';
+  // CEO never revises tech terms; they either Accept or Counter the price. Tech revisions are for Experts only.
+  const canRevise = false;
   const total = offer?.milestones.reduce((sum, milestone) => sum + (milestone.price_vnd ?? 0), 0) ?? 0;
   const engagementId = bid.engagementId || bid.engagement?.id;
 
@@ -82,9 +86,19 @@ export default function BidDetail() {
       {bid.termsLocked && engagementId ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" /><div className="flex-1"><h2 className="font-semibold text-emerald-900">Commercial terms accepted</h2><p className="mt-1 text-sm text-emerald-700">Milestones are created and immutable. Both parties must sign the NDA before funding.</p></div></div>
-          <Button id="btn-open-ceo-nda" variant="primary" className="mt-4 cursor-pointer" onClick={() => navigate(`/ceo/engagements/${engagementId}/nda`)}>Sign / view NDA</Button>
+          <Button id="btn-open-ceo-nda" variant="primary" className="mt-4 cursor-pointer" onClick={() => setShowNdaModal(true)}>Sign / view NDA</Button>
         </div>
       ) : null}
+
+      <Modal
+        isOpen={showNdaModal}
+        onClose={() => setShowNdaModal(false)}
+        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+      >
+        <div className="h-[80vh] overflow-y-auto">
+          <CeoNdaClickThrough />
+        </div>
+      </Modal>
     </div>
   );
 }

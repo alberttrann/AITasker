@@ -16,12 +16,15 @@ import {
 import { useEngagement } from '@/hooks/use-engagements';
 import { formatVND } from '@/lib/utils';
 import CounterOfferPanel from '@/features/ceo/bids/CounterOfferPanel';
+import ExpertNdaClickThrough from '../connection/NdaClickThrough';
+import { Modal } from '@/components/ui/modal';
 
 export default function CounterOfferReceived() {
   const { engagementId } = useParams<{ engagementId: string }>();
   const navigate = useNavigate();
   const [showCounter, setShowCounter] = useState(false);
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [showNdaModal, setShowNdaModal] = useState(false);
   const { data: engagement, isLoading: engagementLoading, error: engagementError } = useEngagement(engagementId);
   const bidId = engagement?.capabilityBid?.id ?? '';
   const { data: bid, isLoading: bidLoading, error: bidError } = useBid(bidId, { refetchInterval: 5_000 });
@@ -103,7 +106,17 @@ export default function CounterOfferReceived() {
         </div>
       ) : null}
 
-      {bid.termsLocked ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-sm text-emerald-800">The accepted milestones are immutable. NDA completion unlocks funding and execution.</p><Button id="btn-open-expert-nda" variant="primary" className="mt-3 cursor-pointer" onClick={() => navigate(`/expert/engagements/${engagementId}/nda`)}>Sign / view NDA</Button></div> : null}
+      {bid.termsLocked ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-sm text-emerald-800">The accepted milestones are immutable. NDA completion unlocks funding and execution.</p><Button id="btn-open-expert-nda" variant="primary" className="mt-3 cursor-pointer" onClick={() => setShowNdaModal(true)}>Sign / view NDA</Button></div> : null}
+
+      <Modal
+        isOpen={showNdaModal}
+        onClose={() => setShowNdaModal(false)}
+        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+      >
+        <div className="h-[80vh] overflow-y-auto">
+          <ExpertNdaClickThrough />
+        </div>
+      </Modal>
 
       <ConfirmModal
         isOpen={showWithdrawConfirm}

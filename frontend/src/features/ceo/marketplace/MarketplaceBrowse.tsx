@@ -4,10 +4,11 @@ import { useMarketplaceProjects } from '@/hooks/use-projects';
 import { useExpertSearch, useExpertProfile } from '@/hooks/use-expert-profile';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle, FolderOpen } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle, FolderOpen, Receipt } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatVND } from '@/lib/utils';
+import { DataTable } from '@/components/layout/Table';
 
 export default function MarketplaceBrowse() {
   const navigate = useNavigate();
@@ -257,83 +258,50 @@ export default function MarketplaceBrowse() {
         </div>
       )}
 
-      {/* Tab 3: PURCHASES */}
+      {/* Tab 3: PURCHASES (Order Ledger) */}
       {isClient && activeTab === 'PURCHASES' && (
         <div className="animate-in fade-in duration-300">
           {isLoadingPurchases ? (
             <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
-          ) : purchases?.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {purchases.map((purchase: any) => {
-                const isPending = purchase.state === 'PENDING';
-                const service = purchase.service || {};
-
-                return (
-                  <div key={purchase.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
-                    <div className="flex items-center justify-between gap-2 mb-4">
-                      <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider rounded-md">
-                        {service.serviceType === 'AI_SERVICE' ? 'AI Build' : 'Discovery'}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        isPending ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}>
-                        {isPending ? 'Pending Payment' : 'Active'}
-                      </span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">{service.title || 'Service Listing'}</h3>
-                    <p className="text-slate-400 text-xs mb-6">Order ID: <code className="font-mono text-[10px] select-all bg-slate-50 px-1 py-0.5 rounded border border-slate-100">{purchase.id}</code></p>
-
-                    <div className="border-t border-slate-100 pt-4 mt-auto space-y-3">
-                      <div className="flex justify-between items-center text-sm mb-2">
-                        <span className="text-slate-400">Total Escrow</span>
-                        <span className="font-bold text-slate-800">
-                          {service.priceVnd ? `${service.priceVnd.toLocaleString('vi-VN')} ₫` : '0 ₫'}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        {isPending ? (
-                          <Button
-                            onClick={() => handlePayNow(purchase.serviceId)}
-                            disabled={purchaseMutation.isPending}
-                            variant="primary"
-                            size="sm"
-                            className="w-full gap-1.5 justify-center"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" /> Pay Now
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => navigate(`/ceo/engagements/${purchase.id}/milestones`)}
-                            variant="primary"
-                            size="sm"
-                            className="w-full gap-1.5 justify-center"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" /> Milestones
-                          </Button>
-                        )}
-
-                        <Button
-                          onClick={() => navigate(`/ceo/engagements/${purchase.id}/messages`)}
-                          variant="outline"
-                          size="sm"
-                          className="w-full gap-1.5 justify-center text-slate-600"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" /> Chat
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           ) : (
-            <div className="text-center py-24 bg-white border border-slate-200 rounded-2xl">
-              <CreditCard className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-slate-900 mb-2">No Purchased Services</h3>
-              <p className="text-slate-500">You haven't bought any ready-to-buy services yet.</p>
-            </div>
+            <DataTable
+              columns={[
+                { key: 'id', label: 'Order ID', render: (p: any) => <code className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">{p.id.slice(0, 8).toUpperCase()}</code> },
+                { key: 'service', label: 'Service', render: (p: any) => (
+                  <div className="max-w-[250px]">
+                    <div className="font-bold text-slate-900 text-sm truncate">{p.service?.title || 'Deleted Service'}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">By {p.expert?.fullName || 'Expert'}</div>
+                  </div>
+                )},
+                { key: 'date', label: 'Date', render: (p: any) => <span className="text-xs text-slate-500 font-medium">{new Date(p.createdAt || p.updatedAt || p.connectedAt).toLocaleDateString()}</span> },
+                { key: 'amount', label: 'Escrow Amount', render: (p: any) => <span className="font-bold text-emerald-600">{formatVND(p.service?.priceVnd || 0)}</span> },
+                { key: 'status', label: 'Status', render: (p: any) => {
+                  const isPending = p.state === 'PENDING';
+                  return <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${isPending ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{isPending ? 'Pending Payment' : 'Active'}</span>;
+                }},
+                { key: 'actions', label: '', render: (p: any) => (
+                  <div className="flex justify-end gap-2">
+                    {p.state === 'PENDING' ? (
+                      <Button size="sm" onClick={() => handlePayNow(p.serviceId)} className="gap-1.5"><CreditCard size={14} /> Pay Now</Button>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/ceo/engagements/${p.id}/messages`)} className="gap-1.5 text-slate-600"><MessageSquare size={14} /> Chat</Button>
+                        <Button size="sm" onClick={() => navigate(`/ceo/engagements/${p.id}/milestones`)}>Workspace</Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              ]}
+              data={purchases || []}
+              keyExtractor={(p: any) => p.id}
+              emptyState={
+                <div className="text-center py-24 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col items-center justify-center">
+                  <Receipt className="w-12 h-12 text-slate-300 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">No Orders Found</h3>
+                  <p className="text-slate-500 text-sm">You haven't purchased any ready-to-buy services yet.</p>
+                </div>
+              }
+            />
           )}
         </div>
       )}

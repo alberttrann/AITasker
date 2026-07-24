@@ -21,21 +21,25 @@ export default function DodItemRow({ item, milestoneId, onUpdateStatus, isUpdati
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     setValidationError("");
-    if (checked) {
-      if (item.isRequired) {
-        setPendingStatus("COMPLETED");
-        setNote(item.completionNote || "");
-        setShowNoteInput(true);
-      } else {
-        // Optional item: default to COMPLETED without note if they just check it
-        // but we can ask for note optionally or just set it
-        setPendingStatus("COMPLETED");
-        setNote(item.completionNote || "");
-        setShowNoteInput(true);
-      }
-    } else {
-      // Revert to PENDING
+    
+    // INSTANT UNCHECK: If they uncheck, immediately revert to PENDING and hide inputs
+    if (!checked) {
+      setShowNoteInput(false);
+      setPendingStatus(null);
+      setNote("");
       onUpdateStatus(item.id, "PENDING", "");
+      return;
+    }
+
+    if (item.isRequired) {
+      setPendingStatus("COMPLETED");
+      setNote(item.completionNote || "");
+      setShowNoteInput(true);
+    } else {
+      // Optional item: default to COMPLETED without note if they just check it
+      setPendingStatus("COMPLETED");
+      setNote(item.completionNote || "");
+      setShowNoteInput(true);
     }
   };
 

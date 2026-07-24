@@ -75,11 +75,12 @@ export function useDeleteDodItem() {
       return data;
     },
     onSuccess: (_data, variables) => {
+      // Invalidate both the specific milestone and the global milestone list for instant UI updates
       queryClient.invalidateQueries({
         queryKey: ["milestones", variables.milestoneId],
       });
       queryClient.invalidateQueries({
-        queryKey: ["milestones", variables.milestoneId, "dod"],
+        queryKey: ["milestones"],
       });
     },
   });

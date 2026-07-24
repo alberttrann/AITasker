@@ -679,22 +679,25 @@ export default function MessageThread({
                     )}
 
                     <div
-                      className={`w-fit max-w-full p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                        isMe
-                          ? "bg-emerald-600 text-white rounded-br-none"
-                          : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60"
-                      }`}
-                    >
-                      <p className="break-words whitespace-pre-wrap">
-                        {msg.content}
-                      </p>
-                    </div>
-                    <p
-                      className={`text-[10px] text-slate-400 font-medium ${isMe ? "text-right" : "text-left"}`}
-                    >
-                      {msg.timestamp ? formatTime(msg.timestamp) : ""}
+                    className={`w-fit max-w-full p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                      isMe
+                        ? "bg-emerald-600 text-white rounded-br-none"
+                        : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60"
+                    }`}
+                  >
+                    <p className="break-words whitespace-pre-wrap">
+                      {msg.content}
                     </p>
                   </div>
+                  <div className={`flex items-center gap-1.5 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      {msg.timestamp ? formatTime(msg.timestamp) : ""}
+                    </p>
+                    {isMe && (
+                       <Check size={12} className="text-emerald-500" title="Sent" />
+                    )}
+                  </div>
+                </div>
                 </div>
               );
             })
@@ -713,7 +716,7 @@ export default function MessageThread({
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={`Message ${peerName}...`}
-            className="flex-1 px-4 py-2.5 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all text-slate-800 shadow-sm"
+            className="flex-1 px-4 py-2.5 bg-white border border-slate-200/80 border-b-2 focus:border-b-emerald-500 rounded-xl text-sm focus:outline-none transition-all text-slate-800 shadow-sm"
           />
           <Button
             type="submit"

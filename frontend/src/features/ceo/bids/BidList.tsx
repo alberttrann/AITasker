@@ -7,12 +7,13 @@ import { useBids } from '@/hooks/use-bids';
 import { formatVND } from '@/lib/utils';
 import type { BidNegotiationState } from '@/types/api.types';
 
-const STATE_LABELS: Record<BidNegotiationState, string> = {
-  AWAITING_TECH_REVIEW: 'Technical review',
-  AWAITING_CEO: 'Your decision',
-  AWAITING_EXPERT: 'Waiting for expert',
-  TERMS_ACCEPTED: 'Terms accepted',
+const STATE_LABELS: Record<BidNegotiationState | string, string> = {
+  AWAITING_TECH_REVIEW: 'Tech Team Reviewing',
+  AWAITING_CEO: 'Needs Your Decision',
+  AWAITING_EXPERT: 'Waiting on Expert',
+  TERMS_ACCEPTED: 'Contract Locked',
   DECLINED: 'Declined',
+  WITHDRAWN: 'Withdrawn by Expert',
 };
 
 export default function BidList() {
@@ -59,7 +60,7 @@ export default function BidList() {
               <Card
                 key={bid.id}
                 id={`card-ceo-bid-${bid.id}`}
-                className="cursor-pointer border-slate-200 transition-all hover:-translate-y-px hover:border-emerald-300 hover:shadow-md"
+                className={`cursor-pointer border-slate-200 transition-all hover:-translate-y-px hover:border-emerald-300 hover:shadow-md ${['DECLINED', 'WITHDRAWN'].includes(bid.state) ? 'opacity-60 grayscale' : ''}`}
                 onClick={() => navigate(`/ceo/projects/${projectId}/bids/${bid.id}`)}
               >
                 <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center">

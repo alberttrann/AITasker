@@ -527,7 +527,7 @@ const RoleIcon =
 
                     {!isPro && (rawRole as string) !== 'TECH_TEAM' && (rawRole as string) !== 'ADMIN' && (
                       <Link
-                        to={`${dashboardRoute}/profile`}
+                        to={`${dashboardRoute}/subscriptions/plans`}
                         onClick={() => setActiveDropdown(null)}
                         className="px-5 py-3 text-sm text-left font-headline font-extrabold text-purple-700 bg-transparent hover:bg-purple-50 transition-colors mx-2 mb-2 rounded-lg flex items-center justify-between"
                       >
@@ -739,6 +739,15 @@ const RoleIcon =
                 >
                   Services
                   {location.pathname === '/expert/service' && (
+                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
+                  )}
+                </Link>
+                <Link 
+                  to={`/expert/service/orders`} 
+                  className={`font-headline text-sm font-semibold transition-colors duration-150 relative py-2 ${location.pathname.includes('/orders') ? 'text-primary' : 'text-secondary hover:text-primary'}`}
+                >
+                  Orders
+                  {location.pathname.includes('/orders') && (
                     <div className="absolute bottom-0 left-0 w-full h-[3px] bg-tertiary rounded-t-full"></div>
                   )}
                 </Link>

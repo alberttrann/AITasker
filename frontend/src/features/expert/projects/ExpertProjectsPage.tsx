@@ -10,6 +10,8 @@ import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X,
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import ExpertNdaClickThrough from "../connection/NdaClickThrough";
 
 // Unified type combining Invitation and Engagement logic
 type UnifiedProject = {
@@ -37,6 +39,7 @@ export default function ExpertProjectsPage() {
   const [activePopupId, setActivePopupId] = useState<string | null>(null);
   const [activeMilestoneId, setActiveMilestoneId] = useState<number | null>(1);
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
+  const [ndaEngagementId, setNdaEngagementId] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -520,7 +523,7 @@ export default function ExpertProjectsPage() {
                           Chat with Client
                         </Button>
                       ) : (
-                        <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/nda`)}>
+                        <Button onClick={() => setNdaEngagementId(selectedProject.engagement?.id || null)}>
                           Sign NDA
                         </Button>
                       )
@@ -859,6 +862,19 @@ export default function ExpertProjectsPage() {
           </div>
         </div>
       )}
+
+      {/* Expert NDA Modal */}
+      <Modal
+        isOpen={!!ndaEngagementId}
+        onClose={() => setNdaEngagementId(null)}
+        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+      >
+        <div className="h-[80vh] overflow-y-auto">
+          {ndaEngagementId && (
+            <ExpertNdaClickThrough engagementId={ndaEngagementId} />
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

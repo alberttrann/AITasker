@@ -168,10 +168,13 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       updateProjectNameInCache(queryClient, data.project_id, data.project_name);
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] }); // Forces detail page refresh
     });
 
+    // Real-time invalidations on mount
     queryClient.invalidateQueries({ queryKey: ['engagements'] });
     queryClient.invalidateQueries({ queryKey: ['bids'] });
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
 
     socket.on('milestone:updated', (data: {
       engagement_id:   string;
