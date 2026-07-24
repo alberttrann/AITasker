@@ -363,11 +363,26 @@ export default function MessageThread({
   // Đảm bảo conversation hiện tại luôn có trong list (fallback safety)
   if (engagementId && !result.find((c: any) => c.id === engagementId)) {
     const currentEngConv = allConversations.find((c: any) => c.id === engagementId);
-    if (currentEngConv) result = [currentEngConv, ...result];
+    if (currentEngConv) {
+      result = [currentEngConv, ...result];
+    } else if (engagement) {
+      // Construct a mock conversation item if it's not in the conversations list yet (e.g. brand new empty chat)
+      const mockConv = {
+        id: engagementId,
+        projectName: (engagement as any).project?.projectName || (engagement as any).service?.title || 'Direct Chat',
+        otherParty: {
+          id: pid,
+          fullName: peerName,
+        },
+        lastMessage: null,
+        unreadCount: 0,
+      };
+      result = [mockConv, ...result];
+    }
   }
   
   return result;
-}, [allConversations, stablePartnerId, engagementId]);
+}, [allConversations, stablePartnerId, engagementId, engagement, peerName]);
 
   const isNested = !!propEngagementId || !!propProjectId;
 
