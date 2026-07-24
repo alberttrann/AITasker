@@ -48,7 +48,10 @@ export function useCeoEngagements(projectId: string | undefined) {
   });
 }
 
-export function useEngagement(engagementId: string | undefined) {
+export function useEngagement(
+  engagementId: string | undefined,
+  options?: { refetchInterval?: number }
+) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery({
@@ -60,6 +63,7 @@ export function useEngagement(engagementId: string | undefined) {
       return data;
     },
     enabled: isAuthenticated && !!engagementId,
+    refetchInterval: options?.refetchInterval,
   });
 }
 

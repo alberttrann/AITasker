@@ -38,6 +38,9 @@ export default function ProjectDetailPage() {
   }, [engagements, project]);
 
   const activeBidsCount = Array.isArray(projectBids) ? projectBids.length : 0;
+  const pendingBidsCount = useMemo(() => {
+    return projectBids.filter((e: any) => e.state === 'PENDING').length;
+  }, [projectBids]);
   const selectedEngagement = Array.isArray(projectBids)
     ? projectBids.find((engagement: any) => engagement.termsLocked || engagement.capabilityBid?.state === 'SELECTED')
     : null;
@@ -286,13 +289,22 @@ export default function ProjectDetailPage() {
                   Review & Sign NDA
                 </button>
               ) : (
-                <Link
-                  id="link-open-selected-engagement-workspace"
-                  to={`/ceo/engagements/${connectedEngagement.id}/milestones`}
-                  className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
-                >
-                  <Target size={18} /> Go to Workspace
-                </Link>
+                <div className="flex items-center gap-3">
+                  <Link
+                    id="link-open-selected-engagement-workspace"
+                    to={`/ceo/engagements/${connectedEngagement.id}/milestones`}
+                    className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-sm"
+                  >
+                    <Target size={18} /> Go to Workspace
+                  </Link>
+                  <button
+                    id="btn-view-signed-nda"
+                    onClick={() => setShowNdaModal(true)}
+                    className="flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                  >
+                    View NDA
+                  </button>
+                </div>
               )}
             </div>
           ) : null}
@@ -312,9 +324,9 @@ export default function ProjectDetailPage() {
                 className="relative flex cursor-pointer items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
               >
                 View Experts bids
-                {activeBidsCount > 0 && (
+                {pendingBidsCount > 0 && (
                   <span className="absolute -top-2 -right-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold leading-none text-white bg-rose-500 rounded-full border-2 border-white shadow-sm">
-                    {activeBidsCount}
+                    {pendingBidsCount}
                   </span>
                 )}
               </Link>
@@ -678,7 +690,7 @@ export default function ProjectDetailPage() {
       <Modal
         isOpen={showNdaModal}
         onClose={() => setShowNdaModal(false)}
-        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+        className="w-full max-w-7xl sm:max-w-7xl p-0 overflow-hidden bg-slate-50"
       >
         <div className="h-[80vh] overflow-y-auto">
           {selectedEngagement && (

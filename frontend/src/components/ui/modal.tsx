@@ -44,10 +44,11 @@ export function Modal({
         onClick={onClose} 
       />
       
-      {/* Modal Content */}
       <div 
         className={cn(
-          "relative w-full max-w-[95vw] sm:w-[448px] sm:max-w-[448px] bg-white rounded-[12px] border border-slate-200 shadow-[0_8px_32px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]",
+          "relative w-full bg-white rounded-[12px] border border-slate-200 shadow-[0_8px_32px_rgba(15,23,42,0.15)] animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]",
+          !className?.includes('max-w-') && "max-w-[95vw]",
+          !className?.includes('w-') && "sm:w-[448px] sm:max-w-[448px]",
           className
         )}
       >
