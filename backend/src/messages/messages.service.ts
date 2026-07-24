@@ -268,6 +268,7 @@ export class MessagesService {
                 clientId: true,
                 expertId: true,
                 project: { select: { projectName: true } },
+                service: { select: { title: true } },
                 expert:  { select: { id: true, fullName: true, email: true } },
                 client:  { select: { id: true, fullName: true, email: true } },
             },
@@ -302,7 +303,7 @@ export class MessagesService {
             return {
                 type:        'engagement',
                 id:          eng.id,
-                projectName: eng.project?.projectName ?? 'Service Purchase Workspace',
+                projectName: eng.project?.projectName ?? eng.service?.title ?? 'Service Purchase Workspace',
                 otherParty: {
                     id: otherParty.id,
                     fullName: otherParty.fullName,

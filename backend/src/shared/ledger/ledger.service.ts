@@ -127,7 +127,7 @@ export class LedgerService {
 
     const expertWallet = await tx.wallet.findUnique({
       where: { id: escrowAccount.expertWalletId },
-      select: { userId: true },
+      select: { id: true, userId: true }, // Phải select id của wallet
     });
 
     if (expertWallet) {
@@ -136,8 +136,10 @@ export class LedgerService {
         select: { sepayBankAccountXid: true },
       });
 
+      // Nếu user đã liên kết ngân hàng -> Tự động tạo lệnh rút tiền
       if (expertUser?.sepayBankAccountXid) {
-        await tx.withdrawalRequest.create({
+        // 1. Tạo request rút tiền
+        const withdrawalReq = await tx.withdrawalRequest.create({
           data: {
             expertId: expertWallet.userId,
             milestoneId: mileStone.id,
@@ -145,6 +147,22 @@ export class LedgerService {
             amount: expertAmount,
             bankAccountXid: expertUser.sepayBankAccountXid,
             status: 'PENDING',
+          },
+        });
+
+        // 2. NGAY LẬP TỨC TRỪ TIỀN khỏi Available Balance (Vì tiền đang trên đường về thẻ ngân hàng)
+        await tx.wallet.update({
+          where: { id: expertWallet.id },
+          data: { availableBalance: { decrement: BigInt(expertAmount) } },
+        });
+
+        // 3. Ghi Log giao dịch rút tiền
+        await tx.walletTransaction.create({
+          data: {
+            walletId: expertWallet.id,
+            amount: BigInt(expertAmount),
+            transactionType: TransactionType.WITHDRAWAL,
+            referenceId: `WD-${withdrawalReq.id}`,
           },
         });
       }
