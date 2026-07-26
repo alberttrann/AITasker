@@ -108,9 +108,8 @@ export class DisputesService {
     });
 
     // Emit dispute:filed to the non-filing party after transaction commits
-    const notifyUserId = engagement.clientId === filerId
-      ? engagement.expertId
-      : engagement.clientId;
+    const notifyUserId =
+      engagement.clientId === filerId ? engagement.expertId : engagement.clientId;
     try {
       this.eventEmitter.emit('socket.broadcast', {
         userId: notifyUserId,
@@ -254,9 +253,7 @@ export class DisputesService {
       await tx.dispute.update({
         where: { id: dispute.id },
         data: {
-          state: context.source === 'ADMIN'
-            ? DisputeState.RESOLVED
-            : DisputeState.AUTO_RESOLVED,
+          state: context.source === 'ADMIN' ? DisputeState.RESOLVED : DisputeState.AUTO_RESOLVED,
           resolution: resolution.decision,
           llmConfidence,
           llmReasoning,
@@ -265,16 +262,15 @@ export class DisputesService {
         },
       });
 
-      await tx.platformDecision.create({  
+      await tx.platformDecision.create({
         data: {
           decisionType: 'DISPUTE_L1_EVAL',
           entityType: 'disputes',
           entityId: dispute.id,
           llmConfidence,
           decision: resolution.decision,
-          advisoryNote: context.source === 'AI'
-            ? llmReasoning
-            : 'Manual resolution by platform administrator.',
+          advisoryNote:
+            context.source === 'AI' ? llmReasoning : 'Manual resolution by platform administrator.',
         },
       });
     });
@@ -384,5 +380,4 @@ export class DisputesService {
       include: includeRelations,
     });
   }
-
 }

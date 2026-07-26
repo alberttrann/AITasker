@@ -105,10 +105,7 @@ export class MessagesController {
   }
   @Get('projects/:id/messages/unread-count')
   @ApiOperation({ summary: 'Get unread count for pre-bid project Q&A thread' })
-  async getProjectUnreadCount(
-    @Param('id') projectId: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async getProjectUnreadCount(@Param('id') projectId: string, @CurrentUser() user: AuthUser) {
     const count = await this.messagesService.projectUnreadCount(projectId, user.id);
     return { unread_count: count };
   }
@@ -116,8 +113,7 @@ export class MessagesController {
   @Post('conversations/:engagementId/read')
   async readEngagement(@Param('engagementId') engagementId: string, @CurrentUser() user: AuthUser) {
     return this.messagesService.markEngagementAsRead(engagementId, user.id);
-  } 
-
+  }
 
   @Post('conversations/read-all')
   async readAll(@CurrentUser() user: AuthUser) {

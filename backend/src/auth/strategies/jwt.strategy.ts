@@ -45,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException();
     }
 
-    // Strict Gate: Reject tokens from unverified users 
+    // Strict Gate: Reject tokens from unverified users
     if (!user.isEmailVerified) {
       throw new UnauthorizedException('EMAIL_UNVERIFIED');
     }

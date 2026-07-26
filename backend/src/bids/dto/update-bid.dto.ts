@@ -12,13 +12,13 @@ import {
 } from 'class-validator';
 
 enum DomainDepth {
-  SURFACE     = 'SURFACE',
+  SURFACE = 'SURFACE',
   OPERATIONAL = 'OPERATIONAL',
-  DEEP        = 'DEEP',
+  DEEP = 'DEEP',
 }
 
 enum VerifyTier {
-  CLAIMED         = 'CLAIMED',
+  CLAIMED = 'CLAIMED',
   EVIDENCE_BACKED = 'EVIDENCE_BACKED',
 }
 
@@ -53,16 +53,21 @@ class FootprintAlignment {
 }
 
 class ConditionalPrice {
-  @IsInt() @IsPositive()
+  @IsInt()
+  @IsPositive()
   milestone_number: number;
 
-  @IsInt() @IsPositive()
+  @IsInt()
+  @IsPositive()
   price_vnd: number;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   condition: string;
 
-  @IsInt() @IsPositive() @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
   estimated_duration_days?: number;
 }
 
@@ -71,7 +76,8 @@ export class UpdateBidDto {
   @Type(() => FootprintAlignment)
   footprint_alignment_json: FootprintAlignment;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   approach_summary: string;
 
   @IsArray()

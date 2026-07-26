@@ -72,7 +72,12 @@ export class IpnHandlerService {
       }
     });
 
-    if (userVirtualAccount.entityType === VAEntityType.MILESTONE && result && 'success' in result && (result as any).message !== 'Already processed') {
+    if (
+      userVirtualAccount.entityType === VAEntityType.MILESTONE &&
+      result &&
+      'success' in result &&
+      (result as any).message !== 'Already processed'
+    ) {
       const milestone = await this.prisma.milestone.findUnique({
         where: { id: userVirtualAccount.entityId },
         include: {
@@ -89,10 +94,7 @@ export class IpnHandlerService {
       if (milestone) {
         try {
           const engagement = milestone.engagement;
-          const recipientIds = new Set<string>([
-            engagement.clientId,
-            engagement.expertId,
-          ]);
+          const recipientIds = new Set<string>([engagement.clientId, engagement.expertId]);
 
           if (engagement.projectId) {
             const techProfiles = await this.prisma.techTeamProfile.findMany({
@@ -383,7 +385,7 @@ export class IpnHandlerService {
 
     await tx.engagement.update({
       where: { id: engagement.id },
-      data: { 
+      data: {
         state: EngagementState.ACTIVE,
         projectId: serviceProject.id,
       },

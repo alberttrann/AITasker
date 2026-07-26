@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # Fallback archetype codes for Stage 1 response validation when DB list is empty
 _DEFAULT_ARCHETYPE_CODES = {"1", "2", "3", "4", "5", "6"}
 
+_DEFAULT_DOMAIN_CODES = {"A", "B", "C", "D", "E", "F"} 
 
 async def stage1_extract(request: Stage1Request) -> Stage1Response:
     """
@@ -237,7 +238,7 @@ async def stage5_synthesize(request: Stage5Request) -> Stage5Response:
         system += (
             "\n\nIMPORTANT CONTEXT: The user is a non-technical business executive. "
             "Ensure artifact_a_json.sdlc_notices and milestone deliverable_statements "
-            "are written in clear, accessible business language."
+            "are written in clear, accessible business language, avoiding deep architectural jargon."
         )
 
     user_prompt = _build_stage5_prompt(request)
@@ -353,10 +354,11 @@ def _validate_stage5_response(raw: dict, request: Stage5Request) -> Stage5Respon
 
     valid_depths = {"SURFACE", "OPERATIONAL", "DEEP"}
     # accept any non-empty domain code (DB is now the authority)
+    valid_domain_codes = {d["code"] for d in request.domains} if request.domains else _DEFAULT_DOMAIN_CODES
     domains = [
         {"domain_code": d["domain_code"], "required_depth": d.get("required_depth", "SURFACE")}
         for d in raw.get("required_domains_json", [])
-        if isinstance(d, dict) and d.get("domain_code") and d.get("required_depth") in valid_depths
+        if isinstance(d, dict) and d.get("domain_code") in valid_domain_codes and d.get("required_depth") in valid_depths
     ]
 
     valid_authorities = {"CEO", "TECH_TEAM", "JOINT"}
@@ -375,12 +377,15 @@ def _validate_stage5_response(raw: dict, request: Stage5Request) -> Stage5Respon
     ]
 
     valid_tiers = {"TIER_1", "TIER_2", "TIER_3"}
+    valid_archetypes = {a["code"] for a in request.archetypes} if request.archetypes else _DEFAULT_ARCHETYPE_CODES
     # accept any non-empty archetype code
     raw_a = raw.get("artifact_a_json", {}) or {}
+    raw_archetype = str(raw_a.get("archetype", request.stage2_archetype))
+    final_archetype = raw_archetype if raw_archetype in valid_archetypes else request.stage2_archetype
     artifact_a = {
         "project_name":    str(raw_a.get("project_name", "AI Project")),
         "business_intent": str(raw_a.get("business_intent", "")),
-        "archetype":       str(raw_a.get("archetype", request.stage2_archetype)),
+        "archetype":       final_archetype,
         "stack_tags":      raw_a.get("stack_tags", []) if isinstance(raw_a.get("stack_tags"), list) else [],
         "volume_tier":     raw_a.get("volume_tier", "TIER_1") if raw_a.get("volume_tier") in valid_tiers else "TIER_1",
         "sdlc_notices":    raw_a.get("sdlc_notices", []) if isinstance(raw_a.get("sdlc_notices"), list) else [],
@@ -423,21 +428,23 @@ def _validate_stage5_response(raw: dict, request: Stage5Request) -> Stage5Respon
 async def milestone_chat(request: MilestoneChatRequest) -> MilestoneChatResponse:
     system_template = await get_rendered_prompt("milestone_chat", {})
     lock_status = "true" if request.terms_locked else "false"
+    
     runtime_lock_directive = (
         "RUNTIME CONTRACT LOCK: terms_locked=true. The accepted milestone contract is "
         "immutable. Answer read-only questions, but refuse all milestone mutations and never "
-        "emit an edit_suggestion block. A DEFINED milestone is still locked."
+        "populate the suggested_edit object. A DEFINED milestone is still locked."
         if request.terms_locked
         else
         "RUNTIME CONTRACT LOCK: terms_locked=false. Apply the milestone state gates before "
         "suggesting any edit."
     )
+    
     runtime_format_directive = (
-        "VISIBLE RESPONSE FORMAT: Return plain text only. Do not use Markdown headings, bold, "
+        "VISIBLE RESPONSE FORMAT: For the 'reply' field, return plain text only. Do not use Markdown headings, bold, "
         "italics, inline code, tables, links, or visible fenced blocks. Do not expose internal "
-        "field names such as terms_locked. The hidden edit_suggestion block is the only allowed "
-        "formatting exception because the application removes it before display."
+        "field names such as terms_locked. Say 'the accepted milestone contract is locked' instead."
     )
+    
     system = (
         system_template
         .replace("{artifact_a}",          _json.dumps(request.artifact_a, ensure_ascii=False, indent=2))
@@ -451,20 +458,20 @@ async def milestone_chat(request: MilestoneChatRequest) -> MilestoneChatResponse
         system=system,
         messages=request.conversation_history,
         max_output_tokens=1024,
+        json_mode=True, 
     )
 
+    reply_text = ""
     suggested_edit = None
-    fence_match = _re.search(r"```edit_suggestion\s*(\{.*?\})\s*```", raw_reply, _re.DOTALL)
-    if fence_match:
-        try:
-            suggested_edit = _json.loads(fence_match.group(1))
-        except _json.JSONDecodeError:
-            pass
-        raw_reply = _re.sub(r"```edit_suggestion.*?```", "", raw_reply, flags=_re.DOTALL).strip()
+    
+    try:
+        data = _json.loads(raw_reply)
+        reply_text = data.get("reply", "")
+        suggested_edit = data.get("suggested_edit")
+    except _json.JSONDecodeError:
+        reply_text = "I encountered an error formatting my response. Please try again."
 
-    # Defense in depth: prompt text may be DB-managed and LLM output is not a
-    # security boundary. Never forward a mutation proposal for accepted terms.
     if request.terms_locked:
         suggested_edit = None
 
-    return MilestoneChatResponse(reply=raw_reply, suggested_edit=suggested_edit)
+    return MilestoneChatResponse(reply=reply_text, suggested_edit=suggested_edit)

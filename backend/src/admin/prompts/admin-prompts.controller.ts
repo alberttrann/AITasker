@@ -21,17 +21,22 @@ export class AdminPromptsController {
 
   @Get()
   @ApiOperation({ summary: 'List all DB-stored prompt templates' })
-  listPrompts() { return this.svc.listPrompts(); }
+  listPrompts() {
+    return this.svc.listPrompts();
+  }
 
   @Get(':stage')
   @ApiOperation({ summary: 'Get full template text for a stage' })
-  getPrompt(@Param('stage') stage: string) { return this.svc.getPrompt(stage); }
+  getPrompt(@Param('stage') stage: string) {
+    return this.svc.getPrompt(stage);
+  }
 
   @Put(':stage')
   @ApiOperation({
     summary: 'Create or update a prompt template',
-    description: 'Use Jinja2 `{{ variable }}` syntax for dynamic values. '
-      + 'Changes take effect within 60 seconds (FastAPI cache TTL).',
+    description:
+      'Use Jinja2 `{{ variable }}` syntax for dynamic values. ' +
+      'Changes take effect within 60 seconds (FastAPI cache TTL).',
   })
   upsertPrompt(@Param('stage') stage: string, @Body() dto: UpsertPromptDto) {
     return this.svc.upsertPrompt(stage, dto);
@@ -39,5 +44,7 @@ export class AdminPromptsController {
 
   @Delete(':stage')
   @ApiOperation({ summary: 'Reset stage to default .txt file (removes DB override)' })
-  resetToDefault(@Param('stage') stage: string) { return this.svc.resetToDefault(stage); }
+  resetToDefault(@Param('stage') stage: string) {
+    return this.svc.resetToDefault(stage);
+  }
 }

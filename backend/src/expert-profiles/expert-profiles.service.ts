@@ -176,7 +176,12 @@ export class ExpertProfileService {
     });
   }
 
-  async searchExperts(filters: { domain?: string; seam?: string; archetype?: string; limit?: number }) {
+  async searchExperts(filters: {
+    domain?: string;
+    seam?: string;
+    archetype?: string;
+    limit?: number;
+  }) {
     const where: any = {
       expertProfile: { isNot: null }, // Only return users who actually have an expert profile
     };
@@ -196,9 +201,9 @@ export class ExpertProfileService {
         expertSeamClaims: { select: { seamCode: true, verificationTier: true } },
       },
     });
-    
+
     // Map to the flat structure the frontend expects
-    return users.map(u => ({
+    return users.map((u) => ({
       userId: u.id,
       id: u.id,
       bio: u.expertProfile?.bio,
@@ -224,11 +229,18 @@ export class ExpertProfileService {
       this.prisma.expertSeamClaim.findMany({ where: { expertId: expertUserId } }),
       this.prisma.review.aggregate({
         where: { targetId: expertUserId },
-        _avg: { rating: true }, _count: true,
+        _avg: { rating: true },
+        _count: true,
       }),
     ]);
 
-    return { profile, domainDepths, seamClaims, avgRating: reviews._avg.rating, reviewCount: reviews._count };
+    return {
+      profile,
+      domainDepths,
+      seamClaims,
+      avgRating: reviews._avg.rating,
+      reviewCount: reviews._count,
+    };
   }
 
   async getMyDomains(userId: string) {

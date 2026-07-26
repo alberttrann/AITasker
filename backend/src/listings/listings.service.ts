@@ -27,7 +27,7 @@ export class ListingsService {
     private readonly prisma: PrismaService,
     private readonly fastapiClient: FastapiClient,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   async list(filter: ListServicesFilterDto) {
     const where: any = {
@@ -84,7 +84,7 @@ export class ListingsService {
 
     const isOwner = service.expertId === actor.id;
     const isAdmin = actor.activeRole === 'ADMIN';
-    
+
     let isPurchaser = false;
     if (actor.activeRole === 'CLIENT') {
       const engagement = await this.prisma.engagement.findFirst({
@@ -134,8 +134,8 @@ export class ListingsService {
     ]);
 
     // Unconditionally use expert profile data for domains and seams
-    let domainsJson = domainDepths.map(d => d.domainCode);
-    let seamsJson = seamClaims.map(s => s.seamCode);
+    const domainsJson = domainDepths.map((d) => d.domainCode);
+    const seamsJson = seamClaims.map((s) => s.seamCode);
     let priceVnd: bigint | null = dto.priceVnd !== undefined ? BigInt(dto.priceVnd) : null;
 
     if (dto.useAiGenerator) {
@@ -168,11 +168,11 @@ export class ListingsService {
       const ai = await this.fastapiClient.serviceGenerate({
         expert_capabilities: dto.capabilities,
         target_use_cases: dto.targetUseCases,
-        claimed_domains: domainDepths.map(d => ({
+        claimed_domains: domainDepths.map((d) => ({
           code: d.domainCode,
           depth: d.depthLevel,
         })),
-        claimed_seams: seamClaims.map(s => ({
+        claimed_seams: seamClaims.map((s) => ({
           code: s.seamCode,
         })),
         is_pro_expert: expert.subscriptionExpertTier === 'pro',
@@ -180,9 +180,7 @@ export class ListingsService {
 
       title = dto.title ?? ai.title;
       description = dto.description ?? ai.description;
-      const aiScopeStr = Array.isArray(ai.scope)
-        ? ai.scope.join('\n')
-        : (ai.scope ?? '');
+      const aiScopeStr = Array.isArray(ai.scope) ? ai.scope.join('\n') : (ai.scope ?? '');
       scope = dto.scope ?? aiScopeStr;
       timeline = dto.timeline ?? ai.timeline;
 
@@ -411,9 +409,11 @@ export class ListingsService {
   }
 
   async delete(id: string, expertUserId: string) {
-    const svc = await this.prisma.service.findUnique({ where: { id }, 
+    const svc = await this.prisma.service.findUnique({
+      where: { id },
       // include the engagement of this service for checking before proceed delete
-      include: { engagements: true } });
+      include: { engagements: true },
+    });
     if (!svc) throw new NotFoundException('Service not found.');
     if (svc.expertId !== expertUserId) throw new ForbiddenException('Not your listing.');
     if (svc.state !== 'DRAFT') {
@@ -422,9 +422,9 @@ export class ListingsService {
 
     // Checking if this service has engagement inside -> not allow to delete even though the state of the service is DRAFT
     if (svc.engagements.length > 0) {
-      throw new UnprocessableEntityException('Can only delete service without ENGAGEMENTS')
+      throw new UnprocessableEntityException('Can only delete service without ENGAGEMENTS');
     }
-    
+
     return this.prisma.service.delete({ where: { id } });
   }
 
@@ -433,32 +433,30 @@ export class ListingsService {
       where: { expertId: expertUserId },
       orderBy: { createdAt: 'desc' },
     });
-    return services.map(s => ({ ...s, priceVnd: s.priceVnd.toString() }));
+    return services.map((s) => ({ ...s, priceVnd: s.priceVnd.toString() }));
   }
 
   async myPurchases(clientUserId: string) {
     const purchases = await this.prisma.engagement.findMany({
-      where: { 
-        clientId: clientUserId, 
+      where: {
+        clientId: clientUserId,
         type: { in: ['SERVICE_PURCHASE', 'TECH_DISCOVERY'] },
-        state: { not: 'DECLINED' }
+        state: { not: 'DECLINED' },
       },
       include: {
         service: true,
         milestones: true,
-        expert: { select: { fullName: true } }
+        expert: { select: { fullName: true } },
       },
       orderBy: { id: 'desc' },
     });
 
     // Hide duplicate PENDING service purchases if there is already an ACTIVE one for the same service
     const activeServiceIds = new Set(
-      purchases
-        .filter(p => p.state === 'ACTIVE' && p.serviceId)
-        .map(p => p.serviceId)
+      purchases.filter((p) => p.state === 'ACTIVE' && p.serviceId).map((p) => p.serviceId),
     );
 
-    const filteredPurchases = purchases.filter(p => {
+    const filteredPurchases = purchases.filter((p) => {
       if (p.state === 'PENDING' && p.serviceId && activeServiceIds.has(p.serviceId)) {
         return false;
       }
@@ -475,10 +473,13 @@ export class ListingsService {
           },
         };
       }
-      
+
       // Fallback for orphaned service purchases (deleted service listings)
       const serviceType = p.type === 'SERVICE_PURCHASE' ? 'AI_SERVICE' : 'TECH_DISCOVERY';
-      const totalMilestonesPrice = p.milestones.reduce((sum: number, m: any) => sum + Number(m.paymentAmountVnd), 0);
+      const totalMilestonesPrice = p.milestones.reduce(
+        (sum: number, m: any) => sum + Number(m.paymentAmountVnd),
+        0,
+      );
       return {
         ...p,
         service: {
@@ -488,7 +489,7 @@ export class ListingsService {
           priceVnd: totalMilestonesPrice.toString(),
           serviceType,
           state: 'DELETED',
-        }
+        },
       };
     });
   }
@@ -504,7 +505,8 @@ export class ListingsService {
       throw new UnprocessableEntityException('Can only unpublish listings in PUBLISHED state.');
     }
     const updated = await this.prisma.service.update({
-      where: { id }, data: { state: newState },
+      where: { id },
+      data: { state: newState },
     });
     return { ...updated, priceVnd: updated.priceVnd.toString() };
   }

@@ -17,11 +17,11 @@ export class ConfigReadService {
     return this.prisma.seamDefinition.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      select: { 
-        id: true, 
-        code: true, 
-        name: true, 
-        description: true, 
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
         sortOrder: true,
         domainCode1: true,
         domainCode2: true,
@@ -53,10 +53,10 @@ export class ConfigReadService {
       },
       orderBy: { role: 'asc' },
       select: {
-        id:             true,
-        role:           true,
-        name:           true,
-        priceVnd:       true,
+        id: true,
+        role: true,
+        name: true,
+        priceVnd: true,
         durationMonths: true,
       },
     });
@@ -64,9 +64,9 @@ export class ConfigReadService {
 
   getVoidCodes() {
     return this.prisma.voidCodeDefinition.findMany({
-      where:   { isActive: true },
+      where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      select:  { id: true, code: true, name: true, description: true, severity: true },
+      select: { id: true, code: true, name: true, description: true, severity: true },
     });
   }
 

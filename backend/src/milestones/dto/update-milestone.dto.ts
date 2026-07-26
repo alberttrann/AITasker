@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsNumber, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CreateCriterionDto } from './create-criterion.dto'; 
+import { CreateCriterionDto } from './create-criterion.dto';
 
 export class UpdateMilestoneDto {
   @IsString()

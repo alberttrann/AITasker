@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Param, Body, UseGuards, ParseUUIDPipe, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+  Delete,
+} from '@nestjs/common';
 import { PortfolioService } from './portfolio.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -72,10 +81,7 @@ export class PortfolioController {
   @Roles('EXPERT')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Delete a portfolio submission' })
-  async deletePortfolioEntry(
-    @CurrentUser() user: { id: string },
-    @Param('id') id: string,
-  ) {
+  async deletePortfolioEntry(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.portfolioService.delete(user.id, id);
   }
 
@@ -83,10 +89,7 @@ export class PortfolioController {
   @Roles('EXPERT')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get a specific portfolio submission' })
-  async getPortfolioEntry(
-    @CurrentUser() user: { id: string },
-    @Param('id') id: string,
-  ) {
+  async getPortfolioEntry(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.portfolioService.getEntry(user.id, id);
   }
 }

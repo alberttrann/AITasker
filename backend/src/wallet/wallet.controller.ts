@@ -1,5 +1,15 @@
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { Body, Controller, Get, Post, Req, UseGuards, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { WalletTopupAmmountDto } from './dto/wallet-topup.dto';

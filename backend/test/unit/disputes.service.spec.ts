@@ -250,9 +250,7 @@ describe('DisputesService.create AI contract', () => {
       finding: 'unexpected_value',
       reasoning: 'The evaluator returned an unsupported finding.',
     });
-    const applyResolution = jest
-      .spyOn(service, 'applyResolution')
-      .mockResolvedValue(undefined);
+    const applyResolution = jest.spyOn(service, 'applyResolution').mockResolvedValue(undefined);
 
     const result = await service.create('client-1', { criterion_id: 'criterion-1' } as any);
 
@@ -273,10 +271,12 @@ describe('DisputesService.create AI contract', () => {
         llmReasoning: 'The evaluator returned an unsupported finding.',
       },
     );
-    expect(result).toEqual(expect.objectContaining({
-      finding: 'client_wins',
-      state: DisputeState.AUTO_RESOLVED,
-    }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        finding: 'client_wins',
+        state: DisputeState.AUTO_RESOLVED,
+      }),
+    );
   });
 
   it('persists low-confidence reasoning for manual review without a resolution', async () => {

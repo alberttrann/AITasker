@@ -40,4 +40,3 @@ export class DisputesController {
     return this.disputesService.findById(id, user);
   }
 }
-

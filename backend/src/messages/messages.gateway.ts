@@ -8,14 +8,14 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { MessagesService }    from './messages.service';
+import { MessagesService } from './messages.service';
 import { InvitationsService } from '../invitations/invitations.service';
-import { CreateMessageDto }   from './dto/create-message.dto';
-import { InviteExpertDto }    from './dto/invite-expert.dto';
-import { JwtService }         from '@nestjs/jwt';
-import { UsePipes, ValidationPipe, Logger } from '@nestjs/common'; 
-import { OnEvent, EventEmitter2 }            from '@nestjs/event-emitter';
-import { PrismaService }      from '../database/prisma.service';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { InviteExpertDto } from './dto/invite-expert.dto';
+import { JwtService } from '@nestjs/jwt';
+import { UsePipes, ValidationPipe, Logger } from '@nestjs/common';
+import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
+import { PrismaService } from '../database/prisma.service';
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -25,14 +25,14 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   @WebSocketServer()
   server: Server;
 
-  private readonly logger = new Logger(MessagesGateway.name); 
+  private readonly logger = new Logger(MessagesGateway.name);
 
   constructor(
-    private readonly messagesService:    MessagesService,
+    private readonly messagesService: MessagesService,
     private readonly invitationsService: InvitationsService,
-    private readonly jwtService:         JwtService,
-    private readonly prisma:             PrismaService, 
-    private readonly eventEmitter:       EventEmitter2,
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -58,10 +58,12 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   // Listen for internal server events and push them to the specific user's socket
   @OnEvent('socket.broadcast')
   async handleSocketBroadcast(payload: {
-    userId: string; event: string; payload: Record<string, any>;
+    userId: string;
+    event: string;
+    payload: Record<string, any>;
   }) {
     if (!this.server) return;
-    
+
     // Always emit real-time regardless of persistence
     this.server.to(payload.userId).emit(payload.event, payload.payload);
 
@@ -77,17 +79,49 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
         link: providedLink ?? null,
       };
     } else if (payload.event === 'dispute:filed') {
-      notifData = { type: 'dispute', title: 'Dispute filed', body: 'A dispute has been raised on one of your milestones', link: providedLink || `/engagements/${payload.payload.engagement_id}` };
+      notifData = {
+        type: 'dispute',
+        title: 'Dispute filed',
+        body: 'A dispute has been raised on one of your milestones',
+        link: providedLink || `/engagements/${payload.payload.engagement_id}`,
+      };
     } else if (payload.event === 'dispute:resolved') {
-      notifData = { type: 'dispute', title: 'Dispute resolved', body: `The dispute was resolved.`, link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones/${payload.payload.milestone_id || ''}/dispute/result` };
+      notifData = {
+        type: 'dispute',
+        title: 'Dispute resolved',
+        body: `The dispute was resolved.`,
+        link:
+          providedLink ||
+          `/engagements/${payload.payload.engagement_id}/milestones/${payload.payload.milestone_id || ''}/dispute/result`,
+      };
     } else if (payload.event === 'payment:confirmed') {
-      notifData = { type: 'payment', title: 'Payment confirmed', body: `Milestone ${payload.payload.milestone_number} funded`, link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones` };
+      notifData = {
+        type: 'payment',
+        title: 'Payment confirmed',
+        body: `Milestone ${payload.payload.milestone_number} funded`,
+        link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones`,
+      };
     } else if (payload.event === 'milestone:updated') {
-      notifData = { type: 'milestone_update', title: `Milestone ${payload.payload.milestone_number} updated`, body: `Status: ${payload.payload.state}`, link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones` };
+      notifData = {
+        type: 'milestone_update',
+        title: `Milestone ${payload.payload.milestone_number} updated`,
+        body: `Status: ${payload.payload.state}`,
+        link: providedLink || `/engagements/${payload.payload.engagement_id}/milestones`,
+      };
     } else if (payload.event === 'bid:updated') {
-      notifData = { type: 'bid_update', title: 'Bid status changed', body: `Your bid is now ${payload.payload.state}`, link: providedLink || `/engagements/${payload.payload.engagement_id}/bid` };
+      notifData = {
+        type: 'bid_update',
+        title: 'Bid status changed',
+        body: `Your bid is now ${payload.payload.state}`,
+        link: providedLink || `/engagements/${payload.payload.engagement_id}/bid`,
+      };
     } else if (payload.event === 'portfolio:result') {
-      notifData = { type: 'portfolio_eval', title: 'Portfolio evaluation complete', body: payload.payload.passed ? 'Tier 2 verified' : 'Did not meet threshold', link: providedLink || '/expert/service/expert-profile/verification-history' };
+      notifData = {
+        type: 'portfolio_eval',
+        title: 'Portfolio evaluation complete',
+        body: payload.payload.passed ? 'Tier 2 verified' : 'Did not meet threshold',
+        link: providedLink || '/expert/service/expert-profile/verification-history',
+      };
     }
 
     if (notifData) {
@@ -95,10 +129,10 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
         await this.prisma.notification.create({
           data: {
             userId: payload.userId,
-            type:   notifData.type,
-            title:  notifData.title,
-            body:   notifData.body,
-            link:   notifData.link,
+            type: notifData.type,
+            title: notifData.title,
+            body: notifData.body,
+            link: notifData.link,
           },
         });
       } catch (err) {
@@ -162,7 +196,8 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
           where: { id: dto.engagement_id },
         });
         if (engagement) {
-          const recipientId = engagement.clientId === user.sub ? engagement.expertId : engagement.clientId;
+          const recipientId =
+            engagement.clientId === user.sub ? engagement.expertId : engagement.clientId;
           this.server.to(recipientId).emit('newMessage', savedMessage);
         }
       } else if (dto.project_id) {
@@ -212,7 +247,10 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   @SubscribeMessage('sendMessageWorkspace')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleSendMessageWorkspace(@ConnectedSocket() client: Socket, @MessageBody() dto: CreateMessageDto) {
+  async handleSendMessageWorkspace(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() dto: CreateMessageDto,
+  ) {
     const user = client.data.user;
     if (!user) {
       client.emit('error', { message: 'Unauthorized socket connection.' });
@@ -244,10 +282,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   @SubscribeMessage('inviteExpert')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleInviteExpert(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() dto: InviteExpertDto,
-  ) {
+  async handleInviteExpert(@ConnectedSocket() client: Socket, @MessageBody() dto: InviteExpertDto) {
     const user = client.data.user;
     if (!user) {
       client.emit('error', { message: 'Unauthorized.' });
@@ -265,9 +300,9 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
       //    Uses upsert — re-inviting a declined expert resets status to PENDING.
       await this.invitationsService.upsertInvitation({
         projectId: dto.projectId,
-        expertId:  dto.expertId,
-        ceoId:     user.sub,
-        message:   dto.content ?? null,
+        expertId: dto.expertId,
+        ceoId: user.sub,
+        message: dto.content ?? null,
       });
 
       // 3. Push real-time notification to the expert's personal socket room & persist to DB
@@ -275,10 +310,10 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
         userId: dto.expertId,
         event: 'notification:generic',
         payload: {
-          type:  'system',
+          type: 'system',
           title: 'Project Invitation',
-          body:  'A CEO has invited you to submit a bid for their project.',
-          link:  `/expert/invitations`,   // now points to the new Invitations page
+          body: 'A CEO has invited you to submit a bid for their project.',
+          link: `/expert/invitations`, // now points to the new Invitations page
         },
       });
 
@@ -297,7 +332,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   private extractToken(client: Socket): string | null {
-    // 1. Check standard Socket.io auth payload 
+    // 1. Check standard Socket.io auth payload
     if (client.handshake.auth && client.handshake.auth.token) {
       return client.handshake.auth.token;
     }

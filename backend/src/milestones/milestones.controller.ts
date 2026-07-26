@@ -1,10 +1,21 @@
-import { Controller, Post, Get, Body, UseGuards, Put, Patch, Delete, Param, Query } from '@nestjs/common';
-import { MilestonesService }  from './milestones.service';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Put,
+  Patch,
+  Delete,
+  Param,
+  Query,
+} from '@nestjs/common';
+import { MilestonesService } from './milestones.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard }   from '../common/guards/roles.guard';
-import { Roles }        from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
@@ -18,13 +29,10 @@ export class MilestonesController {
 
   @Post()
   @Roles('CLIENT')
-  @ApiOperation({ summary: 'Create a new milestone' }) 
+  @ApiOperation({ summary: 'Create a new milestone' })
   @ApiResponse({ status: 201, description: 'Milestone created successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid input data.' })
-  async createMilestone(
-    @Body() dto: CreateMilestoneDto,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async createMilestone(@Body() dto: CreateMilestoneDto, @CurrentUser() user: AuthUser) {
     return this.milestonesService.createMilestone(dto, user);
   }
 
@@ -37,7 +45,7 @@ export class MilestonesController {
     return this.milestonesService.getMilestone(id, user);
   }
 
-  @Put(':id/fund')    
+  @Put(':id/fund')
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Initiate funding for a milestone' })
   @ApiResponse({ status: 200, description: 'Milestone status updated to AWAITING_PAYMENT.' })
@@ -74,10 +82,7 @@ export class MilestonesController {
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'List milestones, filtered by engagementId' })
   @ApiQuery({ name: 'engagementId', required: true })
-  async listMilestones(
-    @Query('engagementId') engagementId: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async listMilestones(@Query('engagementId') engagementId: string, @CurrentUser() user: AuthUser) {
     return this.milestonesService.listByEngagement(engagementId, user);
   }
 
@@ -85,20 +90,14 @@ export class MilestonesController {
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'List disputes for a milestone' })
-  async getMilestoneDisputes(
-    @Param('id') milestoneId: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async getMilestoneDisputes(@Param('id') milestoneId: string, @CurrentUser() user: AuthUser) {
     return this.milestonesService.getMilestoneDisputes(milestoneId, user);
   }
 
   @Post('bulk')
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Bulk initialize all contract milestones from the CEO final template' })
-  async bulkInitialize(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: BulkInitializeMilestonesDto,
-  ) {
+  async bulkInitialize(@CurrentUser() user: AuthUser, @Body() dto: BulkInitializeMilestonesDto) {
     return this.milestonesService.bulkInitialize(user, dto);
   }
 }

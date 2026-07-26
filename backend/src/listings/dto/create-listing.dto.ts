@@ -14,7 +14,7 @@ import {
 
 // ServiceType is kept as enum — it's a fixed product type, not admin-configurable.
 enum ServiceType {
-  AI_SERVICE     = 'AI_SERVICE',
+  AI_SERVICE = 'AI_SERVICE',
   TECH_DISCOVERY = 'TECH_DISCOVERY',
 }
 

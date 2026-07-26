@@ -1,7 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsArray, IsBoolean, IsEnum, IsOptional, IsString, ValidateNested,
-} from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 class ArchetypeHistoryItemDto {
   // Archetype code validated dynamically against DB in ExpertProfileService.
@@ -18,7 +16,7 @@ class ArchetypeHistoryItemDto {
 export class UpdateExpertProfileDto {
   @IsOptional()
   @IsString()
-  bio?: string; 
+  bio?: string;
 
   @IsOptional()
   @IsEnum(['MILESTONE', 'HOURLY', 'HYBRID'])

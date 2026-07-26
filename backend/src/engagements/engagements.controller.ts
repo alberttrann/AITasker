@@ -81,10 +81,7 @@ export class EngagementsController {
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'List milestones for a specific engagement' })
-  async getEngagementMilestones(
-    @Param('id') engagementId: string,
-    @CurrentUser() user: ActorUser,
-  ) {
+  async getEngagementMilestones(@Param('id') engagementId: string, @CurrentUser() user: ActorUser) {
     return this.engagementsService.getEngagementMilestones(engagementId, user);
   }
 

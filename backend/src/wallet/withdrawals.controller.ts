@@ -30,10 +30,7 @@ export class WithdrawalsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Cancel a PENDING withdrawal request (refunds wallet)' })
-  async cancelWithdrawal(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async cancelWithdrawal(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.withdrawalsService.cancelWithdrawal(id, user.id);
   }
 }

@@ -1,28 +1,24 @@
-import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
-import { RolesGuard } from "@common/guards/roles.guard";
-import { Put, Controller, Param, Body, UseGuards, Post, Delete, Get } from "@nestjs/common";
-import { DodService } from "./dod.service";
-import { UpdateMilestoneDoDItemDto } from "./dto/update-dod-item.dto";
-import { Roles } from "@common/decorators/roles.decorator";
-import { CreateDodItemDto } from "./dto/create-dod-item.dto";
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Put, Controller, Param, Body, UseGuards, Post, Delete, Get } from '@nestjs/common';
+import { DodService } from './dod.service';
+import { UpdateMilestoneDoDItemDto } from './dto/update-dod-item.dto';
+import { Roles } from '@common/decorators/roles.decorator';
+import { CreateDodItemDto } from './dto/create-dod-item.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { BulkCreateDodItemsDto } from './dto/create-dod-item.dto'; 
-
+import { BulkCreateDodItemsDto } from './dto/create-dod-item.dto';
 
 @ApiTags('DoD Checklist')
 @ApiBearerAuth('JWT')
 @Controller('milestones/:id/dod')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DodController {
-  constructor(private readonly dodService: DodService) { }
+  constructor(private readonly dodService: DodService) {}
 
   @Post('items')
   @Roles('EXPERT', 'CLIENT')
   @ApiOperation({ summary: 'Add a new item to the DoD checklist' })
-  async createDodItem(
-    @Param('id') milestoneId: string,
-    @Body() dto: CreateDodItemDto,
-  ) {
+  async createDodItem(@Param('id') milestoneId: string, @Body() dto: CreateDodItemDto) {
     return this.dodService.create(milestoneId, dto);
   }
 
@@ -32,14 +28,10 @@ export class DodController {
   //   return this.dodService.updateDodStatus(itemId, dto);
   // }
 
-  
   @Post('items/bulk')
   @Roles('EXPERT', 'CLIENT')
   @ApiOperation({ summary: 'Bulk add multiple items to the DoD checklist atomically' })
-  async createBulkDodItems(
-    @Param('id') milestoneId: string,
-    @Body() dto: BulkCreateDodItemsDto,
-  ) {
+  async createBulkDodItems(@Param('id') milestoneId: string, @Body() dto: BulkCreateDodItemsDto) {
     return this.dodService.createBulk(milestoneId, dto);
   }
 
@@ -66,7 +58,3 @@ export class DodController {
     return this.dodService.updateDodStatus(itemId, milestoneId, dto);
   }
 }
-
-
-
-
