@@ -7,10 +7,10 @@ import { SubmissionsService } from './submissions.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { StagePaygatedDocDto } from './dto/stage-paygated-doc.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { BulkStagePaygatedDocsDto } from './dto/stage-paygated-doc.dto'; 
+import { BulkStagePaygatedDocsDto } from './dto/stage-paygated-doc.dto';
 @ApiTags('Submissions')
 @ApiBearerAuth('JWT')
-@Controller('milestones') 
+@Controller('milestones')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
@@ -27,7 +27,7 @@ export class SubmissionsController {
   }
 
   @Post(':id/paygated-docs')
-  @Roles('EXPERT') 
+  @Roles('EXPERT')
   @ApiOperation({ summary: 'Expert stages a detailed technical paygated document' })
   async uploadDocument(@Param('id') milestoneId: string, @Body() dto: StagePaygatedDocDto) {
     return this.submissionsService.uploadDocument(milestoneId, dto);
@@ -44,7 +44,7 @@ export class SubmissionsController {
   }
 
   @Get(':id/paygated-docs')
-  @Roles('CLIENT', 'EXPERT') 
+  @Roles('CLIENT', 'EXPERT')
   @ApiOperation({ summary: 'TECH_TEAM or EXPERT downloads unlocked documents (CEO is excluded)' })
   async downloadDocument(
     @Param('id') milestoneId: string,
@@ -56,10 +56,7 @@ export class SubmissionsController {
   @Delete(':id/submissions/latest')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Expert: retract latest submission and revert state to IN_PROGRESS' })
-  async retractSubmission(
-    @Param('id') milestoneId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async retractSubmission(@Param('id') milestoneId: string, @CurrentUser() user: { id: string }) {
     return this.submissionsService.retractSubmission(milestoneId, user.id);
   }
 

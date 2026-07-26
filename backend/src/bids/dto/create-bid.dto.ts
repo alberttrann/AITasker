@@ -13,13 +13,13 @@ import {
 } from 'class-validator';
 
 enum DomainDepth {
-  SURFACE     = 'SURFACE',
+  SURFACE = 'SURFACE',
   OPERATIONAL = 'OPERATIONAL',
-  DEEP        = 'DEEP',
+  DEEP = 'DEEP',
 }
 
 enum VerifyTier {
-  CLAIMED        = 'CLAIMED',
+  CLAIMED = 'CLAIMED',
   EVIDENCE_BACKED = 'EVIDENCE_BACKED',
 }
 

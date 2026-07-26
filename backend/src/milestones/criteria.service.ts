@@ -12,10 +12,7 @@ import { VerifyCriterionDto } from './dto/verify-criterion.dto';
 import { RevisionNoteDto } from './dto/revision-note.dto';
 import { AuthUser } from '../auth/strategies/jwt.strategy';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  deriveMilestoneReviewAuthority,
-  requiresTechReview,
-} from './milestone-review-flow';
+import { deriveMilestoneReviewAuthority, requiresTechReview } from './milestone-review-flow';
 import { assertMilestoneTermsEditable } from './milestone-terms-lock';
 
 type Reviewer = Pick<AuthUser, 'id' | 'activeRole' | 'clientSubtype'>;
@@ -175,10 +172,7 @@ export class CriteriaService {
 
     if (result.reviewStage === 'COMPLETE') {
       const engagement = criterion.milestone.engagement;
-      const recipientIds = new Set<string>([
-        engagement.clientId,
-        engagement.expertId,
-      ]);
+      const recipientIds = new Set<string>([engagement.clientId, engagement.expertId]);
 
       if (engagement.projectId) {
         const techProfiles = await this.prisma.techTeamProfile.findMany({
@@ -246,18 +240,13 @@ export class CriteriaService {
 
       return {
         success: true,
-        reviewStage: requiresTechReview(criterion.milestone.signOffAuthority)
-          ? 'TECH_TEAM'
-          : 'CEO',
+        reviewStage: requiresTechReview(criterion.milestone.signOffAuthority) ? 'TECH_TEAM' : 'CEO',
         message: 'Revision requested successfully.',
       };
     });
 
     const engagement = criterion.milestone.engagement;
-    const recipientIds = new Set<string>([
-      engagement.clientId,
-      engagement.expertId,
-    ]);
+    const recipientIds = new Set<string>([engagement.clientId, engagement.expertId]);
 
     if (engagement.projectId) {
       const techProfiles = await this.prisma.techTeamProfile.findMany({
@@ -442,10 +431,7 @@ export class CriteriaService {
     throw new ForbiddenException('Not a party to this engagement.');
   }
 
-  private assertCeoOwner(
-    engagement: { clientId: string },
-    user: Reviewer,
-  ): void {
+  private assertCeoOwner(engagement: { clientId: string }, user: Reviewer): void {
     if (
       user.activeRole !== 'CLIENT' ||
       user.clientSubtype !== 'CEO' ||

@@ -404,16 +404,16 @@ export class ProjectsService {
   }
 
   async milestoneChatHandler(
-    projectId:     string,
-    userId:        string,
-    message:       string,
+    projectId: string,
+    userId: string,
+    message: string,
     chatSessionId?: string,
     currentMilestones?: any[],
   ) {
-    // Auth & Data Fetching 
+    // Auth & Data Fetching
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      include: { 
+      include: {
         techTeamProfiles: { select: { userId: true } },
         // Lấy kèm hợp đồng đang Active để xem có Milestone thật dưới DB chưa
         engagements: {
@@ -421,17 +421,17 @@ export class ProjectsService {
           include: {
             milestones: {
               orderBy: { milestoneNumber: 'asc' },
-              include: { acceptanceCriteria: true }
-            }
+              include: { acceptanceCriteria: true },
+            },
           },
-          take: 1
-        }
+          take: 1,
+        },
       },
     });
 
     if (!project) throw new NotFoundException('Project not found.');
 
-    const isCeo      = project.clientId === userId;
+    const isCeo = project.clientId === userId;
     const isTechTeam = project.techTeamProfiles.some((t) => t.userId === userId);
     if (!isCeo && !isTechTeam) {
       throw new ForbiddenException(
@@ -448,19 +448,23 @@ export class ProjectsService {
     });
     const termsLocked = bidHasAcceptedTerms(selectedBid);
 
-    // Xác định nguồn dữ liệu Milestone cho Chatbot đọc 
+    // Xác định nguồn dữ liệu Milestone cho Chatbot đọc
     let frameworkToUse: any = project.milestoneFrameworkJson;
 
     // 1. Nếu dự án đã có hợp đồng và có Milestone thật dưới DB -> Ưu tiên dùng hàng thật
-    if (project.engagements && project.engagements.length > 0 && project.engagements[0].milestones.length > 0) {
+    if (
+      project.engagements &&
+      project.engagements.length > 0 &&
+      project.engagements[0].milestones.length > 0
+    ) {
       // Map data từ DB về chuẩn JSON mà AI Model đang hiểu
-      frameworkToUse = project.engagements[0].milestones.map(m => ({
+      frameworkToUse = project.engagements[0].milestones.map((m) => ({
         milestone_number: m.milestoneNumber,
         deliverable_statement: m.deliverableStatement,
         sign_off_authority: m.signOffAuthority,
         payment_amount_vnd: Number(m.paymentAmountVnd),
         state: m.state,
-        criteria: m.acceptanceCriteria.map(c => c.criterionText)
+        criteria: m.acceptanceCriteria.map((c) => c.criterionText),
       }));
     }
 
@@ -480,13 +484,15 @@ export class ProjectsService {
       session = found;
     } else {
       const dateLabel = new Date().toLocaleDateString('vi-VN', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
       });
       session = await this.prisma.milestoneChatSession.create({
         data: {
           projectId,
           userId,
-          title:       `Chat · ${dateLabel}`,
+          title: `Chat · ${dateLabel}`,
           messagesJson: [],
         },
       });
@@ -496,10 +502,7 @@ export class ProjectsService {
     const history = (session.messagesJson as ChatMessage[]) ?? [];
 
     // Append user turn, call AI, append assistant turn
-    const historyWithUserMsg: ChatMessage[] = [
-      ...history,
-      { role: 'user', content: message },
-    ];
+    const historyWithUserMsg: ChatMessage[] = [...history, { role: 'user', content: message }];
 
     const budgetContext = project.estimatedTotalCostVnd
       ? `Estimated total: ${project.estimatedTotalCostVnd.toString()} VND` +
@@ -509,12 +512,12 @@ export class ProjectsService {
       : 'No budget estimate available';
 
     const aiResponse = await this.fastapiClient.milestoneChatAssist({
-      artifact_a:           (project.artifactAJson ?? {})          as Record<string, unknown>,
-      milestone_framework:  (frameworkToUse ?? [])                 as Array<Record<string, unknown>>,
-      budget_context:       budgetContext,
-      terms_locked:         termsLocked,
-      conversation_history: historyWithUserMsg,   
-      user_message:         message,              
+      artifact_a: (project.artifactAJson ?? {}) as Record<string, unknown>,
+      milestone_framework: (frameworkToUse ?? []) as Array<Record<string, unknown>>,
+      budget_context: budgetContext,
+      terms_locked: termsLocked,
+      conversation_history: historyWithUserMsg,
+      user_message: message,
     });
 
     const finalHistory: ChatMessage[] = [
@@ -525,15 +528,15 @@ export class ProjectsService {
     // Persist updated history
     await this.prisma.milestoneChatSession.update({
       where: { id: session.id },
-      data:  { messagesJson: finalHistory as any, updatedAt: new Date() },
+      data: { messagesJson: finalHistory as any, updatedAt: new Date() },
     });
 
     return {
-      reply:          aiResponse.reply,
-      suggestedEdit:  aiResponse.suggested_edit,
-      chatSessionId:  session.id,
-      sessionTitle:   session.title,
-      messageCount:   finalHistory.length,
+      reply: aiResponse.reply,
+      suggestedEdit: aiResponse.suggested_edit,
+      chatSessionId: session.id,
+      sessionTitle: session.title,
+      messageCount: finalHistory.length,
     };
   }
 
@@ -587,7 +590,7 @@ export class ProjectsService {
       where: {
         state: 'PUBLISHED',
         ...(filters.archetype ? { archetype: filters.archetype } : {}),
-        ...(filters.tier      ? { tier: filters.tier }           : {}),
+        ...(filters.tier ? { tier: filters.tier } : {}),
       },
       select: {
         id: true,
@@ -631,7 +634,9 @@ export class ProjectsService {
     }
     await assertProjectMilestoneTermsEditable(this.prisma, projectId);
     if (project.state !== 'PUBLISHED' && project.state !== 'DRAFT') {
-      throw new UnprocessableEntityException('Can only edit milestone framework for active projects.');
+      throw new UnprocessableEntityException(
+        'Can only edit milestone framework for active projects.',
+      );
     }
 
     const signOffAuthority = deriveMilestoneReviewAuthority(project);
@@ -643,18 +648,20 @@ export class ProjectsService {
     return this.prisma.$transaction(async (tx) => {
       const updatedProject = await tx.project.update({
         where: { id: projectId },
-        data:  { milestoneFrameworkJson: normalizedFramework as any },
+        data: { milestoneFrameworkJson: normalizedFramework as any },
         select: { id: true, milestoneFrameworkJson: true },
       });
 
       const activeEngagement = project.engagements?.[0];
 
       if (activeEngagement) {
-        const incomingNumbers = normalizedFramework.map(m => intOrNull(m.milestone_number)).filter(Boolean);
+        const incomingNumbers = normalizedFramework
+          .map((m) => intOrNull(m.milestone_number))
+          .filter(Boolean);
         const existingMilestones = activeEngagement.milestones;
 
         const toDelete = existingMilestones.filter(
-          m => !incomingNumbers.includes(m.milestoneNumber) && m.state === 'DEFINED'
+          (m) => !incomingNumbers.includes(m.milestoneNumber) && m.state === 'DEFINED',
         );
         for (const m of toDelete) {
           await tx.acceptanceCriterion.deleteMany({ where: { milestoneId: m.id } });
@@ -665,7 +672,7 @@ export class ProjectsService {
           const mNum = intOrNull(item.milestone_number);
           if (!mNum) continue;
 
-          const existing = existingMilestones.find(m => m.milestoneNumber === mNum);
+          const existing = existingMilestones.find((m) => m.milestoneNumber === mNum);
 
           if (existing) {
             if (existing.state === 'DEFINED') {
@@ -673,21 +680,21 @@ export class ProjectsService {
                 where: { id: existing.id },
                 data: {
                   deliverableStatement: item.deliverable_statement,
-                  signOffAuthority:     item.sign_off_authority,
-                  paymentAmountVnd:     BigInt(item.payment_amount_vnd || 0),
+                  signOffAuthority: item.sign_off_authority,
+                  paymentAmountVnd: BigInt(item.payment_amount_vnd || 0),
                   estimatedDurationDays: item.estimated_duration_days || null,
-                  estimatedCostVnd:     BigInt(item.estimated_cost_vnd || 0),
-                  updatedAt:            new Date(),
+                  estimatedCostVnd: BigInt(item.estimated_cost_vnd || 0),
+                  updatedAt: new Date(),
                 },
               });
 
               await tx.acceptanceCriterion.deleteMany({ where: { milestoneId: existing.id } });
-              for (const cText of (item.criteria ?? [])) {
+              for (const cText of item.criteria ?? []) {
                 await tx.acceptanceCriterion.create({
                   data: {
-                    milestone:      { connect: { id: existing.id } },
-                    criterionText:  cText,
-                    isRequired:     true,
+                    milestone: { connect: { id: existing.id } },
+                    criterionText: cText,
+                    isRequired: true,
                     verifiedByRole: item.sign_off_authority,
                   },
                 });
@@ -696,23 +703,23 @@ export class ProjectsService {
           } else {
             const newMilestone = await tx.milestone.create({
               data: {
-                engagementId:         activeEngagement.id,
-                milestoneNumber:      mNum,
+                engagementId: activeEngagement.id,
+                milestoneNumber: mNum,
                 deliverableStatement: item.deliverable_statement,
-                signOffAuthority:     item.sign_off_authority,
-                paymentAmountVnd:     BigInt(item.payment_amount_vnd || 0),
+                signOffAuthority: item.sign_off_authority,
+                paymentAmountVnd: BigInt(item.payment_amount_vnd || 0),
                 estimatedDurationDays: item.estimated_duration_days || null,
-                estimatedCostVnd:     BigInt(item.estimated_cost_vnd || 0),
-                state:                'DEFINED',
+                estimatedCostVnd: BigInt(item.estimated_cost_vnd || 0),
+                state: 'DEFINED',
               },
             });
 
-            for (const cText of (item.criteria ?? [])) {
+            for (const cText of item.criteria ?? []) {
               await tx.acceptanceCriterion.create({
                 data: {
-                  milestone:      { connect: { id: newMilestone.id } },
-                  criterionText:  cText,
-                  isRequired:     true,
+                  milestone: { connect: { id: newMilestone.id } },
+                  criterionText: cText,
+                  isRequired: true,
                   verifiedByRole: item.sign_off_authority,
                 },
               });

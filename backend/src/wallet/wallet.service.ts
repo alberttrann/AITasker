@@ -51,7 +51,9 @@ export class WalletService {
     const milestoneIds = new Set<string>();
     for (const tx of transactions) {
       if (tx.referenceId) {
-        const match = tx.referenceId.match(/(?:FEE|REL-C|REL-E|LOCK|REF|SPLIT-C|SPLIT-E)-([0-9a-fA-F-]{36})/);
+        const match = tx.referenceId.match(
+          /(?:FEE|REL-C|REL-E|LOCK|REF|SPLIT-C|SPLIT-E)-([0-9a-fA-F-]{36})/,
+        );
         if (match) {
           milestoneIds.add(match[1]);
         }
@@ -72,21 +74,25 @@ export class WalletService {
       },
     });
 
-    const milestoneMap = new Map(milestones.map(m => [m.id, m]));
+    const milestoneMap = new Map(milestones.map((m) => [m.id, m]));
 
-    return transactions.map(item => {
+    return transactions.map((item) => {
       let details: string | null = null;
       if (item.referenceId) {
-        const match = item.referenceId.match(/(?:FEE|REL-C|REL-E|LOCK|REF|SPLIT-C|SPLIT-E)-([0-9a-fA-F-]{36})/);
+        const match = item.referenceId.match(
+          /(?:FEE|REL-C|REL-E|LOCK|REF|SPLIT-C|SPLIT-E)-([0-9a-fA-F-]{36})/,
+        );
         if (match) {
           const milestoneId = match[1];
           const milestone = milestoneMap.get(milestoneId);
           if (milestone) {
-            const isService = milestone.engagement?.type === 'SERVICE_PURCHASE' || milestone.engagement?.type === 'TECH_DISCOVERY';
+            const isService =
+              milestone.engagement?.type === 'SERVICE_PURCHASE' ||
+              milestone.engagement?.type === 'TECH_DISCOVERY';
             const contextName = isService
               ? milestone.engagement?.service?.title
               : milestone.engagement?.project?.projectName;
-            
+
             if (contextName) {
               details = `Milestone #${milestone.milestoneNumber} for ${isService ? 'Service' : 'Project'}: ${contextName}`;
             } else {

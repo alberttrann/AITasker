@@ -28,7 +28,7 @@ export class CriteriaController {
     return this.criteriaService.verify(criterionId, dto, user);
   }
 
-  @Put(':id/revision') 
+  @Put(':id/revision')
   @Roles('CLIENT')
   async rejectCriterion(
     @Param('id') criterionId: string,
@@ -41,10 +41,7 @@ export class CriteriaController {
   @Get(':milestoneId')
   @Roles('CLIENT', 'EXPERT', 'ADMIN')
   @ApiOperation({ summary: 'List acceptance criteria for a milestone' })
-  async listCriteria(
-    @Param('milestoneId') milestoneId: string,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async listCriteria(@Param('milestoneId') milestoneId: string, @CurrentUser() user: AuthUser) {
     return this.criteriaService.listCriteria(milestoneId, user);
   }
 

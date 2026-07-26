@@ -147,10 +147,7 @@ export class BidsController {
   @Delete(':id')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Withdraw a submitted bid (only while in SUBMITTED state)' })
-  async withdraw(
-    @CurrentUser() user: { id: string },
-    @Param('id') id: string,
-  ) {
+  async withdraw(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.bidsService.withdraw(id, user.id);
   }
 }

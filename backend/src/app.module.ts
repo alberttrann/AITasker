@@ -25,7 +25,7 @@ import { AdminModule } from './admin/admin.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { AppConfigModule } from './config/config.module';
 import { InternalModule } from './internal/internal.module';
-import { NotificationsModule } from './notifications/notifications.module'
+import { NotificationsModule } from './notifications/notifications.module';
 @Module({
   imports: [
     ConfigModule.forRoot({

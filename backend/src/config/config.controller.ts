@@ -50,8 +50,9 @@ export class ConfigController {
   @Get('all')
   @ApiOperation({
     summary: 'Fetch all config in one call (for app bootstrap)',
-    description: 'Returns domains, seams, archetypes, void codes, and subscription packages. ' +
-                 'Use on app mount to avoid 5 separate round trips.',
+    description:
+      'Returns domains, seams, archetypes, void codes, and subscription packages. ' +
+      'Use on app mount to avoid 5 separate round trips.',
   })
   getAllConfig() {
     return this.configService.getAllConfig();

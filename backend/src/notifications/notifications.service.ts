@@ -10,7 +10,15 @@ export class NotificationsService {
       where: { userId, ...(unreadOnly ? { isRead: false } : {}) },
       orderBy: { createdAt: 'desc' },
       take: Math.min(limit, 100),
-      select: { id: true, type: true, title: true, body: true, link: true, isRead: true, createdAt: true },
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        link: true,
+        isRead: true,
+        createdAt: true,
+      },
     });
   }
 

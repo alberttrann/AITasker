@@ -3,7 +3,7 @@ import { InternalController } from './internal.controller';
 import { PrismaModule } from '../database/prisma.module';
 
 @Module({
-  imports:     [PrismaModule],
+  imports: [PrismaModule],
   controllers: [InternalController],
 })
 export class InternalModule {}

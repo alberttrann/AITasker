@@ -19,5 +19,5 @@ export class Stage4Dto {
 
   @IsObject()
   @IsOptional()
-  technical_artifacts?: Record<string, string>; 
+  technical_artifacts?: Record<string, string>;
 }

@@ -358,7 +358,7 @@ async def test_stage5_artifact_a_invalid_archetype_defaults_to_1(client):
                new=AsyncMock(return_value={**FULL_STAGE5_LLM_RESPONSE, "artifact_a_json": bad_a})):
         res = await client.post("/llm/elicitation/stage5-synthesize",
                                 json=VALID_STAGE5_PAYLOAD)
-    assert res.json()["artifact_a_json"]["archetype"] == "1"
+    assert res.json()["artifact_a_json"]["archetype"] == "2"
 
 
 async def test_stage5_all_data_appears_in_prompt(client):

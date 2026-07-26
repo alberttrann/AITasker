@@ -8,7 +8,7 @@ import {
   Put,
   Query,
   UseGuards,
-  Delete
+  Delete,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ListingsService } from './listings.service';
@@ -105,10 +105,7 @@ export class ListingsController {
   @Delete(':id')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Delete / archive a service listing (only DRAFT state)' })
-  async delete(
-    @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async delete(@CurrentUser() user: { id: string }, @Param('id', ParseUUIDPipe) id: string) {
     return this.listingsService.delete(id, user.id);
   }
 
@@ -116,10 +113,7 @@ export class ListingsController {
   @Put(':id/publish')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Publish a DRAFT listing to the marketplace' })
-  async publish(
-    @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async publish(@CurrentUser() user: { id: string }, @Param('id', ParseUUIDPipe) id: string) {
     return this.listingsService.setPublishState(id, user.id, 'PUBLISHED');
   }
 
@@ -127,10 +121,7 @@ export class ListingsController {
   @Put(':id/unpublish')
   @Roles('EXPERT')
   @ApiOperation({ summary: 'Pull a PUBLISHED listing back to DRAFT' })
-  async unpublish(
-    @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async unpublish(@CurrentUser() user: { id: string }, @Param('id', ParseUUIDPipe) id: string) {
     return this.listingsService.setPublishState(id, user.id, 'DRAFT');
   }
 }

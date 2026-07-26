@@ -1,9 +1,28 @@
-import { Controller, Get, Put, Body, Param, Query, UseGuards, Post, Delete, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Post,
+  Delete,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+  ApiResponse,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 
@@ -15,7 +34,7 @@ type ActorUser = { id: string };
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(private readonly adminService: AdminService) {}
 
   @Put('projects/:id/suspend-spec')
   @ApiOperation({ summary: 'Emergency pull-back of a published project spec' })
@@ -62,10 +81,7 @@ export class AdminController {
 
   @Get('transactions')
   @ApiOperation({ summary: 'Wallet transaction ledger, filterable by type/user' })
-  async getTransactions(
-    @Query('type') type?: string,
-    @Query('userId') userId?: string,
-  ) {
+  async getTransactions(@Query('type') type?: string, @Query('userId') userId?: string) {
     return this.adminService.getTransactions({ type, userId });
   }
 
@@ -82,7 +98,9 @@ export class AdminController {
   }
 
   @Put('withdrawals/:id/complete')
-  @ApiOperation({ summary: 'Manually confirm a withdrawal was sent (no real Chi Hộ callback exists)' })
+  @ApiOperation({
+    summary: 'Manually confirm a withdrawal was sent (no real Chi Hộ callback exists)',
+  })
   async completeWithdrawal(@Param('id') id: string) {
     return this.adminService.completeWithdrawal(id);
   }
@@ -103,12 +121,12 @@ export class AdminController {
   @Put('platform-settings')
   @ApiOperation({ summary: 'Update platform-wide settings' })
   async updatePlatformSettings(
-    @Body() dto: { platform_fee_pct?: number; platform_wallet_id?: string }
+    @Body() dto: { platform_fee_pct?: number; platform_wallet_id?: string },
   ) {
     return this.adminService.updatePlatformSettings(dto);
   }
 
-  // Subscription Package Management 
+  // Subscription Package Management
   @Get('subscriptions/packages')
   @ApiOperation({ summary: 'List all subscription packages' })
   listSubscriptionPackages() {
@@ -124,7 +142,9 @@ export class AdminController {
   }
 
   @Put('subscriptions/packages/:id')
-  @ApiOperation({ summary: 'Update subscription package price/duration (existing subs unaffected)' })
+  @ApiOperation({
+    summary: 'Update subscription package price/duration (existing subs unaffected)',
+  })
   updateSubscriptionPackage(
     @Param('id') id: string,
     @Body() dto: { priceVnd?: number; durationMonths?: number; name?: string; isActive?: boolean },
@@ -156,10 +176,10 @@ export class AdminController {
     @Query('isActive') isActive?: string,
     @Query('search') search?: string,
   ) {
-    return this.adminService.listUsers({ 
-      role, 
-      isActive: isActive !== undefined ? isActive === 'true' : undefined, 
-      search 
+    return this.adminService.listUsers({
+      role,
+      isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      search,
     });
   }
 
@@ -169,15 +189,11 @@ export class AdminController {
     return this.adminService.getUser(id);
   }
 
-
   @Get('projects')
   @ApiOperation({ summary: 'List all projects (admin oversight)' })
   @ApiQuery({ name: 'state', required: false })
   @ApiQuery({ name: 'archetype', required: false })
-  async listProjects(
-    @Query('state') state?: string,
-    @Query('archetype') archetype?: string,
-  ) {
+  async listProjects(@Query('state') state?: string, @Query('archetype') archetype?: string) {
     return this.adminService.listProjects({ state, archetype });
   }
 
@@ -191,19 +207,14 @@ export class AdminController {
   @ApiOperation({ summary: 'List all engagements (admin oversight)' })
   @ApiQuery({ name: 'state', required: false })
   @ApiQuery({ name: 'projectId', required: false })
-  async listEngagements(
-    @Query('state') state?: string,
-    @Query('projectId') projectId?: string,
-  ) {
+  async listEngagements(@Query('state') state?: string, @Query('projectId') projectId?: string) {
     return this.adminService.listEngagements({ state, projectId });
   }
 
   @Get('experts')
   @ApiOperation({ summary: 'List all expert users with verification status' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  async listExperts(
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
-  ) {
+  async listExperts(@Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number) {
     return this.adminService.listExperts({ limit });
   }
 

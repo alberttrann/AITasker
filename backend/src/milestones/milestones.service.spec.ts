@@ -48,9 +48,7 @@ describe('MilestonesService review authority', () => {
     const { service, user } = createHarness();
     const dto = new MilestoneBuilder().withCriteria([]).build();
 
-    await expect(service.createMilestone(dto, user)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(service.createMilestone(dto, user)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('derives JOINT for a non-technical project', async () => {

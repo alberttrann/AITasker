@@ -101,11 +101,11 @@ export class BidsService {
     const [isShortlisted, existing] = await Promise.all([
       this.shortlistService.isExpertShortlisted(project.id, expertUserId),
       this.prisma.engagement.findFirst({
-        where: { 
-          projectId: project.id, 
-          expertId: expertUserId, 
+        where: {
+          projectId: project.id,
+          expertId: expertUserId,
           type: 'PROJECT_BASED',
-          state: { notIn: ['DECLINED', 'CANCELLED'] }
+          state: { notIn: ['DECLINED', 'CANCELLED'] },
         },
       }),
     ]);
@@ -265,10 +265,7 @@ export class BidsService {
       if (bid.engagement.expertId !== expertUserId) {
         throw new ForbiddenException('You do not own this bid.');
       }
-      if (
-        bid.engagement.project.tier !== 'TIER_1' &&
-        !(await this.isExpertPro(expertUserId, tx))
-      ) {
+      if (bid.engagement.project.tier !== 'TIER_1' && !(await this.isExpertPro(expertUserId, tx))) {
         throw new ForbiddenException(
           'Expert Pro subscription required to revise bids on Tier 2-3 projects.',
         );
@@ -395,16 +392,14 @@ export class BidsService {
         this.eventEmitter.emit('socket.broadcast', {
           userId: result.proposerUserId,
           event: 'bid:updated',
-          payload: { engagement_id: result.engagement.id, state: 'REVISION_REQUESTED' }
+          payload: { engagement_id: result.engagement.id, state: 'REVISION_REQUESTED' },
         });
       } catch (_err) {
         // Socket lỗi cũng không được phép làm gián đoạn API
       }
     } else {
       const recipientId =
-        result.recipientRole === 'CEO'
-          ? result.engagement.clientId
-          : result.engagement.expertId;
+        result.recipientRole === 'CEO' ? result.engagement.clientId : result.engagement.expertId;
       this.notify(recipientId, {
         type: 'bid_update',
         title: 'Technical Review Approved',
@@ -419,7 +414,7 @@ export class BidsService {
         this.eventEmitter.emit('socket.broadcast', {
           userId: recipientId,
           event: 'bid:updated',
-          payload: { engagement_id: result.engagement.id, state: 'TECH_APPROVED' }
+          payload: { engagement_id: result.engagement.id, state: 'TECH_APPROVED' },
         });
       } catch (_err) {
         // Socket lỗi cũng không được phép làm gián đoạn API
@@ -452,7 +447,9 @@ export class BidsService {
       const isTechnicalRevision = envelope.technicalReview.status === 'REVISION_REQUESTED';
       if (isTechnicalRevision) {
         if (previous.proposerRole !== actorRole || previous.proposerUserId !== user.id) {
-          throw new ForbiddenException('Only the current proposer may submit the requested revision.');
+          throw new ForbiddenException(
+            'Only the current proposer may submit the requested revision.',
+          );
         }
       } else {
         if (technicalReviewRequired && envelope.technicalReview.status !== 'APPROVED') {
@@ -525,9 +522,7 @@ export class BidsService {
       }
     } else {
       const recipientId =
-        result.recipientRole === 'CEO'
-          ? result.engagement.clientId
-          : result.engagement.expertId;
+        result.recipientRole === 'CEO' ? result.engagement.clientId : result.engagement.expertId;
       this.notify(recipientId, {
         type: 'bid_update',
         title: 'New Counter Offer',
@@ -682,7 +677,7 @@ export class BidsService {
           where: { id: sibling.engagementId },
           data: { state: 'DECLINED' as any },
         });
-        // 
+        //
       }
 
       return {
@@ -749,12 +744,13 @@ export class BidsService {
         where: { id: bid.engagementId },
         data: { state: 'DECLINED' as any },
       });
-      // 
+      //
 
       return { engagement: bid.engagement };
     });
 
-    const proposerId = actorRole === 'CEO' ? result.engagement.expertId : result.engagement.clientId;
+    const proposerId =
+      actorRole === 'CEO' ? result.engagement.expertId : result.engagement.clientId;
     this.notify(proposerId, {
       type: 'bid_update',
       title: 'Offer Declined',
@@ -969,9 +965,7 @@ export class BidsService {
       throw new ForbiddenException('You do not own this bid.');
     }
     if (!['SUBMITTED', 'TECH_REVIEW'].includes(bid.state)) {
-      throw new UnprocessableEntityException(
-        `Cannot withdraw a bid in state '${bid.state}'.`,
-      );
+      throw new UnprocessableEntityException(`Cannot withdraw a bid in state '${bid.state}'.`);
     }
     if (isNegotiationEnvelope(bid.conditionalPricingJson)) {
       const offer = currentOffer(bid.conditionalPricingJson);
@@ -1094,30 +1088,28 @@ export class BidsService {
 
     return {
       ...bid,
-      negotiatedPriceVnd:
-        bid.negotiatedPriceVnd === null ? null : Number(bid.negotiatedPriceVnd),
+      negotiatedPriceVnd: bid.negotiatedPriceVnd === null ? null : Number(bid.negotiatedPriceVnd),
       conditionalPricingJson: restrictedTechnicalView
-        ? technicalOffer(offer)?.milestones ?? []
+        ? (technicalOffer(offer)?.milestones ?? [])
         : bid.conditionalPricingJson,
       currentOffer: restrictedTechnicalView ? technicalOffer(offer) : offer,
       acceptedOffer: restrictedTechnicalView ? technicalOffer(accepted) : accepted,
-      offerHistory: restrictedTechnicalView ? undefined : envelope?.offers ?? [],
+      offerHistory: restrictedTechnicalView ? undefined : (envelope?.offers ?? []),
       negotiationState: derived.negotiationState,
       nextActionBy: derived.nextActionBy,
       termsLocked: Boolean(accepted),
       ndaComplete,
       termsAcceptedAt: envelope?.termsAcceptedAt,
-      technicalReview:
-        envelope?.technicalReview
-          ? !technicalReviewRequired && envelope.technicalReview.status === 'PENDING'
-            ? { ...envelope.technicalReview, status: 'APPROVED' }
-            : envelope.technicalReview
-          : {
-              scopeVersion: bid.versionNumber,
-              status: technicalReviewRequired ? bid.techStatus : 'APPROVED',
-              intendedRecipient: 'CEO',
-              feedback: bid.techFeedback,
-            },
+      technicalReview: envelope?.technicalReview
+        ? !technicalReviewRequired && envelope.technicalReview.status === 'PENDING'
+          ? { ...envelope.technicalReview, status: 'APPROVED' }
+          : envelope.technicalReview
+        : {
+            scopeVersion: bid.versionNumber,
+            status: technicalReviewRequired ? bid.techStatus : 'APPROVED',
+            intendedRecipient: 'CEO',
+            feedback: bid.techFeedback,
+          },
     };
   }
 

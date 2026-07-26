@@ -1,5 +1,12 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException, UnprocessableEntityException, ForbiddenException } from '@nestjs/common';
-import { PrismaService }      from '../database/prisma.service';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ConflictException,
+  UnprocessableEntityException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { VAStatus } from '@common/enums/va-status.enum';
@@ -69,7 +76,9 @@ export class MilestonesService {
     await this.assertEngagementAccess(user, milestone.engagement);
 
     // Auto-heal missing criteria for service purchases
-    const isServiceOrder = milestone.engagement?.type === 'SERVICE_PURCHASE' || milestone.engagement?.type === 'TECH_DISCOVERY';
+    const isServiceOrder =
+      milestone.engagement?.type === 'SERVICE_PURCHASE' ||
+      milestone.engagement?.type === 'TECH_DISCOVERY';
     if (isServiceOrder && milestone.acceptanceCriteria.length === 0) {
       const defaultCriterion = await this.prisma.acceptanceCriterion.create({
         data: {
@@ -105,12 +114,12 @@ export class MilestonesService {
       try {
         milestone = await tx.milestone.create({
           data: {
-            engagementId:         dto.engagement_id,
-            milestoneNumber:      dto.milestone_number,
+            engagementId: dto.engagement_id,
+            milestoneNumber: dto.milestone_number,
             deliverableStatement: dto.deliverable_statement,
             signOffAuthority,
-            paymentAmountVnd:     dto.payment_amount_vnd,
-            state:                'DEFINED',
+            paymentAmountVnd: dto.payment_amount_vnd,
+            state: 'DEFINED',
           },
         });
       } catch (err: any) {
@@ -126,9 +135,9 @@ export class MilestonesService {
       for (const c of dto.criteria) {
         const criterion = await tx.acceptanceCriterion.create({
           data: {
-            milestoneId:    milestone.id,
-            criterionText:  c.criterion_text, 
-            isRequired:     c.is_required ?? true, 
+            milestoneId: milestone.id,
+            criterionText: c.criterion_text,
+            isRequired: c.is_required ?? true,
             verifiedByRole: signOffAuthority,
           },
         });
@@ -136,7 +145,7 @@ export class MilestonesService {
       }
 
       return tx.milestone.findUnique({
-        where:   { id: milestone.id },
+        where: { id: milestone.id },
         include: { acceptanceCriteria: true },
       });
     });
@@ -152,9 +161,9 @@ export class MilestonesService {
             await this.prisma.platformDecision.create({
               data: {
                 decisionType: 'CRITERION_QUALITY_GATE',
-                entityType:   'acceptance_criteria',
-                entityId:     criterion.id,
-                decision:     'FLAGGED',
+                entityType: 'acceptance_criteria',
+                entityId: criterion.id,
+                decision: 'FLAGGED',
                 advisoryNote: check.suggestions.join(' | ') || null,
               },
             });
@@ -211,7 +220,8 @@ export class MilestonesService {
           'The existing virtual account for this milestone is marked USED (a payment may already be processing). Contact support before retrying — do not attempt to pay again.',
         );
       }
-      const nowExpired = !milestone.vaExpiresAt || new Date(milestone.vaExpiresAt).getTime() < Date.now();
+      const nowExpired =
+        !milestone.vaExpiresAt || new Date(milestone.vaExpiresAt).getTime() < Date.now();
       if (staleVa.status === VAStatus.ACTIVE && !nowExpired) {
         throw new UnprocessableEntityException(
           'This milestone already has an active, unexpired payment window. Use the existing QR/VA instead of regenerating.',
@@ -299,11 +309,17 @@ export class MilestonesService {
       const updated = await tx.milestone.update({
         where: { id: milestoneId },
         data: {
-          ...(dto.title                !== undefined && { title: dto.title }),
-          ...(dto.deliverable_statement !== undefined && { deliverableStatement: dto.deliverable_statement }),
-          ...(dto.payment_amount_vnd   !== undefined && { paymentAmountVnd: BigInt(dto.payment_amount_vnd) }),
-          ...(dto.estimated_duration_days !== undefined && { estimatedDurationDays: dto.estimated_duration_days }),
-          ...(dto.tech_stack           !== undefined && { techStackJson: dto.tech_stack }),
+          ...(dto.title !== undefined && { title: dto.title }),
+          ...(dto.deliverable_statement !== undefined && {
+            deliverableStatement: dto.deliverable_statement,
+          }),
+          ...(dto.payment_amount_vnd !== undefined && {
+            paymentAmountVnd: BigInt(dto.payment_amount_vnd),
+          }),
+          ...(dto.estimated_duration_days !== undefined && {
+            estimatedDurationDays: dto.estimated_duration_days,
+          }),
+          ...(dto.tech_stack !== undefined && { techStackJson: dto.tech_stack }),
           updatedAt: new Date(),
         },
       });
@@ -316,9 +332,9 @@ export class MilestonesService {
         for (const c of dto.criteria) {
           await tx.acceptanceCriterion.create({
             data: {
-              milestone:      { connect: { id: milestoneId } },
-              criterionText:  c.criterion_text,
-              isRequired:     c.is_required ?? true,
+              milestone: { connect: { id: milestoneId } },
+              criterionText: c.criterion_text,
+              isRequired: c.is_required ?? true,
               verifiedByRole: milestone.signOffAuthority,
             },
           });
@@ -418,21 +434,21 @@ export class MilestonesService {
       for (const item of dto.milestones) {
         const milestone = await tx.milestone.create({
           data: {
-            engagementId:         dto.engagementId,
-            milestoneNumber:      item.milestoneNumber,
+            engagementId: dto.engagementId,
+            milestoneNumber: item.milestoneNumber,
             deliverableStatement: item.deliverableStatement,
             signOffAuthority,
-            paymentAmountVnd:     item.paymentAmountVnd,
-            state:                'DEFINED',
+            paymentAmountVnd: item.paymentAmountVnd,
+            state: 'DEFINED',
           },
         });
 
         for (const c of item.criteria) {
           await tx.acceptanceCriterion.create({
             data: {
-              milestone:      { connect: { id: milestone.id } },
-              criterionText:  c.criterion_text,
-              isRequired:     c.is_required ?? true,
+              milestone: { connect: { id: milestone.id } },
+              criterionText: c.criterion_text,
+              isRequired: c.is_required ?? true,
               verifiedByRole: signOffAuthority,
             },
           });
