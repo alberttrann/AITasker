@@ -1,10 +1,13 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { MilestonesService } from '../../src/milestones/milestones.service';
 import { MilestoneBuilder } from '../helpers/mock.builders';
 
-describe('MilestonesService ownership enforcement', () => {
+describe('MilestonesService — Ownership & State Enforcement', () => {
   it('rejects milestone creation by a linked Tech Team member', async () => {
     const prisma = {
+      capabilityBid: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       engagement: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'engagement-1',
@@ -30,5 +33,53 @@ describe('MilestonesService ownership enforcement', () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects editing a milestone that is not in DEFINED state', async () => {
+    const prisma = {
+      milestone: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'milestone-1',
+          state: 'FUNDED',
+          engagement: { clientId: 'ceo-1' },
+        }),
+      },
+      capabilityBid: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const service = new MilestonesService(
+      prisma as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(
+      service.updateMilestone('milestone-1', 'ceo-1', { title: 'Updated Title' }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('rejects deleting a milestone that is not in DEFINED state', async () => {
+    const prisma = {
+      milestone: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'milestone-1',
+          state: 'AWAITING_PAYMENT',
+          engagement: { clientId: 'ceo-1' },
+        }),
+      },
+      capabilityBid: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const service = new MilestonesService(
+      prisma as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(
+      service.deleteMilestone('milestone-1', 'ceo-1'),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });

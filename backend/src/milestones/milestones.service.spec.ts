@@ -13,7 +13,11 @@ function createHarness(selfTechnical = false) {
     },
     acceptanceCriterion: { create: jest.fn().mockResolvedValue({ id: 'criterion-1' }) },
   };
+
   const prisma = {
+    capabilityBid: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     engagement: {
       findUnique: jest.fn().mockResolvedValue({
         id: 'engagement-1',
@@ -33,6 +37,7 @@ function createHarness(selfTechnical = false) {
     platformDecision: { create: jest.fn() },
     $transaction: jest.fn().mockImplementation((callback) => callback(tx)),
   };
+
   const ledger = { releaseMilestoneWithTx: jest.fn() };
   const fastapi = {
     criterionCheck: jest.fn().mockResolvedValue({ is_subjective: false, suggestions: [] }),
@@ -43,15 +48,17 @@ function createHarness(selfTechnical = false) {
   return { service, prisma, tx, user };
 }
 
-describe('MilestonesService review authority', () => {
+describe('MilestonesService — Review Authority & Legacy Handoff Repair', () => {
   it('rejects a milestone without acceptance criteria', async () => {
     const { service, user } = createHarness();
     const dto = new MilestoneBuilder().withCriteria([]).build();
 
-    await expect(service.createMilestone(dto, user)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.createMilestone(dto, user)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
-  it('derives JOINT for a non-technical project', async () => {
+  it('derives JOINT sign-off authority for a non-technical project', async () => {
     const { service, tx, user } = createHarness(false);
     await service.createMilestone(new MilestoneBuilder().build(), user);
 
@@ -63,7 +70,7 @@ describe('MilestonesService review authority', () => {
     });
   });
 
-  it('derives CEO for a self-technical project', async () => {
+  it('derives CEO sign-off authority for a self-technical project', async () => {
     const { service, tx, user } = createHarness(true);
     await service.createMilestone(new MilestoneBuilder().build(), user);
 
