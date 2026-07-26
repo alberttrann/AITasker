@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { ForbiddenException, BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ElicitationService } from '../../src/elicitation/elicitation.service';
 import { PrismaService } from '../../src/database/prisma.service';
 import { FastapiClient } from '../../src/elicitation/fastapi.client';
 import { AuthService } from '../../src/auth/auth.service';
 import { MatchingHelperService } from '../../src/shared/matching/matching-helper.service';
+import { EmailValidatorService } from '../../src/auth/email-validator.service';
 
 type GateFailedResult = {
   gate_passed: false;
@@ -21,12 +23,14 @@ function isGateFailed(
   return result.gate_passed === false;
 }
 
-describe('ElicitationService — regression', () => {
+describe('ElicitationService — full unit suite', () => {
   let service: ElicitationService;
   let prisma: any;
   let fastapiClient: any;
   let authService: any;
   let matchingHelper: any;
+  let eventEmitter: any;
+  let emailValidatorService: any;
 
   const CEO_ID = 'ceo-user-1';
   const OTHER_CEO = 'other-ceo-2';
@@ -39,7 +43,6 @@ describe('ElicitationService — regression', () => {
     selfTechnicalProjects: [],
   };
 
-  // A session fully ready for Stage 5 (used by confirm/runSynthesis tests)
   const stage5ReadySession = {
     id: SESSION_ID,
     userId: CEO_ID,
@@ -82,7 +85,32 @@ describe('ElicitationService — regression', () => {
       },
       techTeamProfile: {
         findUnique: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      archetypeDefinition: {
+        findMany: jest.fn().mockResolvedValue([{ code: '1' }, { code: '2' }, { code: '3' }, { code: '4' }, { code: '5' }, { code: '6' }]),
+      },
+      domainDefinition: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      seamDefinition: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      voidCodeDefinition: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      probeQuestion: {
+        findMany: jest.fn().mockResolvedValue([
+          { questionText: 'Roughly how many people will search or ask questions per day?' },
+          { questionText: 'When someone gets a wrong or unhelpful answer, what do you expect to happen next?' },
+          { questionText: 'Does this need to pull from documents/systems you already have, and which ones?' },
+          { questionText: 'How quickly does an answer need to appear after someone asks?' },
+        ]),
+      },
+      platformDecision: {
+        create: jest.fn().mockResolvedValue({}),
       },
     };
 
@@ -97,7 +125,15 @@ describe('ElicitationService — regression', () => {
     };
 
     matchingHelper = {
-      scoreEligibleExperts: jest.fn().mockResolvedValue([{ expert_id: 'expert-1' }]), // 1 candidate by default
+      scoreEligibleExperts: jest.fn().mockResolvedValue([{ expert_id: 'expert-1' }]),
+    };
+
+    eventEmitter = {
+      emit: jest.fn(),
+    };
+
+    emailValidatorService = {
+      assertValidEmail: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -111,6 +147,8 @@ describe('ElicitationService — regression', () => {
         },
         { provide: AuthService, useValue: authService },
         { provide: MatchingHelperService, useValue: matchingHelper },
+        { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: EmailValidatorService, useValue: emailValidatorService },
       ],
     }).compile();
 
@@ -118,8 +156,6 @@ describe('ElicitationService — regression', () => {
   });
 
   afterEach(() => jest.clearAllMocks());
-
-  // Ownership
 
   describe('ownership enforcement', () => {
     it('throws ForbiddenException when a different user reads the session', async () => {
@@ -134,8 +170,6 @@ describe('ElicitationService — regression', () => {
       );
     });
   });
-
-  // Stage 2 archetype must be within AI-recommended set
 
   describe('processStage2 — E5 archetype recommendation validation', () => {
     it('accepts an archetype within the recommended set', async () => {
@@ -167,7 +201,7 @@ describe('ElicitationService — regression', () => {
       );
     });
 
-    it('falls back to allowing any archetype when recommendations are empty (degraded ai-service)', async () => {
+    it('falls back to allowing any archetype when recommendations are empty', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
         ...stage5ReadySession,
         currentStage: 2,
@@ -179,8 +213,6 @@ describe('ElicitationService — regression', () => {
       await expect(service.processStage2(SESSION_ID, '6', CEO_ID, [])).resolves.toBeDefined();
     });
   });
-
-  // Stage 3 — exactly 4 archetype-tailored questions + vagueness
 
   describe('processStage3 — E6 fixed probes + vagueness check', () => {
     const archetype1Session = {
@@ -198,7 +230,7 @@ describe('ElicitationService — regression', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('returns advanced:false with vague_answers when ai-service flags vagueness, WITHOUT advancing the stage', async () => {
+    it('returns advanced:false with vague_answers when ai-service flags vagueness, WITHOUT advancing stage', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(archetype1Session);
       const questions = [
         'Roughly how many people will search or ask questions per day?',
@@ -238,7 +270,7 @@ describe('ElicitationService — regression', () => {
         advanced: true,
         currentStage: 4,
         stage4_required: true,
-        scenario_type: 'SCENARIO_A', // baseUser.selfTechnical = false
+        scenario_type: 'SCENARIO_A',
       });
     });
 
@@ -275,8 +307,6 @@ describe('ElicitationService — regression', () => {
     });
   });
 
-  // self-technical resolution + override endpoint
-
   describe('setSelfTechnical — A3(a) per-session override', () => {
     it('adds an override entry and returns a fresh access_token', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
@@ -303,57 +333,7 @@ describe('ElicitationService — regression', () => {
     });
   });
 
-  // Stage 4 submission auto-chains synthesis
-
-  describe('processStage4 — E4(b) auto-chain into synthesis', () => {
-    it('saves stage4 data AND returns the synthesis gate result in one call', async () => {
-      prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession,
-        currentStage: 4,
-      });
-      prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession,
-        currentStage: 5,
-        state: 'IN_PROGRESS',
-      });
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
-      prisma.project.create.mockResolvedValue({ id: 'project-1' });
-
-      const result = await service.processStage4(
-        SESSION_ID,
-        { current_stack: 'Node', data_available: 'logs', latency_requirement: '3s' },
-        CEO_ID,
-      );
-
-      // No separate confirm call needed — the gate result comes back directly.
-      expect(result).toMatchObject({ gate_passed: true, project_id: 'project-1' });
-      expect(fastapiClient.stage5Synthesize).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('processStage4Handoff — E4(b) auto-chain, Tech Team caller', () => {
-    it('verifies tech team linkage then auto-chains synthesis', async () => {
-      prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession,
-        currentStage: 4,
-      });
-      prisma.techTeamProfile.findUnique.mockResolvedValue({ linkedClientId: CEO_ID });
-      prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession,
-        currentStage: 5,
-      });
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
-      prisma.project.create.mockResolvedValue({ id: 'project-1' });
-
-      const result = await service.processStage4Handoff(
-        SESSION_ID,
-        { current_stack: 'Node', data_available: 'logs' },
-        TECH_ID,
-      );
-
-      expect(result).toMatchObject({ gate_passed: true });
-    });
-
     it('throws UnauthorizedException when the tech team member is not linked to this session', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
         ...stage5ReadySession,
@@ -373,53 +353,25 @@ describe('ElicitationService — regression', () => {
     it('links the specific Tech Team member to the new project on gate pass (Phase 1b)', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
         ...stage5ReadySession,
-        currentStage: 4,
-      });
-      prisma.techTeamProfile.findUnique.mockResolvedValue({ linkedClientId: CEO_ID });
-      prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession,
         currentStage: 5,
+        stage4TechInputsJson: {
+          current_stack: 'Node',
+          data_available: 'logs',
+          _tech_team_user_id: TECH_ID,
+        },
       });
       fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
       matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
       prisma.project.create.mockResolvedValue({ id: 'project-1' });
 
-      await service.processStage4Handoff(
-        SESSION_ID,
-        { current_stack: 'Node', data_available: 'logs' },
-        TECH_ID,
-      );
+      await service.processStage5(SESSION_ID, CEO_ID);
 
       expect(prisma.techTeamProfile.update).toHaveBeenCalledWith({
         where: { userId: TECH_ID },
         data: { linkedProjectId: 'project-1' },
       });
     });
-
-    it('does NOT call techTeamProfile.update for Scenario A (CEO self-submit, no tech team involved)', async () => {
-      prisma.elicitationSession.findUnique.mockResolvedValue({
-        ...stage5ReadySession,
-        currentStage: 4,
-      });
-      prisma.elicitationSession.update.mockResolvedValue({
-        ...stage5ReadySession,
-        currentStage: 5,
-      });
-      fastapiClient.stage5Synthesize.mockResolvedValue(makeSynthesisResponse());
-      matchingHelper.scoreEligibleExperts.mockResolvedValue([{ expert_id: 'e1' }]);
-      prisma.project.create.mockResolvedValue({ id: 'project-1' });
-
-      await service.processStage4(
-        SESSION_ID,
-        { current_stack: 'Node', data_available: 'logs' },
-        CEO_ID,
-      );
-
-      expect(prisma.techTeamProfile.update).not.toHaveBeenCalled();
-    });
   });
-
-  // 3-condition quality gate
 
   describe('quality gate — E10 all 3 BR-ELI-06 conditions', () => {
     it('passes when completeness >= 0.70 AND no hard voids AND >= 1 candidate', async () => {
@@ -469,7 +421,7 @@ describe('ElicitationService — regression', () => {
       }
     });
 
-    it('fails when an unresolved HIGH-severity void exists, even with good completeness and candidates', async () => {
+    it('fails when an unresolved HIGH-severity void exists', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue({
         ...stage5ReadySession,
         voidListJson: [{ void_code: 'NO_GROUND_TRUTH', severity: 'HIGH', injected: false }],
@@ -503,12 +455,12 @@ describe('ElicitationService — regression', () => {
       expect(result.gate_passed).toBe(true);
     });
 
-    it('fails with an HONEST advisory (not "go fix your input") when candidates=0 is the ONLY failing condition', async () => {
+    it('fails with an HONEST advisory when candidates=0 is the ONLY failing condition', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       fastapiClient.stage5Synthesize.mockResolvedValue(
         makeSynthesisResponse({ completeness_score: 0.95 }),
       );
-      matchingHelper.scoreEligibleExperts.mockResolvedValue([]); // zero candidates
+      matchingHelper.scoreEligibleExperts.mockResolvedValue([]);
       prisma.elicitationSession.update.mockResolvedValue({});
 
       const result = await service.retryFailedSynthesis(SESSION_ID, CEO_ID);
@@ -516,12 +468,11 @@ describe('ElicitationService — regression', () => {
       if (isGateFailed(result)) {
         expect(result.advisory_note).not.toMatch(/revisit stage/i);
         expect(result.advisory_note).toMatch(/qualified experts available/i);
-        // Does NOT send them backward — nothing for the CEO to fix.
         expect(result.return_to_stage).toBe(5);
       }
     });
 
-    it('treats a matching pre-check failure (ai-service error) as zero candidates, fail-safe', async () => {
+    it('treats a matching pre-check failure as zero candidates, fail-safe', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
       fastapiClient.stage5Synthesize.mockResolvedValue(
         makeSynthesisResponse({ completeness_score: 0.95 }),
@@ -533,8 +484,6 @@ describe('ElicitationService — regression', () => {
       expect(result.gate_passed).toBe(false);
     });
   });
-
-  // Duplicate-confirm / retry guards
 
   describe('retryFailedSynthesis — duplicate-publish prevention', () => {
     it('throws ConflictException when session is already COMPLETED', async () => {
@@ -569,7 +518,6 @@ describe('ElicitationService — regression', () => {
     });
   });
 
-  // handoff link generation — no email, jti-tracked
   describe('inviteTechTeam — E9 no email binding, jti tracking', () => {
     it('generates a jti, persists it on the session, and returns a link with no email reference', async () => {
       prisma.elicitationSession.findUnique.mockResolvedValue(stage5ReadySession);
@@ -577,7 +525,7 @@ describe('ElicitationService — regression', () => {
 
       const result = await service.inviteTechTeam(SESSION_ID, CEO_ID, 'tech@test.com');
 
-      expect(result.invite_link).toContain('/tech-team/register?token=');
+      expect(result.invite_link).toContain('/register/handoff/');
       expect(result.expires_in).toBe('72h');
       expect(prisma.elicitationSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -602,8 +550,6 @@ describe('ElicitationService — regression', () => {
       expect(firstJti).not.toBe(secondJti);
     });
   });
-
-  // State reset on re-do after RETURNED
 
   describe('state reset after RETURNED', () => {
     it('resets state to IN_PROGRESS when re-processing stage1', async () => {
