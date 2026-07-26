@@ -58,6 +58,7 @@ async def call_llm_with_system_and_messages(
     system: str,
     messages: list[dict],
     max_output_tokens: int = 1024,
+    json_mode: bool = False,
 ) -> str:
     """
     Multi-turn chat: prepends a system message then sends the full conversation
@@ -71,13 +72,17 @@ async def call_llm_with_system_and_messages(
               the last entry.
     """
     client = get_client()
-
     full_messages = [{"role": "system", "content": system}] + messages
 
-    response = await client.chat.completions.create(
-        model=settings.llm_model,
-        messages=full_messages,
-        temperature=settings.llm_temperature,
-        max_completion_tokens=max_output_tokens,
-    )
+    kwargs = {
+        "model": settings.llm_model,
+        "messages": full_messages,
+        "temperature": settings.llm_temperature,
+        "max_completion_tokens": max_output_tokens,
+    }
+    
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+
+    response = await client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""
