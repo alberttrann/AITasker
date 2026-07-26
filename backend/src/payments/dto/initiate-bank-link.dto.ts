@@ -11,7 +11,7 @@ export class InitiateBankLinkDto {
   @MinLength(2, { message: 'holder_name must be at least 2 characters.' })
   @MaxLength(100, { message: 'holder_name must be at most 100 characters.' })
   @Matches(/^[\p{L}\s.'-]+$/u, {
-    message: 'holder_name may only contain letters, spaces, and . \' -',
+    message: "holder_name may only contain letters, spaces, and . ' -",
   })
   holder_name: string;
 }

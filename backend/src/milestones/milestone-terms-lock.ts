@@ -7,8 +7,8 @@ export function bidHasAcceptedTerms(
 ): boolean {
   return Boolean(
     bid &&
-      isNegotiationEnvelope(bid.conditionalPricingJson) &&
-      acceptedOffer(bid.conditionalPricingJson),
+    isNegotiationEnvelope(bid.conditionalPricingJson) &&
+    acceptedOffer(bid.conditionalPricingJson),
   );
 }
 
@@ -44,10 +44,7 @@ export async function assertEngagementMilestoneTermsEditable(
   if (bidHasAcceptedTerms(bid)) throwMilestoneTermsLocked();
 }
 
-export async function assertMilestoneTermsEditable(
-  prisma: PrismaService,
-  milestoneId: string,
-) {
+export async function assertMilestoneTermsEditable(prisma: PrismaService, milestoneId: string) {
   const milestone = await prisma.milestone.findUnique({
     where: { id: milestoneId },
     select: {

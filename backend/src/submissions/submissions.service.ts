@@ -49,7 +49,7 @@ export class SubmissionsService {
       where: {
         milestoneId: milestoneId,
         isRequired: true,
-        status: { not: 'COMPLETED' }, 
+        status: { not: 'COMPLETED' },
       },
     });
 
@@ -70,7 +70,7 @@ export class SubmissionsService {
         statusCode: 422,
         error: 'REQUIRED_DOD_INCOMPLETE',
         message: 'You cannot submit deliverables while required DoD items are incomplete.',
-        missing_items: incompleteItems, 
+        missing_items: incompleteItems,
       });
     }
 
@@ -97,9 +97,10 @@ export class SubmissionsService {
         engagement.project && !engagement.project.selfTechnical
           ? engagement.project.techTeamProfiles.map((profile) => profile.userId)
           : [];
-      const recipients = linkedTechTeamIds.length > 0
-        ? linkedTechTeamIds.map((userId) => ({ userId, rolePath: 'tech-team' }))
-        : [{ userId: engagement.clientId, rolePath: 'ceo' }];
+      const recipients =
+        linkedTechTeamIds.length > 0
+          ? linkedTechTeamIds.map((userId) => ({ userId, rolePath: 'tech-team' }))
+          : [{ userId: engagement.clientId, rolePath: 'ceo' }];
 
       for (const recipient of recipients) {
         try {
@@ -134,29 +135,30 @@ export class SubmissionsService {
     });
   }
 
-
-    //Expert tải lên tài liệu bị khóa bằng cổng thanh toán (Stage Pay-gated Document)
-    async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
-        const milestone = await this.prisma.milestone.findUnique({
-        where: { id: milestoneId },
+  //Expert tải lên tài liệu bị khóa bằng cổng thanh toán (Stage Pay-gated Document)
+  async uploadDocument(milestoneId: string, dto: StagePaygatedDocDto) {
+    const milestone = await this.prisma.milestone.findUnique({
+      where: { id: milestoneId },
     });
 
-        if (!milestone) {
-        throw new NotFoundException('Milestone cannot be found in database.');
-        }
+    if (!milestone) {
+      throw new NotFoundException('Milestone cannot be found in database.');
+    }
 
-        const releaseState = ['DEFINED', 'AWAITING_PAYMENT'].includes(milestone.state) ? 'STAGED' : 'RELEASED';
-        const releasedAt = releaseState === 'RELEASED' ? new Date() : null;
+    const releaseState = ['DEFINED', 'AWAITING_PAYMENT'].includes(milestone.state)
+      ? 'STAGED'
+      : 'RELEASED';
+    const releasedAt = releaseState === 'RELEASED' ? new Date() : null;
 
-        return this.prisma.paygatedDocument.create({
-        data: {
-            milestoneId: milestoneId,
-            documentUrl: dto.document_url,
-            releaseState, 
-            stagedAt: new Date(),
-            releasedAt,
-        },
-        });
+    return this.prisma.paygatedDocument.create({
+      data: {
+        milestoneId: milestoneId,
+        documentUrl: dto.document_url,
+        releaseState,
+        stagedAt: new Date(),
+        releasedAt,
+      },
+    });
   }
 
   async downloadDocument(
@@ -232,7 +234,9 @@ export class SubmissionsService {
       throw new NotFoundException('Milestone cannot be found in database.');
     }
 
-    const releaseState = ['DEFINED', 'AWAITING_PAYMENT'].includes(milestone.state) ? 'STAGED' : 'RELEASED';
+    const releaseState = ['DEFINED', 'AWAITING_PAYMENT'].includes(milestone.state)
+      ? 'STAGED'
+      : 'RELEASED';
     const releasedAt = releaseState === 'RELEASED' ? new Date() : null;
 
     const result = await this.prisma.paygatedDocument.createMany({
@@ -299,7 +303,7 @@ export class SubmissionsService {
   }
   async listSubmissions(
     milestoneId: string,
-    user: { id: string; activeRole: string; clientSubtype?: string | null }
+    user: { id: string; activeRole: string; clientSubtype?: string | null },
   ) {
     const milestone = await this.prisma.milestone.findUnique({
       where: { id: milestoneId },
@@ -310,12 +314,21 @@ export class SubmissionsService {
 
     // Party-check validation
     const isAdmin = user.activeRole === 'ADMIN';
-    const isClient = user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO' && milestone.engagement.clientId === user.id;
+    const isClient =
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'CEO' &&
+      milestone.engagement.clientId === user.id;
     const isExpert = user.activeRole === 'EXPERT' && milestone.engagement.expertId === user.id;
-    
+
     let isTechTeam = false;
-    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && milestone.engagement.projectId) {
-      const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId: user.id } });
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'TECH_TEAM' &&
+      milestone.engagement.projectId
+    ) {
+      const techProfile = await this.prisma.techTeamProfile.findUnique({
+        where: { userId: user.id },
+      });
       isTechTeam = techProfile?.linkedProjectId === milestone.engagement.projectId;
     }
 
@@ -331,15 +344,15 @@ export class SubmissionsService {
 
   async getLatestSubmission(
     milestoneId: string,
-    user: { id: string; activeRole: string; clientSubtype?: string | null }
+    user: { id: string; activeRole: string; clientSubtype?: string | null },
   ) {
     // Re-use the list method to handle security and sorting
     const submissions = await this.listSubmissions(milestoneId, user);
-    
+
     if (!submissions.length) {
       throw new NotFoundException('No submissions found for this milestone.');
     }
-    
+
     return submissions[0]; // Return the first one (most recent)
   }
 }

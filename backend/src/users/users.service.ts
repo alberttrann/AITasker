@@ -162,8 +162,8 @@ export class UserService {
       this.prisma.service.findMany({
         where: { expertId: user.id, state: 'PUBLISHED' },
         select: { id: true, title: true, priceVnd: true, serviceType: true },
-        orderBy: { createdAt: 'desc' }
-      })
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
     return {
@@ -176,7 +176,7 @@ export class UserService {
       seamClaims: user.expertSeamClaims,
       avgRating: reputation._avg.rating,
       reviewCount: reputation._count,
-      activeListings: activeListings.map(s => ({ ...s, priceVnd: s.priceVnd.toString() })) 
+      activeListings: activeListings.map((s) => ({ ...s, priceVnd: s.priceVnd.toString() })),
     };
   }
 

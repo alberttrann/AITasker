@@ -75,7 +75,7 @@ export class MatchingService {
     if (!results || results.length === 0) return [];
 
     const expertIds = results.map((r) => r.expert_id);
-    
+
     // Fetch users and existing invitations in parallel
     const [users, invitations] = await Promise.all([
       this.prisma.user.findMany({
@@ -84,8 +84,8 @@ export class MatchingService {
       }),
       this.prisma.invitation.findMany({
         where: { projectId, expertId: { in: expertIds } },
-        select: { expertId: true, status: true }
-      })
+        select: { expertId: true, status: true },
+      }),
     ]);
 
     const userMap = new Map(users.map((u) => [u.id, u]));
@@ -94,12 +94,12 @@ export class MatchingService {
     return results.map((r) => {
       const inviteStatus = inviteMap.get(r.expert_id);
       return {
-        expert_id:      r.expert_id,
+        expert_id: r.expert_id,
         strength_label: r.strength_label,
-        gap_map:        r.gap_map,
-        contact_info:   userMap.get(r.expert_id) ?? null,
+        gap_map: r.gap_map,
+        contact_info: userMap.get(r.expert_id) ?? null,
         // Tell FE exactly what state the invite is in
-        invitation_status: inviteStatus ?? 'NONE', 
+        invitation_status: inviteStatus ?? 'NONE',
       };
     });
   }

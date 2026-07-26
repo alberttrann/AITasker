@@ -104,11 +104,11 @@ export class PortfolioService {
     let evalResult;
     try {
       evalResult = await this.fastapi.portfolioEval({
-        seam_code:            claim.seamCode,
-        project_description:  dto.projectDescription,
-        decision_points:      dto.decisionPoints,
-        seam_name:            seamDef?.name ?? claim.seamCode,
-        seam_description:     seamDef?.description ?? null,
+        seam_code: claim.seamCode,
+        project_description: dto.projectDescription,
+        decision_points: dto.decisionPoints,
+        seam_name: seamDef?.name ?? claim.seamCode,
+        seam_description: seamDef?.description ?? null,
         all_seam_definitions: allSeams,
       });
     } catch (err) {

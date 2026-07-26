@@ -58,11 +58,12 @@ export class ProjectMilestoneDto {
   @IsString()
   @IsOptional()
   condition?: string;
-
 }
 
 export class UpdateProjectMilestonesDto {
-  @ValidateIf((dto: UpdateProjectMilestonesDto, value) => value !== undefined || !dto.milestoneFramework)
+  @ValidateIf(
+    (dto: UpdateProjectMilestonesDto, value) => value !== undefined || !dto.milestoneFramework,
+  )
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProjectMilestoneDto)

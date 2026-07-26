@@ -50,8 +50,8 @@ export class DbSeeder {
     await prisma.walletTransaction.deleteMany({});
     await prisma.virtualAccount.deleteMany({});
     await prisma.platformSettings.deleteMany({});
-    await prisma.subscriptionPurchaseLog.deleteMany({}); 
-    await prisma.subscriptionPackage.deleteMany({});     
+    await prisma.subscriptionPurchaseLog.deleteMany({});
+    await prisma.subscriptionPackage.deleteMany({});
     await prisma.wallet.deleteMany({});
 
     await prisma.subscriptionPurchaseLog.deleteMany({});

@@ -16,7 +16,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly disputesService: DisputesService,
-  ) { }
+  ) {}
 
   // PUT /admin/projects/:id/suspend-spec
   async suspendSpec(projectId: string) {
@@ -28,7 +28,7 @@ export class AdminService {
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.project.update({
         where: { id: projectId },
-        data: { state: 'SUSPENDED' }
+        data: { state: 'SUSPENDED' },
       });
 
       await tx.platformDecision.create({
@@ -38,7 +38,7 @@ export class AdminService {
           entityId: projectId,
           decision: 'SUSPENDED',
           advisoryNote: 'Admin suspension',
-        }
+        },
       });
 
       return updated;
@@ -59,10 +59,7 @@ export class AdminService {
   }
 
   async getDisputesQueue(adminUserId: string, state?: string) {
-    return this.disputesService.findAll(
-      { id: adminUserId, activeRole: 'ADMIN' },
-      { state },
-    );
+    return this.disputesService.findAll({ id: adminUserId, activeRole: 'ADMIN' }, { state });
   }
 
   async resolveDispute(disputeId: string, dto: ResolveDisputeDto, adminUserId: string) {
@@ -151,7 +148,10 @@ export class AdminService {
     return {
       active_projects_by_archetype_tier: projectsByArchetype,
       elicitation_completion_rate_pct: safeRate(completedSessions, totalSessions),
-      portfolio_auto_upgrade_rate_pct: safeRate(approvedPortfolioSubmissions, totalPortfolioSubmissions),
+      portfolio_auto_upgrade_rate_pct: safeRate(
+        approvedPortfolioSubmissions,
+        totalPortfolioSubmissions,
+      ),
       dispute_rate_pct: safeRate(totalDisputes, totalMilestones),
       dispute_auto_resolve_rate_pct: safeRate(autoResolvedDisputes, totalDisputes),
       milestone_completion_rate_pct: safeRate(releasedMilestones, totalMilestones),
@@ -342,7 +342,10 @@ export class AdminService {
   async updatePlatformSettings(dto: { platform_fee_pct?: number; platform_wallet_id?: string }) {
     // Guard: platform_fee_pct must be in [0, 1] — values > 1 would produce negative expertAmount
     // in ledger.service.ts, causing BigInt(negative) to corrupt the wallet.
-    if (dto.platform_fee_pct !== undefined && (dto.platform_fee_pct < 0 || dto.platform_fee_pct > 1)) {
+    if (
+      dto.platform_fee_pct !== undefined &&
+      (dto.platform_fee_pct < 0 || dto.platform_fee_pct > 1)
+    ) {
       throw new BadRequestException('platform_fee_pct must be between 0 and 1 (inclusive)');
     }
 
@@ -354,7 +357,10 @@ export class AdminService {
           platformWalletId: dto.platform_wallet_id ?? null,
         },
       });
-      return { platform_fee_pct: created.platformFeePct, platform_wallet_id: created.platformWalletId };
+      return {
+        platform_fee_pct: created.platformFeePct,
+        platform_wallet_id: created.platformWalletId,
+      };
     }
     const updated = await this.prisma.platformSettings.update({
       where: { id: existing.id },
@@ -363,7 +369,10 @@ export class AdminService {
         ...(dto.platform_wallet_id !== undefined && { platformWalletId: dto.platform_wallet_id }),
       },
     });
-    return { platform_fee_pct: updated.platformFeePct, platform_wallet_id: updated.platformWalletId };
+    return {
+      platform_fee_pct: updated.platformFeePct,
+      platform_wallet_id: updated.platformWalletId,
+    };
   }
 
   async deleteSubscriptionPackage(packageId: string) {
@@ -379,8 +388,8 @@ export class AdminService {
     if (pkg._count.purchaseLogs > 0) {
       throw new UnprocessableEntityException(
         `Cannot delete "${pkg.name}" — it has ${pkg._count.purchaseLogs} purchase record(s) ` +
-        `linked to it. Deactivate it instead (PUT /admin/subscriptions/packages/${packageId} ` +
-        `with { "isActive": false }) to hide it from new activations without losing history.`,
+          `linked to it. Deactivate it instead (PUT /admin/subscriptions/packages/${packageId} ` +
+          `with { "isActive": false }) to hide it from new activations without losing history.`,
       );
     }
 
@@ -390,10 +399,10 @@ export class AdminService {
 
   async listUsers(filters: { role?: string; isActive?: boolean; search?: string }) {
     const where: any = {};
-    
+
     // Exact boolean match (if provided)
     if (filters.isActive !== undefined) where.isActive = filters.isActive;
-    
+
     // JSON Array match for role (e.g. 'CLIENT_CEO', 'EXPERT', 'ADMIN')
     if (filters.role) {
       where.roles = { array_contains: filters.role }; // ← FIXED
@@ -405,15 +414,21 @@ export class AdminService {
         { fullName: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
-    
+
     return this.prisma.user.findMany({
       where,
       take: 100,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, email: true, fullName: true, roles: true,
-        activeRole: true, isActive: true, createdAt: true,
-        subscriptionClientTier: true, subscriptionExpertTier: true,
+        id: true,
+        email: true,
+        fullName: true,
+        roles: true,
+        activeRole: true,
+        isActive: true,
+        createdAt: true,
+        subscriptionClientTier: true,
+        subscriptionExpertTier: true,
       },
     });
   }
@@ -423,19 +438,21 @@ export class AdminService {
       where: { id: userId },
       include: {
         wallet: { select: { availableBalance: true, lockedBalance: true } },
-        clientProfile: true, expertProfile: true,
+        clientProfile: true,
+        expertProfile: true,
       },
     });
     if (!user) throw new NotFoundException('User not found.');
     return {
       ...user,
       wallet: user.wallet
-        ? { availableBalance: Number(user.wallet.availableBalance), lockedBalance: Number(user.wallet.lockedBalance) }
+        ? {
+            availableBalance: Number(user.wallet.availableBalance),
+            lockedBalance: Number(user.wallet.lockedBalance),
+          }
         : null,
     };
   }
-
-
 
   async listProjects(filters: { state?: string; archetype?: string }) {
     return this.prisma.project.findMany({
@@ -446,12 +463,16 @@ export class AdminService {
       take: 100,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, projectName: true, state: true, archetype: true,
-        tier: true, createdAt: true, clientId: true,
+        id: true,
+        projectName: true,
+        state: true,
+        archetype: true,
+        tier: true,
+        createdAt: true,
+        clientId: true,
       },
     });
   }
-
 
   async getProjectDetail(projectId: string) {
     const project = await this.prisma.project.findUnique({
@@ -506,7 +527,9 @@ export class AdminService {
     const project = await this.prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw new NotFoundException('Project not found.');
     if (project.state !== 'SUSPENDED') {
-      throw new UnprocessableEntityException(`Project is in state '${project.state}', not SUSPENDED.`);
+      throw new UnprocessableEntityException(
+        `Project is in state '${project.state}', not SUSPENDED.`,
+      );
     }
     return this.prisma.project.update({
       where: { id: projectId },

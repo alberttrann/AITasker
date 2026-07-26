@@ -22,7 +22,11 @@ export class AdminPromptsService {
     return this.prisma.promptTemplate.upsert({
       where: { stage },
       create: { stage, templateText: dto.templateText, description: dto.description },
-      update: { templateText: dto.templateText, description: dto.description, version: { increment: 1 } },
+      update: {
+        templateText: dto.templateText,
+        description: dto.description,
+        version: { increment: 1 },
+      },
     });
   }
 

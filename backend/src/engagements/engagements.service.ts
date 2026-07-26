@@ -30,7 +30,6 @@ const PROJECT_SUMMARY_SELECT = {
   },
 } as const;
 
-
 const CURRENT_MILESTONE_INCLUDE = {
   milestones: {
     orderBy: { milestoneNumber: 'asc' },
@@ -39,9 +38,9 @@ const CURRENT_MILESTONE_INCLUDE = {
       milestoneNumber: true,
       state: true,
       deliverableStatement: true,
-      paymentAmountVnd: true
-    }
-  }
+      paymentAmountVnd: true,
+    },
+  },
 } as any;
 
 @Injectable()
@@ -49,7 +48,7 @@ export class EngagementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   // GET /engagements — list own engagements (or all for ADMIN).
   // Blueprint: docs/04-endpoints.md §0.11 L row 145.
@@ -85,12 +84,12 @@ export class EngagementsService {
     if (user.activeRole === 'EXPERT') {
       const engagements = await this.prisma.engagement.findMany({
         where: { expertId: user.id },
-        include: { 
-          project: PROJECT_SUMMARY_SELECT, 
+        include: {
+          project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
           service: { select: { id: true, title: true, priceVnd: true } },
           client: { select: { id: true, fullName: true } },
-          ...CURRENT_MILESTONE_INCLUDE 
+          ...CURRENT_MILESTONE_INCLUDE,
         },
         orderBy: { id: 'desc' }, // Sort by newest IDs first
       });
@@ -100,13 +99,13 @@ export class EngagementsService {
     // 3. CEO — engagements where they are the client.
     if (user.activeRole === 'CLIENT' && user.clientSubtype === 'CEO') {
       const engagements = await this.prisma.engagement.findMany({
-        where:   { clientId: user.id },
-        include: { 
+        where: { clientId: user.id },
+        include: {
           project: PROJECT_SUMMARY_SELECT,
           capabilityBid: true,
           service: { select: { id: true, title: true, priceVnd: true } },
           expert: { select: { fullName: true } },
-          ...CURRENT_MILESTONE_INCLUDE 
+          ...CURRENT_MILESTONE_INCLUDE,
         },
         orderBy: { id: 'desc' },
       });
@@ -300,22 +299,30 @@ export class EngagementsService {
     return ndaResult.engagement;
   }
 
-  private withContractFlags<T extends {
-    capabilityBid?: { conditionalPricingJson: unknown; negotiatedPriceVnd?: bigint | null } | null;
-    project?: { selfTechnical: boolean } | null;
-    clientNdaAcceptedAt: Date | null;
-    expertNdaAcceptedAt: Date | null;
-  }>(engagement: T, restrictedTechnicalView = false) {
+  private withContractFlags<
+    T extends {
+      capabilityBid?: {
+        conditionalPricingJson: unknown;
+        negotiatedPriceVnd?: bigint | null;
+      } | null;
+      project?: { selfTechnical: boolean } | null;
+      clientNdaAcceptedAt: Date | null;
+      expertNdaAcceptedAt: Date | null;
+    },
+  >(engagement: T, restrictedTechnicalView = false) {
     const capabilityBid = engagement.capabilityBid;
-    const envelope = capabilityBid && isNegotiationEnvelope(capabilityBid.conditionalPricingJson)
-      ? capabilityBid.conditionalPricingJson
-      : undefined;
+    const envelope =
+      capabilityBid && isNegotiationEnvelope(capabilityBid.conditionalPricingJson)
+        ? capabilityBid.conditionalPricingJson
+        : undefined;
     const accepted = envelope ? acceptedOffer(envelope) : undefined;
     const current = envelope ? currentOffer(envelope) : undefined;
     const negotiation = envelope
       ? deriveNegotiationState(envelope, engagement.project?.selfTechnical !== true)
       : undefined;
-    const isService = (engagement as any).type === 'SERVICE_PURCHASE' || (engagement as any).type === 'TECH_DISCOVERY';
+    const isService =
+      (engagement as any).type === 'SERVICE_PURCHASE' ||
+      (engagement as any).type === 'TECH_DISCOVERY';
     return {
       ...engagement,
       ...(capabilityBid
@@ -327,7 +334,8 @@ export class EngagementsService {
                 : capabilityBid.conditionalPricingJson,
               negotiatedPriceVnd: restrictedTechnicalView
                 ? undefined
-                : capabilityBid.negotiatedPriceVnd === null || capabilityBid.negotiatedPriceVnd === undefined
+                : capabilityBid.negotiatedPriceVnd === null ||
+                    capabilityBid.negotiatedPriceVnd === undefined
                   ? null
                   : Number(capabilityBid.negotiatedPriceVnd),
               acceptedOffer: restrictedTechnicalView ? undefined : accepted,
@@ -343,9 +351,8 @@ export class EngagementsService {
           }
         : {}),
       termsLocked: isService || bidHasAcceptedTerms(capabilityBid),
-      ndaComplete: isService || Boolean(
-        engagement.clientNdaAcceptedAt && engagement.expertNdaAcceptedAt,
-      ),
+      ndaComplete:
+        isService || Boolean(engagement.clientNdaAcceptedAt && engagement.expertNdaAcceptedAt),
     };
   }
 
@@ -497,7 +504,11 @@ export class EngagementsService {
     if (engagement.expertId === user.id) return true;
 
     // Tech Team: check linkedProjectId
-    if (user.activeRole === 'CLIENT' && user.clientSubtype === 'TECH_TEAM' && engagement.projectId) {
+    if (
+      user.activeRole === 'CLIENT' &&
+      user.clientSubtype === 'TECH_TEAM' &&
+      engagement.projectId
+    ) {
       const techProfile = await this.prisma.techTeamProfile.findUnique({
         where: { userId: user.id },
         select: { linkedProjectId: true },
@@ -526,7 +537,11 @@ export class EngagementsService {
   async getEngagementSubmissions(engagementId: string, user: ActorUser) {
     const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
     if (!engagement) throw new NotFoundException('Engagement not found.');
-    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+    if (
+      user.activeRole !== 'ADMIN' &&
+      engagement.expertId !== user.id &&
+      engagement.clientId !== user.id
+    ) {
       throw new ForbiddenException('Not a party to this engagement.');
     }
     return this.prisma.milestoneSubmission.findMany({
@@ -539,7 +554,11 @@ export class EngagementsService {
   async getEngagementBid(engagementId: string, user: ActorUser) {
     const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
     if (!engagement) throw new NotFoundException('Engagement not found.');
-    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+    if (
+      user.activeRole !== 'ADMIN' &&
+      engagement.expertId !== user.id &&
+      engagement.clientId !== user.id
+    ) {
       throw new ForbiddenException('Not a party to this engagement.');
     }
     const bid = await this.prisma.capabilityBid.findFirst({
@@ -553,7 +572,11 @@ export class EngagementsService {
   async getEngagementDisputes(engagementId: string, user: ActorUser) {
     const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
     if (!engagement) throw new NotFoundException('Engagement not found.');
-    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+    if (
+      user.activeRole !== 'ADMIN' &&
+      engagement.expertId !== user.id &&
+      engagement.clientId !== user.id
+    ) {
       throw new ForbiddenException('Not a party to this engagement.');
     }
     return this.prisma.dispute.findMany({
@@ -576,7 +599,11 @@ export class EngagementsService {
   async cancelEngagement(engagementId: string, user: ActorUser) {
     const engagement = await this.prisma.engagement.findUnique({ where: { id: engagementId } });
     if (!engagement) throw new NotFoundException('Engagement not found.');
-    if (user.activeRole !== 'ADMIN' && engagement.expertId !== user.id && engagement.clientId !== user.id) {
+    if (
+      user.activeRole !== 'ADMIN' &&
+      engagement.expertId !== user.id &&
+      engagement.clientId !== user.id
+    ) {
       throw new ForbiddenException('Not a party to this engagement.');
     }
     const fundedMilestones = await this.prisma.milestone.count({
@@ -593,15 +620,8 @@ export class EngagementsService {
     });
   }
 
-  private async isLinkedTechTeam(
-    projectId: string | null,
-    user: ActorUser,
-  ): Promise<boolean> {
-    if (
-      !projectId ||
-      user.activeRole !== 'CLIENT' ||
-      user.clientSubtype !== 'TECH_TEAM'
-    ) {
+  private async isLinkedTechTeam(projectId: string | null, user: ActorUser): Promise<boolean> {
+    if (!projectId || user.activeRole !== 'CLIENT' || user.clientSubtype !== 'TECH_TEAM') {
       return false;
     }
     const profile = await this.prisma.techTeamProfile.findUnique({

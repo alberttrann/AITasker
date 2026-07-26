@@ -84,13 +84,15 @@ function normalizeCriteria(value: unknown): MilestoneOfferCriterion[] {
     );
     if (!criterionText) return [];
 
-    return [{
-      criterion_text: criterionText,
-      is_required:
-        typeof (candidate.is_required ?? candidate.isRequired) === 'boolean'
-          ? Boolean(candidate.is_required ?? candidate.isRequired)
-          : true,
-    }];
+    return [
+      {
+        criterion_text: criterionText,
+        is_required:
+          typeof (candidate.is_required ?? candidate.isRequired) === 'boolean'
+            ? Boolean(candidate.is_required ?? candidate.isRequired)
+            : true,
+      },
+    ];
   });
 }
 
@@ -219,7 +221,9 @@ export function normalizeMilestoneTerms(
     const rawTechStack =
       offered.tech_stack ?? offered.techStack ?? blueprint.tech_stack ?? blueprint.techStack;
     const techStack = Array.isArray(rawTechStack)
-      ? rawTechStack.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+      ? rawTechStack.filter(
+          (item): item is string => typeof item === 'string' && Boolean(item.trim()),
+        )
       : undefined;
 
     return {

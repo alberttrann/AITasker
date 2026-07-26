@@ -1,4 +1,15 @@
-import { Controller, Get, Put, Patch, Body, UseGuards, Param, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Patch,
+  Body,
+  UseGuards,
+  Param,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ExpertProfileService } from './expert-profiles.service';
 import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
@@ -54,14 +65,14 @@ export class ExpertProfilesController {
 
   @Get('me/domains')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: "List my domain depth claims" })
+  @ApiOperation({ summary: 'List my domain depth claims' })
   async getMyDomains(@CurrentUser() user: { id: string }) {
     return this.expertService.getMyDomains(user.id);
   }
 
   @Get('me/seams')
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: "List my seam claims with verification status" })
+  @ApiOperation({ summary: 'List my seam claims with verification status' })
   async getMySeams(@CurrentUser() user: { id: string }) {
     return this.expertService.getMySeams(user.id);
   }

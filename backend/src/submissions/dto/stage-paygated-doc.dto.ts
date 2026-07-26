@@ -1,4 +1,4 @@
-import { IsNotEmpty} from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
 import { ArrayMinSize, IsArray, IsString, IsUrl } from 'class-validator';
 
 export class StagePaygatedDocDto {

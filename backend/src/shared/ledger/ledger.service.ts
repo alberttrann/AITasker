@@ -5,7 +5,12 @@ import { PayGatedDocumentReleaseState } from '@common/enums/paygated-document-re
 import { VAStatus } from '@common/enums/va-status.enum';
 import { VAEntityType } from '@common/enums/va-entity-type.enum';
 import { TransactionType } from '@common/enums/transaction-type.enum';
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -60,7 +65,7 @@ export class LedgerService {
     if (typeof platformFeePct !== 'number' || platformFeePct < 0 || platformFeePct > 1) {
       throw new BadRequestException(
         `Invalid platform_fee_pct: ${platformFeePct}. Must be between 0 and 1. ` +
-        'Fix via PUT /admin/platform-settings.'
+          'Fix via PUT /admin/platform-settings.',
       );
     }
 
@@ -72,7 +77,7 @@ export class LedgerService {
     if (expertAmount < 0) {
       throw new BadRequestException(
         `Computed expertAmount (${expertAmount}) is negative. ` +
-        `Escrow=${escrowTotalAmount}, fee=${platformFeePct}. Fix platform_fee_pct.`
+          `Escrow=${escrowTotalAmount}, fee=${platformFeePct}. Fix platform_fee_pct.`,
       );
     }
 

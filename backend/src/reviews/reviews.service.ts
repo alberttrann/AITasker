@@ -169,7 +169,7 @@ export class ReviewService {
   async getReviewsForUser(targetId: string) {
     return this.prisma.review.findMany({
       where: { targetId },
-      orderBy: { id: 'desc' }, 
+      orderBy: { id: 'desc' },
       include: {
         reviewer: { select: { id: true, fullName: true } },
       },
@@ -179,7 +179,7 @@ export class ReviewService {
   async getReviewsByReviewer(reviewerId: string) {
     return this.prisma.review.findMany({
       where: { reviewerId },
-      orderBy: { id: 'desc' }, 
+      orderBy: { id: 'desc' },
       include: {
         target: { select: { id: true, fullName: true } },
       },
