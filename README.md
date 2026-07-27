@@ -1,9 +1,10 @@
 # AITasker — AI Marketplace Platform for Enterprise AI Services
 
-**Group Name:** SWP391-SE1908-Group05  
+**Group Name:** SWP391-SE1908-Group05 
 **Software Type:** Full-Stack Web Application & Microservices Platform  
 **Repository:** [github.com/alberttrann/AITasker](https://github.com/alberttrann/AITasker)
-**SRS Document:** [https://docs.google.com/document/d/1CPfyUr95-YiGXqbZTF71mSYNIb1xpDrFBgu5bZtsQ4w/edit?tab=t.0](https://github.com/alberttrann/AITasker)
+**SRS Document:** [Word Document](https://github.com/alberttrann/AITasker)
+
 ---
 
 ## Executive Summary
