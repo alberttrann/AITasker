@@ -1,9 +1,18 @@
 # AITasker — AI Marketplace Platform for Enterprise AI Services
 
 **Group Name:** SWP391-SE1908-Group05 
-**Software Type:** Full-Stack Web Application & Microservices Platform  
+
+**Software Type:** Full-Stack Web Application & Microservices Platform 
+
 **Repository:** [github.com/alberttrann/AITasker](https://github.com/alberttrann/AITasker)
+
 **SRS Document:** [Word Document](https://github.com/alberttrann/AITasker)
+
+**Deployed Production Links:**: [Railway Frontend](https://aitasker-frontend-production.up.railway.app/)
+
+**Online NestJS Backend Swagger Doc:** [NestJS Swagger API Doc](https://aitasker-backend-production.up.railway.app/api#/)
+
+**Online FastAPI Swagger Doc:** [LLM Service API Doc](https://aitasker-ai-production.up.railway.app/redoc)
 
 ---
 
@@ -386,6 +395,224 @@ npm run simulate:ipn -- --va "WALLETTOPUP12345" --amount 10000000
 
 ---
 
+
+## Production Cloud Deployment Architecture
+
+AITasker is deployed on a multi-cloud infrastructure consisting of **Railway** (Microservices & Frontend hosting), **Neon** (Serverless PostgreSQL database), **Upstash** (Serverless Redis for WebSocket pub/sub clustering), and **SePay VietQR** (Inbound payment processing).
+
+```
+                            [ USER / BROWSER ]
+                                    │
+                                    │ HTTPS (Port 443)
+                                    ▼
+                 ┌──────────────────────────────────────┐
+                 │          Frontend Service            │
+                 │   `aitasker-frontend-production`     │
+                 │     (Nginx Container / Port 80)      │
+                 └──────────────────┬───────────────────┘
+                                    │
+                        WSS / REST  │ HTTPS (Port 443)
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                           Railway VPC                                 │
+│                                                                       │
+│  ┌─────────────────────────────────┐                                  │
+│  │         Backend Service         │                                  │
+│  │   `aitasker-backend-production` │                                  │
+│  │       (NestJS Container)        │                                  │
+│  └────────────────┬────────────────┘                                  │
+│                   │                                                   │
+│                   │ Internal HTTP (Port 8000)                         │
+│                   │ Header: `x-internal-token: <INTERNAL_SECRET>`     │
+│                   ▼                                                   │
+│  ┌─────────────────────────────────┐                                  │
+│  │           AI Service            │                                  │
+│  │      `aitasker-ai-production`    │                                  │
+│  │      (FastAPI Container)        │                                  │
+│  └─────────────────────────────────┘                                  │
+│                                                                       │
+│  DNS: `http://aitasker-ai.railway.internal:8000`                       │
+└──────────────┬─────────────────────────────┬──────────────────────────┘
+               │                             │
+    TLS / SSL  │ Connection                  │ TLS / SSL
+      (Pooler) │                             │ (rediss://)
+               ▼                             ▼
+   ┌───────────────────────┐     ┌───────────────────────┐
+   │    Neon PostgreSQL    │     │     Upstash Redis     │
+   │  (Serverless DB v16)  │     │   (WebSocket Pub/Sub) │
+   └───────────────────────┘     └───────────────────────┘
+```
+
+---
+
+### 1. Network Topology & Microservice Communication
+
+#### A. Railway Private Subnet (`.railway.internal`)
+Communication between the NestJS Backend and FastAPI AI Service takes place over **Railway’s isolated IPv6 Private Network**, completely bypassing the public internet:
+
+- **Public Hostname**: `https://aitasker-ai-production.up.railway.app`
+- **Internal Private Mesh Endpoint**: `http://aitasker-ai.railway.internal:8000`
+
+Setting `FASTAPI_URL="http://aitasker-ai.railway.internal:8000"` on the backend provides zero-latency internal routing and avoids exposing intermediate LLM calls to external networks.
+
+#### B. S2S Authentication & Security Gate (`INTERNAL_SECRET`)
+To prevent unauthorized invocation of internal LLM endpoints, NestJS passes a shared 256-bit secret token on every request header:
+
+```http
+X-Internal-Token: <<SECRET_INTERNAL_TOKEN>>
+```
+
+FastAPI’s `verify_internal_token` middleware (`ai-service/app/dependencies.py`) inspects incoming headers against `INTERNAL_SECRET`. Requests lacking or providing an invalid secret token are rejected with **HTTP 403 Forbidden**.
+
+---
+
+### 2. Cloud Data Layer (Neon + Upstash)
+
+#### A. Neon Serverless PostgreSQL (`DATABASE_URL` vs `DIRECT_URL`)
+AITasker utilizes Neon PostgreSQL 16 with separate connection strings configured for connection pooling and schema migrations:
+
+- **`DATABASE_URL` (PgBouncer Pooled)**:  
+  `postgresql://neondb_owner:...@ep-misty-morning-aoxdjg7d-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`  
+  Used by active NestJS worker instances to handle high-concurrency connection spikes without exhausting database connections.
+- **`DIRECT_URL` (Direct Instance Connection)**:  
+  `postgresql://neondb_owner:...@ep-misty-morning-aoxdjg7d.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`  
+  Used exclusively by Prisma CLI (`npx prisma db push` / migrations) to establish direct DDL locks.
+
+#### B. Upstash Redis Cluster (`rediss://`)
+To support horizontal scaling of Socket.io instances on Railway, NestJS binds to an Upstash Redis cluster via TLS (`rediss://` protocol):
+
+```env
+REDIS_URL="rediss://default:...@merry-haddock-156575.upstash.io:6379"
+```
+
+The `RedisIoAdapter` (`backend/src/common/adapters/redis-io.adapter.ts`) attaches `pubClient` and `subClient` instances to Redis, ensuring real-time events (`newMessage`, `milestone:updated`, `payment:confirmed`) broadcast seamlessly across all backend replicas.
+
+---
+
+### 3. Frontend Container & Nginx Proxy Setup
+
+The frontend is packaged as a lightweight multi-stage Docker image (`frontend/Dockerfile`).
+
+#### Stage 1: Build Time
+Vite bakes environment variables directly into the compiled JavaScript bundle during `npm run build`:
+
+```dockerfile
+ARG VITE_API_BASE_URL="https://aitasker-backend-production.up.railway.app"
+ARG VITE_WS_URL="https://aitasker-backend-production.up.railway.app"
+```
+
+#### Stage 2: Nginx Web Server (`nginx/default.conf`)
+Nginx 1.27 Alpine serves static JS/CSS assets and handles SPA client-side routing fallback:
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Single-Page Application (SPA) Fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Static Asset Caching
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+---
+
+### 4. Production Money Flow & SePay Integration Topology
+
+```
+1. INBOUND PAYMENT (Client Top-Up or Milestone Funding):
+   Client Bank App ──(VietQR Transfer)──► SePay Gateway
+                                              │
+                                              │ Signed Webhook Callback
+                                              │ POST /webhooks/sepay/ipn
+                                              ▼
+                                   [ NestJS Backend ]
+                                   1. Verify HMAC-SHA256 Signature (`SEPAY_WEBHOOK_SECRET`)
+                                   2. Verify Idempotency (`wallet_transactions.reference_id`)
+                                   3. Execute Atomic DB Transaction:
+                                      - Deduct Client Available Balance
+                                      - Credit Client Locked Balance
+                                      - Create Escrow Account (`status = 'HELD'`)
+                                      - Set Milestone `IN_PROGRESS`
+                                      - Bulk Release Staged Pay-Gated Docs
+                                   4. Emit Socket.io `payment:confirmed` Event
+
+2. OUTBOUND DISBURSEMENT (Milestone Approval & Release):
+   Reviewer Verifies Criteria ──► [ NestJS Ledger Engine ]
+                                        │
+                                        ├─► Calculate Platform Fee (5%) → Platform Wallet
+                                        ├─► Calculate Net Payout (95%) → Expert Wallet Balance
+                                        │
+                                        └─► IF Expert Bank Account Linked:
+                                            1. Create `withdrawal_requests` (`MILESTONE_RELEASE`)
+                                            2. Debit Expert Available Balance
+                                            3. Log `WITHDRAWAL` Transaction
+                                            4. Admin Confirms Transfer via `/admin/withdrawals/:id/complete`
+```
+
+---
+
+### 5. Production Environment Variable Reference
+
+#### A. Backend Service Environment
+| Variable Name | Value / Format | Description |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://...pooler...` | Neon pooled connection string |
+| `DIRECT_URL` | `postgresql://...aws.neon.tech...` | Neon direct DDL connection string |
+| `JWT_SECRET` | 64-byte Hex String | Secret key for JWT access token signing |
+| `SEPAY_WEBHOOK_SECRET` | `whsec_...` | HMAC-SHA256 secret for verifying SePay webhooks |
+| `FASTAPI_URL` | `http://aitasker-ai.railway.internal:8000` | Railway internal private mesh endpoint |
+| `REDIS_URL` | `rediss://...upstash.io:6379` | TLS-encrypted Upstash Redis connection string |
+| `INTERNAL_SECRET` | 32-byte Hex String | Shared secret header passed to FastAPI microservice |
+| `CORS_ORIGIN` | `https://aitasker-frontend-production...` | Whitelisted production frontend domain |
+
+#### B. AI Service Environment
+| Variable Name | Value / Format | Description |
+|---|---|---|
+| `ENV` | `production` | Production environment flag |
+| `LLM_BASE_URL` | `https://api.xiaomimimo.com/v1` | OpenAI-compatible LLM Gateway Base URL |
+| `LLM_MODEL` | `mimo-v2.5-pro` | Primary LLM model identifier |
+| `INTERNAL_SECRET` | 32-byte Hex String | Shared secret required on `X-Internal-Token` header |
+| `PORTFOLIO_EVAL_THRESHOLD` | `0.85` | Confidence threshold for Tier 2 seam verification |
+| `DISPUTE_EVAL_THRESHOLD` | `0.80` | Confidence threshold for Layer 1 dispute auto-resolution |
+
+#### C. Frontend Service Environment
+| Variable Name | Value / Format | Description |
+|---|---|---|
+| `VITE_API_BASE_URL` | `https://aitasker-backend-production...` | Production backend HTTPS URL |
+| `VITE_WS_URL` | `https://aitasker-backend-production...` | Production WebSocket WSS URL |
+
+---
+
+### 6. Deployment Verification Checklist
+
+After deploying to Railway, verify the operational status of all services:
+
+```bash
+# 1. Verify NestJS Health Probe
+curl -I https://aitasker-backend-production.up.railway.app/health
+# Response: HTTP/1.1 200 OK -> {"status":"ok","service":"aitasker-backend"}
+
+# 2. Verify FastAPI Microservice Health Probe
+curl -I https://aitasker-ai-production.up.railway.app/health
+# Response: HTTP/1.1 200 OK -> {"status":"ok","service":"aitasker-llm"}
+
+# 3. Test Unauthorized Internal Endpoint Access (Should return 403)
+curl -X POST https://aitasker-ai-production.up.railway.app/llm/portfolio-eval
+# Response: HTTP/403 Forbidden -> {"detail":"Not authorised"}
+```
+
+---
+
 ## Technical Documentation Index
 
 Detailed architectural and technical specification documents are located in the repository:
@@ -403,7 +630,7 @@ Detailed architectural and technical specification documents are located in the 
 
 ---
 
-## Project Team & Credits
+## Project Team
 
 **SWP391 — SE1908 — Group 05**
 

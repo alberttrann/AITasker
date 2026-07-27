@@ -113,13 +113,7 @@ jobs:
     name: OpenWiki — update docs
     runs-on: ubuntu-latest
     needs: [ai-service]
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event_name == 'push' &&
-        github.ref == 'refs/heads/dev' &&
-        !contains(github.event.head_commit.message, 'docs: update OpenWiki')
-      )
+    if: false  # Soft disabled — set back to true or restore conditional logic to re-enable
 
     steps:
       - uses: actions/checkout@v4

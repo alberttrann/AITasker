@@ -848,6 +848,11 @@
             "title": "Budget Context",
             "default": "No budget specified"
           },
+          "terms_locked": {
+            "type": "boolean",
+            "title": "Terms Locked",
+            "default": false
+          },
           "conversation_history": {
             "items": {
               "additionalProperties": true,
@@ -1061,7 +1066,10 @@
             "title": "Description"
           },
           "scope": {
-            "type": "string",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
             "title": "Scope"
           },
           "timeline": {
@@ -1478,6 +1486,17 @@
           "completeness_score": {
             "type": "number",
             "title": "Completeness Score"
+          },
+          "flagged_void": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged Void"
           },
           "estimated_total_cost_vnd": {
             "anyOf": [
