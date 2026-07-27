@@ -1,5 +1,5 @@
 # AITasker — Complete Use Case Specifications (200 Use Cases · 18 Diagrams)
-**Schema Ground Truth:** 40 Tables · **API Surface:** 213 Endpoints · **Microservices:** NestJS + FastAPI  
+**Schema Ground Truth:** 40 Tables · **API Surface:** 223 NestJS Endpoints + 13 Internal FastAPI Endpoints (236 Total) · **Microservices:** NestJS + FastAPI  
 **Date:** July 2026
 
 ---
@@ -13,6 +13,7 @@ UC_EXT   ---<<extend>>---->  UC_BASE   Arrow FROM extending UC TO base (conditio
 
 - **All Use Case IDs (UC001–UC200)** map 1:1 to the 200 Use Cases documented across the 18 Use Case Diagrams (**D01–D18**) in the Software Requirement Specification (SRS).
 - **Primary DB Tables:** Table names correspond strictly to the 40-table physical schema in `schema.prisma`.
+- **API Scope:** Spans all **223 NestJS REST endpoints** and **13 internal FastAPI microservice endpoints**.
 - **State Enums:** Match database column values on `elicitation_sessions`, `projects`, `engagements`, `capability_bids`, `milestones`, `disputes`, `services`, `paygated_documents`, `withdrawal_requests`, `invitations`, `notifications`.
 
 ---
