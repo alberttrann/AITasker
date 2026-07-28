@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   useAdminDisputes,
   useResolveDispute,
-  type AdminDisputeDecision,
 } from "@/hooks/use-admin";
+import type { AdminDisputeDecision } from "@/types/enums";
 import { Spinner } from "@/components/ui/Spinner";
 import { Shield, ShieldAlert, Scale, FileText, ChevronRight } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/modal";

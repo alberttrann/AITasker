@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, X, XCircle, AlertTriangle, Info } from "lucide-react";
-import { useToast, type Toast, type ToastVariant } from "@lib/toast-context";
-
+import { useToast } from "@lib/toast-context";
+import type { Toast, ToastVariant } from "@/types/ui.types";
 /* ─── per-variant visual config ─── */
 const CONFIG: Record<
   ToastVariant,
