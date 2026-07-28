@@ -231,10 +231,6 @@ export default function TechTeamProjectDetailPage() {
               )}
             </div>
           </div>
-          {/* Artifact B (Technical Vault) */}
-          <div className="mt-8">
-            <ArtifactBView projectId={project.id} />
-          </div>
         </div>
 
         {/* Right Column: Milestones */}
@@ -306,6 +302,11 @@ export default function TechTeamProjectDetailPage() {
                 )}
             </div>
           </div>
+        </div>
+
+        {/* Artifact B (Technical Vault) — full width under Milestones */}
+        <div className="lg:col-span-3">
+          <ArtifactBView projectId={project.id} />
         </div>
 
       </div>
