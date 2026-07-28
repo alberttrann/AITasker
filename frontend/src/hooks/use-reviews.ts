@@ -2,47 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@lib/api-client";
 import { useAuthStore } from "@store/auth.store";
 
-export type ReviewerRole = "CEO" | "TECH_TEAM" | "EXPERT";
-
-export interface ReviewDto {
-  id: string;
-  engagementId: string;
-  reviewerId: string;
-  targetId: string;
-  rating: number;
-  comment: string | null;
-  structuredSignalsJson: TechTeamReviewSignals | null;
-  reviewerRole: ReviewerRole;
-}
-
-export interface ReviewWithReviewerDto extends ReviewDto {
-  reviewer: { id: string; fullName: string };
-}
-
-export interface ReviewWithTargetDto extends ReviewDto {
-  target: { id: string; fullName: string };
-}
-
-/**
- * Structured signals required from a TECH_TEAM reviewer. This shape is not
- * enforced by the backend beyond "must be valid JSON" (JSON.parse with no
- * schema validation) — defined here as the app's own convention.
- */
-export interface TechTeamReviewSignals {
-  codeQualityRating: number; // 1-5
-  communicationRating: number; // 1-5
-  seamRatings: { seamCode: string; rating: number }[];
-  wouldRecommend: boolean;
-}
-
-export interface CreateReviewPayload {
-  engagementId: string;
-  targetId: string;
-  rating: number;
-  comment?: string;
-  /** Required only when the calling user is a Tech-Team reviewer. */
-  structuredSignalsJson?: string; // JSON.stringify(TechTeamReviewSignals)
-}
+import type { ReviewerRole } from "@/types/enums";
+import type { TechTeamReviewSignals } from "@/types/jsonb.types";
+import type {
+  ReviewDto,
+  ReviewWithReviewerDto,
+  ReviewWithTargetDto,
+  CreateReviewPayload,
+} from "@/types/api.types";
 
 export function useCreateReview() {
   const queryClient = useQueryClient();

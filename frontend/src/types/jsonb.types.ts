@@ -102,3 +102,10 @@ export interface MatchResult {
     stack_tags: string[];
   };
 }
+
+export interface TechTeamReviewSignals {
+  codeQualityRating: number;
+  communicationRating: number;
+  seamRatings: { seamCode: string; rating: number }[];
+  wouldRecommend: boolean;
+}

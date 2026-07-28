@@ -1,11 +1,7 @@
 import type { DomainDefinition, SeamDefinition, ArchetypeDefinition, ProbeQuestion, SubPackage } from '@/types/api.types';
+import type { AdminDisputeDecision } from '@/types/enums';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-
-export type AdminDisputeDecision =
-  | "EXPERT_WINS"
-  | "CLIENT_WINS"
-  | "SPLIT";
 
 // GET /admin/analytics
 export function useAdminAnalytics() {

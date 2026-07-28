@@ -4,6 +4,9 @@ import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { SubscriptionHistoryLog, SubscriptionStatus, UserDto } from '@/types/api.types';
 
+/**
+ * Handles Pro tier subscription package purchase and wallet debit activation for Client CEOs or Experts.
+ */
 export function useSubscription() {
   const queryClient = useQueryClient();
 
@@ -29,6 +32,9 @@ export function useSubscription() {
   };
 }
 
+/**
+ * Checks current user subscription tier status ('free' vs 'pro') and expiration date.
+ */
 export function useSubscriptionStatus() {
   return useQuery({
     queryKey: ['subscriptionStatus'],
@@ -48,8 +54,9 @@ export function useSubscriptionStatus() {
   });
 }
 
-
-
+/**
+ * Fetches historical subscription purchase transaction logs for the current user.
+ */
 export function useSubscriptionHistory() {
   return useQuery({
     queryKey: ['subscriptionHistory'],

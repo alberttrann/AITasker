@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@store/auth.store';
 
+/**
+ * Creates a new pre-packaged AI service listing or Tech Discovery package offer in DRAFT state.
+ */
 export function useCreateService() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -16,6 +19,9 @@ export function useCreateService() {
   });
 }
 
+/**
+ * Updates an existing service package's details, pricing, or scope statements.
+ */
 export function useUpdateService() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -30,6 +36,9 @@ export function useUpdateService() {
   });
 }
 
+/**
+ * Queries the public marketplace service listings catalog with filter parameters.
+ */
 export function useGetServices(queryParams?: Record<string, any>) {
   return useQuery({
     queryKey: ['services', queryParams],
@@ -40,6 +49,9 @@ export function useGetServices(queryParams?: Record<string, any>) {
   });
 }
 
+/**
+ * Fetches single service listing detail by ID for marketplace detail pages.
+ */
 export function useGetService(id?: string) {
   return useQuery({
     queryKey: ['services', id],
@@ -52,6 +64,9 @@ export function useGetService(id?: string) {
   });
 }
 
+/**
+ * Fetches all service listings created by the currently authenticated Expert.
+ */
 export function useMyServices() {
   return useQuery({
     queryKey: ['services', 'me'],
@@ -62,6 +77,9 @@ export function useMyServices() {
   });
 }
 
+/**
+ * Transitions an Expert's draft service listing to PUBLISHED state, making it visible on the public marketplace.
+ */
 export function usePublishService() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -76,6 +94,9 @@ export function usePublishService() {
   });
 }
 
+/**
+ * Suspends/unpublishes a service listing, removing it from public marketplace browsing.
+ */
 export function useUnpublishService() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -90,6 +111,9 @@ export function useUnpublishService() {
   });
 }
 
+/**
+ * Deletes a draft or unpublished service listing from the database.
+ */
 export function useDeleteService() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -104,6 +128,9 @@ export function useDeleteService() {
   });
 }
 
+/**
+ * Executes direct purchase of a service listing by a Client CEO, initiating an instant engagement and milestone setup.
+ */
 export function usePurchaseService() {
   const queryClient = useQueryClient();
 
@@ -119,6 +146,9 @@ export function usePurchaseService() {
   });
 }
 
+/**
+ * Fetches service orders purchased by the current Client CEO.
+ */
 export function useMyPurchase(userId: string) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 

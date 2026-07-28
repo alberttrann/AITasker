@@ -1,7 +1,8 @@
 import { useReducer, useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
-import { submitStage4, saveStage4Draft, handleElicitationError, type GateResult, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
+import { submitStage4, saveStage4Draft, handleElicitationError, revertSession, useElicitation, recommendStage4 } from '@/hooks/use-elicitation';
+import type { GateResult } from '@/types/api.types';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useToastActions } from '@lib/toast-context';

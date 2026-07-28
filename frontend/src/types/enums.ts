@@ -1,5 +1,5 @@
 export type ActiveRole   = 'CLIENT' | 'EXPERT' | 'ADMIN';
-export type UserRoleItem = 'CLIENT_CEO' | 'EXPERT'
+export type UserRoleItem = 'CLIENT_CEO' | 'EXPERT' | 'ADMIN';
 export type ClientSubtype = 'CEO' | 'TECH_TEAM';
 export type SubscriptionTier = 'free' | 'pro';
 
@@ -85,7 +85,7 @@ export type WalletTxType =
 export type VirtualAccountEntityType = 'WALLET_TOPUP' | 'MILESTONE' | 'SERVICE';
 export type VirtualAccountStatus     = 'ACTIVE' | 'EXPIRED' | 'USED';
 export type WithdrawalType           = 'MILESTONE_RELEASE' | 'EXPERT_MANUAL';
-export type WithdrawalStatus         = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type WithdrawalStatus         = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 export type PortfolioStatus  = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type ReviewerRole     = 'CEO' | 'TECH_TEAM' | 'EXPERT';
@@ -96,3 +96,18 @@ export type DecisionType =
   | 'PORTFOLIO_EVAL'
   | 'DISPUTE_L1_EVAL'
   | 'CRITERION_QUALITY_GATE';
+
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+export type SubscriptionRole = 'CLIENT' | 'EXPERT';
+export type ShortlistSource   = 'AUTO' | 'FORCE_REFRESH';
+export type AdminDisputeDecision = 'EXPERT_WINS' | 'CLIENT_WINS' | 'SPLIT';
+export type DisputeResolutionDecision = 'EXPERT_WINS' | 'CLIENT_WINS' | 'SPLIT';
+export type MilestoneSettlementOutcome =
+  | 'EXPERT_RELEASED'
+  | 'CLIENT_REFUNDED'
+  | 'SPLIT'
+  | 'FUNDS_HELD'
+  | 'FUNDS_FROZEN'
+  | 'UNKNOWN';
+export type SettlementViewer = 'CLIENT' | 'EXPERT';
+

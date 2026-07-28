@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
-import type { ProjectDto, ElicitationSessionDto, PaginatedResponse } from '@/types/api.types';
+import type { ProjectDto, ElicitationSessionDto, PaginatedResponse, MarketplaceProjectDto } from '@/types/api.types';
 import type { ArtifactA, ArtifactB } from '@/types/jsonb.types';
 
 function replaceProjectName<T>(value: T, projectId: string, projectName: string): T {
@@ -57,7 +57,7 @@ export function useProjects(slim: boolean = false) {
 
 export function useActiveElicitationSession() {
   const { user } = useAuthStore();
-  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+  const isEligible = user?.activeRole === 'CLIENT' && user?.clientSubtype === 'CEO' && user?.subscriptionTier === 'pro';
 
   const activeSessionQuery = useQuery({
     queryKey: ['elicitation-sessions', 'active'],
@@ -78,7 +78,7 @@ export function useActiveElicitationSession() {
 
 export function useElicitationSessions() {
   const { user } = useAuthStore();
-  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+  const isEligible = user?.activeRole === 'CLIENT' && user?.clientSubtype === 'CEO' && user?.subscriptionTier === 'pro';
 
   const sessionsQuery = useQuery({
     queryKey: ['elicitation-sessions'],
@@ -251,7 +251,7 @@ export function useArtifactB(
  */
 export function useSessionHistory() {
   const { user } = useAuthStore();
-  const isEligible = user?.activeRole === 'CLIENT_CEO' && user?.subscriptionClientTier === 'pro';
+  const isEligible = user?.activeRole === 'CLIENT' && user?.clientSubtype === 'CEO' && user?.subscriptionTier === 'pro';
 
   return useQuery({
     queryKey: ['elicitation-sessions', 'history'],
@@ -364,18 +364,7 @@ export function useSendMilestoneMessage() {
   });
 }
 
-export interface MarketplaceProjectDto {
-  id: string;
-  state: string;
-  archetype: string | null;
-  tier: string | null;
-  artifact_a_json: import('@/types/jsonb.types').ArtifactA | null;
-  projectName: string | null;
-  selfTechnical: boolean;
-  required_domains_json: any[];
-  required_seams_json: any[];
-  milestone_framework_json: any[]; 
-}
+
 
 export function useMarketplaceProjects(
   filters?: { archetype?: string; tier?: string; limit?: number },

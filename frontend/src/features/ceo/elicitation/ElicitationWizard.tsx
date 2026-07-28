@@ -15,9 +15,8 @@ import {
   abandonSession,
   STAGE_LABELS,
   setSelfTechnical,
-  type GateResult,
-  type StageCompleteData,
 } from "@/hooks/use-elicitation";
+import type { GateResult, StageCompleteData } from "@/types/api.types";
 import { Loader2, Check } from "lucide-react";
 import { useToastActions } from "@lib/toast-context";
 

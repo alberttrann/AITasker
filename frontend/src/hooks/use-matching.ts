@@ -10,6 +10,9 @@ const STRENGTH_ORDER: Record<string, number> = {
   WEAK_MATCH:     1,
 };
  
+/**
+ * Fetches the AI matching engine shortlist results for a specific project from the backend cache or Fastapi service.
+ */
 export async function getShortlist(projectId: string): Promise<ShortlistDto> {
   const { data } = await apiClient.get<ShortlistDto | MatchResult[]>(
     `/matching/${projectId}/shortlist`,

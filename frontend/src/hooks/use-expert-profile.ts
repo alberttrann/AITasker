@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import type { DepthLevel } from '@/types/enums';
 
+/**
+ * Main hook for an Expert user to fetch their own profile and sync domain depths, seam claims, stack tags, bio, and engagement model preferences.
+ */
 export function useExpertProfile(options?: { enabled?: boolean }) {
   const queryClient = useQueryClient();
 
@@ -61,6 +64,9 @@ export function useExpertProfile(options?: { enabled?: boolean }) {
   };
 }
 
+/**
+ * Updates an individual domain depth level declaration (SURFACE, OPERATIONAL, DEEP) for an expert.
+ */
 export function useUpdateDomainDepth() {
   const queryClient = useQueryClient();
  
@@ -77,6 +83,9 @@ export function useUpdateDomainDepth() {
 
 // ── Phase 6 Hooks: CEO Browsing Experts ────────────────────────────────────────
 
+/**
+ * Allows Client CEOs to search and filter expert profiles by domain, seam, or stack tag.
+ */
 export function useExpertSearch(queryParams?: Record<string, any>, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['expert-profile', 'search', queryParams],
@@ -88,6 +97,9 @@ export function useExpertSearch(queryParams?: Record<string, any>, options?: { e
   });
 }
 
+/**
+ * Fetches the public portfolio and verified capability profile of a specific Expert for CEO view.
+ */
 export function usePublicExpertProfile(userId: string | undefined) {
   return useQuery({
     queryKey: ['expert-profile', 'public', userId],
