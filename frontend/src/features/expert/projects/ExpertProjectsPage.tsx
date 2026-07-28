@@ -6,7 +6,7 @@ import { useEngagements } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useExpertProfile } from "@/hooks/use-expert-profile";
-import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2, CheckCircle2, MessageSquare, Star } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, CheckCircle2, MessageSquare, Star } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,9 +68,6 @@ export default function ExpertProjectsPage() {
     (profile.domainDepths && profile.domainDepths.length > 0) ||
     (profile.seamClaims && profile.seamClaims.length > 0)
   );
-
-  // Filter out locally deleted invitations
-  const [deletedInvites, setDeletedInvites] = useState<Set<string>>(new Set());
 
   const unifiedProjects = useMemo(() => {
     if (!invitations && !engagements) return [];
@@ -152,7 +149,6 @@ export default function ExpertProjectsPage() {
     // Process Invitations
     if (invitations) {
       invitations.forEach((inv) => {
-        if (deletedInvites.has(inv.id)) return;
         if (projectMap.has(inv.projectId)) {
           // If we already have an engagement, just attach the invitation data but keep engagement status
           const existing = projectMap.get(inv.projectId)!;
@@ -206,7 +202,7 @@ export default function ExpertProjectsPage() {
     });
 
     return sorted;
-  }, [invitations, engagements, sortOrder, deletedInvites, statusFilters, searchQuery]);
+  }, [invitations, engagements, sortOrder, statusFilters, searchQuery]);
 
   const hasBaseProjects = useMemo(() => {
     if (!invitations && !engagements) return false;
@@ -215,12 +211,12 @@ export default function ExpertProjectsPage() {
       if (eng.project && eng.projectId) projectMap.set(eng.projectId, true);
     });
     invitations?.forEach(inv => {
-      if (!deletedInvites.has(inv.id) && !projectMap.has(inv.projectId)) {
+      if (!projectMap.has(inv.projectId)) {
         projectMap.set(inv.projectId, true);
       }
     });
     return projectMap.size > 0;
-  }, [invitations, engagements, deletedInvites]);
+  }, [invitations, engagements]);
 
   // Auto-select first project
   if (unifiedProjects.length > 0 && !selectedProjectId) {
@@ -243,17 +239,6 @@ export default function ExpertProjectsPage() {
   const handleDecline = (invitationId: string) => {
     if (window.confirm("Are you sure you want to decline this invitation?")) {
       declineInvitation.mutate(invitationId);
-    }
-  };
-
-  const handleRemove = (invitationId: string) => {
-    setDeletedInvites(prev => {
-      const next = new Set(prev);
-      next.add(invitationId);
-      return next;
-    });
-    if (selectedProject?.invitation?.id === invitationId) {
-      setSelectedProjectId(null); // clear selection
     }
   };
 
@@ -422,7 +407,7 @@ export default function ExpertProjectsPage() {
                       break;
                     case 'DECLINED':
                       chipColor = "bg-slate-100 text-slate-600"; 
-                      chipText = "Declined"; 
+                      chipText = project.engagement?.state === 'CANCELLED' ? "Cancelled" : "Declined";
                       break;
                     case 'EXPIRED': 
                       chipColor = "bg-rose-100 text-rose-700"; 
@@ -559,31 +544,24 @@ export default function ExpertProjectsPage() {
                             <MessageSquare className="w-4 h-4 mr-2" /> Chat with Client
                           </Button>
                         )}
-                        <Button onClick={() => {
-                          const milestones = selectedProject.engagement?.milestones || [];
-                          const activeMilestone = milestones.find(m => m.state !== 'RELEASED' && m.state !== 'APPROVED') || milestones[0];
-                          if (activeMilestone) {
-                            navigate(`/expert/engagements/${selectedProject.engagement!.id}/milestones/${activeMilestone.id}`);
-                          } else {
-                            alert("No milestones defined yet for this engagement.");
-                          }
-                        }}>
+                        <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/milestones`)}>
                           Open Workspace
                         </Button>
                       </>
                     )}
 
-                    {selectedProject.status === 'CLOSED' && selectedProject.engagement && (
+                    {selectedProject.status === 'CLOSED' && (
                       <>
-                        {!selectedProject.engagement.serviceId && !myReview && (
+                        {isProfileComplete && !myReview && (
                           <Button
-                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                            variant="outline"
                             onClick={() => setIsReviewModalOpen(true)}
+                            className="text-[#059669] border-[#059669] hover:bg-[#059669]/10 font-bold"
                           >
-                            Leave a Review
+                            <Star className="w-4 h-4 mr-2 fill-current" /> Write Review
                           </Button>
                         )}
-                        {selectedProject.engagement.serviceId && (
+                        {selectedProject.engagement?.serviceId && (
                           <Button
                             variant="outline"
                             onClick={() => navigate(`/expert/inbox/${selectedProject.engagement?.id}`)}
@@ -595,11 +573,6 @@ export default function ExpertProjectsPage() {
                       </>
                     )}
 
-                    {(selectedProject.status === 'DECLINED' || selectedProject.status === 'EXPIRED') && (
-                      <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => handleRemove(selectedProject.invitation!.id)}>
-                        <Trash2 className="w-4 h-4 mr-2" /> Remove
-                      </Button>
-                    )}
                   </div>
                 </div>
 

@@ -292,9 +292,27 @@ export class EngagementsService {
           type: 'system',
           title: 'Project Connected!',
           body: 'The CEO has signed the NDA. You now have access to Artifact B (Technical Specs).',
-          link: `/expert/service/projects`, // <-- Sửa từ /expert/projects/${engagement.projectId} thành /expert/service/projects
+          link: `/expert/service/projects`,
         },
       });
+    } else {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: engagement.expertId,
+        event: 'notification:generic',
+        payload: {
+          type: 'bid_update',
+          title: 'NDA Signed by Client',
+          body: 'The CEO has signed the NDA. Please review and sign the NDA to connect.',
+          link: `/expert/service/projects`,
+        },
+      });
+      try {
+        this.eventEmitter.emit('socket.broadcast', {
+          userId: engagement.expertId,
+          event: 'bid:updated',
+          payload: { engagement_id: id, state: 'NDA_PENDING' },
+        });
+      } catch (_err) {}
     }
     return ndaResult.engagement;
   }
@@ -614,10 +632,31 @@ export class EngagementsService {
         `Cannot cancel engagement with ${fundedMilestones} active milestone(s). Resolve them first.`,
       );
     }
-    return this.prisma.engagement.update({
+    const updated = await this.prisma.engagement.update({
       where: { id: engagementId },
       data: { state: 'CANCELLED' as any },
     });
+
+    const notifyUserId = user.id === engagement.clientId ? engagement.expertId : engagement.clientId;
+    this.eventEmitter.emit('socket.broadcast', {
+      userId: notifyUserId,
+      event: 'notification:generic',
+      payload: {
+        type: 'bid_update',
+        title: 'Engagement Cancelled',
+        body: 'The engagement has been cancelled by the other party.',
+        link: `/expert/service/projects`,
+      },
+    });
+    try {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: notifyUserId,
+        event: 'bid:updated',
+        payload: { engagement_id: engagementId, state: 'CANCELLED' },
+      });
+    } catch (_err) {}
+
+    return updated;
   }
 
   private async isLinkedTechTeam(projectId: string | null, user: ActorUser): Promise<boolean> {

@@ -113,15 +113,25 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       }
       
       // 2. NDAs Signed -> Auto-unlock Artifact B & update project state
-      if (data.title.includes('Project Connected') || data.title.includes('Expert Connected')) {
+      if (data.title.includes('Project Connected') || data.title.includes('Expert Connected') || data.title.includes('NDA')) {
         queryClient.invalidateQueries({ queryKey: ['project'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
       }
 
-      // 3. New Bids or Tech Reviews -> Refresh CEO/Expert/TechTeam dashboards
-      if (data.title.includes('New Expert Bid') || data.title.includes('New Bid Awaiting Review') || data.title.includes('Tech Review Passed')) {
+      // 3. New Bids, Tech Reviews, or Offer Accepted/Declined -> Refresh CEO/Expert/TechTeam dashboards
+      if (
+        data.type === 'bid_update' ||
+        data.title.includes('New Expert Bid') ||
+        data.title.includes('New Bid Awaiting Review') ||
+        data.title.includes('Tech Review Passed') ||
+        data.title.includes('Offer Accepted') ||
+        data.title.includes('Offer')
+      ) {
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
         queryClient.invalidateQueries({ queryKey: ['bids'] });
+        queryClient.invalidateQueries({ queryKey: ['project'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
       }
 
       // 4. Service purchase paid/confirmed -> Refresh purchases list & engagements
