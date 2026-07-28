@@ -90,7 +90,30 @@
   - Uses logical OR (`||`) evaluation to bypass zero values, correctly displaying CEO milestone budgets (e.g. 1.000.000 ₫) in Expert bidding views.
 - **Wallet Transaction History Formatting (`TransactionHistory.tsx`)**:
   - Adds explicit support for `PLATFORM_FEE` transaction logs with purple badge styling.
-  - Implements dynamic `formatTxTypeLabel` helper to strip underscores (`_`) and title-case all transaction types (e.g. `WITHDRAWAL_REFUND` $\rightarrow$ `Withdrawal Refund`).
+- **Admin Analytics Dashboard (`AnalyticsDashboard.tsx`)**:
+  - Displays all metrics returned by `GET /admin/analytics`: milestone completion rate, elicitation completion rate, portfolio approval rate, dispute rate, and AI auto-resolution efficiency.
+  - Added visual breakdown section for `active_projects_by_archetype_tier`, resolving raw archetype codes (e.g. `MINIMAL_AGILE`) into full human-readable names (e.g. `Minimal Agile Prototype`) via `useArchetypes()` configuration hook.
+- **Admin Dispute Monitor (`DisputeMonitor.tsx`)**:
+  - Standardized to use the shared `<AdminTableToolbar>` and `<DataTable>` reusable layout components matching `UserList.tsx` and `IntegrityMonitor.tsx`.
+  - Set initial default filter state to `ALL` with `ALL` placed at the leftmost tab position (`['ALL', 'MANUAL_REVIEW', 'AUTO_RESOLVED', 'RESOLVED']`).
+- **Admin Withdrawal Requests (`WithdrawalRequests.tsx`)**:
+  - Standardized to use the shared `<AdminTableToolbar>` and `<DataTable>` reusable layout components matching `UserList.tsx` and `IntegrityMonitor.tsx`.
+  - Set initial default filter state to `ALL` with `ALL` placed at the leftmost tab position (`['ALL', 'PENDING', 'COMPLETED', 'FAILED']`).
+- **Tech Team Projects Page (`TechTeamProjectsPage.tsx`)**:
+  - Upgraded `/tech-team/projects` to display all linked projects using the `<DataList>` layout component.
+  - Integrated the **Order by** dropdown sorting button (`Newest First`, `Oldest First`, `Name (A-Z)`, `Name (Z-A)`), matching `http://localhost:5173/ceo/projects`.
+- **Platform Revenue Settings (`PlatformSettings.tsx`)**:
+  - Updated page header icon to use `<Banknote>` (bill icon matching sidebar navigation item).
+  - Added a Total Revenue summary banner calculating total accumulated platform revenue since the earliest transaction date (or selected custom start date).
+  - Added interactive "Calculate Since Date" date picker control with `max={todayStr}` (disallowing future dates), dark color-scheme styling for a light native calendar icon indicator, and a `<RotateCcw>` revolve arrow reset button.
+
+
+
+
+
+
+
+
 
 
 
