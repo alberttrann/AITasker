@@ -31,8 +31,10 @@ export default function BidDetail() {
 
   const offer = bid.acceptedOffer ?? bid.currentOffer;
   const canAct = bid.nextActionBy === 'CEO' && bid.negotiationState === 'AWAITING_CEO';
-  // CEO never revises tech terms; they either Accept or Counter the price. Tech revisions are for Experts only.
-  const canRevise = false;
+  const canRevise =
+    bid.nextActionBy === 'CEO' &&
+    bid.technicalReview?.status === 'REVISION_REQUESTED' &&
+    bid.currentOffer?.proposerRole === 'CEO';
   const total = offer?.milestones.reduce((sum, milestone) => sum + (milestone.price_vnd ?? 0), 0) ?? 0;
   const engagementId = bid.engagementId || bid.engagement?.id;
 
@@ -55,7 +57,7 @@ export default function BidDetail() {
 
       <Card><CardContent className="p-6"><h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Approach</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">{bid.approachSummary || 'No approach summary provided.'}</p></CardContent></Card>
 
-      {bid.negotiationState === 'AWAITING_TECH_REVIEW' ? (
+      {bid.negotiationState === 'AWAITING_TECH_REVIEW' && bid.technicalReview?.status === 'PENDING' ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Tech Team is reviewing technical scope version {bid.technicalReview?.scopeVersion}. Commercial actions unlock after approval.</div>
       ) : null}
       {bid.technicalReview?.status === 'REVISION_REQUESTED' ? (
@@ -77,12 +79,27 @@ export default function BidDetail() {
         </Card>
       ) : null}
 
-      {showCounter && bid.currentOffer ? <CounterOfferPanel bidId={bid.id} currentOffer={bid.currentOffer} onCancel={() => setShowCounter(false)} onSuccess={() => setShowCounter(false)} /> : null}
+      {showCounter && bid.currentOffer ? (
+        <CounterOfferPanel
+          bidId={bid.id}
+          currentOffer={bid.currentOffer}
+          mode={canRevise ? 'revision' : 'counter'}
+          onCancel={() => setShowCounter(false)}
+          onSuccess={() => setShowCounter(false)}
+        />
+      ) : null}
 
       {(canAct || canRevise) && !showCounter ? (
         <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5">
           {canAct ? <Button id="btn-decline-current-offer" variant="destructive" onClick={() => navigate(`/ceo/projects/${projectId}/bids/${bid.id}/decision?action=decline`)} className="cursor-pointer">Decline</Button> : null}
-          <Button id="btn-counter-current-offer" variant="secondary" onClick={() => setShowCounter(true)} className="cursor-pointer">{canRevise ? 'Revise technical terms' : 'Counter'}</Button>
+          <Button
+            id={canRevise ? 'btn-revise-ceo-offer' : 'btn-counter-current-offer'}
+            variant="secondary"
+            onClick={() => setShowCounter(true)}
+            className="cursor-pointer"
+          >
+            {canRevise ? 'Revise technical terms' : 'Counter'}
+          </Button>
           {canAct ? <Button id="btn-accept-current-offer" variant="primary" onClick={() => navigate(`/ceo/projects/${projectId}/bids/${bid.id}/decision?action=accept`)} className="cursor-pointer">Accept offer</Button> : null}
         </div>
       ) : null}
