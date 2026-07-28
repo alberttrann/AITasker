@@ -3,6 +3,9 @@ import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
 import type { InvitationDto } from "@/types/api.types";
 
+/**
+ * Fetches direct project invitations received by the current Expert user from Client CEOs.
+ */
 export function useInvitations() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const activeRole = useAuthStore((s) => s.activeRole);
@@ -17,6 +20,9 @@ export function useInvitations() {
   });
 }
 
+/**
+ * Declines an incoming direct project invitation as an Expert.
+ */
 export function useDeclineInvitation() {
   const qc = useQueryClient();
 
@@ -31,6 +37,9 @@ export function useDeclineInvitation() {
   });
 }
 
+/**
+ * Fetches outgoing direct project invitations sent by the Client CEO to Experts.
+ */
 export function useSentInvitations() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const activeRole = useAuthStore((s) => s.activeRole);
@@ -45,6 +54,9 @@ export function useSentInvitations() {
   });
 }
 
+/**
+ * Retracts/cancels an outgoing direct project invitation sent by the CEO before the Expert responds.
+ */
 export function useRetractInvitation() {
   const qc = useQueryClient();
 

@@ -1,6 +1,6 @@
 import apiClient from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
-import { CreateMilestonePayload, MilestoneDetailDto, MilestoneDto } from "@/types/api.types";
+import { CreateMilestonePayload, MilestoneDetailDto, MilestoneDto, BulkInitializeMilestonesPayload } from "@/types/api.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useCreateMilestone() {
@@ -23,19 +23,6 @@ export function useCreateMilestone() {
       });
     },
   });
-}
-
-export interface BulkInitializeMilestonesPayload {
-  engagementId: string;
-  milestones: {
-    milestoneNumber: number;
-    deliverableStatement: string;
-    paymentAmountVnd: number;
-    criteria: {
-      criterion_text: string;
-      is_required?: boolean;
-    }[];
-  }[];
 }
 
 export function useBulkInitializeMilestones() {

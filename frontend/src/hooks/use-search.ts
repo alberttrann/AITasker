@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 
+/**
+ * Fetches pre-indexed search datasets (projects, services, engagements, invitations, disputes)
+ * tailored to the current user's active role for the global command palette search bar.
+ */
 export function useSearchData(isAuthenticated: boolean, activeRole: string) {
   const { data: rawProjects } = useQuery({
     queryKey: ['projects', { slim: true }],

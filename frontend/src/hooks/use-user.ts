@@ -3,6 +3,9 @@ import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { UserDto } from '@/types/api.types';
 
+/**
+ * Manages user profile fetching (/users/me), basic profile updates, tax code verification via VietQR, and Expert profile metadata updates.
+ */
 export function useUser() {
   const queryClient = useQueryClient();
   const store = useAuthStore();
@@ -55,6 +58,9 @@ export function useUser() {
   };
 }
 
+/**
+ * Fetches public card details (bio, stack tags, domain depths, seam claims, ratings) for any user by ID.
+ */
 export function usePublicProfile(userId: string | undefined) {
   return useQuery({
     queryKey: ['expertProfile', userId],

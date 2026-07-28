@@ -58,6 +58,7 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
   const ceoSigned = !!engAny?.clientNdaAcceptedAt;
   const alreadySigned = !!engAny?.expertNdaAcceptedAt;
   const isConnected = engAny?.state === 'CONNECTED';
+  const canSign = ceoSigned && !alreadySigned;
 
   // ── Scroll detection ───────────────────────────────────────────
 
@@ -138,9 +139,11 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
           Non-Disclosure Agreement
         </h1>
         <p className="mt-2 text-slate-500 font-medium">
-          {alreadySigned 
+          {alreadySigned
             ? "You have signed the NDA for this engagement."
-            : "The client has signed the NDA. Please review and sign to connect."}
+            : ceoSigned
+              ? "The client has signed the NDA. Please review and sign to connect."
+              : "The client must sign the NDA before you can sign and connect."}
         </p>
       </div>
 
@@ -152,9 +155,9 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
         </div>
       )}
 
-      <div className="flex-1 min-h-0 grid md:grid-cols-12 gap-8 lg:gap-10">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         {/* Left Column: NDA Text */}
-        <div className="md:col-span-7 lg:col-span-8 flex flex-col min-h-[400px] md:h-full min-h-0">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col min-h-[350px] lg:h-full min-h-0">
           <Card className="flex flex-col h-full overflow-hidden shadow-sm border-slate-200 bg-white">
             <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
               <div
@@ -180,7 +183,7 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
         </div>
 
         {/* Right Column: Status & Terms */}
-        <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-6 overflow-y-auto md:pr-2">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 overflow-y-auto lg:pr-2">
           {alreadySigned && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 flex items-start gap-4 shrink-0 shadow-sm">
               <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
@@ -205,10 +208,11 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
             />
           </div>
 
-          <div className="mt-auto pt-4 shrink-0">
+          <div className="shrink-0">
             {alreadySigned ? (
               ceoSigned ? (
                 <Button
+                  id="btn-open-expert-nda-messages"
                   variant="primary"
                   className="w-full h-12 text-base font-bold shadow-md shadow-blue-500/20"
                   onClick={() => navigate(`/expert/inbox/${engagementId}`)}
@@ -230,20 +234,12 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
                   <p className="text-sm font-medium text-amber-700 mt-1">The client needs to sign the NDA first before you can sign.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <Button
-                    variant="primary"
-                    className="w-full h-12 text-base font-bold shadow-md shadow-blue-500/20"
-                    disabled={!hasScrolledToBottom || acceptConnect.isPending}
-                    onClick={() => setShowSignConfirm(true)}
-                  >
-                    {acceptConnect.isPending ? 'Signing...' : 'Sign NDA'}
-                  </Button>
-                  {!hasScrolledToBottom && (
-                    <p className="text-center text-sm font-medium text-slate-500 animate-pulse">
-                      Please scroll to the bottom of the NDA to sign
-                    </p>
-                  )}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center shadow-sm">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-emerald-900">Ready to Sign</p>
+                  <p className="text-sm font-medium text-emerald-700 mt-1">
+                    Review the agreement, then use Sign NDA &amp; Connect below.
+                  </p>
                 </div>
               )
             )}
@@ -275,8 +271,8 @@ export default function ExpertNdaClickThrough({ engagementId: propEngagementId }
       )}
 
       {/* Sign button */}
-      {!alreadySigned && (
-        <div className="space-y-3 shrink-0">
+      {canSign && (
+        <div className="mt-6 space-y-3 shrink-0">
           <Button
             id="btn-sign-expert-nda"
             variant="primary"

@@ -2,15 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 
-export interface NotificationDto {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  link?: string;
-  isRead: boolean;
-  createdAt: string;
-}
+import type { NotificationDto } from '@/types/api.types';
 
 /**
  * useNotifications — fetches server-persisted notifications from the backend DB.
@@ -29,6 +21,9 @@ export function useNotifications(limit = 50) {
   });
 }
 
+/**
+ * Marks a single server-persisted notification as read.
+ */
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
@@ -37,6 +32,9 @@ export function useMarkNotificationRead() {
   });
 }
 
+/**
+ * Marks all server-persisted notifications for the current user as read in bulk.
+ */
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
@@ -45,6 +43,9 @@ export function useMarkAllNotificationsRead() {
   });
 }
 
+/**
+ * Deletes a notification entry permanently from the user's notification list.
+ */
 export function useDeleteNotification() {
   const qc = useQueryClient();
   return useMutation({

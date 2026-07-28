@@ -4,6 +4,9 @@ import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { SubscriptionHistoryLog, SubscriptionStatus, UserDto } from '@/types/api.types';
 
+/**
+ * Handles Pro tier subscription package purchase and wallet debit activation for Client CEOs or Experts.
+ */
 export function useSubscription() {
   const queryClient = useQueryClient();
 
@@ -29,13 +32,21 @@ export function useSubscription() {
   };
 }
 
+/**
+ * Checks current user subscription tier status ('free' vs 'pro') and expiration date for their active role.
+ */
 export function useSubscriptionStatus() {
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
   return useQuery({
-    queryKey: ['subscriptionStatus'],
+    queryKey: ['subscriptionStatus', activeRole],
     queryFn: async () => {
       const { data } = await apiClient.get<any>('/subscriptions/status');
-      const tier = data?.subscriptionTier?.toLowerCase() || 'free';
+      const rawTier = data?.subscriptionTier?.toLowerCase() || 'free';
       const expiresAt = data?.subscriptionExpires;
+      const isExpired = expiresAt ? new Date(expiresAt).getTime() < Date.now() : false;
+      const tier = isExpired ? 'free' : rawTier;
       const isActive = tier === 'pro';
 
       return {
@@ -44,12 +55,14 @@ export function useSubscriptionStatus() {
         expiresAt,
       } as SubscriptionStatus;
     },
+    enabled: isAuthenticated && !!activeRole,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-
-
+/**
+ * Fetches historical subscription purchase transaction logs for the current user.
+ */
 export function useSubscriptionHistory() {
   return useQuery({
     queryKey: ['subscriptionHistory'],

@@ -4,15 +4,7 @@ import {
   useContext,
   useState,
 } from "react";
-
-export type ToastVariant = "success" | "error" | "info" | "warning";
-
-export interface Toast {
-  id: string;
-  message: string;
-  variant: ToastVariant;
-  duration: number; // ms
-}
+import type { Toast, ToastVariant } from "@/types/ui.types";
 
 interface ToastContextValue {
   toasts: Toast[];

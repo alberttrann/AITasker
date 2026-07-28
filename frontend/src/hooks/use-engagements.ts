@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@lib/api-client";
 import { useAuthStore } from "@store/auth.store";
-import { EngagementDto } from "@/types/api.types";
+import {
+  EngagementDto,
+  EngagementScopedSubmissionDto,
+  EngagementScopedDisputeDto,
+} from "@/types/api.types";
 import type { DisputeState, EscrowStatus } from "@/types/enums";
 
 export function useEngagements() {
@@ -153,46 +157,7 @@ export function useCancelEngagement() {
   });
 }
 
-export interface EngagementScopedSubmissionDto {
-  id: string;
-  milestoneId: string;
-  expertId: string;
-  description: string | null;
-  filesJson: string[];
-  submittedAt: string;
-  milestone: {
-    milestoneNumber: number;
-    deliverableStatement: string | null;
-  };
-}
 
-export interface EngagementScopedDisputeDto {
-  id: string;
-  engagementId: string;
-  milestoneId: string | null;
-  criterionId: string;
-  escrowAccountId: string;
-  filedBy: string;
-  state: DisputeState;
-  llmConfidence: number | null;
-  resolution: "EXPERT_WINS" | "CLIENT_WINS" | "SPLIT" | null;
-  llmReasoning: string | null;
-  filedAt: string;
-  resolvedAt: string | null;
-  resolvedBy?: string | null;
-  criterion: {
-    criterionText: string;
-  };
-  milestone: {
-    milestoneNumber: number;
-    deliverableStatement: string | null;
-    paymentAmountVnd: number;
-  } | null;
-  escrowAccount: {
-    status: EscrowStatus;
-    amount: number;
-  };
-}
 
 export function useEngagementSubmissions(engagementId: string | undefined) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

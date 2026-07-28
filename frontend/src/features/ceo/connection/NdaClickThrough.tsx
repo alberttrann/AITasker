@@ -133,9 +133,9 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 grid md:grid-cols-12 gap-8 lg:gap-10">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         {/* Left Column: NDA Text */}
-        <div className="md:col-span-7 lg:col-span-8 flex flex-col min-h-[400px] md:h-full min-h-0">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col min-h-[350px] lg:h-full min-h-0">
           <Card className="flex flex-col h-full overflow-hidden shadow-sm border-slate-200 bg-white">
             <CardContent className="p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
               <div
@@ -161,7 +161,7 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
         </div>
 
         {/* Right Column: Status & Terms */}
-        <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-6 overflow-y-auto md:pr-2">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6 overflow-y-auto lg:pr-2">
           {alreadySigned && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 flex items-start gap-4 shrink-0 shadow-sm">
               <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
@@ -186,10 +186,11 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
             />
           </div>
 
-          <div className="mt-auto pt-4 shrink-0">
+          <div className="shrink-0">
             {alreadySigned ? (
               expertSigned ? (
                 <Button
+                  id="btn-open-ceo-nda-messages"
                   variant="primary"
                   className="w-full h-12 text-base font-bold shadow-md shadow-blue-500/20"
                   onClick={() => navigate(`/ceo/inbox/${engagementId}`)}
@@ -206,12 +207,13 @@ export default function CeoNdaClickThrough({ engagementId: propEngagementId }: {
             ) : (
               <div className="space-y-3">
                 <Button
+                  id="btn-sign-ceo-nda"
                   variant="primary"
                   className="w-full h-12 text-base font-bold shadow-md shadow-blue-500/20"
                   disabled={!hasScrolledToBottom || acceptNda.isPending}
                   onClick={() => setShowSignConfirm(true)}
                 >
-                  {acceptNda.isPending ? 'Signing...' : 'Sign NDA'}
+                  {acceptNda.isPending ? 'Signing…' : 'Sign NDA'}
                 </Button>
                 {!hasScrolledToBottom && (
                   <p className="text-center text-sm font-medium text-slate-500 animate-pulse">

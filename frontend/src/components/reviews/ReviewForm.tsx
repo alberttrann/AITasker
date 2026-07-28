@@ -6,8 +6,8 @@ import {
   useCreateReview,
   isAlreadyReviewedError,
   isEngagementNotClosedError,
-  type TechTeamReviewSignals,
 } from '@/hooks/use-reviews';
+import type { TechTeamReviewSignals } from '@/types/jsonb.types';
 
 interface ReviewFormProps {
   engagementId: string;

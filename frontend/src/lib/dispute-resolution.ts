@@ -1,19 +1,11 @@
-import type { EscrowStatus } from "@/types/enums";
+import type {
+  EscrowStatus,
+  DisputeResolutionDecision,
+  MilestoneSettlementOutcome,
+  SettlementViewer,
+} from "@/types/enums";
 
-export type DisputeResolutionDecision =
-  | "EXPERT_WINS"
-  | "CLIENT_WINS"
-  | "SPLIT";
-
-export type MilestoneSettlementOutcome =
-  | "EXPERT_RELEASED"
-  | "CLIENT_REFUNDED"
-  | "SPLIT"
-  | "FUNDS_HELD"
-  | "FUNDS_FROZEN"
-  | "UNKNOWN";
-
-export type SettlementViewer = "CLIENT" | "EXPERT";
+export type { DisputeResolutionDecision, MilestoneSettlementOutcome, SettlementViewer };
 
 export function formatDisputeResolution(
   resolution: DisputeResolutionDecision | null | undefined,

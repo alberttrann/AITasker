@@ -54,6 +54,9 @@ export function usePortfolio() {
   return { submitPortfolio };
 }
 
+/**
+ * Deletes a portfolio submission entry and refreshes the expert's capability claims.
+ */
 export function useDeletePortfolioEntry() {
   const queryClient = useQueryClient();
 

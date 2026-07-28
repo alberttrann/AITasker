@@ -7,9 +7,14 @@ import {
   CreateSubmissionVariable,
   StagePaygatedDocDto,
   StagePaygatedDocVariable,
+  BulkStagePaygatedDocsDto,
+  BulkStagePaygatedDocsVariable,
 } from "@/types/api.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+/**
+ * Submits deliverable evidence (description and attachment URLs) for a milestone from Expert to Client review.
+ */
 export function useSubmitMilestone() {
   const queryClient = useQueryClient();
 
@@ -31,6 +36,9 @@ export function useSubmitMilestone() {
   });
 }
 
+/**
+ * Stages a single technical paygated document link for milestone delivery.
+ */
 export function useUploadDocument() {
   const queryClient = useQueryClient();
 
@@ -52,6 +60,9 @@ export function useUploadDocument() {
   });
 }
 
+/**
+ * Fetches staged paygated technical documents for a milestone.
+ */
 export function useDownloadDocument(milestoneId: string) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -66,15 +77,10 @@ export function useDownloadDocument(milestoneId: string) {
     enabled: isAuthenticated && !!milestoneId,
   });
 }
-export interface BulkStagePaygatedDocsDto {
-  documentUrls: string[];
-}
 
-export interface BulkStagePaygatedDocsVariable {
-  milestoneId: string;
-  body: BulkStagePaygatedDocsDto;
-}
-
+/**
+ * Stages multiple technical paygated document URLs for a milestone deliverable package at once.
+ */
 export function useUploadBulkDocuments() {
   const queryClient = useQueryClient();
 
@@ -97,6 +103,9 @@ export function useUploadBulkDocuments() {
   });
 }
 
+/**
+ * Retracts the Expert's latest submission for a milestone before it is reviewed.
+ */
 export function useRetractLatestSubmission() {
   const queryClient = useQueryClient();
 
@@ -118,6 +127,9 @@ export function useRetractLatestSubmission() {
   });
 }
 
+/**
+ * Fetches historical deliverable submissions for a specific milestone.
+ */
 export function useGetSubmissions(milestoneId: string) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -133,6 +145,9 @@ export function useGetSubmissions(milestoneId: string) {
   });
 }
 
+/**
+ * Fetches the most recent deliverable submission for a specific milestone.
+ */
 export function useGetLatestSubmission(milestoneId: string) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 

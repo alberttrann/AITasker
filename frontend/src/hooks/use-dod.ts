@@ -8,6 +8,9 @@ import {
 } from "@/types/api.types";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 
+/**
+ * Creates a single Definition of Done (DoD) checklist item for a milestone.
+ */
 export function useCreateDodItem() {
   const queryClient = useQueryClient();
 
@@ -29,6 +32,9 @@ export function useCreateDodItem() {
   });
 }
 
+/**
+ * Updates the status (PENDING, COMPLETED, NOT_APPLICABLE) and completion/N/A notes for a DoD item.
+ */
 export function useUpdateDodStatus() {
   const queryClient = useQueryClient();
 
@@ -56,6 +62,9 @@ export function useUpdateDodStatus() {
   });
 }
 
+/**
+ * Fetches the Definition of Done (DoD) checklist items for a specific milestone.
+ */
 export function useGetDodItems(milestoneId: string) {
   return useQuery({
     queryKey: ["milestones", milestoneId, "dod"],
@@ -67,6 +76,9 @@ export function useGetDodItems(milestoneId: string) {
   });
 }
 
+/**
+ * Removes a Definition of Done (DoD) item from a milestone checklist.
+ */
 export function useDeleteDodItem() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -85,6 +97,10 @@ export function useDeleteDodItem() {
     },
   });
 }
+
+/**
+ * Bulk-adds multiple Definition of Done (DoD) items to a milestone at once.
+ */
 export function useCreateBulkDodItems() {
   const queryClient = useQueryClient();
 
