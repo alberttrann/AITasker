@@ -550,9 +550,12 @@ export default function ExpertProjectsPage() {
                             <MessageSquare className="w-4 h-4 mr-2" /> Chat with Client
                           </Button>
                         )}
-                        <Button onClick={() => navigate(`/expert/engagements/${selectedProject.engagement?.id}/milestones`)}>
-                          Open Workspace
-                        </Button>
+                         <Button onClick={() => {
+                           const activeMilestone = selectedProject.engagement?.milestones?.find((m: any) => m.state !== 'RELEASED' && m.state !== 'APPROVED') || selectedProject.engagement?.milestones?.[0];
+                           navigate(`/expert/engagements/${selectedProject.engagement?.id}/milestones${activeMilestone ? `/${activeMilestone.id}` : ''}`);
+                         }}>
+                           Open Workspace
+                         </Button>
                       </>
                     )}
 
