@@ -9,13 +9,22 @@ export default function InboxPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [selectedEngagementId, setSelectedEngagementId] = useState<string | null>(urlEngagementId ?? null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const queryParams = new URLSearchParams(location.search);
+  const urlProjectId = queryParams.get('projectId');
 
-  // Sync selectedEngagementId with URL param when browser navigates
+  const [selectedEngagementId, setSelectedEngagementId] = useState<string | null>(urlEngagementId ?? null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId ?? null);
+
+  // Sync selectedEngagementId and selectedProjectId with URL params when browser navigates
   useEffect(() => {
-    setSelectedEngagementId(urlEngagementId ?? null);
-  }, [urlEngagementId]);
+    if (urlEngagementId) {
+      setSelectedEngagementId(urlEngagementId);
+      setSelectedProjectId(null);
+    } else if (urlProjectId) {
+      setSelectedProjectId(urlProjectId);
+      setSelectedEngagementId(null);
+    }
+  }, [urlEngagementId, urlProjectId]);
 
   const activeEngagementId = selectedEngagementId;
   const activeProjectId = selectedProjectId;

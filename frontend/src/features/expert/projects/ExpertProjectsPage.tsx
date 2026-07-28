@@ -669,9 +669,18 @@ export default function ExpertProjectsPage() {
                 <div className="space-y-8">
                   {/* Message / Status banner */}
                   {selectedProject.invitation?.message && (
-                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Message from CEO:</h4>
-                      <p className="text-sm text-blue-800 italic">"{selectedProject.invitation.message}"</p>
+                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-blue-900 mb-1">Message from CEO ({selectedProject.ceoName}):</h4>
+                        <p className="text-sm text-blue-800 italic">"{selectedProject.invitation.message}"</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate(`/expert/inbox?projectId=${selectedProject.projectId}`)}
+                        className="bg-white text-blue-900 border-blue-200 hover:bg-blue-50 font-bold shrink-0 shadow-xs cursor-pointer"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2 text-blue-600" /> Chat with CEO
+                      </Button>
                     </div>
                   )}
 

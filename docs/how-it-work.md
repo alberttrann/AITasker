@@ -108,10 +108,10 @@
   - Updated page header icon to use `<Banknote>` (bill icon matching sidebar navigation item).
   - Added a Total Revenue summary banner calculating total accumulated platform revenue since the earliest transaction date (or selected custom start date).
 - **Dynamic DiceBear Notionists Avatar System (`UserAvatar.tsx`)**:
-  - Upgraded `<UserAvatar>` (`src/components/ui/UserAvatar.tsx`) to use **DiceBear Notionists** (`https://api.dicebear.com/9.x/notionists/svg?seed=${id}`).
-  - Provides clean, minimalist Notion-style hand-drawn vector character portraits.
-  - Seeded strictly by user `id` for 100% deterministic, permanent avatar artwork across all 19 application locations.
-  - Aligned message avatars inline with text bubbles and increased size to `md` (40px) in messaging stream and top chat header toolbar ([MessageThread.tsx](file:///d:/Workspace/KhangHuynh/AITasker/frontend/src/components/messaging/MessageThread.tsx)).
+- **Pre-Bid Project Q&A & Invitation Chat Integration**:
+  - Updated [InboxPage.tsx](file:///d:/Workspace/KhangHuynh/AITasker/frontend/src/components/messaging/InboxPage.tsx) to support `?projectId=${id}` URL search parameters, unlocking project-level pre-bid Q&A chat threads.
+  - Added an interactive **"Chat with CEO"** pre-bid Q&A button directly inside the CEO invitation banner on [ExpertProjectsPage.tsx](file:///d:/Workspace/KhangHuynh/AITasker/frontend/src/features/expert/projects/ExpertProjectsPage.tsx) so invited Experts can clarify scope before submitting proposals.
+
 
 
 
