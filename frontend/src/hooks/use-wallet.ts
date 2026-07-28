@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@lib/api-client';
 import { useAuthStore } from '@store/auth.store';
-import type { WalletDto, WalletTransactionDto } from '@t/api.types';
+import type { WalletDto, WalletTransactionDto, BankLinkPayload, BankLinkStatusDto } from '@t/api.types';
+export { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 /**
  * Wallet data hooks — used by WalletCard, VietQRPanel, withdrawal screens.
@@ -30,24 +31,6 @@ export function useWalletTransactions(limit = 20) {
         '/wallets/me/transactions',
         { params: { limit } }
       );
-      return data;
-    },
-    enabled: isAuthenticated,
-  });
-}
-
-export function useSubscriptionStatus() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
-  return useQuery({
-    queryKey: ['subscription'],
-    queryFn:  async () => {
-      const { data } = await apiClient.get<{
-        client_tier:    string;
-        expert_tier:    string;
-        client_expires: string | null;
-        expert_expires: string | null;
-      }>('/subscriptions/status');
       return data;
     },
     enabled: isAuthenticated,
@@ -131,17 +114,7 @@ export function useWithdrawalHistory() {
   });
 }
 
-export interface BankLinkPayload {
-  bank_account_xid: string;
-  holder_name: string;
-}
 
-export interface BankLinkStatusDto {
-  isLinked: boolean;
-  bankAccountXid: string | null;
-  holderName: string | null;
-  linkedAt: string | null;
-}
 
 /**
  * Current bank-link status, backed by GET /bank-hub/link. Lets BankHubLink.tsx

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGetServices, useMyPurchase, usePurchaseService } from '@/hooks/use-services';
 import { useMarketplaceProjects } from '@/hooks/use-projects';
 import { useExpertSearch, useExpertProfile } from '@/hooks/use-expert-profile';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
-import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle, FolderOpen, Receipt } from 'lucide-react';
+import { Loader2, Search, Briefcase, User, Star, ArrowRight, MessageSquare, CreditCard, Clock, CheckCircle, FolderOpen, Receipt, ArrowUpDown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatVND } from '@/lib/utils';
 import { DataTable } from '@/components/layout/Table';
@@ -22,6 +22,8 @@ export default function MarketplaceBrowse() {
     return 'SERVICES';
   });
   
+  const [sortOrder, setSortOrder] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
+  
   const { data: services, isLoading: isLoadingServices } = useGetServices();
   const { data: purchases, isLoading: isLoadingPurchases } = useMyPurchase(user?.id || '');
   const { data: openProjects, isLoading: isLoadingOpenProjects } = useMarketplaceProjects(undefined, { enabled: isExpert });
@@ -35,6 +37,18 @@ export default function MarketplaceBrowse() {
   // Build a set of purchased service IDs to hide them from catalog browsing
   const purchasedIds = new Set(purchases?.map((p: any) => p.serviceId) || []);
   const filteredServices = services?.filter((s: any) => !purchasedIds.has(s.id)) || [];
+
+  // Apply sorting to the filtered services
+  const sortedServices = useMemo(() => {
+    const sorted = [...filteredServices];
+    sorted.sort((a, b) => {
+      if (sortOrder === 'price_asc') return Number(a.priceVnd || 0) - Number(b.priceVnd || 0);
+      if (sortOrder === 'price_desc') return Number(b.priceVnd || 0) - Number(a.priceVnd || 0);
+      // default: newest
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+    return sorted;
+  }, [filteredServices, sortOrder]);
 
   const handlePayNow = (serviceId: string) => {
     purchaseMutation.mutate(serviceId, {
@@ -60,45 +74,65 @@ export default function MarketplaceBrowse() {
         <p className="text-slate-500">Discover ready-to-buy AI services and top-tier experts for your projects.</p>
       </div>
 
-      {/* Tabs list */}
-      <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl mb-8 w-fit gap-1">
-        <button
-          onClick={() => setActiveTab('SERVICES')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-            activeTab === 'SERVICES' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Briefcase className="w-4 h-4" /> Ready-to-Buy Services
-        </button>
-        {!isExpert && (
+      {/* Tabs list & Sort Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl w-fit gap-1">
           <button
-            onClick={() => setActiveTab('EXPERTS')}
+            onClick={() => setActiveTab('SERVICES')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'EXPERTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              activeTab === 'SERVICES' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <User className="w-4 h-4" /> Browse Experts
+            <Briefcase className="w-4 h-4" /> Ready-to-Buy Services
           </button>
-        )}
-        {isExpert && (
-          <button
-            onClick={() => setActiveTab('OPEN_PROJECTS')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'OPEN_PROJECTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Search className="w-4 h-4" /> Open Projects
-          </button>
-        )}
-        {isClient && (
-          <button
-            onClick={() => setActiveTab('PURCHASES')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'PURCHASES' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Clock className="w-4 h-4" /> My Purchases
-          </button>
+          {!isExpert && (
+            <button
+              onClick={() => setActiveTab('EXPERTS')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'EXPERTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <User className="w-4 h-4" /> Browse Experts
+            </button>
+          )}
+          {isExpert && (
+            <button
+              onClick={() => setActiveTab('OPEN_PROJECTS')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'OPEN_PROJECTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Search className="w-4 h-4" /> Open Projects
+            </button>
+          )}
+          {isClient && (
+            <button
+              onClick={() => setActiveTab('PURCHASES')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'PURCHASES' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Clock className="w-4 h-4" /> My Purchases
+            </button>
+          )}
+        </div>
+
+        {/* Sort Dropdown for Services */}
+        {activeTab === 'SERVICES' && (
+          <div className="flex items-center gap-2 bg-white px-4 py-2 border border-slate-200 rounded-xl shadow-sm">
+            <span className="text-sm font-semibold text-slate-600 flex items-center gap-1.5">
+              <ArrowUpDown className="w-4 h-4" /> Sort by:
+            </span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as any)}
+              className="bg-transparent text-sm font-bold text-slate-900 outline-none cursor-pointer"
+            >
+              <option value="newest">Newest Published</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </div>
         )}
       </div>
 
@@ -107,9 +141,10 @@ export default function MarketplaceBrowse() {
         <div className="animate-in fade-in duration-300">
           {isLoadingServices || isLoadingPurchases ? (
             <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>
-          ) : filteredServices.length > 0 ? (
+          ) : sortedServices.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredServices.map((service: any) => (
+              {/* Map over sortedServices instead of filteredServices */}
+              {sortedServices.map((service: any) => (
                 <div key={service.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded-md">

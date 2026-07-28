@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
-import type { MilestoneSettlementOutcome } from "@/lib/dispute-resolution";
+import type { MilestoneSettlementOutcome } from "@/types/enums";
 import { useAuthStore } from "@/store/auth.store";
 import type { CreateDisputePayload, DisputeDto } from "@/types/api.types";
 
+/**
+ * Files a formal dispute on a contested milestone criterion, triggering Layer 1 automated LLM evaluation.
+ */
 export function useCreateDispute() {
   const queryClient = useQueryClient();
 
@@ -20,6 +23,9 @@ export function useCreateDispute() {
   });
 }
 
+/**
+ * Fetches the detail, LLM confidence score, and resolution status of a specific dispute.
+ */
 export function useDispute(disputeId: string | undefined) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -33,6 +39,9 @@ export function useDispute(disputeId: string | undefined) {
   });
 }
 
+/**
+ * Fetches all disputes relevant to the authenticated user (Client or Expert), optionally filtered by dispute state.
+ */
 export function useDisputes(state?: string) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 

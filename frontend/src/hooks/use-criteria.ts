@@ -1,6 +1,6 @@
 import apiClient from "@/lib/api-client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import {
+import type {
   VerifyCriterionDto,
   VerifyCriterionVariable,
   RevisionNoteDto,
@@ -8,6 +8,10 @@ import {
 } from "@/types/api.types";
 
 
+/**
+ * Marks an individual acceptance criterion as verified by the authorized party (CEO or Tech Team).
+ * Triggers automatic milestone funding release if all required criteria pass.
+ */
 export function useVerifyCriterion() {
   const queryClient = useQueryClient();
 
@@ -28,6 +32,9 @@ export function useVerifyCriterion() {
   });
 }
 
+/**
+ * Rejects a submitted criterion and requests revisions from the Expert, returning the milestone to IN_REVISION state.
+ */
 export function useRequestRevision() {
   const queryClient = useQueryClient();
 
@@ -47,6 +54,9 @@ export function useRequestRevision() {
   });
 }
 
+/**
+ * Fetches the list of acceptance criteria defined for a specific milestone.
+ */
 export function useGetCriteria(milestoneId: string) {
   return useQuery({
     queryKey: ["milestones", milestoneId, "criteria"],
@@ -58,6 +68,9 @@ export function useGetCriteria(milestoneId: string) {
   });
 }
 
+/**
+ * Adds a new acceptance criterion requirement to an active milestone.
+ */
 export function useCreateCriterion() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -72,6 +85,9 @@ export function useCreateCriterion() {
   });
 }
 
+/**
+ * Deletes an existing acceptance criterion from a milestone.
+ */
 export function useDeleteCriterion() {
   const queryClient = useQueryClient();
   return useMutation({

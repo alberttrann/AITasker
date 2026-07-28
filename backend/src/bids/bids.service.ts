@@ -704,6 +704,13 @@ export class BidsService {
             ? `/expert/engagements/${result.engagementId}/bid`
             : `/ceo/projects/${result.projectId}/bids/${result.bidId}`,
       });
+      try {
+        this.eventEmitter.emit('socket.broadcast', {
+          userId: notifyUserId,
+          event: 'bid:updated',
+          payload: { engagement_id: result.engagementId, state: 'ACCEPTED' },
+        });
+      } catch (_err) {}
     }
     return result;
   }
@@ -760,6 +767,13 @@ export class BidsService {
           ? `/expert/engagements/${result.engagement.id}/bid`
           : `/ceo/projects/${result.engagement.projectId}/bids/${bidId}`,
     });
+    try {
+      this.eventEmitter.emit('socket.broadcast', {
+        userId: proposerId,
+        event: 'bid:updated',
+        payload: { engagement_id: result.engagement.id, state: 'DECLINED' },
+      });
+    } catch (_err) {}
     return { declined: true, bidId, offerId };
   }
 

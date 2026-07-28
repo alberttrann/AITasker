@@ -104,6 +104,7 @@ const loginNoRedirect = useMutation({
       const { data: userRes } = await apiClient.get<UserDto>('/users/me');
       store.setUser(userRes);
       queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
       redirectByRole(userRes, navigate, true);
     },
   });

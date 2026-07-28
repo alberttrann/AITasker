@@ -93,9 +93,9 @@ export default function BidDetail() {
       <Modal
         isOpen={showNdaModal}
         onClose={() => setShowNdaModal(false)}
-        className="w-full max-w-3xl sm:max-w-3xl p-0 overflow-hidden bg-slate-50"
+        className="w-full max-w-7xl sm:max-w-7xl p-0 overflow-hidden bg-slate-50"
       >
-        <div className="h-[80vh] overflow-y-auto">
+        <div className="h-[85vh] overflow-y-auto">
           <CeoNdaClickThrough engagementId={engagementId} />
         </div>
       </Modal>

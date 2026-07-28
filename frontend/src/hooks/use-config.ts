@@ -6,23 +6,14 @@ import type {
   SeamDefinition, 
   ArchetypeDefinition, 
   ProbeQuestion as ProbeQuestionDefinition,
-  SubPackage
+  SubPackage,
+  VoidCodeDefinition,
+  ConfigAllResponse,
 } from '@/types/api.types';
 
-export interface VoidCodeDefinition {
-  code: string;
-  title: string;
-  description: string;
-}
-
-export interface ConfigAllResponse {
-  domains: DomainDefinition[];
-  seams: SeamDefinition[];
-  archetypes: ArchetypeDefinition[];
-  voidCodes: VoidCodeDefinition[];
-  subscriptionPackages: SubPackage[];
-}
-
+/**
+ * Fetches the entire platform configuration payload (domains, seams, archetypes, void codes, subscription packages) in a single cached call.
+ */
 export function useConfigAll() {
   return useQuery({
     queryKey: ['config-all'],
@@ -34,31 +25,49 @@ export function useConfigAll() {
   });
 }
 
+/**
+ * Returns the list of registered business domain definitions (e.g. FINTECH, ECOMMERCE, HEALTHCARE).
+ */
 export function useDomains() {
   const { data, ...rest } = useConfigAll();
   return { data: data?.domains, ...rest };
 }
 
+/**
+ * Returns the list of registered seam interface definitions connecting pairs of domains.
+ */
 export function useSeams() {
   const { data, ...rest } = useConfigAll();
   return { data: data?.seams, ...rest };
 }
 
+/**
+ * Returns the platform system archetype definitions (e.g. Marketplace, SaaS, Content Engine).
+ */
 export function useArchetypes() {
   const { data, ...rest } = useConfigAll();
   return { data: data?.archetypes, ...rest };
 }
 
+/**
+ * Returns the platform void code definitions used in risk assessment and milestone quality gates.
+ */
 export function useVoidCodes() {
   const { data, ...rest } = useConfigAll();
   return { data: data?.voidCodes, ...rest };
 }
 
+/**
+ * Returns the list of available Pro subscription pricing packages for Clients and Experts.
+ */
 export function useSubscriptionPackages() {
   const { data, ...rest } = useConfigAll();
   return { data: data?.subscriptionPackages, ...rest };
 }
 
+/**
+ * Fetches probe questions for elicitation Stage 3 based on the selected project archetype code.
+ */
 export function useProbeQuestions(archetypeCode: string | undefined) {
   return useQuery({
     queryKey: ['probe-questions', archetypeCode],

@@ -6,7 +6,7 @@ import { useEngagements } from "@/hooks/use-engagements";
 import { useProject } from "@/hooks/use-projects";
 import { useDomains, useSeams, useArchetypes } from "@/hooks/use-config";
 import { useExpertProfile } from "@/hooks/use-expert-profile";
-import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, Trash2, CheckCircle2, MessageSquare, Star } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X, Check, Clock, Info, ArrowUpDown, User, CheckCircle2, MessageSquare, Star, Trash2 } from "lucide-react";
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ type UnifiedProject = {
 
 export default function ExpertProjectsPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { data: invitations, isLoading: isLoadingInvites } = useInvitations();
   const { data: engagements, isLoading: isLoadingEngagements } = useEngagements();
   const declineInvitation = useDeclineInvitation();
@@ -69,8 +70,16 @@ export default function ExpertProjectsPage() {
     (profile.seamClaims && profile.seamClaims.length > 0)
   );
 
-  // Filter out locally deleted invitations
-  const [deletedInvites, setDeletedInvites] = useState<Set<string>>(new Set());
+  // 1. FILTER STATE: Hide projects locally when the user clicks "Remove" (Persisted)
+  const [hiddenProjectIds, setHiddenProjectIds] = useState<Set<string>>(() => {
+    if (!user?.id) return new Set();
+    try {
+      const stored = localStorage.getItem(`hidden_projects_${user.id}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
 
   const unifiedProjects = useMemo(() => {
     if (!invitations && !engagements) return [];
@@ -90,6 +99,10 @@ export default function ExpertProjectsPage() {
         if (!eng.project) return;
         
         const projectId = eng.projectId || eng.id;
+
+        // 2. APPLY FILTER: If user locally removed this project from view, skip it
+        if (hiddenProjectIds.has(projectId)) return;
+
         // Vì API trả về mảng xếp theo Mới -> Cũ, 
         // nếu Map đã có dự án này rồi thì bỏ qua, không để hợp đồng cũ (Declined) đè lên cái mới
         if (projectMap.has(projectId)) return;
@@ -99,7 +112,7 @@ export default function ExpertProjectsPage() {
         if (eng.state === 'CLOSED') {
           status = 'CLOSED';
         }
-        // 2. Check if the bid or engagement is dead
+        // Check if the bid or engagement is dead
         else if (
           eng.state === 'DECLINED' || 
           eng.state === 'CANCELLED' || 
@@ -108,11 +121,11 @@ export default function ExpertProjectsPage() {
         ) {
           status = 'DECLINED';
         } 
-        // 2. Check if waiting for NDA
+        // Check if waiting for NDA
         else if (eng.state === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
           status = 'NDA_PENDING';
         } 
-        // 3. Alive and pending negotiation
+        // Alive and pending negotiation
         else if (eng.state === 'PENDING') {
           const negotiationState = eng.capabilityBid?.negotiationState;
           if (eng.termsLocked || negotiationState === 'TERMS_ACCEPTED') {
@@ -152,7 +165,9 @@ export default function ExpertProjectsPage() {
     // Process Invitations
     if (invitations) {
       invitations.forEach((inv) => {
-        if (deletedInvites.has(inv.id)) return;
+        // 3. APPLY FILTER: If user locally removed this project from view, skip it
+        if (hiddenProjectIds.has(inv.projectId)) return;
+
         if (projectMap.has(inv.projectId)) {
           // If we already have an engagement, just attach the invitation data but keep engagement status
           const existing = projectMap.get(inv.projectId)!;
@@ -206,21 +221,24 @@ export default function ExpertProjectsPage() {
     });
 
     return sorted;
-  }, [invitations, engagements, sortOrder, deletedInvites, statusFilters, searchQuery]);
+  }, [invitations, engagements, sortOrder, statusFilters, searchQuery, hiddenProjectIds]); // Added hiddenProjectIds as dependency
 
   const hasBaseProjects = useMemo(() => {
     if (!invitations && !engagements) return false;
     const projectMap = new Map<string, boolean>();
     engagements?.forEach(eng => {
-      if (eng.project && eng.projectId) projectMap.set(eng.projectId, true);
+      // 4. APPLY FILTER: Don't count hidden projects towards the empty state check
+      if (eng.project && eng.projectId && !hiddenProjectIds.has(eng.projectId)) {
+        projectMap.set(eng.projectId, true);
+      }
     });
     invitations?.forEach(inv => {
-      if (!deletedInvites.has(inv.id) && !projectMap.has(inv.projectId)) {
+      if (!hiddenProjectIds.has(inv.projectId) && !projectMap.has(inv.projectId)) {
         projectMap.set(inv.projectId, true);
       }
     });
     return projectMap.size > 0;
-  }, [invitations, engagements, deletedInvites]);
+  }, [invitations, engagements, hiddenProjectIds]); // Added hiddenProjectIds as dependency
 
   // Auto-select first project
   if (unifiedProjects.length > 0 && !selectedProjectId) {
@@ -232,7 +250,6 @@ export default function ExpertProjectsPage() {
     setActiveMilestoneId(1);
   }, [selectedProjectId]);
 
-  const { user } = useAuthStore();
   const selectedProject = unifiedProjects.find(p => p.projectId === selectedProjectId);
   const { data: reviews } = useEngagementReviews(selectedProject?.engagement?.id);
   const myReview = useMemo(() => {
@@ -246,13 +263,17 @@ export default function ExpertProjectsPage() {
     }
   };
 
-  const handleRemove = (invitationId: string) => {
-    setDeletedInvites(prev => {
+  // 5. UPDATE HANDLER: Remove by Project ID, not Invitation ID (with LocalStorage)
+  const handleRemove = (projectId: string) => {
+    setHiddenProjectIds(prev => {
       const next = new Set(prev);
-      next.add(invitationId);
+      next.add(projectId);
+      if (user?.id) {
+        localStorage.setItem(`hidden_projects_${user.id}`, JSON.stringify(Array.from(next)));
+      }
       return next;
     });
-    if (selectedProject?.invitation?.id === invitationId) {
+    if (selectedProjectId === projectId) {
       setSelectedProjectId(null); // clear selection
     }
   };
@@ -399,7 +420,6 @@ export default function ExpertProjectsPage() {
                       break;
                     case 'BID_SENT': 
                       chipColor = "bg-blue-100 text-blue-700"; 
-                      // Đổi chữ linh hoạt theo Negotiate Step ở đây!
                       if (project.negotiationState === 'AWAITING_TECH_REVIEW') chipText = "Tech Review";
                       else if (project.negotiationState === 'AWAITING_CEO') chipText = "Under CEO Review";
                       else chipText = "Bid Sent"; 
@@ -422,7 +442,7 @@ export default function ExpertProjectsPage() {
                       break;
                     case 'DECLINED':
                       chipColor = "bg-slate-100 text-slate-600"; 
-                      chipText = "Declined"; 
+                      chipText = project.engagement?.state === 'CANCELLED' ? "Cancelled" : "Declined";
                       break;
                     case 'EXPIRED': 
                       chipColor = "bg-rose-100 text-rose-700"; 
@@ -575,12 +595,13 @@ export default function ExpertProjectsPage() {
 
                     {selectedProject.status === 'CLOSED' && selectedProject.engagement && (
                       <>
-                        {!selectedProject.engagement.serviceId && !myReview && (
+                        {isProfileComplete && !myReview && (
                           <Button
-                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                            variant="outline"
                             onClick={() => setIsReviewModalOpen(true)}
+                            className="text-[#059669] border-[#059669] hover:bg-[#059669]/10 font-bold"
                           >
-                            Leave a Review
+                            <Star className="w-4 h-4 mr-2 fill-current" /> Write Review
                           </Button>
                         )}
                         {selectedProject.engagement.serviceId && (
@@ -595,8 +616,9 @@ export default function ExpertProjectsPage() {
                       </>
                     )}
 
+                    {/* 6. UPDATE BUTTON ONCLICK TO PASS PROJECT ID */}
                     {(selectedProject.status === 'DECLINED' || selectedProject.status === 'EXPIRED') && (
-                      <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => handleRemove(selectedProject.invitation!.id)}>
+                      <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => handleRemove(selectedProject.projectId)}>
                         <Trash2 className="w-4 h-4 mr-2" /> Remove
                       </Button>
                     )}

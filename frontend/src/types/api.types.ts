@@ -44,6 +44,7 @@ import type {
   SeamSignal,
   MatchResult,
   VoidItem,
+  TechTeamReviewSignals,
 } from "./jsonb.types";
 
 export interface AuthTokens {
@@ -427,13 +428,29 @@ export interface MessageDto {
 
 export interface ReviewDto {
   id: string;
-  engagement_id: string;
-  reviewer_id: string;
-  target_id: string;
+  engagementId: string;
+  reviewerId: string;
+  targetId: string;
   rating: number;
   comment: string | null;
-  structured_signals_json: SeamSignal[] | null;
-  reviewer_role: ReviewerRole;
+  structuredSignalsJson: TechTeamReviewSignals | null;
+  reviewerRole: ReviewerRole;
+}
+
+export interface ReviewWithReviewerDto extends ReviewDto {
+  reviewer: { id: string; fullName: string };
+}
+
+export interface ReviewWithTargetDto extends ReviewDto {
+  target: { id: string; fullName: string };
+}
+
+export interface CreateReviewPayload {
+  engagementId: string;
+  targetId: string;
+  rating: number;
+  comment?: string;
+  structuredSignalsJson?: string;
 }
 
 export interface ShortlistDto {
@@ -880,205 +897,6 @@ export interface MilestoneDetailDto extends MilestoneDto {
   dodItems: MilestoneDodItemDto[];
   submissions: MilestoneSubmissionDto[];
 }
-// ── Criteria API DTOs (from use-criteria.ts) ──────────────────────────────
-
-/**
- * Payload used for verifying a criterion.
- * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
- */
-export interface VerifyCriterionDto {
-  verification_comment?: string;
-}
-
-/**
- * Variables required when calling the verify criterion mutation.
- * Used in: frontend/src/hooks/use-criteria.ts (useVerifyCriterion)
- */
-export interface VerifyCriterionVariable {
-  criterionId: string;
-  body: VerifyCriterionDto;
-}
-
-/**
- * Payload used for requesting revision on a criterion.
- * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
- */
-export interface RevisionNoteDto {
-  revision_note: string;
-}
-
-/**
- * Variables required when calling the request revision mutation.
- * Used in: frontend/src/hooks/use-criteria.ts (useRequestRevision)
- */
-export interface RevisionNoteVariable {
-  criterionId: string;
-  body: RevisionNoteDto;
-}
-
-// ── DoD API DTOs (from use-dod.ts) ──────────────────────────────────────────
-
-/**
- * Payload used for creating a new DoD checklist item.
- * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
- */
-export interface CreateDodItemDto {
-  item_description: string;
-  is_required?: boolean;
-  maps_to_criterion_id?: string;
-}
-
-/**
- * Variables required when calling the create DoD item mutation.
- * Used in: frontend/src/hooks/use-dod.ts (useCreateDodItem)
- */
-export interface CreateDodItemVariable {
-  milestoneId: string;
-  body: CreateDodItemDto;
-}
-
-/**
- * Payload used for updating a Milestone DoD item status.
- * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
- */
-export interface UpdateMilestoneDoDItemDto {
-  status: DodStatus;
-  completion_note?: string;
-  not_applicable_note?: string;
-}
-
-/**
- * Variables required when calling the update DoD status mutation.
- * Used in: frontend/src/hooks/use-dod.ts (useUpdateDodStatus)
- */
-export interface UpdateMilestoneDoDItemVariable {
-  milestoneId: string;
-  itemId: string;
-  body: UpdateMilestoneDoDItemDto;
-}
-
-// ── Submissions API DTOs (from use-submissions.ts) ──────────────────────────
-
-/**
- * Payload used for expert submitting deliverables for a milestone.
- * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
- */
-export interface CreateSubmissionDto {
-  description: string;
-  files_json?: string[];
-}
-
-/**
- * Variables required when calling the submit milestone mutation.
- * Used in: frontend/src/hooks/use-submissions.ts (useSubmitMilestone)
- */
-export interface CreateSubmissionVariable {
-  milestoneId: string;
-  body: CreateSubmissionDto;
-}
-
-/**
- * Payload used for staging a detailed technical paygated document.
- * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
- */
-export interface StagePaygatedDocDto {
-  document_url: string;
-}
-
-/**
- * Variables required when calling the upload document mutation.
- * Used in: frontend/src/hooks/use-submissions.ts (useUploadDocument)
- */
-export interface StagePaygatedDocVariable {
-  milestoneId: string;
-  body: StagePaygatedDocDto;
-}
-
-// ── Admin Config Types ───────────────────────────────────────────────────────
-
-export interface SubPackage {
-  id: string;
-  role: string;
-  name: string;
-  priceVnd: number;
-  durationMonths: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DomainDefinition {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  sortOrder: number;
-  isActive: boolean;
-}
-
-export interface SeamDefinition {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  sortOrder: number;
-  isActive: boolean;
-}
-
-export interface ArchetypeDefinition {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  sortOrder: number;
-  isActive: boolean;
-}
-
-export interface ProbeQuestion {
-  id: string;
-  archetypeCode: string;
-  questionText: string;
-  displayOrder: number;
-  isActive: boolean;
-}
-
-// ── Invitations ───────────────────────────────────────────────────────────────
-export interface InvitationDto {
-  id: string;
-  projectId: string;
-  expertId: string;
-  ceoId: string;
-  message: string | null;
-  status: "PENDING" | "ACCEPTED" | "DECLINED";
-  invitedAt: string;
-  respondedAt: string | null;
-  expiresAt: string | null;
-  isExpired: boolean;
-  project: {
-    id: string;
-    projectName: string;
-    state: string;
-    archetype: string;
-    tier: string;
-    createdAt: string;
-    requiredDomainsJson: any[];
-    requiredSeamsJson: any[];
-  };
-  ceo: {
-    id: string;
-    fullName: string;
-  };
-}
-
-export interface MilestoneDetailDto extends MilestoneDto {
-  acceptanceCriteria: AcceptanceCriterionDto[];
-  dodItems: MilestoneDodItemDto[];
-}
-
-/**
- * Payload required to file a dispute.
- * Used in: frontend/src/hooks/use-disputes.ts (useCreateDispute)
- */
 export interface CreateDisputePayload {
   criterion_id: string;
   additional_context?: string;
@@ -1115,14 +933,6 @@ export interface MilestoneChatResponseDto {
   chatSessionId: string;
   sessionTitle: string;
   messageCount: number;
-}
-
-export interface AcceptanceCriterionDto {
-  id: string;
-  milestoneId: string;
-  criterionText: string;
-  isRequired: boolean;
-  platformDecisionsJson?: any[]; // optional platform notes
 }
 
 export interface BulkCreateDodItemsDto {
@@ -1167,3 +977,111 @@ export interface SubscriptionHistoryLog {
   paymentMethod: string;
   isExpired: boolean;
 }
+
+export interface EngagementScopedSubmissionDto {
+  id: string;
+  milestoneId: string;
+  expertId: string;
+  description: string | null;
+  filesJson: string[];
+  submittedAt: string;
+  milestone: {
+    milestoneNumber: number;
+    deliverableStatement: string | null;
+  };
+}
+
+export interface EngagementScopedDisputeDto {
+  id: string;
+  engagementId: string;
+  milestoneId: string | null;
+  criterionId: string;
+  escrowAccountId: string;
+  filedBy: string;
+  state: DisputeState;
+  llmConfidence: number | null;
+  resolution: "EXPERT_WINS" | "CLIENT_WINS" | "SPLIT" | null;
+  llmReasoning: string | null;
+  filedAt: string;
+  resolvedAt: string | null;
+  resolvedBy?: string | null;
+  criterion: {
+    criterionText: string;
+  };
+  milestone: {
+    milestoneNumber: number;
+    deliverableStatement: string | null;
+    paymentAmountVnd: number;
+  } | null;
+  escrowAccount: {
+    status: EscrowStatus;
+    amount: number;
+  };
+}
+
+export interface MarketplaceProjectDto {
+  id: string;
+  state: string;
+  archetype: string | null;
+  tier: string | null;
+  artifact_a_json: ArtifactA | null;
+  projectName: string | null;
+  selfTechnical: boolean;
+  required_domains_json: any[];
+  required_seams_json: any[];
+  milestone_framework_json: any[];
+}
+
+export interface BulkInitializeMilestonesPayload {
+  engagementId: string;
+  milestones: {
+    milestoneNumber: number;
+    deliverableStatement: string;
+    paymentAmountVnd: number;
+    criteria: {
+      criterion_text: string;
+      is_required?: boolean;
+    }[];
+  }[];
+}
+
+export interface PartnerConversationSummary {
+  partnerId: string;
+  partnerName: string;
+  primaryEngagementId: string;
+  projectName: string;
+  lastMessage: any;
+  unreadCount: number;
+  allEngagements: any[];
+}
+
+export interface ConfigAllResponse {
+  domains: DomainDefinition[];
+  seams: SeamDefinition[];
+  archetypes: ArchetypeDefinition[];
+  voidCodes: VoidCodeDefinition[];
+  subscriptionPackages: SubPackage[];
+}
+
+export interface NotificationDto {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface BankLinkPayload {
+  bank_account_xid: string;
+  holder_name: string;
+}
+
+export interface BankLinkStatusDto {
+  isLinked: boolean;
+  bankAccountXid: string | null;
+  holderName: string | null;
+  linkedAt: string | null;
+}
+

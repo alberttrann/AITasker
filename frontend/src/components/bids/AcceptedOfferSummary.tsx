@@ -20,12 +20,15 @@ export default function AcceptedOfferSummary({
           <div className="flex items-center gap-2"><LockKeyhole className="h-4 w-4 text-emerald-600" /><h2 className="text-sm font-semibold text-slate-900">Accepted offer v{offer.version}</h2></div>
           <strong className="font-mono text-sm text-emerald-700">{formatVND(total)}</strong>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 grid-cols-1 max-h-60 overflow-y-auto pr-1">
           {offer.milestones.map((milestone) => (
-            <div key={milestone.milestone_number} className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-800">M{milestone.milestone_number}. {milestone.deliverable_statement}</p>
-              <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-500"><span>{formatVND(milestone.price_vnd ?? 0)}</span>{milestone.estimated_duration_days ? <span className="inline-flex items-center gap-1"><Clock size={11} />{milestone.estimated_duration_days} days</span> : null}</div>
-              <p className="mt-1 text-[11px] text-slate-500">{milestone.criteria.length} acceptance criteria</p>
+            <div key={milestone.milestone_number} className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+              <p className="text-xs font-semibold text-slate-800 leading-snug">M{milestone.milestone_number}. {milestone.deliverable_statement}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                <span className="font-semibold text-slate-700">{formatVND(milestone.price_vnd ?? 0)}</span>
+                {milestone.estimated_duration_days ? <span className="inline-flex items-center gap-1"><Clock size={11} />{milestone.estimated_duration_days} days</span> : null}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">{milestone.criteria?.length || 0} acceptance criteria</p>
             </div>
           ))}
         </div>

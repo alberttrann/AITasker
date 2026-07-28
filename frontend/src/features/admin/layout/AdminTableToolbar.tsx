@@ -1,33 +1,7 @@
 import React from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export interface FilterTab {
-  label: string;
-  value: string;
-}
-
-export interface AdminTableToolbarProps {
-  searchQuery: string;
-  onSearchChange: (val: string) => void;
-  searchPlaceholder?: string;
-  
-  tabs?: FilterTab[];
-  activeTab?: string;
-  onTabChange?: (val: string) => void;
-  
-  statusOptions?: FilterTab[];
-  activeStatus?: string;
-  onStatusChange?: (val: string) => void;
-  statusLabel?: string;
-  
-  itemCount: number;
-  itemLabel?: string;
-  
-  page: number;
-  totalPages: number;
-  onPageChange: (val: number | ((p: number) => number)) => void;
-}
+import type { FilterTab, AdminTableToolbarProps } from "@/types/ui.types";
 
 export function AdminTableToolbar({
   searchQuery,

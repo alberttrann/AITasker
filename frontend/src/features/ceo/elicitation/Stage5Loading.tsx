@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { submitStage5, retrySynthesis, handleElicitationError, type GateResult } from '@/hooks/use-elicitation';
+import { submitStage5, retrySynthesis, handleElicitationError } from '@/hooks/use-elicitation';
+import type { GateResult } from '@/types/api.types';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useToastActions } from '@lib/toast-context';
