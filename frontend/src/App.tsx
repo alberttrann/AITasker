@@ -90,6 +90,7 @@ const CreateMilestone = lazy(() => import("./features/ceo/milestones/CreateMiles
 const MilestoneDetail = lazy(() => import("./features/ceo/milestones/MilestoneDetail"));
 const FundMilestone = lazy(() => import("./features/ceo/milestones/FundMilestone"));
 const ExpertMilestoneDetail = lazy(() => import("./features/expert/milestones/ExpertMilestoneDetail"));
+const ExpertMilestoneWorkspaceRedirect = lazy(() => import("./features/expert/milestones/ExpertMilestoneWorkspaceRedirect"));
 const CeoReviewForm = lazy(() => import("./features/ceo/review/CeoReviewForm"));
 const ExpertReviewForm = lazy(() => import("./features/expert/review/ExpertReviewForm"));
 const TechTeamReviewForm = lazy(() => import("@features/tech-team/review/TechTeamReviewForm"));
@@ -216,6 +217,10 @@ const router = createBrowserRouter(
             <Route path="inbox" element={<InboxPage />} />
             <Route path="inbox/:engagementId" element={<InboxPage />} />
             <Route path="notifications" element={<NotificationSystem />} />
+            <Route
+              path="engagements/:engagementId/milestones"
+              element={<ExpertMilestoneWorkspaceRedirect />}
+            />
             <Route
               path="engagements/:engagementId/milestones/:milestoneId"
               element={<ExpertMilestoneDetail />}

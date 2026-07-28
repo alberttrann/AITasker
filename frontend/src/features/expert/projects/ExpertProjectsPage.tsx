@@ -24,7 +24,7 @@ type UnifiedProject = {
   ceoName: string;
   companyName: string | null;
   status: 'INVITED' | 'BID_SENT' | 'COUNTER_OFFER' | 'NDA_PENDING' | 'IN_PROGRESS' | 'CLOSED' | 'DECLINED' | 'EXPIRED';
-  negotiationState?: string; 
+  negotiationState?: string;
   updatedAt: number;
   invitation?: InvitationDto;
   engagement?: EngagementDto;
@@ -98,7 +98,7 @@ export default function ExpertProjectsPage() {
       const now = Date.now();
       engagements.forEach((eng, index) => {
         if (!eng.project) return;
-        
+
         const projectId = eng.projectId || eng.id;
 
         // 2. APPLY FILTER: If user locally removed this project from view, skip it
@@ -115,17 +115,17 @@ export default function ExpertProjectsPage() {
         }
         // Check if the bid or engagement is dead
         else if (
-          eng.state === 'DECLINED' || 
-          eng.state === 'CANCELLED' || 
-          eng.capabilityBid?.state === 'DECLINED' || 
+          eng.state === 'DECLINED' ||
+          eng.state === 'CANCELLED' ||
+          eng.capabilityBid?.state === 'DECLINED' ||
           eng.capabilityBid?.state === 'WITHDRAWN'
         ) {
           status = 'DECLINED';
-        } 
+        }
         // Check if waiting for NDA
         else if (eng.state === 'CONNECTED' && !(eng as any).expertNdaAcceptedAt) {
           status = 'NDA_PENDING';
-        } 
+        }
         // Alive and pending negotiation
         else if (eng.state === 'PENDING') {
           const negotiationState = eng.capabilityBid?.negotiationState;
@@ -151,7 +151,7 @@ export default function ExpertProjectsPage() {
           ceoName,
           companyName: null,
           status,
-          negotiationState: eng.capabilityBid?.negotiationState, 
+          negotiationState: eng.capabilityBid?.negotiationState,
           updatedAt: Math.max(
             getSafeTime((eng as any).updatedAt),
             getSafeTime(eng.connectedAt),
@@ -420,39 +420,39 @@ export default function ExpertProjectsPage() {
                   let chipText = "Unknown";
 
                   switch (project.status) {
-                    case 'INVITED': 
-                      chipColor = "bg-amber-100 text-amber-700"; 
-                      chipText = "New Invite"; 
+                    case 'INVITED':
+                      chipColor = "bg-amber-100 text-amber-700";
+                      chipText = "New Invite";
                       break;
-                    case 'BID_SENT': 
-                      chipColor = "bg-blue-100 text-blue-700"; 
+                    case 'BID_SENT':
+                      chipColor = "bg-blue-100 text-blue-700";
                       if (project.negotiationState === 'AWAITING_TECH_REVIEW') chipText = "Tech Review";
                       else if (project.negotiationState === 'AWAITING_CEO') chipText = "Under CEO Review";
-                      else chipText = "Bid Sent"; 
+                      else chipText = "Bid Sent";
                       break;
-                    case 'COUNTER_OFFER': 
-                      chipColor = "bg-sky-100 text-sky-700"; 
-                      chipText = "Counter Offer"; 
+                    case 'COUNTER_OFFER':
+                      chipColor = "bg-sky-100 text-sky-700";
+                      chipText = "Counter Offer";
                       break;
-                    case 'NDA_PENDING': 
-                      chipColor = "bg-indigo-100 text-indigo-700"; 
-                      chipText = "Sign NDA"; 
+                    case 'NDA_PENDING':
+                      chipColor = "bg-indigo-100 text-indigo-700";
+                      chipText = "Sign NDA";
                       break;
-                    case 'IN_PROGRESS': 
-                      chipColor = "bg-emerald-100 text-emerald-700"; 
-                      chipText = "In Progress"; 
+                    case 'IN_PROGRESS':
+                      chipColor = "bg-emerald-100 text-emerald-700";
+                      chipText = "In Progress";
                       break;
                     case 'CLOSED':
                       chipColor = "bg-blue-100 text-blue-700";
                       chipText = "Closed";
                       break;
                     case 'DECLINED':
-                      chipColor = "bg-slate-100 text-slate-600"; 
+                      chipColor = "bg-slate-100 text-slate-600";
                       chipText = project.engagement?.state === 'CANCELLED' ? "Cancelled" : "Declined";
                       break;
-                    case 'EXPIRED': 
-                      chipColor = "bg-rose-100 text-rose-700"; 
-                      chipText = "Expired"; 
+                    case 'EXPIRED':
+                      chipColor = "bg-rose-100 text-rose-700";
+                      chipText = "Expired";
                       break;
                   }
 
@@ -461,8 +461,8 @@ export default function ExpertProjectsPage() {
                       key={project.id}
                       onClick={() => setSelectedProjectId(project.projectId)}
                       className={`w-full text-left p-4 rounded-xl border transition-all ${isSelected
-                          ? 'bg-blue-50/50 border-blue-200 shadow-sm'
-                          : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
+                        ? 'bg-blue-50/50 border-blue-200 shadow-sm'
+                        : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
                         }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -586,13 +586,8 @@ export default function ExpertProjectsPage() {
                           </Button>
                         )}
                         <Button onClick={() => {
-                          const milestones = selectedProject.engagement?.milestones || [];
-                          const activeMilestone = milestones.find(m => m.state !== 'RELEASED' && m.state !== 'APPROVED') || milestones[0];
-                          if (activeMilestone) {
-                            navigate(`/expert/engagements/${selectedProject.engagement!.id}/milestones/${activeMilestone.id}`);
-                          } else {
-                            alert("No milestones defined yet for this engagement.");
-                          }
+                          const activeMilestone = selectedProject.engagement?.milestones?.find((m: any) => m.state !== 'RELEASED' && m.state !== 'APPROVED') || selectedProject.engagement?.milestones?.[0];
+                          navigate(`/expert/engagements/${selectedProject.engagement?.id}/milestones${activeMilestone ? `/${activeMilestone.id}` : ''}`);
                         }}>
                           Open Workspace
                         </Button>
@@ -640,12 +635,12 @@ export default function ExpertProjectsPage() {
                       <div>
                         <h4 className="text-base font-bold text-emerald-900 leading-snug">Service Workspace Completed!</h4>
                         <p className="text-sm text-emerald-800 leading-relaxed font-body mt-1">
-                          Great job! The client has signed off on the deliverables for this service. 
+                          Great job! The client has signed off on the deliverables for this service.
                           The escrow payment of <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number((selectedProject.engagement.service as any)?.price_vnd || (selectedProject.engagement.service as any)?.priceVnd || selectedProject.engagement.milestones?.[0]?.paymentAmountVnd || 0))}</strong> has been released and credited to your wallet.
                         </p>
                       </div>
                     </div>
-                    
+
                     {!myReview ? (
                       <Button
                         className="w-full bg-amber-600 hover:bg-amber-700 text-white shadow-sm h-11"
@@ -734,121 +729,121 @@ export default function ExpertProjectsPage() {
                     <div className="mb-8">
                       <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                         Project Requirements
-                    </h3>
+                      </h3>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Domains */}
-                      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Required Domains</h4>
-                        {isLoadingProject ? (
-                          <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
-                        ) : fullProject?.required_domains_json?.length ? (
-                          <div className="space-y-2">
-                            {fullProject.required_domains_json.map((d: any, i: number) => {
-                              const domainName = domains?.find(def => def.code === d.domain_code)?.name || d.domain_code;
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Domains */}
+                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3">Required Domains</h4>
+                          {isLoadingProject ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                          ) : fullProject?.required_domains_json?.length ? (
+                            <div className="space-y-2">
+                              {fullProject.required_domains_json.map((d: any, i: number) => {
+                                const domainName = domains?.find(def => def.code === d.domain_code)?.name || d.domain_code;
 
-                              const getDepthValue = (depth: string) => {
-                                if (depth === 'DEEP' || depth === 'EXPERT') return 3;
-                                if (depth === 'OPERATIONAL' || depth === 'INTERMEDIATE') return 2;
-                                if (depth === 'SURFACE' || depth === 'BEGINNER') return 1;
-                                return 0;
-                              };
+                                const getDepthValue = (depth: string) => {
+                                  if (depth === 'DEEP' || depth === 'EXPERT') return 3;
+                                  if (depth === 'OPERATIONAL' || depth === 'INTERMEDIATE') return 2;
+                                  if (depth === 'SURFACE' || depth === 'BEGINNER') return 1;
+                                  return 0;
+                                };
 
-                              const requiredDepth = d.depth_level || d.required_depth;
-                              const expertDomain = profile?.domainDepths?.find((pd: any) => pd.domainCode === d.domain_code);
-                              const isMatch = expertDomain && getDepthValue(expertDomain.depthLevel || expertDomain.depth_level) >= getDepthValue(requiredDepth);
+                                const requiredDepth = d.depth_level || d.required_depth;
+                                const expertDomain = profile?.domainDepths?.find((pd: any) => pd.domainCode === d.domain_code);
+                                const isMatch = expertDomain && getDepthValue(expertDomain.depthLevel || expertDomain.depth_level) >= getDepthValue(requiredDepth);
 
-                              const bgFill = expertDomain
-                                ? "bg-emerald-50 border-emerald-200"
-                                : "bg-rose-50 border-rose-200";
+                                const bgFill = expertDomain
+                                  ? "bg-emerald-50 border-emerald-200"
+                                  : "bg-rose-50 border-rose-200";
 
-                              const textColor = expertDomain ? "text-emerald-700" : "text-rose-700";
+                                const textColor = expertDomain ? "text-emerald-700" : "text-rose-700";
 
-                              const showWarning = expertDomain && !isMatch;
+                                const showWarning = expertDomain && !isMatch;
 
-                              return (
-                                <div key={i} className={`flex justify-between items-center text-sm p-2.5 rounded-lg border ${bgFill}`}>
-                                  <span className="font-semibold text-slate-900">{domainName}</span>
-                                  <div className="relative flex items-center">
-                                    {showWarning ? (
-                                      <button
-                                        onClick={() => setActivePopupId(activePopupId === d.domain_code ? null : d.domain_code)}
-                                        className="flex items-center hover:opacity-75 transition-opacity focus:outline-none"
-                                      >
-                                        <span className="mr-1 opacity-70 text-[11px] font-black text-rose-500">!</span>
+                                return (
+                                  <div key={i} className={`flex justify-between items-center text-sm p-2.5 rounded-lg border ${bgFill}`}>
+                                    <span className="font-semibold text-slate-900">{domainName}</span>
+                                    <div className="relative flex items-center">
+                                      {showWarning ? (
+                                        <button
+                                          onClick={() => setActivePopupId(activePopupId === d.domain_code ? null : d.domain_code)}
+                                          className="flex items-center hover:opacity-75 transition-opacity focus:outline-none"
+                                        >
+                                          <span className="mr-1 opacity-70 text-[11px] font-black text-rose-500">!</span>
+                                          <span className={`text-[10px] uppercase tracking-wider font-bold ${textColor}`}>
+                                            {requiredDepth}
+                                          </span>
+                                        </button>
+                                      ) : (
                                         <span className={`text-[10px] uppercase tracking-wider font-bold ${textColor}`}>
                                           {requiredDepth}
                                         </span>
-                                      </button>
-                                    ) : (
-                                      <span className={`text-[10px] uppercase tracking-wider font-bold ${textColor}`}>
-                                        {requiredDepth}
-                                      </span>
-                                    )}
+                                      )}
 
-                                    {showWarning && activePopupId === d.domain_code && (
-                                      <div className="absolute right-0 bottom-full mb-2 w-40 bg-white text-slate-800 text-xs p-2.5 rounded shadow-xl border border-slate-200 z-10 whitespace-normal leading-relaxed before:content-[''] before:absolute before:-bottom-1.5 before:right-3 before:w-3 before:h-3 before:bg-white before:border-b before:border-r before:border-slate-200 before:rotate-45">
-                                        <div>
-                                          <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Project Requires</span>
-                                          <span className="font-bold">{requiredDepth}</span>
+                                      {showWarning && activePopupId === d.domain_code && (
+                                        <div className="absolute right-0 bottom-full mb-2 w-40 bg-white text-slate-800 text-xs p-2.5 rounded shadow-xl border border-slate-200 z-10 whitespace-normal leading-relaxed before:content-[''] before:absolute before:-bottom-1.5 before:right-3 before:w-3 before:h-3 before:bg-white before:border-b before:border-r before:border-slate-200 before:rotate-45">
+                                          <div>
+                                            <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Project Requires</span>
+                                            <span className="font-bold">{requiredDepth}</span>
+                                          </div>
+                                          <div className="mt-2">
+                                            <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Your Profile</span>
+                                            <span className="font-bold">{expertDomain.depthLevel || expertDomain.depth_level}</span>
+                                          </div>
                                         </div>
-                                        <div className="mt-2">
-                                          <span className="text-slate-500 uppercase font-bold text-[9px] block mb-0.5">Your Profile</span>
-                                          <span className="font-bold">{expertDomain.depthLevel || expertDomain.depth_level}</span>
-                                        </div>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-slate-500">No specific domains required.</p>
-                        )}
-                      </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500">No specific domains required.</p>
+                          )}
+                        </div>
 
-                      {/* Seams */}
-                      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Required Integrations</h4>
-                        {isLoadingProject ? (
-                          <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
-                        ) : fullProject?.required_seams_json?.length ? (
-                          <div className="space-y-2">
-                            {fullProject.required_seams_json.map((s: any, i: number) => {
-                              const rawSeamName = seams?.find(def => def.code === s.seam_code)?.name || s.seam_code;
-                              const seamName = formatSeamCode(rawSeamName);
-                              const isMatch = profile?.seamClaims?.some((ps: any) => (ps.seamCode || ps.code) === s.seam_code);
-                              const bgFill = isMatch
-                                ? "bg-emerald-50 border-emerald-200"
-                                : "bg-rose-50 border-rose-200";
+                        {/* Seams */}
+                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3">Required Integrations</h4>
+                          {isLoadingProject ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                          ) : fullProject?.required_seams_json?.length ? (
+                            <div className="space-y-2">
+                              {fullProject.required_seams_json.map((s: any, i: number) => {
+                                const rawSeamName = seams?.find(def => def.code === s.seam_code)?.name || s.seam_code;
+                                const seamName = formatSeamCode(rawSeamName);
+                                const isMatch = profile?.seamClaims?.some((ps: any) => (ps.seamCode || ps.code) === s.seam_code);
+                                const bgFill = isMatch
+                                  ? "bg-emerald-50 border-emerald-200"
+                                  : "bg-rose-50 border-rose-200";
 
-                              const textColor = isMatch ? "text-emerald-700" : "text-rose-700";
+                                const textColor = isMatch ? "text-emerald-700" : "text-rose-700";
 
-                              return (
-                                <div key={i} className={`flex justify-between items-center text-sm p-2.5 rounded-lg border ${bgFill}`}>
-                                  <span className="font-semibold text-slate-900">{seamName}</span>
-                                  <span className={`text-[10px] uppercase tracking-wider font-bold ${textColor}`}>
-                                    {s.criticality}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-slate-500">No specific integrations required.</p>
-                        )}
+                                return (
+                                  <div key={i} className={`flex justify-between items-center text-sm p-2.5 rounded-lg border ${bgFill}`}>
+                                    <span className="font-semibold text-slate-900">{seamName}</span>
+                                    <span className={`text-[10px] uppercase tracking-wider font-bold ${textColor}`}>
+                                      {s.criticality}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500">No specific integrations required.</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                   {/* ARTIFACT B */}
                   {selectedProject.status !== 'CLOSED' && (
                     <div className="mb-8">
-                      <ArtifactBView 
-                        projectId={selectedProject.projectId} 
-                        isAuthorized={selectedProject.status === 'IN_PROGRESS'} 
+                      <ArtifactBView
+                        projectId={selectedProject.projectId}
+                        isAuthorized={selectedProject.status === 'IN_PROGRESS'}
                       />
                     </div>
                   )}
@@ -876,8 +871,8 @@ export default function ExpertProjectsPage() {
                                   <button
                                     onClick={() => setActiveMilestoneId(isActive ? null : m.milestone_number)}
                                     className={`w-5 h-5 rounded-full border-[3px] mb-3 flex items-center justify-center transition-all bg-white z-10 ${isActive
-                                        ? 'bg-blue-600 border-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]'
-                                        : 'bg-white border-slate-300 hover:border-blue-400'
+                                      ? 'bg-blue-600 border-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]'
+                                      : 'bg-white border-slate-300 hover:border-blue-400'
                                       }`}
                                   >
                                   </button>
