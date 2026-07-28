@@ -6,7 +6,8 @@ import { useEngagementStore } from '@/store/engagement.store';
 
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
-import { Send, X, MessageSquare, Inbox } from 'lucide-react';
+import { MessageSquare, Send, X, Inbox } from 'lucide-react';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useNavigate } from 'react-router-dom';
 
 interface Message {
@@ -235,9 +236,7 @@ export default function MilestoneChatPanel({
             return (
               <div key={msg.id} className={cn('flex gap-2', own ? 'justify-end' : 'justify-start')}>
                 {!own && (
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-[#0F172A]/10 flex items-center justify-center font-headline font-semibold text-[12px] text-[#0F172A] mt-1 shadow-inner">
-                    {msg.sender?.fullName?.charAt(0) || '?'}
-                  </div>
+                  <UserAvatar name={msg.sender?.fullName} id={msg.senderId} role={roleInfo.label} size="sm" />
                 )}
 
                 <div className={cn(

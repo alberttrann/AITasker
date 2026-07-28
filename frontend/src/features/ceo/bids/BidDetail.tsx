@@ -9,6 +9,7 @@ import { formatVND } from '@/lib/utils';
 import CounterOfferPanel from './CounterOfferPanel';
 import CeoNdaClickThrough from '../connection/NdaClickThrough';
 import { Modal } from '@/components/ui/modal';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function BidDetail() {
   const { projectId, bidId } = useParams<{ projectId: string; bidId: string }>();
@@ -42,9 +43,12 @@ export default function BidDetail() {
       </button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-headline text-2xl font-semibold text-slate-900">Bid from {bid.engagement?.expert?.fullName ?? 'Expert'}</h1>
-          <p className="mt-1 text-sm text-slate-500">Offer v{offer?.version ?? bid.versionNumber} · {String(bid.negotiationState || '').replace(/_/g, ' ').toLowerCase()}</p>
+        <div className="flex items-center gap-3">
+          <UserAvatar name={bid.engagement?.expert?.fullName} id={bid.engagement?.expert?.id} role="EXPERT" size="lg" />
+          <div>
+            <h1 className="font-headline text-2xl font-semibold text-slate-900">Bid from {bid.engagement?.expert?.fullName ?? 'Expert'}</h1>
+            <p className="mt-1 text-sm text-slate-500">Offer v{offer?.version ?? bid.versionNumber} · {String(bid.negotiationState || '').replace(/_/g, ' ').toLowerCase()}</p>
+          </div>
         </div>
         {bid.termsLocked ? <span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"><LockKeyhole size={16} /> Terms locked</span> : null}
       </div>

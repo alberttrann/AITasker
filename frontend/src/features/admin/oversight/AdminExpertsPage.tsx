@@ -5,6 +5,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/modal';
 import { Award, CheckCircle2 } from 'lucide-react';
 import { AdminTableToolbar } from '@/features/admin/layout/AdminTableToolbar';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 const ROWS_PER_PAGE = 15;
 
@@ -85,9 +86,12 @@ export default function AdminExpertsPage() {
 
   const columns: Column<any>[] = [
     { key: 'user', label: 'Expert', sortable: true, render: (e: any) => (
-      <div>
-        <div className="font-bold text-slate-900 text-sm">{e.fullName}</div>
-        <div className="text-xs text-slate-500 font-mono">{e.email}</div>
+      <div className="flex items-center gap-3">
+        <UserAvatar name={e.fullName || e.email} id={e.id} role="EXPERT" size="md" />
+        <div>
+          <div className="font-bold text-slate-900 text-sm">{e.fullName}</div>
+          <div className="text-xs text-slate-500 font-mono">{e.email}</div>
+        </div>
       </div>
     )},
     { key: 'tier', label: 'Subscription', sortable: true, render: (e: any) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${e.subscriptionExpertTier === 'pro' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'}`}>{e.subscriptionExpertTier}</span> },

@@ -11,6 +11,7 @@ import { useDomains, useSeams } from '@/hooks/use-config';
 import { useProjects } from '@/hooks/use-projects';
 import { useSocket } from '@/hooks/use-socket';
 import { Modal } from '@/components/ui/modal';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function CeoExpertProfileView() {
   const { userId } = useParams<{ userId: string }>();
@@ -117,9 +118,12 @@ export default function CeoExpertProfileView() {
       <Card className="p-6 md:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-slate-100 pb-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-slate-900 text-white font-bold text-2xl flex items-center justify-center shrink-0">
-              {fullName?.charAt(0)?.toUpperCase() || 'E'}
-            </div>
+            <UserAvatar
+              name={fullName}
+              id={userId}
+              role="EXPERT"
+              size="xl"
+            />
             <div>
               <h2 className="text-2xl font-bold text-slate-900">{fullName}</h2>
               <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">

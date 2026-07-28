@@ -8,6 +8,7 @@ import type { ClientProfileDto, ExpertProfileDto } from '@t/api.types';
 import { useWallet } from '@/hooks/use-wallet';
 import { formatVND } from '@/lib/utils';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function ProfilePage() {
   const { user, logout, addRole, switchRole } = useAuth();
@@ -121,9 +122,7 @@ export default function ProfilePage() {
         <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {/* Circular Avatar */}
-            <div className="flex-shrink-0 w-16 h-16 rounded-full bg-slate-900 text-white flex items-center justify-center text-2xl font-bold">
-              {initial}
-            </div>
+            <UserAvatar name={user?.fullName} id={user?.id} role={user?.activeRole} size="xl" />
 
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">

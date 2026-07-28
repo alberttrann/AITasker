@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import ChatSidebar from "@/components/messaging/ChatSidebar";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   Send,
@@ -459,9 +460,7 @@ export default function MessageThread({
         {/* 1. Header Toolbar */}
         <div className="flex flex-row items-center justify-between px-6 py-4 bg-white border-b border-slate-200/80 shrink-0 gap-4 z-10 relative">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 border border-slate-200/60 shadow-sm">
-              {peerName.charAt(0).toUpperCase()}
-            </div>
+            <UserAvatar name={peerName} id={stablePartnerId || undefined} role={isClient ? 'EXPERT' : 'CLIENT'} size="sm" />
             <div>
               <h2 className="text-sm font-bold text-slate-800 leading-tight">{peerName}</h2>
               <span className={`inline-block mt-0.5 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md ${
@@ -667,9 +666,9 @@ export default function MessageThread({
                             activeRole: senderRole,
                           })
                         }
-                        className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
                       >
-                        {senderInitial}
+                        <UserAvatar name={senderName} id={msg.senderId || msg.sender?.id} role={senderRole} size="sm" />
                       </div>
                     </div>
                   )}

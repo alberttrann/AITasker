@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/Spinner';
 import { CheckCircle, Send, Mail, Phone, ShieldCheck, Sparkles } from 'lucide-react';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface MatchCardProps {
   expert: MatchResult;
@@ -259,9 +260,12 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             {/* Header Card: Avatar, Name, Badges & Contact Info */}
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-3.5">
               <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md ring-4 ring-emerald-50 font-headline font-bold text-2xl">
-                  {name.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar
+                  name={name}
+                  id={expert.expert_id}
+                  role="EXPERT"
+                  size="xl"
+                />
                 <div className="pt-0.5 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <h3 className="text-lg font-headline font-bold text-slate-900 break-words">

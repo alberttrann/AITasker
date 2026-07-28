@@ -107,7 +107,14 @@
 - **Platform Revenue Settings (`PlatformSettings.tsx`)**:
   - Updated page header icon to use `<Banknote>` (bill icon matching sidebar navigation item).
   - Added a Total Revenue summary banner calculating total accumulated platform revenue since the earliest transaction date (or selected custom start date).
-  - Added interactive "Calculate Since Date" date picker control with `max={todayStr}` (disallowing future dates), dark color-scheme styling for a light native calendar icon indicator, and a `<RotateCcw>` revolve arrow reset button.
+- **Dynamic DiceBear Notionists Avatar System (`UserAvatar.tsx`)**:
+  - Upgraded `<UserAvatar>` (`src/components/ui/UserAvatar.tsx`) to use **DiceBear Notionists** (`https://api.dicebear.com/9.x/notionists/svg?seed=${id}`).
+  - Provides clean, minimalist Notion-style hand-drawn vector character portraits.
+  - Seeded strictly by user `id` for 100% deterministic, permanent avatar artwork across all 19 application locations (including CEO & Expert Wallet pages).
+
+
+
+
 
 
 

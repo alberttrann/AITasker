@@ -12,6 +12,7 @@ import SpotlightSearch from '@/components/layout/SpotlightSearch';
 import { useEngagementStore } from '@store/engagement.store';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversations, useReadConversation, useReadAllConversations } from '@/hooks/use-messages';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, switchRole, addRole } = useAuth();
@@ -365,9 +366,7 @@ const RoleIcon =
                               className={`p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors flex gap-3 ${hasUnread ? 'bg-primary/5' : ''}`}
                             >
                               {/* Avatar Bubble */}
-                              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0 border border-slate-200">
-                                {otherPartyName.charAt(0).toUpperCase()}
-                              </div>
+                              <UserAvatar name={otherPartyName} size="sm" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-baseline mb-0.5">
                                   <span className={`text-sm truncate ${hasUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
@@ -409,9 +408,12 @@ const RoleIcon =
                   className="relative flex items-center gap-3 transition-all duration-150 active:scale-95 group"
                 >
                   <div className="relative">
-                    <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary text-white font-headline text-lg border-2 border-surface shadow-sm group-hover:bg-primary/90">
-                      {initial}
-                    </div>
+                    <UserAvatar
+                      name={user?.fullName || user?.email}
+                      id={user?.id}
+                      role={user?.activeRole}
+                      size="md"
+                    />
                     {/* Overlapping Tier Badge */}
                     {rawRole !== 'TECH_TEAM' && rawRole !== 'ADMIN' && (
                     <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[9px] font-headline font-extrabold tracking-wider rounded-full border-2 border-surface shadow-sm whitespace-nowrap pointer-events-none ${
