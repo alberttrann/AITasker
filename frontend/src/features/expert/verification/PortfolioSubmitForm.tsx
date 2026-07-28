@@ -68,8 +68,8 @@ export default function PortfolioSubmitForm() {
     setError(null);
     setIsSubmitting(true);
     
-    // Capture the submission count BEFORE the mutation to avoid race conditions with React Query invalidation
-    const currentCount = selectedSeamData?.submissionCount || 0;
+    // Capture the effective submission count BEFORE the mutation to avoid race conditions
+    const currentCount = effectiveCount;
 
     try {
       const USE_MOCK = false;
@@ -132,6 +132,9 @@ export default function PortfolioSubmitForm() {
   const selectedSeamData = profile?.seamClaims?.find((s: any) => s.id === selectedSeamId) || eligibleSeams.find(s => s.id === selectedSeamId);
   const rawSeamCode = selectedSeamData?.seamCode || selectedSeamData?.code || selectedSeamData?.seam_code || 'Unknown';
   const displaySeamName = getSeamLabel(rawSeamCode);
+
+  const isExpiredLockout = selectedSeamData?.lockedUntil && new Date(selectedSeamData.lockedUntil) <= new Date();
+  const effectiveCount = isExpiredLockout ? 0 : (selectedSeamData?.submissionCount || 0);
 
   if (resultView === 'success') {
     return (
@@ -250,7 +253,7 @@ export default function PortfolioSubmitForm() {
             {selectedSeamData && (
               <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                Attempts remaining: {5 - (selectedSeamData.submissionCount || 0)}/5
+                Attempts remaining: {5 - effectiveCount}/5
               </p>
             )}
           </div>

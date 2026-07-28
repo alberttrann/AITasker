@@ -150,10 +150,11 @@ export class ExpertProfileService {
       // 1. Tìm các seam mà user đang muốn xoá
       const seamsToDelete = await tx.expertSeamClaim.findMany({
         where: { expertId: userId, seamCode: { notIn: seams } },
+        include: { _count: { select: { portfolioSubmissions: true } } }
       });
 
-      // 2. Chặn xoá nếu đã có lịch sử submit (để chống việc bypass anti-spam lockout 5 lần)
-      const invalidDeletions = seamsToDelete.filter((s) => s.submissionCount > 0);
+      // 2. Chặn xoá nếu đã có lịch sử submit (kiểm tra history thực tế để bảo toàn audit record)
+      const invalidDeletions = seamsToDelete.filter((s) => s._count.portfolioSubmissions > 0);
       if (invalidDeletions.length > 0) {
         const lockedSeams = invalidDeletions.map((s) => s.seamCode).join(', ');
         throw new BadRequestException(
