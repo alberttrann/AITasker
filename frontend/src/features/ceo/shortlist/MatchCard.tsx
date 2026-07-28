@@ -148,18 +148,37 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
     }
   }, [name, projectName, inviteMessage]);
 
+  const isAlreadyInvited =
+    expert.invitation_status === 'PENDING' ||
+    expert.invitation_status === 'INVITED' ||
+    expert.invitation_status === 'ACCEPTED' ||
+    invited;
+  const isDeclined = expert.invitation_status === 'DECLINED';
+
   return (
     <>
       <div 
-        className="rounded-lg border border-slate-200 bg-surface p-5 transition-shadow hover:shadow-md cursor-pointer"
+        className="rounded-lg border border-slate-200 bg-surface p-5 transition-shadow hover:shadow-md cursor-pointer relative"
         onClick={() => setIsModalOpen(true)}
       >
         {/* Header: name + strength label */}
-        <div className="mb-3 flex items-start justify-between">
-          <h3 className="text-body font-headline font-semibold text-primary">
-            {name}
-          </h3>
-          <span className={`inline-flex items-center rounded-[4px] px-[12px] py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] ${strengthStyle}`}>
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-body font-headline font-semibold text-primary truncate" title={name}>
+              {name}
+            </h3>
+            {isAlreadyInvited && (
+              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/80 rounded px-1.5 py-0.5 mt-1">
+                Invited
+              </span>
+            )}
+            {isDeclined && (
+              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 mt-1">
+                Declined
+              </span>
+            )}
+          </div>
+          <span className={`inline-flex items-center rounded-[4px] px-[12px] py-[4px] text-[12px] font-medium uppercase tracking-[0.5px] shrink-0 ${strengthStyle}`}>
             {strengthDisplay}
           </span>
         </div>
@@ -213,11 +232,11 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
 
         {/* Stack Tags */}
         {stackTags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 max-h-16 overflow-hidden">
             {stackTags.map((tag) => (
               <span
                 key={tag}
-                className="rounded bg-primary-bg px-2 py-0.5 text-caption text-secondary"
+                className="rounded bg-primary-bg px-2 py-0.5 text-caption text-secondary shrink-0"
               >
                 {tag}
               </span>
@@ -240,8 +259,8 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 ring-4 ring-emerald-50 shadow-sm">
                 <span className="text-2xl font-bold">{name.charAt(0).toUpperCase()}</span>
               </div>
-              <div className="pt-1">
-                <h3 className="text-[18px] font-headline font-bold text-slate-900">
+              <div className="pt-1 min-w-0 flex-1">
+                <h3 className="text-[18px] font-headline font-bold text-slate-900 break-words">
                   {name}
                 </h3>
                 <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${strengthStyle}`}>
@@ -385,7 +404,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                 className="w-full flex-1 min-h-[140px] rounded-[8px] border border-slate-200 bg-white px-3.5 py-3 text-[13px] leading-relaxed text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none shadow-sm transition-shadow"
                 value={inviteMessage}
                 onChange={(e) => setInviteMessage(e.target.value)}
-                disabled={isInviting || invited}
+                disabled={isInviting || isAlreadyInvited}
                 placeholder="Write your message here..."
               />
 
@@ -396,7 +415,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                     {inviteError}
                   </p>
                 )}
-                {invited ? (
+                {isAlreadyInvited ? (
                   <Button variant="outline" className="w-full cursor-default bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" disabled>
                     <CheckCircle size={16} className="mr-2" />
                     Invitation Sent

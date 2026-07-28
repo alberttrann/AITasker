@@ -63,3 +63,32 @@
 
 - **Page Containers**: Outermost page wrappers enforce `w-full max-w-[1440px] px-6 mx-auto` for visual alignment with the top navigation bar.
 - **Widget Grids**: 1 or 2 widgets span 50% width; 3 or 4 widgets split evenly (maximum 4 per row).
+
+---
+
+## 6. Act 3 Architecture: AI Expert Matching & Direct Invitations
+
+- **Shortlist Retrieval (`useShortlist` / `ShortlistView.tsx`)**:
+  - Fetches candidate experts via `GET /matching/:projectId/shortlist`.
+  - Backend strips raw floating-point composite scores ($0.00–1.00$) to guarantee raw score privacy.
+  - Candidates are sorted strictly by qualitative strength labels (`STRONG_MATCH` $\rightarrow$ `WEAK_MATCH`).
+  - Candidate cards (`MatchCard.tsx`) render domain match indicators, gap maps (`gap_map`), and tech stack tags with continuous text wrap truncation (`truncate` / `break-words`).
+  - Candidate modal (`MatchCard.tsx`) syncs `isAlreadyInvited` with `InvitationStatus` enum values (`'PENDING'`, `'INVITED'`, `'ACCEPTED'`) and displays verified seam badges (`EVIDENCE_BACKED`).
+- **Force Refresh Shortlist (`GET /matching/:projectId/shortlist?refresh=true`)**:
+  - `ShortlistView.tsx` triggers `refresh()` which calls backend cache eviction and FastAPI re-scoring.
+  - FastAPI match engine filters experts exceeding the 4:1 claimed-to-verified seam ratio hard gate.
+  - Returns updated cache (`source = 'FORCE_REFRESH'`) and updates React Query cache.
+- **Real-Time WebSocket Sync (`SocketProvider`)**:
+  - Listens for `notification:generic` events with invitation payload (`type === 'invitation'` or title containing `'Invitation'`).
+  - Automatically invalidates `['invitations']` and `['shortlist']` TanStack Query keys on mount and on push event.
+  - Ensures CEO shortlist cards and Expert project invitation feeds update in real time without requiring manual page refresh.
+- **Invitation Decline Lifecycle (UC085 - `ExpertProjectsPage.tsx`)**:
+  - Replaces raw `window.confirm` browser alerts with styled `ConfirmModal`.
+  - Dispatches `POST /invitations/:id/decline` mutation upon confirmation, setting `status = 'DECLINED'` and invalidating invitation queries.
+
+
+
+
+
+
+

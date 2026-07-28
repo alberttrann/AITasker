@@ -87,13 +87,43 @@ export default function ShortlistView() {
 
   if (experts.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-body text-secondary">
-          ⏳ Matching in progress… Experts are being scored for your project.
-        </p>
-        <p className="mt-2 text-body-sm text-secondary">
-          Check back in a moment.
-        </p>
+      <div className="w-full max-w-[1440px] px-6 mx-auto space-y-6 py-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col">
+            <p className="text-body-md font-bold text-secondary mb-1">
+              Matched Experts for
+            </p>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={handleGoBack}
+                className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
+                aria-label="Go back"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <h2 className="text-h2 font-headline text-primary">
+                {projectName}
+              </h2>
+            </div>
+          </div>
+          <Button variant="outline" onClick={() => refresh()} disabled={isRefreshing} className="flex items-center gap-2">
+            <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+            {isRefreshing ? "Refreshing..." : "Refresh Matches"}
+          </Button>
+        </div>
+
+        <div className="py-16 text-center bg-white border border-slate-200 rounded-2xl shadow-sm">
+          <p className="text-body-lg font-semibold text-slate-700">
+            No expert candidates match the current project requirements.
+          </p>
+          <p className="mt-2 text-body-sm text-slate-500 max-w-md mx-auto">
+            Experts may be filtered if they do not meet domain depth requirements or the 4:1 claimed-to-verified seam ratio gate. Click "Refresh Matches" to re-evaluate active experts.
+          </p>
+          <Button variant="primary" onClick={() => refresh()} disabled={isRefreshing} className="mt-6">
+            <RefreshCw size={16} className={`mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            {isRefreshing ? "Refreshing Matches..." : "Refresh Matches Now"}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -101,7 +131,7 @@ export default function ShortlistView() {
   // ── Results ─────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-[1440px] px-6 mx-auto space-y-6 py-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col">
           <p className="text-body-md font-bold text-secondary mb-1">

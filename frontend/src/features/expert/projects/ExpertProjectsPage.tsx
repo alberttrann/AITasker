@@ -10,7 +10,7 @@ import { Loader2, ArrowLeft, Building2, MapPin, Search, Filter, MoreVertical, X,
 import type { InvitationDto, EngagementDto } from "@/types/api.types";
 import { formatSeamCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+import { ConfirmModal, Modal } from "@/components/ui/modal";
 import ExpertNdaClickThrough from "../connection/NdaClickThrough";
 import { useEngagementReviews } from "@/hooks/use-reviews";
 import ReviewForm from "@/components/reviews/ReviewForm";
@@ -44,6 +44,7 @@ export default function ExpertProjectsPage() {
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [ndaEngagementId, setNdaEngagementId] = useState<string | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [declineInvitationId, setDeclineInvitationId] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -237,8 +238,13 @@ export default function ExpertProjectsPage() {
   const isLoading = isLoadingInvites || isLoadingEngagements;
 
   const handleDecline = (invitationId: string) => {
-    if (window.confirm("Are you sure you want to decline this invitation?")) {
-      declineInvitation.mutate(invitationId);
+    setDeclineInvitationId(invitationId);
+  };
+
+  const confirmDecline = () => {
+    if (declineInvitationId) {
+      declineInvitation.mutate(declineInvitationId);
+      setDeclineInvitationId(null);
     }
   };
 
@@ -933,6 +939,19 @@ export default function ExpertProjectsPage() {
           )}
         </div>
       </Modal>
+
+      {/* Decline Invitation Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!declineInvitationId}
+        onClose={() => setDeclineInvitationId(null)}
+        onConfirm={confirmDecline}
+        title="Decline Invitation"
+        confirmText="Decline Invitation"
+        cancelText="Cancel"
+        isDestructive
+      >
+        Are you sure you want to decline this invitation? You will not be able to submit a bid for this project after declining.
+      </ConfirmModal>
     </div>
   );
 }
