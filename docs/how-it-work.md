@@ -85,6 +85,9 @@
 - **Invitation Decline Lifecycle (UC085 - `ExpertProjectsPage.tsx`)**:
   - Replaces raw `window.confirm` browser alerts with styled `ConfirmModal`.
   - Dispatches `POST /invitations/:id/decline` mutation upon confirmation, setting `status = 'DECLINED'` and invalidating invitation queries.
+- **Milestone Budget Resolution (`ConditionalPricing.tsx` / `BidForm.tsx`)**:
+  - Prioritizes `payment_amount_vnd` / `paymentAmountVnd` first over legacy `estimated_cost_vnd`.
+  - Uses logical OR (`||`) evaluation to bypass zero values, correctly displaying CEO milestone budgets (e.g. 1.000.000 ₫) in Expert bidding views.
 
 
 
