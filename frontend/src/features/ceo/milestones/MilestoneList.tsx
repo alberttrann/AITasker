@@ -173,8 +173,8 @@ export default function MilestoneList() {
             </Button>
           )}
 
-          {/* Create Milestone action - Only for project-based engagements */}
-          {engagement.type === "PROJECT_BASED" && (
+          {/* Create Milestone action - Only for project-based engagements when terms are not locked */}
+          {engagement.type === "PROJECT_BASED" && !engagement.termsLocked && (
             <Button
               variant="primary"
               onClick={() =>
@@ -314,8 +314,8 @@ export default function MilestoneList() {
                       </Button>
                     )}
 
-                    {/* Delete Milestone — only while DEFINED.*/}
-                    {m.id && state.toUpperCase() === "DEFINED" && (
+                    {/* Delete Milestone — only while DEFINED and terms are editable.*/}
+                    {m.id && state.toUpperCase() === "DEFINED" && !engagement.termsLocked && (
                       <Button
                         variant="ghost"
                         size="sm"

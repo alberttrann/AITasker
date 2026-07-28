@@ -972,7 +972,7 @@ export class BidsService {
   async withdraw(bidId: string, expertUserId: string) {
     const bid = await this.prisma.capabilityBid.findUnique({
       where: { id: bidId },
-      include: { engagement: { select: { expertId: true } } },
+      include: { engagement: { select: { expertId: true, projectId: true } } },
     });
     if (!bid) throw new NotFoundException('Bid not found.');
     if (bid.engagement.expertId !== expertUserId) {
@@ -999,6 +999,18 @@ export class BidsService {
       where: { id: bid.engagementId },
       data: { state: 'DECLINED' as any },
     });
+    if (bid.engagement.projectId) {
+      await this.prisma.invitation.updateMany({
+        where: {
+          projectId: bid.engagement.projectId,
+          expertId: expertUserId,
+        },
+        data: {
+          status: 'DECLINED',
+          respondedAt: new Date(),
+        },
+      });
+    }
     return { withdrawn: true, bidId };
   }
 

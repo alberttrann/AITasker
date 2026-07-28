@@ -170,10 +170,23 @@ export default function MessageThread({
     };
   }, [isDropdownOpen]);
 
-  // Reset messages when switching to a different conversation to prevent cross-chat leakage
+  // Reset messages and load new messages in a unified effect to prevent race conditions and cross-chat leakage
   useEffect(() => {
     dispatch({ type: "RESET" });
-  }, [scopeId]);
+    if (!fetchedMessages) return;
+    const fetched = Array.isArray(fetchedMessages)
+      ? fetchedMessages
+      : ((fetchedMessages as any)?.data ?? []);
+    
+    // Filter messages to ensure they belong to the current active scope
+    const filtered = fetched.filter((msg: any) =>
+      engagementId
+        ? msg.engagementId === engagementId
+        : msg.projectId === projectId
+    );
+    
+    dispatch({ type: "MERGE_FETCHED", messages: filtered });
+  }, [scopeId, fetchedMessages, engagementId, projectId]);
 
   // Mark conversation as read when opening a thread
   useEffect(() => {
@@ -205,14 +218,6 @@ export default function MessageThread({
     setActiveEngagement,
     clearUnread,
   ]);
-
-  useEffect(() => {
-    if (!fetchedMessages) return;
-    const fetched = Array.isArray(fetchedMessages)
-      ? fetchedMessages
-      : ((fetchedMessages as any)?.data ?? []);
-    dispatch({ type: "MERGE_FETCHED", messages: fetched });
-  }, [fetchedMessages]);
 
   useEffect(() => {
     if (!socket) return;

@@ -44,9 +44,9 @@ export class DodService {
       throw new BadRequestException(`Cannot mark a required DoD item as NOT_APPLICABLE`);
 
     // Mục DoD bắt buộc và hoàn thành -> yêu cầu phải có Note
-    if (dodItem.isRequired && dto.status !== 'COMPLETED' && !dto.completion_note)
+    if (dodItem.isRequired && dto.status === 'COMPLETED' && !dto.completion_note)
       throw new BadRequestException(
-        `Completion note is required for required DoD items when status is not COMPLETED`,
+        `Completion note is required for required DoD items when status is COMPLETED`,
       );
 
     return this.prisma.milestoneDodItem.update({

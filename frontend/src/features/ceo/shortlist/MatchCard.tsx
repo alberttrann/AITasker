@@ -459,10 +459,6 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                     <CheckCircle size={16} className="mr-2 text-emerald-600" />
                     Invitation Sent
                   </Button>
-                ) : isDeclined ? (
-                  <Button variant="outline" className="w-full cursor-default bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-500" disabled>
-                    Invitation Declined
-                  </Button>
                 ) : (
                   <Button
                     variant={countdown !== null ? 'destructive' : 'primary'}
@@ -488,7 +484,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                     ) : (
                       <>
                         <Send size={16} className="mr-2" />
-                        Send Invitation
+                        {isDeclined ? 'Re-invite Expert' : 'Send Invitation'}
                       </>
                     )}
                   </Button>
