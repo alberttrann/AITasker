@@ -7,7 +7,8 @@ import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { ConfirmModal } from '@/components/ui/modal';
-import { ArrowLeft, ShieldCheck, MessageSquare, Award, Info } from 'lucide-react';
+import { useDomains, useSeams } from '@/hooks/use-config';
+import { ArrowLeft, ShieldCheck, MessageSquare, Award, Info, Clock } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 
 export default function ServiceDetail() {
@@ -20,6 +21,163 @@ export default function ServiceDetail() {
   
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [purchaseAction, setPurchaseAction] = useState<'CHAT' | 'PAY' | null>(null);
+
+  // NEW: Fetch domains and seams for the UI mapping
+  const { data: domainsList } = useDomains();
+  const { data: seamsList } = useSeams();
+
+  // NEW: Render Helpers (copied from Expert view)
+  const renderTimeline = (timelineStr: string) => {
+    if (!timelineStr) return null;
+    if (timelineStr.trim().startsWith('{') && timelineStr.trim().endsWith('}')) {
+      try {
+        const jsonStr = timelineStr.replace(/'/g, '"');
+        const obj = JSON.parse(jsonStr);
+        return (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 font-bold text-slate-800">
+              <Clock size={16} className="text-emerald-600" />
+              <span>Total Estimated Time: {obj.total_estimated_time || 'N/A'}</span>
+            </div>
+            <div className="pl-6 flex flex-col gap-1.5">
+              {Object.entries(obj).map(([k, v]) => {
+                if (k === 'total_estimated_time') return null;
+                const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return <div key={k} className="text-[13px] text-slate-600 font-medium flex gap-2"><span className="text-emerald-500 font-bold">•</span> <span><strong className="text-slate-700">{label}:</strong> {String(v)}</span></div>
+              })}
+            </div>
+          </div>
+        );
+      } catch (e) {}
+    }
+    let formattedStr = timelineStr;
+    formattedStr = formattedStr.replace(/(Phase \d+:)/g, '\n$1');
+    formattedStr = formattedStr.replace(/(Total Estimated Time:)/gi, '\n$1');
+    const lines = formattedStr.split('\n').filter(l => l.trim() !== '');
+    if (lines.length > 1) {
+      return (
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-col gap-1.5">
+            {lines.map((line, i) => {
+              const isTotal = line.toLowerCase().includes('total');
+              if (isTotal) {
+                 return (
+                   <div key={i} className="flex items-center gap-2 font-bold text-slate-800 mt-2 pt-2 border-t border-slate-200/60">
+                     <Clock size={16} className="text-emerald-600" />
+                     <span>{line.trim()}</span>
+                   </div>
+                 );
+              }
+              return (
+                 <div key={i} className="text-[13px] text-slate-600 font-medium flex gap-2 pl-2">
+                   <span className="text-emerald-500 font-bold">•</span> 
+                   <span>{line.trim()}</span>
+                 </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+    return <div className="flex items-center gap-2 text-slate-700 font-medium"><Clock size={16} className="text-emerald-600" /><span>{timelineStr}</span></div>;
+  };
+
+  const renderScopeOfWork = (scopeStr: string) => {
+    if (!scopeStr) return null;
+    try {
+      let cleanStr = scopeStr.trim();
+      if (cleanStr.startsWith('```json')) {
+        cleanStr = cleanStr.replace(/```json/g, '').replace(/```/g, '').trim();
+      }
+      if (cleanStr.startsWith("['") && cleanStr.endsWith("']")) {
+         cleanStr = cleanStr.replace(/^\['/, '["').replace(/'\]$/, '"]').replace(/', '/g, '", "');
+      }
+      const scopeObj = JSON.parse(cleanStr);
+      if (typeof scopeObj !== 'object' || scopeObj === null) throw new Error("Not an object");
+      if (Array.isArray(scopeObj)) {
+         return (
+           <div className="flex flex-col gap-2">
+             {scopeObj.map((item, i) => {
+               const str = String(item).trim();
+               if (str.endsWith(':') || /^[A-Z\s]+$/.test(str)) {
+                 return <h4 key={i} className="font-bold text-slate-800 mt-4 mb-1 uppercase tracking-wider text-xs first:mt-0">{str.replace(/:$/, '')}</h4>
+               }
+               if (str.startsWith('-')) {
+                 return <div key={i} className="text-[14px] text-slate-600 pl-2 flex gap-2"><span className="text-emerald-500 font-bold">•</span> <span className="leading-relaxed">{str.replace(/^-/, '').trim()}</span></div>
+               }
+               return <div key={i} className="text-[14px] text-slate-600 leading-relaxed mb-2">{str}</div>
+             })}
+           </div>
+         );
+      }
+      return (
+        <div className="flex flex-col gap-5">
+          {Object.entries(scopeObj).map(([key, value]) => {
+            const title = key.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (Array.isArray(value)) {
+              return (
+                <div key={key}>
+                  <h4 className="font-semibold text-slate-800 mb-2">{title}</h4>
+                  <ul className="list-none space-y-1.5">
+                    {value.map((item, i) => (
+                      <li key={i} className="text-[14px] text-slate-600 flex gap-2">
+                        <span className="text-emerald-500 font-bold">•</span>
+                        <span className="leading-relaxed">{typeof item === 'object' ? JSON.stringify(item) : String(item).replace(/^-/, '').trim()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            }
+            if (typeof value === 'object' && value !== null) {
+              return (
+                <div key={key}>
+                  <h4 className="font-semibold text-slate-800 mb-2">{title}</h4>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    {Object.entries(value).map(([k, v]) => (
+                      <div key={k} className="mb-2 last:mb-0 text-[14px]">
+                        <span className="font-bold text-slate-700">{k.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: </span>
+                        <span className="text-slate-600 leading-relaxed">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={key}>
+                <h4 className="font-semibold text-slate-800 mb-1">{title}</h4>
+                <p className="text-[14px] text-slate-600 leading-relaxed">{String(value)}</p>
+              </div>
+            );
+          })}
+        </div>
+      );
+    } catch (e) {
+      let formattedStr = scopeStr;
+      formattedStr = formattedStr.replace(/\\n/g, '\n');
+      formattedStr = formattedStr.replace(/(INCLUDED:)/g, '\n$1\n');
+      formattedStr = formattedStr.replace(/(NOT INCLUDED:)/g, '\n$1\n');
+      const lines = formattedStr.split('\n').filter(l => l.trim() !== '');
+      if (lines.length > 1) {
+        return (
+           <div className="flex flex-col gap-2">
+             {lines.map((line, i) => {
+               const str = line.trim();
+               if (str.endsWith(':') || /^[A-Z\s]+$/.test(str)) {
+                 return <h4 key={i} className="font-bold text-slate-800 mt-4 mb-1 uppercase tracking-wider text-xs first:mt-0">{str.replace(/:$/, '')}</h4>
+               }
+               if (str.startsWith('-')) {
+                 return <div key={i} className="text-[14px] text-slate-600 pl-2 flex gap-2"><span className="text-emerald-500 font-bold">•</span> <span className="leading-relaxed">{str.replace(/^-/, '').trim()}</span></div>
+               }
+               return <div key={i} className="text-[14px] text-slate-600 leading-relaxed mb-2">{str}</div>
+             })}
+           </div>
+        );
+      }
+      return <div className="whitespace-pre-wrap text-[14px] text-slate-600 leading-relaxed">{scopeStr}</div>;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -123,6 +281,71 @@ export default function ServiceDetail() {
                 Standardized services offer fixed scopes. Review the details carefully. If you need modifications, you can chat with the expert to customize the delivery criteria.
               </p>
             </div>
+
+            {/* Scope of Work moved inside the main Card */}
+            {service.scope && (
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <h3 className="text-lg font-bold text-slate-900">Scope of Work</h3>
+                <div className="text-[15px] text-slate-700 leading-[1.8] bg-slate-50 p-6 rounded-xl border border-slate-100">
+                  {renderScopeOfWork(service.scope)}
+                </div>
+              </div>
+            )}
+
+            {/* Timeline moved inside the main Card */}
+            {service.timeline && (
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-emerald-600" />
+                  Estimated Timeline
+                </h3>
+                <div className="text-[15px] text-slate-800 font-semibold bg-slate-50 p-6 rounded-xl border border-slate-100">
+                  {renderTimeline(service.timeline)}
+                </div>
+              </div>
+            )}
+
+            {/* Technical Expertise moved inside the main Card */}
+            {((service.domainsJson && service.domainsJson.length > 0) || (service.seamsJson && service.seamsJson.length > 0)) && (
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <h3 className="text-lg font-bold text-slate-900">Technical Expertise</h3>
+                
+                <div className="space-y-6">
+                  {service.domainsJson && service.domainsJson.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Target Domains</h4>
+                      <div className="flex flex-wrap gap-3">
+                        {service.domainsJson.map((d: string) => {
+                          const domainName = domainsList?.find((x: any) => x.code === d)?.name || d;
+                          return (
+                            <span key={`domain-${d}`} className="px-3.5 py-1.5 bg-slate-50 text-slate-700 text-[13px] font-bold rounded-lg uppercase tracking-wide border border-slate-200 shadow-sm flex items-center">
+                              {domainName}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {service.seamsJson && service.seamsJson.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Technical Seams</h4>
+                      <div className="flex flex-wrap gap-3">
+                        {service.seamsJson.map((s: string) => {
+                          const seamName = seamsList?.find((x: any) => x.code === s)?.name || s;
+                          return (
+                            <span key={`seam-${s}`} className="px-3.5 py-1.5 bg-slate-50 text-slate-700 text-[13px] font-bold rounded-lg uppercase tracking-wide border border-slate-200 shadow-sm flex items-center">
+                              {seamName}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
           </Card>
         </div>
 
