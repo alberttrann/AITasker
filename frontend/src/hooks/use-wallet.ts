@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@lib/api-client';
 import { useAuthStore } from '@store/auth.store';
 import type { WalletDto, WalletTransactionDto, BankLinkPayload, BankLinkStatusDto } from '@t/api.types';
+export { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 /**
  * Wallet data hooks — used by WalletCard, VietQRPanel, withdrawal screens.
@@ -35,8 +36,6 @@ export function useWalletTransactions(limit = 20) {
     enabled: isAuthenticated,
   });
 }
-
-export { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export function useTopUpWallet() {
   return useMutation({
