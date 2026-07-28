@@ -45,7 +45,7 @@ export function useSearchData(isAuthenticated: boolean, activeRole: string) {
   const { data: rawTechEngagements } = useQuery({
     queryKey: ['engagements', 'tech-team'],
     queryFn: async () => {
-      const res = await apiClient.get('/engagements/tech-team');
+      const res = await apiClient.get('/engagements');
       return res.data;
     },
     enabled: isAuthenticated && activeRole === 'TECH_TEAM',

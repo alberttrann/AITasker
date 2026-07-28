@@ -1,39 +1,16 @@
 import { useState, useMemo } from "react";
 import { useProjects } from "@/hooks/use-projects";
-import { Loader2, PlayCircle, ArrowRight, Clock, FolderOpen, Link2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Loader2, PlayCircle, ArrowRight, Clock, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useTechTeamEngagements } from "@/hooks/use-engagements";
-import DashboardGreeting from "@/components/layout/DashboardGreeting";
-import Widget, { WidgetMetric } from "@/components/dashboard/Widget";
 import { DataList } from "@/components/layout/Table";
 
 export default function TechTeamProjectsPage() {
+  const navigate = useNavigate();
   const { projects, isLoadingProjects } = useProjects(true);
   const { data: engagements, isLoading: isLoadingEngagements } = useTechTeamEngagements();
 
   const [projectsSort, setProjectsSort] = useState<'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'>('date_desc');
-
-  const projectMetrics: WidgetMetric[] = [
-    {
-      id: "linked-projects",
-      label: "Linked Projects",
-      value: projects?.length || 0,
-      icon: <FolderOpen className="w-5 h-5" />,
-      href: "/tech-team/projects",
-      subValue: "Projects currently accessible",
-    }
-  ];
-
-  const engagementMetrics: WidgetMetric[] = [
-    {
-      id: "active-engagements",
-      label: "Active Engagements",
-      value: engagements?.filter(e => !["PENDING", "CLOSED", "CANCELLED", "DECLINED"].includes(e.state)).length || 0,
-      icon: <Link2 className="w-5 h-5" />,
-      href: "/tech-team/projects",
-      subValue: "Active handoffs",
-    }
-  ];
 
   const getSafeDate = (obj: any, field: 'updatedAt' | 'createdAt') => {
     return new Date(obj[field] || obj[field === 'updatedAt' ? 'updated_at' : 'created_at'] || 0).getTime();
@@ -54,24 +31,29 @@ export default function TechTeamProjectsPage() {
 
   return (
     <div className="w-full max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-300">
-      <DashboardGreeting />
-
-      <div className="mb-8">
-        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Workspace</h4>
-        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 lg:auto-rows-[180px]">
-          <Widget metrics={projectMetrics} variant="blue" className="h-full" />
-          <Widget metrics={engagementMetrics} variant="emerald" className="h-full" />
+      {/* Header with Back Button */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/tech-team')}
+            className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+            aria-label="Go back to Tech Team Dashboard"
+            title="Back to Dashboard"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h3 className="text-2xl font-bold text-slate-900">Linked Projects</h3>
         </div>
       </div>
 
-      <div className="mb-8">
+      <div>
         {isLoadingProjects || isLoadingEngagements ? (
           <div className="bg-white border border-slate-200 rounded-[20px] p-12 flex flex-col items-center justify-center min-h-[200px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
           <DataList
-            title="Linked Projects"
+            title="Projects List"
             sortOptions={[
               { label: 'Newest First', value: 'date_desc' },
               { label: 'Oldest First', value: 'date_asc' },
@@ -86,9 +68,9 @@ export default function TechTeamProjectsPage() {
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                   <Clock className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Waiting for CEO</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">No projects found</h3>
                 <p className="text-slate-500 text-sm max-w-sm">
-                  Your CEO is currently finalizing the project specifications. Once the project is published, it will appear here.
+                  Your CEO is currently finalizing the project specifications. Once published, your accessible projects will appear here.
                 </p>
               </div>
             }

@@ -99,9 +99,11 @@
 - **Admin Withdrawal Requests (`WithdrawalRequests.tsx`)**:
   - Standardized to use the shared `<AdminTableToolbar>` and `<DataTable>` reusable layout components matching `UserList.tsx` and `IntegrityMonitor.tsx`.
   - Set initial default filter state to `ALL` with `ALL` placed at the leftmost tab position (`['ALL', 'PENDING', 'COMPLETED', 'FAILED']`).
-- **Tech Team Projects Page (`TechTeamProjectsPage.tsx`)**:
-  - Upgraded `/tech-team/projects` to display all linked projects using the `<DataList>` layout component.
-  - Integrated the **Order by** dropdown sorting button (`Newest First`, `Oldest First`, `Name (A-Z)`, `Name (Z-A)`), matching `http://localhost:5173/ceo/projects`.
+- **Tech Team Routes & Projects Page (`TechTeamProjectsPage.tsx` / `TechTeamDashboardOverview.tsx`)**:
+  - Fixed `GET /engagements/tech-team → 400` error by updating `use-search.ts` to call `GET /engagements`.
+  - Separated `/tech-team` index (rendering `TechTeamDashboardOverview` with greeting banner and workspace widgets) from `/tech-team/projects` (rendering `TechTeamProjectsPage`).
+  - Standardized `/tech-team/projects` to exclude the greeting and workspace widgets, adding a back arrow button, "Linked Projects" title, and `<DataList>` with **Order by** dropdown sorting matching `http://localhost:5173/ceo/projects`.
+
 - **Platform Revenue Settings (`PlatformSettings.tsx`)**:
   - Updated page header icon to use `<Banknote>` (bill icon matching sidebar navigation item).
   - Added a Total Revenue summary banner calculating total accumulated platform revenue since the earliest transaction date (or selected custom start date).

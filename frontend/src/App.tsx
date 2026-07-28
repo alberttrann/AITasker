@@ -27,6 +27,7 @@ const CeoOverview = lazy(() => import("@features/ceo/CeoDashboard").then(m => ({
 const ExpertDashboard = lazy(() => import("@features/expert/ExpertDashboard"));
 const ExpertOverview = lazy(() => import("@features/expert/ExpertDashboard").then(m => ({ default: m.ExpertOverview })));
 const TechTeamDashboard = lazy(() => import("@features/tech-team/TechTeamDashboard"));
+const TechTeamDashboardOverview = lazy(() => import("@features/tech-team/pages/TechTeamDashboardOverview"));
 const TechTeamProjectsPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectsPage"));
 const TechTeamProjectDetailPage = lazy(() => import("@features/tech-team/pages/TechTeamProjectDetailPage"));
 const TechTeamMilestoneList = lazy(() => import("@features/tech-team/milestones/MilestoneList"));
@@ -238,7 +239,7 @@ const router = createBrowserRouter(
 
         <Route element={<RoleRoute requiredSubtype="TECH_TEAM" />}>
           <Route path="/tech-team" element={<TechTeamDashboard />}>
-            <Route index element={<TechTeamProjectsPage />} />
+            <Route index element={<TechTeamDashboardOverview />} />
             <Route path="projects" element={<TechTeamProjectsPage />} />
             <Route path="projects/:id" element={<TechTeamProjectDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
