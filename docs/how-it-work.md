@@ -110,7 +110,12 @@
 - **Dynamic DiceBear Notionists Avatar System (`UserAvatar.tsx`)**:
   - Upgraded `<UserAvatar>` (`src/components/ui/UserAvatar.tsx`) to use **DiceBear Notionists** (`https://api.dicebear.com/9.x/notionists/svg?seed=${id}`).
   - Provides clean, minimalist Notion-style hand-drawn vector character portraits.
-  - Seeded strictly by user `id` for 100% deterministic, permanent avatar artwork across all 19 application locations (including CEO & Expert Wallet pages).
+  - Seeded strictly by user `id` for 100% deterministic, permanent avatar artwork across all 19 application locations.
+  - Aligned message avatars inline with text bubbles and increased size to `md` (40px) in messaging stream and top chat header toolbar ([MessageThread.tsx](file:///d:/Workspace/KhangHuynh/AITasker/frontend/src/components/messaging/MessageThread.tsx)).
+
+
+
+
 
 
 

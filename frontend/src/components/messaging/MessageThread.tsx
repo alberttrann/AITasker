@@ -88,11 +88,6 @@ export default function MessageThread({
   const queryClient = useQueryClient();
 
   const [text, setText] = useState("");
-  const [selectedUser, setSelectedUser] = useState<{
-    fullName: string;
-    email: string;
-    activeRole: string;
-  } | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -460,7 +455,7 @@ export default function MessageThread({
         {/* 1. Header Toolbar */}
         <div className="flex flex-row items-center justify-between px-6 py-4 bg-white border-b border-slate-200/80 shrink-0 gap-4 z-10 relative">
           <div className="flex items-center gap-3">
-            <UserAvatar name={peerName} id={stablePartnerId || undefined} role={isClient ? 'EXPERT' : 'CLIENT'} size="sm" />
+            <UserAvatar name={peerName} id={stablePartnerId || undefined} role={isClient ? 'EXPERT' : 'CLIENT'} size="md" />
             <div>
               <h2 className="text-sm font-bold text-slate-800 leading-tight">{peerName}</h2>
               <span className={`inline-block mt-0.5 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md ${
@@ -654,22 +649,11 @@ export default function MessageThread({
               return (
                 <div
                   key={msg.id}
-                  className={`flex items-start gap-2.5 max-w-[75%] w-fit ${isMe ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                  className={`flex items-end gap-3 max-w-[80%] w-fit ${isMe ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                 >
                   {!isMe && (
-                    <div className="shrink-0 flex flex-col items-center pt-[2px]">
-                      <div
-                        onClick={() =>
-                          setSelectedUser({
-                            fullName: senderName,
-                            email: msg.sender?.email || "N/A",
-                            activeRole: senderRole,
-                          })
-                        }
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
-                      >
-                        <UserAvatar name={senderName} id={msg.senderId || msg.sender?.id} role={senderRole} size="sm" />
-                      </div>
+                    <div className="shrink-0 mb-5">
+                      <UserAvatar name={senderName} id={msg.senderId || msg.sender?.id} role={senderRole} size="md" />
                     </div>
                   )}
 
@@ -742,51 +726,6 @@ export default function MessageThread({
             <Send size={16} />
           </Button>
         </form>
-
-        {selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl border border-[#E2E8F0] relative animate-in zoom-in-95 duration-200">
-              <button
-                type="button"
-                onClick={() => setSelectedUser(null)}
-                className="absolute top-4 right-4 p-1 rounded-full hover:bg-[#F1F5F9] text-[#64748B] transition-colors"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="text-center text-slate-800">
-                <div className="w-16 h-16 bg-[#0F172A]/10 text-[#0F172A] flex items-center justify-center rounded-full text-2xl font-bold mx-auto mb-4 font-headline">
-                  {selectedUser.fullName.charAt(0)}
-                </div>
-                <h3 className="text-lg font-bold text-[#0F172A] font-headline">
-                  {selectedUser.fullName}
-                </h3>
-                <span className="inline-block px-2.5 py-0.5 mt-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#059669]/10 text-[#059669]">
-                  {selectedUser.activeRole}
-                </span>
-
-                <div className="mt-6 border-t border-[#F1F5F9] pt-4 text-left space-y-3">
-                  <div>
-                    <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider block font-headline">
-                      Email Address
-                    </span>
-                    <span className="text-[14px] text-[#0F172A] font-body font-medium">
-                      {selectedUser.email}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider block font-headline">
-                      System Role
-                    </span>
-                    <span className="text-[14px] text-[#0F172A] font-body font-medium">
-                      {selectedUser.activeRole}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   };

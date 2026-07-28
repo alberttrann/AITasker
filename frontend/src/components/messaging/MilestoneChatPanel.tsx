@@ -234,9 +234,11 @@ export default function MilestoneChatPanel({
             const roleInfo = getSenderRoleDetails(msg.senderId);
 
             return (
-              <div key={msg.id} className={cn('flex gap-2', own ? 'justify-end' : 'justify-start')}>
+              <div key={msg.id} className={cn('flex items-end gap-3', own ? 'justify-end' : 'justify-start')}>
                 {!own && (
-                  <UserAvatar name={msg.sender?.fullName} id={msg.senderId} role={roleInfo.label} size="sm" />
+                  <div className="shrink-0 mb-5">
+                    <UserAvatar name={msg.sender?.fullName} id={msg.senderId} role={roleInfo.label} size="md" />
+                  </div>
                 )}
 
                 <div className={cn(
