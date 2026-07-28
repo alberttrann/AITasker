@@ -75,6 +75,8 @@ export class UserService {
       user.activeRole === ActiveRole.CLIENT ? 'subscriptionClientTier' : 'subscriptionExpertTier';
     const activeSubscriptionExpiresKey =
       user.activeRole === ActiveRole.CLIENT ? 'subClientExpiresAt' : 'subExpertExpiresAt';
+    const expiresAt = (user as any)[activeSubscriptionExpiresKey];
+    const isExpired = expiresAt !== null && expiresAt !== undefined && new Date(expiresAt) < new Date();
 
     const userProfile = {
       id: user.id,
@@ -84,9 +86,9 @@ export class UserService {
       roles: user.roles,
       activeRole: user.activeRole,
       clientSubtype: user.clientSubtype,
-      subscriptionTier: (user as any)[activeSubscriptionKey],
+      subscriptionTier: isExpired ? 'free' : (user as any)[activeSubscriptionKey],
       activeRoleProfile: (user as any)[activeProfileKey],
-      subscriptionExpires: (user as any)[activeSubscriptionExpiresKey],
+      subscriptionExpires: expiresAt,
       selfTechnical: user.selfTechnical,
       sepay_bank_account_xid: user.sepayBankAccountXid,
       bank_linked_at: user.bankLinkedAt,
