@@ -7,7 +7,7 @@ import { usePublicProfile } from '@/hooks/use-user';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/Spinner';
-import { CheckCircle, Send } from 'lucide-react';
+import { CheckCircle, Send, Mail, Phone, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface MatchCardProps {
   expert: MatchResult;
@@ -135,7 +135,9 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
     return () => clearTimeout(timer);
   }, [countdown]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const name = isLoading ? 'Loading Expert...' : profile?.fullName || 'Expert';
+  const name = isLoading ? 'Loading Expert...' : profile?.fullName || expert.contact_info?.fullName || 'Expert';
+  const email = expert.contact_info?.email || (profile as any)?.email || null;
+  const phone = expert.contact_info?.phone || (profile as any)?.phone || null;
   const strength = expert.strength_label || 'POSSIBLE_MATCH';
   const strengthStyle = STRENGTH_STYLES[strength] ?? STRENGTH_STYLES.POSSIBLE_MATCH;
   const strengthDisplay = strength.replace('_MATCH', '').replace('_', ' ');
@@ -248,24 +250,56 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => { setIsModalOpen(false); setInviteError(null); setCountdown(null); }} 
-        title="Invite Expert"
-        className="sm:w-[840px] sm:max-w-[840px]"
+        title="Invite Expert to Project"
+        className="sm:w-[880px] sm:max-w-[880px]"
       >
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Left Side: Profile Information */}
-          <div className="flex-1 space-y-7">
-            {/* Avatar, Name & Strength */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 ring-4 ring-emerald-50 shadow-sm">
-                <span className="text-2xl font-bold">{name.charAt(0).toUpperCase()}</span>
-              </div>
-              <div className="pt-1 min-w-0 flex-1">
-                <h3 className="text-[18px] font-headline font-bold text-slate-900 break-words">
-                  {name}
-                </h3>
-                <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${strengthStyle}`}>
-                  {strengthDisplay}
-                </span>
+          {/* Left Side: Profile & Contact Information */}
+          <div className="flex-1 space-y-6 min-w-0">
+            {/* Header Card: Avatar, Name, Badges & Contact Info */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-3.5">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md ring-4 ring-emerald-50 font-headline font-bold text-2xl">
+                  {name.charAt(0).toUpperCase()}
+                </div>
+                <div className="pt-0.5 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <h3 className="text-lg font-headline font-bold text-slate-900 break-words">
+                      {name}
+                    </h3>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${strengthStyle}`}>
+                      {strengthDisplay}
+                    </span>
+                    {isAlreadyInvited && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">
+                        <CheckCircle size={10} /> Invited
+                      </span>
+                    )}
+                    {isDeclined && (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 border border-slate-200">
+                        Declined
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Contact Info Pills (Email & Phone from payload contact_info) */}
+                  {(email || phone) && (
+                    <div className="mt-2 flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-600 font-medium">
+                      {email && (
+                        <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-md px-2.5 py-1 shadow-2xs text-slate-700">
+                          <Mail className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate max-w-[200px]" title={email}>{email}</span>
+                        </div>
+                      )}
+                      {phone && (
+                        <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-md px-2.5 py-1 shadow-2xs text-slate-700">
+                          <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>{phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -273,7 +307,9 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             {profile?.bio && (
               <div>
                 <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Professional Bio</h4>
-                <p className="text-[13px] text-slate-600 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+                <p className="text-[13px] text-slate-600 whitespace-pre-wrap leading-relaxed bg-white border border-slate-200/80 rounded-lg p-3">
+                  {profile.bio}
+                </p>
               </div>
             )}
 
@@ -284,7 +320,7 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                 <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-[8px] p-3 max-h-[220px] overflow-y-auto">
                   {domainItems.map((item) => (
                     <div key={item.code} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                         <span
                           className={`h-2.5 w-2.5 rounded-full shadow-sm shrink-0 ${
                             item.matchLevel === 'green'
@@ -296,14 +332,14 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                               : 'bg-blue-500'
                           }`}
                         />
-                        <span className="text-[13px] font-semibold text-slate-800">
+                        <span className="text-[13px] font-semibold text-slate-800 truncate">
                           {getDomainLabel(item.code)}
                         </span>
-                        <span className="text-xs font-medium text-slate-500">
+                        <span className="text-xs font-medium text-slate-500 shrink-0">
                           ({item.code})
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-[11px] font-medium text-slate-500">
                           {item.matchLevel === 'green' && 'Full Match'}
                           {item.matchLevel === 'amber' && 'Partial Match'}
@@ -342,20 +378,20 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                     
                     return (
                       <div key={g.seam_code} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                           <span
                             className={`h-2.5 w-2.5 rounded-full shadow-sm shrink-0 ${
                               g.color === 'green' ? 'bg-emerald-500' : g.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
                             }`}
                           />
-                          <span className="text-[13px] font-semibold text-slate-800">
+                          <span className="text-[13px] font-semibold text-slate-800 truncate">
                             {getSeamLabel(g.seam_code)}
                           </span>
-                          <span className="text-xs font-medium text-slate-500">
+                          <span className="text-xs font-medium text-slate-500 shrink-0">
                             ({g.seam_code})
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[11px] font-medium text-slate-500">
                             {g.color === 'green' && 'Full'}
                             {g.color === 'amber' && 'Partial'}
@@ -392,10 +428,13 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
             )}
           </div>
 
-          {/* Right Side: Message & Action */}
-          <div className="w-full md:w-[320px] flex flex-col shrink-0">
+          {/* Right Side: Invitation Message & Action */}
+          <div className="w-full md:w-[330px] flex flex-col shrink-0">
             <div className="bg-[#F8FAFC] border border-slate-200 rounded-[12px] p-5 flex-1 flex flex-col shadow-sm">
-              <h4 className="text-[14px] font-headline font-semibold text-slate-900 mb-1">Invitation Message</h4>
+              <h4 className="text-[14px] font-headline font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                <Send className="w-4 h-4 text-emerald-600" />
+                Invitation Message
+              </h4>
               <p className="text-[12px] text-slate-500 mb-4 leading-relaxed">
                  Send a personalized note alongside your invite to encourage a response.
               </p>
@@ -417,8 +456,12 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                 )}
                 {isAlreadyInvited ? (
                   <Button variant="outline" className="w-full cursor-default bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" disabled>
-                    <CheckCircle size={16} className="mr-2" />
+                    <CheckCircle size={16} className="mr-2 text-emerald-600" />
                     Invitation Sent
+                  </Button>
+                ) : isDeclined ? (
+                  <Button variant="outline" className="w-full cursor-default bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-500" disabled>
+                    Invitation Declined
                   </Button>
                 ) : (
                   <Button

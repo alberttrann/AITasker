@@ -73,7 +73,7 @@
   - Backend strips raw floating-point composite scores ($0.00–1.00$) to guarantee raw score privacy.
   - Candidates are sorted strictly by qualitative strength labels (`STRONG_MATCH` $\rightarrow$ `WEAK_MATCH`).
   - Candidate cards (`MatchCard.tsx`) render domain match indicators, gap maps (`gap_map`), and tech stack tags with continuous text wrap truncation (`truncate` / `break-words`).
-  - Candidate modal (`MatchCard.tsx`) syncs `isAlreadyInvited` with `InvitationStatus` enum values (`'PENDING'`, `'INVITED'`, `'ACCEPTED'`) and displays verified seam badges (`EVIDENCE_BACKED`).
+  - Candidate modal (`MatchCard.tsx`) displays complete candidate profile including `contact_info` (email, phone), match strength badges, domain match levels, verified seam coverage (`EVIDENCE_BACKED`), and invitation action controls.
 - **Force Refresh Shortlist (`GET /matching/:projectId/shortlist?refresh=true`)**:
   - `ShortlistView.tsx` triggers `refresh()` which calls backend cache eviction and FastAPI re-scoring.
   - FastAPI match engine filters experts exceeding the 4:1 claimed-to-verified seam ratio hard gate.
@@ -88,6 +88,9 @@
 - **Milestone Budget Resolution (`ConditionalPricing.tsx` / `BidForm.tsx`)**:
   - Prioritizes `payment_amount_vnd` / `paymentAmountVnd` first over legacy `estimated_cost_vnd`.
   - Uses logical OR (`||`) evaluation to bypass zero values, correctly displaying CEO milestone budgets (e.g. 1.000.000 ₫) in Expert bidding views.
+- **Wallet Transaction History Formatting (`TransactionHistory.tsx`)**:
+  - Adds explicit support for `PLATFORM_FEE` transaction logs with purple badge styling.
+  - Implements dynamic `formatTxTypeLabel` helper to strip underscores (`_`) and title-case all transaction types (e.g. `WITHDRAWAL_REFUND` $\rightarrow$ `Withdrawal Refund`).
 
 
 

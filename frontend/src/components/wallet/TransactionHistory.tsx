@@ -41,7 +41,16 @@ export function TransactionHistory() {
     );
   }
 
+  const formatTxTypeLabel = (type: string) => {
+    if (!type) return 'Transaction';
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const getTxConfig = (type: string) => {
+    const formattedFallback = formatTxTypeLabel(type);
     switch (type) {
       case 'TOP_UP':
         return { label: 'Bank Top-Up', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
@@ -53,6 +62,8 @@ export function TransactionHistory() {
         return isClient
           ? { label: 'Escrow Released', color: 'text-blue-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-blue-100' }
           : { label: 'Escrow Released', color: 'text-emerald-600', icon: <ArrowDownRight size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
+      case 'PLATFORM_FEE':
+        return { label: 'Platform Fee', color: 'text-purple-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-purple-100' };
       case 'ESCROW_REFUND':
         return { label: 'Dispute Refund', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       case 'ESCROW_SPLIT':
@@ -62,7 +73,7 @@ export function TransactionHistory() {
       case 'WITHDRAWAL_REFUND':
         return { label: 'Withdrawal Refund', color: 'text-emerald-600', icon: <Unlock size={20} strokeWidth={2.5} />, bg: 'bg-emerald-100' };
       default:
-        return { label: 'Transaction', color: 'text-slate-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-slate-100' };
+        return { label: formattedFallback, color: 'text-slate-600', icon: <ArrowUpRight size={20} strokeWidth={2.5} />, bg: 'bg-slate-100' };
     }
   };
 
@@ -77,9 +88,9 @@ export function TransactionHistory() {
           const isPositive = isClient
             ? ['TOP_UP', 'ESCROW_REFUND'].includes(tx.transactionType)
             : ['TOP_UP', 'ESCROW_RELEASE', 'ESCROW_REFUND', 'ESCROW_SPLIT', 'WITHDRAWAL_REFUND'].includes(tx.transactionType);
-          
+
           return (
-             <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">
+            <div key={tx.id} className="p-6 flex items-center justify-between gap-6 hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-4 min-w-0 flex-1">
                 <div className={`p-2 rounded-full ${config.bg} ${config.color} shrink-0`}>
                   {config.icon}
