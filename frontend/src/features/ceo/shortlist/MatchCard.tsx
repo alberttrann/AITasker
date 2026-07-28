@@ -7,7 +7,7 @@ import { usePublicProfile } from '@/hooks/use-user';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/Spinner';
-import { CheckCircle, Send, Mail, Phone, ShieldCheck, Sparkles } from 'lucide-react';
+import { CheckCircle, Send, Mail, Phone, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface MatchCardProps {
@@ -24,7 +24,7 @@ const STRENGTH_STYLES: Record<string, string> = {
 };
 
 export default function MatchCard({ expert, projectId, projectName }: MatchCardProps) {
-  const { data: profile, isLoading } = usePublicProfile(expert.expert_id);
+  const { data: profile, isLoading, reviews } = usePublicProfile(expert.expert_id);
 
   const { data: dynamicDomains } = useDomains();
   const { data: dynamicSeams } = useSeams();
@@ -144,6 +144,8 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
   const strengthDisplay = strength.replace('_MATCH', '').replace('_', ' ');
   const stackTags = (profile?.stackTags ?? []) as string[];
   const gaps: GapMapItem[] = expert.gap_map ?? [];
+  const avgRating = profile?.avgRating ? Number(profile.avgRating).toFixed(1) : null;
+  const reviewCount = profile?.reviewCount ?? 0;
 
   useEffect(() => {
     if (name !== 'Loading Expert...' && !inviteMessage) {
@@ -274,6 +276,12 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${strengthStyle}`}>
                       {strengthDisplay}
                     </span>
+                    {avgRating && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200">
+                        <Star size={10} className="fill-amber-400 text-amber-400" />
+                        {avgRating} ({reviewCount})
+                      </span>
+                    )}
                     {isAlreadyInvited && (
                       <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">
                         <CheckCircle size={10} /> Invited
@@ -426,6 +434,42 @@ export default function MatchCard({ expert, projectId, projectName }: MatchCardP
                     >
                       {tag}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Client Reviews Section */}
+            {reviews && reviews.length > 0 && (
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                  <Star size={11} className="fill-amber-400 text-amber-400" />
+                  Client Reviews ({reviews.length})
+                </h4>
+                <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto pr-0.5">
+                  {reviews.map((r: any) => (
+                    <div key={r.id} className="bg-white border border-slate-200 rounded-[8px] p-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <UserAvatar
+                            id={r.reviewer?.id || r.reviewerId}
+                            name={r.reviewer?.fullName || 'Client'}
+                            size="xs"
+                            className="shrink-0"
+                          />
+                          <span className="text-[13px] font-semibold text-slate-800">
+                            {r.reviewer?.fullName || 'Client'}
+                          </span>
+                        </div>
+                        <div className="inline-flex items-center gap-1 bg-amber-50 border border-amber-100 rounded px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                          <Star size={10} className="fill-amber-400 text-amber-400" />
+                          {r.rating} / 5
+                        </div>
+                      </div>
+                      {r.comment && (
+                        <p className="text-[12px] text-slate-600 leading-relaxed italic">"{r.comment}"</p>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
