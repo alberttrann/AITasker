@@ -36,23 +36,7 @@ export function useWalletTransactions(limit = 20) {
   });
 }
 
-export function useSubscriptionStatus() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
-  return useQuery({
-    queryKey: ['subscription'],
-    queryFn:  async () => {
-      const { data } = await apiClient.get<{
-        client_tier:    string;
-        expert_tier:    string;
-        client_expires: string | null;
-        expert_expires: string | null;
-      }>('/subscriptions/status');
-      return data;
-    },
-    enabled: isAuthenticated,
-  });
-}
+export { useSubscriptionStatus } from '@/hooks/use-subscription';
 
 export function useTopUpWallet() {
   return useMutation({

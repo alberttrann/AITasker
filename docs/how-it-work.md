@@ -55,6 +55,7 @@
   - Wrap TanStack Query (`useQuery`, `useMutation`).
   - Every hook function includes JSDoc comments detailing its system-level role ("global cause") so developers can easily understand component data dependencies.
   - Standardized query key invalidations (`invalidateQueries`) to drive reactive UI re-renders on mutations.
+  - Subscription status queries (`useSubscriptionStatus`) are role-scoped by `activeRole` (e.g. `['subscriptionStatus', activeRole]`) and automatically invalidated on role switch (`switchRole`) to prevent Pro tier cache bleeding across Client/Expert roles.
 
 ---
 
