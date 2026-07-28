@@ -184,35 +184,35 @@ export default function MilestoneChatPanel({
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-250">
       {/* Header */}
-    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-900 text-white rounded-tl-xl">
-      <div className="flex items-center gap-2.5 min-w-0">
-        <MessageSquare className="w-5 h-5 text-emerald-400 shrink-0" />
-        <div className="min-w-0">
-          <h3 className="text-sm font-bold truncate font-headline">Workspace Chat</h3>
-          <p className="text-[11px] text-slate-400 truncate">
-            {projectName || 'Service Workspace'}
-          </p>
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white text-slate-900 rounded-tl-xl shadow-2xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold truncate font-headline text-slate-900">Workspace Chat</h3>
+            <p className="text-[11px] text-slate-500 truncate">
+              {projectName || 'Service Workspace'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Nút navigate sang Inbox đầy đủ */}
+          <button
+            onClick={() => { onClose(); navigate(`${dashboardRoute}/inbox/${engagementId}`); }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:border-emerald-500 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50/50 transition-colors text-slate-600 text-[11px] font-semibold cursor-pointer"
+            title="Open in Messenger"
+          >
+            <Inbox className="w-3.5 h-3.5 text-slate-500" />
+            <span>Open Chat</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700 cursor-pointer"
+            aria-label="Close Chat"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {/* Nút navigate sang Inbox đầy đủ */}
-        <button
-          onClick={() => { onClose(); navigate(`${dashboardRoute}/inbox/${engagementId}`); }}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-700 hover:border-emerald-500 hover:text-emerald-400 transition-colors text-slate-400 text-[11px] font-semibold"
-          title="Open in Messenger"
-        >
-          <Inbox className="w-3.5 h-3.5" />
-          <span>Open Chat</span>
-        </button>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
-          aria-label="Close Chat"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
 
       {/* Messages list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFC]">
@@ -269,12 +269,6 @@ export default function MilestoneChatPanel({
                     {formatTime(msg.timestamp)}
                   </p>
                 </div>
-
-                {own && (
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center font-headline font-semibold text-[12px] text-white mt-1 shadow-sm">
-                    {user?.fullName?.charAt(0) || 'Y'}
-                  </div>
-                )}
               </div>
             );
           })

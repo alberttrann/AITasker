@@ -134,7 +134,7 @@ export default function AdminExpertsPage() {
         searchPlaceholder="Search by name or email..."
         tabs={[
           { label: "All Tiers", value: "" },
-          { label: "Basic", value: "basic" },
+          { label: "Basic", value: "free" },
           { label: "Pro", value: "pro" },
         ]}
         activeTab={filterTier}
