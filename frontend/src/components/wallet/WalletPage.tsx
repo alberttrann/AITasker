@@ -7,6 +7,7 @@ import { Wallet, CheckCircle2, Lock, ArrowLeft } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
 import { useWallet } from '@/hooks/use-wallet';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function WalletPage() {
   const { user } = useAuth();
@@ -44,9 +45,7 @@ export default function WalletPage() {
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
             
             {/* Standard sized avatar */}
-            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900 text-white flex items-center justify-center text-lg font-bold shadow-sm">
-              {initial}
-            </div>
+            <UserAvatar name={user?.fullName} id={user?.id} role={user?.activeRole} size="lg" />
             
             {/* Removed the fixed widths and truncate to prevent cropping */}
             <div className="flex-1 min-w-0">

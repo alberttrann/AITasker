@@ -59,10 +59,17 @@ export function useUser() {
 }
 
 /**
- * Fetches public card details (bio, stack tags, domain depths, seam claims, ratings) for any user by ID.
+ * Fetches full public expert profile (bio, stack tags, domain depths, seam claims,
+ * avgRating, reviewCount, activeListings) AND their written client reviews
+ * in a single combined hook — no double-call needed at the consumer.
+ *
+ * Returns:
+ *   data.profile   — all public-profile fields
+ *   data.reviews   — ReviewWithReviewerDto[] (individual written reviews)
+ *   isLoading      — true while either request is in flight
  */
 export function usePublicProfile(userId: string | undefined) {
-  return useQuery({
+  const profileQuery = useQuery({
     queryKey: ['expertProfile', userId],
     queryFn: async () => {
       if (!userId) return null;
@@ -71,4 +78,25 @@ export function usePublicProfile(userId: string | undefined) {
     },
     enabled: !!userId,
   });
+
+  const reviewsQuery = useQuery({
+    queryKey: ['reviews', 'user', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data } = await apiClient.get(`/reviews/users/${userId}`);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!userId,
+  });
+
+  return {
+    // Profile fields (same shape as before — backwards-compatible)
+    data: profileQuery.data ?? null,
+    isLoading: profileQuery.isLoading || reviewsQuery.isLoading,
+    isError: profileQuery.isError,
+    error: profileQuery.error,
+    // Reviews
+    reviews: reviewsQuery.data ?? [],
+    isLoadingReviews: reviewsQuery.isLoading,
+  };
 }

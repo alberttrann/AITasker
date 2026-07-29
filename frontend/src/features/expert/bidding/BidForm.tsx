@@ -54,11 +54,12 @@ function getDefaultPricingItem(
   const milestoneNumber =
     frameworkItem.milestone_number ?? frameworkItem.milestoneNumber ?? 0;
   const price = Number(
-    frameworkItem.estimated_cost_vnd ??
-      frameworkItem.estimatedCostVnd ??
-      frameworkItem.payment_amount_vnd ??
-      frameworkItem.paymentAmountVnd ??
-      frameworkItem.price_vnd ??
+    frameworkItem.payment_amount_vnd ||
+      frameworkItem.paymentAmountVnd ||
+      frameworkItem.price_vnd ||
+      (frameworkItem as any).priceVnd ||
+      frameworkItem.estimated_cost_vnd ||
+      frameworkItem.estimatedCostVnd ||
       0,
   );
   const condition =

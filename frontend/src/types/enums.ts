@@ -97,7 +97,7 @@ export type DecisionType =
   | 'DISPUTE_L1_EVAL'
   | 'CRITERION_QUALITY_GATE';
 
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+export type InvitationStatus = 'NONE' | 'PENDING' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
 export type SubscriptionRole = 'CLIENT' | 'EXPERT';
 export type ShortlistSource   = 'AUTO' | 'FORCE_REFRESH';
 export type AdminDisputeDecision = 'EXPERT_WINS' | 'CLIENT_WINS' | 'SPLIT';

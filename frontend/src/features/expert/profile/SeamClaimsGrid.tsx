@@ -65,7 +65,8 @@ export default function SeamClaimsGrid({ onSave, initialSeams = [], selectedDoma
       const hasRequiredDomains = requiredDomains.every(d => (selectedDomainCodes || []).includes(d));
       
       const existing = (initialSeams || []).find((is: any) => (is.seamCode || is.code) === s.code);
-      const hasSubmissions = (existing?.submissionCount || 0) > 0;
+      // Because submissionCount resets after a lockout expires, we also check lockedUntil to see if they EVER had history.
+      const hasSubmissions = (existing?.submissionCount || 0) > 0 || !!existing?.lockedUntil;
       const isVerified = existing?.verificationTier === 'EVIDENCE_BACKED' || existing?.verificationTier === 'VERIFIED';
       const cannotRemove = isVerified || hasSubmissions;
       

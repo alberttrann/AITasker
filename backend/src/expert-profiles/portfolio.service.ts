@@ -54,8 +54,12 @@ export class PortfolioService {
       });
     }
 
+    const now = new Date();
+    const isLockedOut = claim.lockedUntil && claim.lockedUntil > now;
+    const hasExpiredLockout = claim.lockedUntil && claim.lockedUntil <= now;
+
     // 5. Lockout check.
-    if (claim.lockedUntil && claim.lockedUntil > new Date()) {
+    if (isLockedOut) {
       throw new HttpException(
         {
           code: 'TOO_MANY_ATTEMPTS',
@@ -66,8 +70,9 @@ export class PortfolioService {
       );
     }
 
-    // 6. Submission count check (defensive — should already be locked).
-    if (claim.submissionCount >= PortfolioService.MAX_ATTEMPTS) {
+    // 6. Submission count check (with reset for expired lockouts).
+    const effectiveCount = hasExpiredLockout ? 0 : claim.submissionCount;
+    if (effectiveCount >= PortfolioService.MAX_ATTEMPTS) {
       throw new HttpException(
         {
           code: 'TOO_MANY_ATTEMPTS',
@@ -154,9 +159,10 @@ export class PortfolioService {
         tierUpgraded = true;
       } else {
         // Per BR-VER-06: increment count + 30-day lockout on 5th fail.
-        const newCount = claim.submissionCount + 1;
+        const newCount = effectiveCount + 1;
         const updateData: Prisma.ExpertSeamClaimUpdateInput = {
           submissionCount: newCount,
+          lockedUntil: null, // Clear the lock if it was expired and they are retrying
         };
 
         if (newCount >= PortfolioService.MAX_ATTEMPTS) {

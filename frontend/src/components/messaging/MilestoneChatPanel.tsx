@@ -6,7 +6,8 @@ import { useEngagementStore } from '@/store/engagement.store';
 
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
-import { Send, X, MessageSquare, Inbox } from 'lucide-react';
+import { MessageSquare, Send, X, Inbox } from 'lucide-react';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useNavigate } from 'react-router-dom';
 
 interface Message {
@@ -183,35 +184,35 @@ export default function MilestoneChatPanel({
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-250">
       {/* Header */}
-    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-900 text-white rounded-tl-xl">
-      <div className="flex items-center gap-2.5 min-w-0">
-        <MessageSquare className="w-5 h-5 text-emerald-400 shrink-0" />
-        <div className="min-w-0">
-          <h3 className="text-sm font-bold truncate font-headline">Workspace Chat</h3>
-          <p className="text-[11px] text-slate-400 truncate">
-            {projectName || 'Service Workspace'}
-          </p>
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white text-slate-900 rounded-tl-xl shadow-2xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold truncate font-headline text-slate-900">Workspace Chat</h3>
+            <p className="text-[11px] text-slate-500 truncate">
+              {projectName || 'Service Workspace'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Nút navigate sang Inbox đầy đủ */}
+          <button
+            onClick={() => { onClose(); navigate(`${dashboardRoute}/inbox/${engagementId}`); }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:border-emerald-500 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50/50 transition-colors text-slate-600 text-[11px] font-semibold cursor-pointer"
+            title="Open in Messenger"
+          >
+            <Inbox className="w-3.5 h-3.5 text-slate-500" />
+            <span>Open Chat</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700 cursor-pointer"
+            aria-label="Close Chat"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {/* Nút navigate sang Inbox đầy đủ */}
-        <button
-          onClick={() => { onClose(); navigate(`${dashboardRoute}/inbox/${engagementId}`); }}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-700 hover:border-emerald-500 hover:text-emerald-400 transition-colors text-slate-400 text-[11px] font-semibold"
-          title="Open in Messenger"
-        >
-          <Inbox className="w-3.5 h-3.5" />
-          <span>Open Chat</span>
-        </button>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
-          aria-label="Close Chat"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
 
       {/* Messages list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFC]">
@@ -233,10 +234,10 @@ export default function MilestoneChatPanel({
             const roleInfo = getSenderRoleDetails(msg.senderId);
 
             return (
-              <div key={msg.id} className={cn('flex gap-2', own ? 'justify-end' : 'justify-start')}>
+              <div key={msg.id} className={cn('flex items-end gap-3', own ? 'justify-end' : 'justify-start')}>
                 {!own && (
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-[#0F172A]/10 flex items-center justify-center font-headline font-semibold text-[12px] text-[#0F172A] mt-1 shadow-inner">
-                    {msg.sender?.fullName?.charAt(0) || '?'}
+                  <div className="shrink-0 mb-5">
+                    <UserAvatar name={msg.sender?.fullName} id={msg.senderId} role={roleInfo.label} size="md" />
                   </div>
                 )}
 
@@ -268,12 +269,6 @@ export default function MilestoneChatPanel({
                     {formatTime(msg.timestamp)}
                   </p>
                 </div>
-
-                {own && (
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center font-headline font-semibold text-[12px] text-white mt-1 shadow-sm">
-                    {user?.fullName?.charAt(0) || 'Y'}
-                  </div>
-                )}
               </div>
             );
           })

@@ -139,6 +139,17 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
         queryClient.invalidateQueries({ queryKey: ['engagements'] });
       }
+
+      // 5. Direct Project Invitations -> Invalidate Expert invitations and CEO shortlist cache
+      if (
+        data.type === 'invitation' ||
+        data.title.includes('Invitation') ||
+        data.title.includes('Invite')
+      ) {
+        queryClient.invalidateQueries({ queryKey: ['invitations'] });
+        queryClient.invalidateQueries({ queryKey: ['shortlist'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }
     });
 
     socket.on('bid:updated', (data: {
@@ -163,6 +174,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['bids'] });
     queryClient.invalidateQueries({ queryKey: ['projects'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['invitations'] });
+    queryClient.invalidateQueries({ queryKey: ['shortlist'] });
 
     socket.on('milestone:updated', (data: {
       engagement_id:   string;

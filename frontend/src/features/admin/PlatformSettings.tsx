@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { usePlatformSettings, useUpdatePlatformSettings, useAdminTransactions } from "@/hooks/use-admin";
-import { calculateMonthlyRevenue } from "@/lib/utils";
+import { calculateMonthlyRevenue, formatVND } from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -13,13 +13,16 @@ import {
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import {
-  Settings,
+  Banknote,
   Percent,
   Save,
   Loader2,
   CheckCircle2,
   AlertTriangle,
   Info,
+  Clock,
+  Calendar,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,12 +33,45 @@ export default function PlatformSettings() {
   const [feePct, setFeePct] = useState<number>(5);
   const [saved, setSaved] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [startDateFilter, setStartDateFilter] = useState<string>("");
+
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const { data: transactions } = useAdminTransactions({ type: 'PLATFORM_FEE' });
 
   const monthlyRevenueData = useMemo(() => {
     return calculateMonthlyRevenue(transactions || [], selectedYear);
   }, [transactions, selectedYear]);
+
+  // Calculate total revenue & earliest date since selected start date
+  const { totalRevenue, earliestDate, filteredCount } = useMemo(() => {
+    if (!transactions || transactions.length === 0) {
+      return { totalRevenue: 0, earliestDate: null, filteredCount: 0 };
+    }
+
+    let sum = 0;
+    let minDateMs = Infinity;
+    let count = 0;
+    const filterMs = startDateFilter ? new Date(startDateFilter).getTime() : 0;
+
+    transactions.forEach((tx: any) => {
+      const txDateMs = new Date(tx.createdAt || tx.created_at || Date.now()).getTime();
+      if (txDateMs >= filterMs) {
+        const amt = Number(tx.amount || tx.amount_vnd || tx.amountVnd || 0);
+        sum += amt;
+        count++;
+        if (txDateMs < minDateMs) {
+          minDateMs = txDateMs;
+        }
+      }
+    });
+
+    return {
+      totalRevenue: sum,
+      earliestDate: minDateMs !== Infinity ? new Date(minDateMs) : null,
+      filteredCount: count,
+    };
+  }, [transactions, startDateFilter]);
 
   // Sync local state when data loads
   useEffect(() => {
@@ -66,7 +102,7 @@ export default function PlatformSettings() {
 
   if (isError) {
     return (
-      <div className="space-y-6 max-w-[1440px] mx-auto animate-in fade-in duration-500">
+      <div className="w-full max-w-[1440px] px-6 mx-auto space-y-6 animate-in fade-in duration-500">
         <ErrorBanner
           message="Failed to load platform settings."
           onRetry={() => refetch()}
@@ -75,43 +111,112 @@ export default function PlatformSettings() {
     );
   }
 
-  const platformWalletId = settings?.platform_wallet_id || "—";
   const currentFeePct = settings?.platform_fee_pct != null
     ? (settings.platform_fee_pct * 100).toFixed(1)
     : "5.0";
   const isPending = updateSettings.isPending;
 
   return (
-    <div className="space-y-6 max-w-[720px] mx-auto animate-in fade-in duration-500">
-      {/* Header */}
+    <div className="w-full max-w-[1440px] px-6 mx-auto space-y-6 animate-in fade-in duration-500">
+      {/* Header with Banknote Icon (same as sidebar) */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Settings className="h-8 w-8 text-slate-600" />
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+          <Banknote className="h-8 w-8 text-emerald-600" />
           Platform Revenue
         </h1>
         <p className="text-slate-500 mt-2">
-          Configure platform-wide parameters. Changes take effect on the next
-          milestone approval.
+          Track accumulated platform revenue and configure fee percentage parameters.
         </p>
       </div>
 
-      {/* Platform Wallet Info */}
+      {/* Total Revenue Summary Card */}
+      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white rounded-2xl border border-emerald-900/40 shadow-md p-6 sm:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="absolute top-0 right-0 -mt-6 -mr-6 opacity-10 pointer-events-none">
+          <Banknote className="h-56 w-56 text-emerald-400" />
+        </div>
+
+        <div className="space-y-2 z-10">
+          <span className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest block">
+            Total Revenue Collected
+          </span>
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+            {formatVND(totalRevenue)}
+          </h2>
+          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5 flex-wrap">
+            <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            {startDateFilter ? (
+              <span>
+                Total revenue collected since <strong className="text-slate-200">{new Date(startDateFilter).toLocaleDateString()}</strong>
+              </span>
+            ) : earliestDate ? (
+              <span>
+                Total revenue collected since <strong className="text-slate-200">{earliestDate.toLocaleDateString()}</strong>
+              </span>
+            ) : (
+              <span>Total revenue collected across all transactions</span>
+            )}
+          </p>
+        </div>
+
+        {/* Date Filter & Transaction Stat Box */}
+        <div className="z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
+          <div className="bg-slate-800/90 border border-slate-700/80 rounded-xl p-3.5 flex items-center gap-3">
+            <Calendar className="h-5 w-5 text-emerald-400 shrink-0" />
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Calculate Since Date
+              </label>
+              <input
+                type="date"
+                max={todayStr}
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-white border-none outline-none focus:ring-0 cursor-pointer p-0 [color-scheme:dark]"
+              />
+            </div>
+            {startDateFilter && (
+              <button
+                type="button"
+                onClick={() => setStartDateFilter("")}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-lg transition-colors ml-1 cursor-pointer shrink-0"
+                title="Reset to all-time earliest date"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 flex items-center gap-3 shrink-0">
+            <Banknote className="h-6 w-6 text-emerald-400 shrink-0" />
+            <div>
+              <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider block">
+                Fee Deposits
+              </span>
+              <span className="text-base font-bold text-white">
+                {filteredCount} Transactions
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Chart */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-            <Info className="h-4 w-4" />
-            Revenue
+            <Info className="h-4 w-4 text-emerald-600" />
+            Monthly Revenue Breakdown
           </h2>
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="text-sm border-slate-200 rounded-lg text-slate-700 bg-slate-50"
+            className="text-sm border-slate-200 rounded-lg text-slate-700 bg-slate-50 px-3 py-1.5 font-medium"
           >
             {[...Array(5)].map((_, i) => {
               const year = new Date().getFullYear() - i;
               return (
                 <option key={year} value={year}>
-                  {year}
+                  Year {year}
                 </option>
               );
             })}
@@ -156,8 +261,8 @@ export default function PlatformSettings() {
       {/* Fee Settings */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
-          <Percent className="h-4 w-4" />
-          Platform Fee
+          <Percent className="h-4 w-4 text-emerald-600" />
+          Platform Fee Configuration
         </h2>
 
         {/* Current value display */}

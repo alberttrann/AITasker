@@ -4,6 +4,7 @@ import { useConversations, groupConversationsByPartner, PartnerConversationSumma
 import { useAuth } from '@/hooks/use-auth';
 import { Search, MessageSquare } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface ChatSidebarProps {
   activeEngagementId?: string | null;
@@ -98,15 +99,7 @@ export default function ChatSidebar({ activeEngagementId }: ChatSidebarProps) {
                 }`}
               >
                 {/* Avatar Bubble */}
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 border transition-colors shadow-sm ${
-                    isSelected
-                      ? 'bg-slate-200 text-slate-900 border-slate-300'
-                      : 'bg-slate-50 text-slate-700 border-slate-200/80'
-                  }`}
-                >
-                  {otherPartyName.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar name={otherPartyName} id={conv.partnerId} size="md" />
 
                 {/* Text Metadata */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">

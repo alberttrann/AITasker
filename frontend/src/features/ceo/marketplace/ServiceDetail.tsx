@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useGetService, usePurchaseService } from '@/hooks/use-services';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { useDomains, useSeams } from '@/hooks/use-config';
 import { ArrowLeft, ShieldCheck, MessageSquare, Award, Info, Clock } from 'lucide-react';
 import { formatVND } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -263,9 +264,28 @@ export default function ServiceDetail() {
                 {service.serviceType === 'AI_SERVICE' ? 'AI Build Service' : 'Technical Discovery'}
               </span>
               <h2 className="text-2xl font-bold text-slate-900 leading-tight">{service.title}</h2>
-              <p className="text-sm text-slate-500">
-                Created by expert: <strong className="text-slate-800">{service.expert?.fullName || 'Anonymous Expert'}</strong>
-              </p>
+              {service.expert?.id ? (
+                <p className="text-sm text-slate-500 flex items-center gap-1.5 flex-wrap">
+                  Created by:{' '}
+                  <Link
+                    to={`/ceo/experts/${service.expert.id}`}
+                    className="inline-flex items-center gap-1.5 group"
+                    id={`link-service-expert-${service.expert.id}`}
+                  >
+                    <UserAvatar
+                      id={service.expert.id}
+                      name={service.expert.fullName}
+                      size="xs"
+                      className="shrink-0 ring-2 ring-white shadow-sm group-hover:ring-emerald-200 transition-all"
+                    />
+                    <strong className="text-slate-800 group-hover:text-emerald-700 transition-colors">
+                      {service.expert.fullName || 'Anonymous Expert'}
+                    </strong>
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-500">Created by expert: <strong className="text-slate-800">Anonymous Expert</strong></p>
+              )}
             </div>
 
             <div className="border-t border-slate-100 pt-6 space-y-4">
