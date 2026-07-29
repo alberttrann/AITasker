@@ -97,7 +97,7 @@ export function useElicitationSessions() {
 
 export function useDeleteElicitationSession() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       await apiClient.put(`/elicitation/sessions/${id}/abandon`);
@@ -110,7 +110,7 @@ export function useDeleteElicitationSession() {
 
 export function useRestoreElicitationSession() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       await apiClient.put(`/elicitation/sessions/${id}/continue`);
@@ -123,7 +123,7 @@ export function useRestoreElicitationSession() {
 
 export function useHardDeleteElicitationSession() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       await apiClient.delete(`/elicitation/sessions/${id}`);
@@ -136,7 +136,7 @@ export function useHardDeleteElicitationSession() {
 
 export function useUpdateProjectName() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, projectName }: { id: string; projectName: string }) => {
       const { data } = await apiClient.put<{ id: string; projectName: string }>(
@@ -155,7 +155,7 @@ export function useUpdateProjectName() {
 
 export function useUpdateProjectMilestones() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, milestones }: { id: string; milestones: any[] }) => {
       await apiClient.put(`/projects/${id}/milestones`, { milestones });
@@ -181,7 +181,7 @@ export function useSlimProjects() {
     staleTime: 60_000,
   });
 }
- 
+
 /**
  * useProject — full project record for the detail / spec view.
  * Hits GET /projects/:id — includes artifactAJson, milestoneFrameworkJson, etc.
@@ -203,7 +203,7 @@ export function useProject(projectId: string | undefined) {
     isLoadingProject: query.isLoading,
   };
 }
- 
+
 /**
  * useArtifactA — fetch only the public-facing spec for a project.
  * Hits GET /projects/:id/artifact-a
@@ -220,7 +220,7 @@ export function useArtifactA(projectId: string | undefined) {
     staleTime: Infinity,
   });
 }
- 
+
 /**
  * useArtifactB — fetch gated technical spec (post-NDA, expert/tech-team only).
  * Hits GET /projects/:id/artifact-b
@@ -242,7 +242,7 @@ export function useArtifactB(
     retry: false, // Don't retry 403s (CEO accessing, or NDA not yet signed)
   });
 }
- 
+
 /**
  * useSessionHistory — fetch ABANDONED and RETURNED sessions.
  * Hits GET /elicitation/sessions/history (existing endpoint).
@@ -338,16 +338,16 @@ export function useMilestoneChatHistory(projectId: string, sessionId: string | n
 export function useSendMilestoneMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      message, 
-      chatSessionId, 
-      currentMilestones 
-    }: { 
-      projectId: string; 
-      message: string; 
-      chatSessionId?: string; 
-      currentMilestones?: any[] 
+    mutationFn: async ({
+      projectId,
+      message,
+      chatSessionId,
+      currentMilestones
+    }: {
+      projectId: string;
+      message: string;
+      chatSessionId?: string;
+      currentMilestones?: any[]
     }) => {
       const payload: any = { message };
       if (chatSessionId) payload.chatSessionId = chatSessionId;
@@ -375,7 +375,7 @@ export function useMarketplaceProjects(
     queryFn: async () => {
       const { data } = await apiClient.get<MarketplaceProjectDto[]>('/projects/marketplace', {
         params: filters,
-      });
+      }); `  `
       return data;
     },
     ...options

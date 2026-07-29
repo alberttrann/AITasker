@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AdminTableToolbar } from "@/features/admin/layout/AdminTableToolbar";
 import { DataTable, Column } from "@/components/layout/Table";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 const ROWS_PER_PAGE = 15;
 
@@ -152,7 +153,12 @@ export default function UserList() {
       key: "name",
       label: "Name",
       sortable: true,
-      render: (u) => u.full_name || u.fullName || "—"
+      render: (u) => (
+        <div className="flex items-center gap-2.5">
+          <UserAvatar name={u.full_name || u.fullName || u.email} id={u.id} role={u.active_role || u.activeRole} size="sm" />
+          <span className="font-semibold text-slate-900 text-sm">{u.full_name || u.fullName || "—"}</span>
+        </div>
+      )
     },
     {
       key: "roles",

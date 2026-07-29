@@ -120,8 +120,7 @@ export class ProjectsService {
     activeRole: 'CLIENT' | 'EXPERT' | 'ADMIN',
     clientSubtype?: 'CEO' | 'TECH_TEAM',
   ) {
-    // "requester.active_role = CLIENT/CEO → 403 permanent" — checked
-    // FIRST, before even looking up the project. No CEO ever gets Artifact B.
+    // 1. Block CEO: CEOs cannot access the technical deep-dive spec
     if (activeRole === 'CLIENT' && clientSubtype === 'CEO') {
       throw new ForbiddenException(
         'CEOs cannot access Artifact B — this is the technical deep-dive ' +
@@ -133,46 +132,45 @@ export class ProjectsService {
       where: { id: projectId },
       select: { id: true, artifactBJson: true },
     });
+    
     if (!project) {
       throw new NotFoundException(`Project with ID ${projectId} not found`);
     }
 
+    // 2. Allow Admin unconditionally
     if (activeRole === 'ADMIN') {
       return { artifact_b_json: project.artifactBJson };
     }
 
-    let engagement: any;
-
-    if (activeRole === 'EXPERT') {
-      engagement = await this.prisma.engagement.findFirst({
-        where: { projectId, expertId: userId },
-        include: { capabilityBid: true },
-      });
-      if (!engagement) {
-        throw new ForbiddenException('You are not engaged with this project.');
-      }
-    } else if (clientSubtype === 'TECH_TEAM') {
+    // 3. Allow Tech Team unconditionally (if linked to the project)
+    if (activeRole === 'CLIENT' && clientSubtype === 'TECH_TEAM') {
       const techProfile = await this.prisma.techTeamProfile.findUnique({ where: { userId } });
       if (!techProfile || techProfile.linkedProjectId !== projectId) {
         throw new ForbiddenException('You are not linked to this project.');
       }
-      engagement = await this.prisma.engagement.findFirst({
-        where: { projectId, state: { in: ['ACTIVE', 'CONNECTED'] } },
-        include: { capabilityBid: true },
-      });
-      if (!engagement) {
-        throw new ForbiddenException(
-          'No engagement on this project has progressed far enough yet.',
-        );
-      }
-    } else {
+      // Tech Team always has access to their own project's technical spec
+      return { artifact_b_json: project.artifactBJson };
+    }
+
+    // 4. Expert Access (Requires active engagement and NDA)
+    if (activeRole !== 'EXPERT') {
       throw new ForbiddenException('Access denied.');
+    }
+
+    const engagement = await this.prisma.engagement.findFirst({
+      where: { projectId, expertId: userId },
+      include: { capabilityBid: true },
+    });
+    
+    if (!engagement) {
+      throw new ForbiddenException('You are not engaged with this project.');
     }
 
     const bidState = engagement.capabilityBid?.state ?? 'DRAFT';
 
     let guardResult;
     try {
+      // Ask FastAPI AI Service if the engagement has progressed far enough
       guardResult = await this.fastapiClient.checkArtifactBAccess(projectId, {
         engagement_state: engagement.state,
         bid_state: bidState,

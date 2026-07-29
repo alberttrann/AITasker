@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useGetServices, useMyPurchase, usePurchaseService } from '@/hooks/use-services';
 import { useMarketplaceProjects } from '@/hooks/use-projects';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useExpertSearch, useExpertProfile } from '@/hooks/use-expert-profile';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -193,9 +194,7 @@ export default function MarketplaceBrowse() {
               {experts.map((expert: any) => (
                 <div key={expert.userId || expert.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 text-blue-600 font-bold flex items-center justify-center rounded-full text-lg">
-                      {expert.user?.fullName?.charAt(0) || 'E'}
-                    </div>
+                    <UserAvatar name={expert.user?.fullName} id={expert.userId || expert.id} role="EXPERT" size="lg" />
                     <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1 rounded-md text-xs font-bold">
                       <Star className="w-3 h-3 fill-amber-500" /> {expert.avgRating ? Number(expert.avgRating).toFixed(1) : 'New'}
                     </div>
@@ -274,9 +273,11 @@ export default function MarketplaceBrowse() {
                         onClick={() => navigate(`/expert/bids/${proj.id}`)} 
                         variant={isMissingReqs ? "secondary" : "primary"} 
                         size="sm" 
-                        className="gap-2"
+                        disabled={isMissingReqs}
+                        className="gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={isMissingReqs ? "You do not meet the footprint requirements" : ""}
                       >
-                        Submit Bid <ArrowRight className="w-4 h-4" />
+                        {isMissingReqs ? 'Not Eligible' : 'Submit Bid'} <ArrowRight className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>

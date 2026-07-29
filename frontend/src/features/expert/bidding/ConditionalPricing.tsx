@@ -123,10 +123,12 @@ export default function ConditionalPricing({
                     <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider mb-0.5">Budget</p>
                     <p className="font-headline text-[14px] font-semibold text-[#0F172A]">
                       {formatVND(
-                        fwItem.estimated_cost_vnd ??
-                          fwItem.estimatedCostVnd ??
-                          fwItem.payment_amount_vnd ??
-                          fwItem.paymentAmountVnd ??
+                        fwItem.payment_amount_vnd ||
+                          fwItem.paymentAmountVnd ||
+                          fwItem.price_vnd ||
+                          (fwItem as any).priceVnd ||
+                          fwItem.estimated_cost_vnd ||
+                          fwItem.estimatedCostVnd ||
                           0,
                       )}
                     </p>

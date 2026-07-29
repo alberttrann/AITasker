@@ -7,6 +7,7 @@ import WalletTopUp from '@/features/ceo/onboarding/WalletTopUp';
 import { formatVND } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ui/modal';
 import { useSubscriptionStatus } from '@/hooks/use-subscription';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import {
   Wallet,
   CheckCircle2,
@@ -62,9 +63,7 @@ export default function ExpertWallet() {
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mb-6">
         {/* Profile Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
-          <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900 text-white flex items-center justify-center text-lg font-bold shadow-sm">
-            {initial}
-          </div>
+          <UserAvatar name={user?.fullName} id={user?.id} role="EXPERT" size="lg" />
           <div className="flex-1 min-w-0">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight break-words flex items-center gap-3">
               {user?.fullName || 'Anonymous User'}

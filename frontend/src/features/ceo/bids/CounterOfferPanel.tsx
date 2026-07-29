@@ -30,17 +30,21 @@ type EditableTerm = MilestoneOfferTermDto & { criteria_text: string };
 export default function CounterOfferPanel({
   bidId,
   currentOffer,
+  mode = 'counter',
   onCancel,
   onSuccess,
 }: {
   bidId: string;
   currentOffer: BidOfferDto;
+  mode?: 'counter' | 'revision';
   onCancel: () => void;
   onSuccess: () => void;
 }) {
   const createOffer = useCreateOffer();
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
+  const isRevision = mode === 'revision';
+  const actionId = isRevision ? 'revision' : 'counter';
 
   const initialValues = {
     milestones: currentOffer.milestones.map((term): EditableTerm => ({
@@ -89,29 +93,35 @@ export default function CounterOfferPanel({
       {({ values, errors, touched, handleChange, isSubmitting }) => (
         <Form className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50/30 p-5">
           <div>
-            <h2 className="font-semibold text-slate-900">Create counter offer</h2>
-            <p className="mt-1 text-xs text-slate-500">Editing deliverables or criteria sends the offer back to Tech Team review.</p>
+            <h2 className="font-semibold text-slate-900">
+              {isRevision ? 'Revise technical terms' : 'Create counter offer'}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {isRevision
+                ? 'Address the Tech Team feedback, then resubmit this scope for technical review.'
+                : 'Editing deliverables or criteria sends the offer back to Tech Team review.'}
+            </p>
           </div>
           {values.milestones.map((milestone, index) => (
             <fieldset key={milestone.milestone_number} className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
               <legend className="px-2 text-sm font-semibold text-slate-700">Milestone {milestone.milestone_number}</legend>
-              <label className="block text-xs font-medium text-slate-600" htmlFor={`input-counter-deliverable-${index}`}>
+              <label className="block text-xs font-medium text-slate-600" htmlFor={`input-${actionId}-deliverable-${index}`}>
                 Deliverable
-                <textarea id={`input-counter-deliverable-${index}`} name={`milestones.${index}.deliverable_statement`} value={milestone.deliverable_statement} onChange={handleChange} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <textarea id={`input-${actionId}-deliverable-${index}`} name={`milestones.${index}.deliverable_statement`} value={milestone.deliverable_statement} onChange={handleChange} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </label>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-xs font-medium text-slate-600" htmlFor={`input-counter-price-${index}`}>
+                <label className="text-xs font-medium text-slate-600" htmlFor={`input-${actionId}-price-${index}`}>
                   Price (VND)
-                  <input id={`input-counter-price-${index}`} name={`milestones.${index}.price_vnd`} type="number" min={1} value={milestone.price_vnd ?? ''} onChange={handleChange} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  <input id={`input-${actionId}-price-${index}`} name={`milestones.${index}.price_vnd`} type="number" min={1} value={milestone.price_vnd ?? ''} onChange={handleChange} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </label>
-                <label className="text-xs font-medium text-slate-600" htmlFor={`input-counter-duration-${index}`}>
+                <label className="text-xs font-medium text-slate-600" htmlFor={`input-${actionId}-duration-${index}`}>
                   Duration (days)
-                  <input id={`input-counter-duration-${index}`} name={`milestones.${index}.estimated_duration_days`} type="number" min={1} value={milestone.estimated_duration_days ?? ''} onChange={handleChange} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  <input id={`input-${actionId}-duration-${index}`} name={`milestones.${index}.estimated_duration_days`} type="number" min={1} value={milestone.estimated_duration_days ?? ''} onChange={handleChange} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </label>
               </div>
-              <label className="block text-xs font-medium text-slate-600" htmlFor={`input-counter-criteria-${index}`}>
+              <label className="block text-xs font-medium text-slate-600" htmlFor={`input-${actionId}-criteria-${index}`}>
                 Acceptance criteria (one per line)
-                <textarea id={`input-counter-criteria-${index}`} name={`milestones.${index}.criteria_text`} value={milestone.criteria_text} onChange={handleChange} rows={3} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <textarea id={`input-${actionId}-criteria-${index}`} name={`milestones.${index}.criteria_text`} value={milestone.criteria_text} onChange={handleChange} rows={3} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </label>
               {touched.milestones?.[index] && errors.milestones?.[index] ? (
                 <div className="text-xs text-red-600">
@@ -124,11 +134,15 @@ export default function CounterOfferPanel({
               ) : null}
             </fieldset>
           ))}
-          {createOffer.error ? <p className="text-sm text-red-600">{(createOffer.error as any)?.response?.data?.message?.message || (createOffer.error as any)?.response?.data?.message || 'Counter offer failed.'}</p> : null}
+          {createOffer.error ? <p className="text-sm text-red-600">{(createOffer.error as any)?.response?.data?.message?.message || (createOffer.error as any)?.response?.data?.message || (isRevision ? 'Technical revision failed.' : 'Counter offer failed.')}</p> : null}
           <div className="flex justify-end gap-3">
-            <Button id="btn-cancel-counter-offer" type="button" variant="ghost" onClick={onCancel} className="cursor-pointer">Cancel</Button>
-            <Button id="btn-submit-counter-offer" type="submit" variant="primary" disabled={isSubmitting || createOffer.isPending} className="cursor-pointer disabled:cursor-not-allowed">
-              {createOffer.isPending ? 'Sending…' : 'Send counter offer'}
+            <Button id={`btn-cancel-${actionId}-offer`} type="button" variant="ghost" onClick={onCancel} className="cursor-pointer">Cancel</Button>
+            <Button id={`btn-submit-${actionId}-offer`} type="submit" variant="primary" disabled={isSubmitting || createOffer.isPending} className="cursor-pointer disabled:cursor-not-allowed">
+              {createOffer.isPending
+                ? 'Sending…'
+                : isRevision
+                  ? 'Resubmit for technical review'
+                  : 'Send counter offer'}
             </Button>
           </div>
         </Form>
@@ -151,7 +165,7 @@ export default function CounterOfferPanel({
         cancelText="Review Again"
         isInfo
       >
-        You haven't made any changes to the milestones, prices, or criteria. Are you sure you want to submit the exact same offer back?
+        You haven't made any changes to the milestones, prices, or criteria. Are you sure you want to {isRevision ? 'resubmit' : 'send'} the exact same offer?
       </ConfirmModal>
     </>
   );

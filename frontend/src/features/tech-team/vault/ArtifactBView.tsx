@@ -101,13 +101,21 @@ export default function ArtifactBView({ projectId }: TechTeamArtifactBViewProps)
                       return (
                         <div key={`schema-${i}`} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-sm">
                           <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded uppercase tracking-wider shrink-0">Schema</span>
-                          {isLink ? (
-                            <a href={href} target="_blank" rel="noreferrer" className="text-sm font-mono text-blue-600 hover:underline truncate">
-                              {url}
-                            </a>
-                          ) : (
-                            <span className="text-sm font-mono text-slate-700 truncate">{url}</span>
-                          )}
+                          <div
+                            id={`scroll-tech-team-artifact-schema-${i}`}
+                            role="region"
+                            aria-label={`Schema ${i + 1}. Scroll horizontally to view the full value.`}
+                            tabIndex={0}
+                            className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain rounded pb-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          >
+                            {isLink ? (
+                              <a href={href} target="_blank" rel="noreferrer" className="block w-max cursor-pointer whitespace-nowrap text-sm font-mono text-blue-600 hover:underline">
+                                {url}
+                              </a>
+                            ) : (
+                              <span className="block w-max whitespace-nowrap text-sm font-mono text-slate-700">{url}</span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -116,13 +124,21 @@ export default function ArtifactBView({ projectId }: TechTeamArtifactBViewProps)
                       return (
                         <div key={`contract-${i}`} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-sm">
                           <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded uppercase tracking-wider shrink-0">Contract</span>
-                          {isLink ? (
-                            <a href={href} target="_blank" rel="noreferrer" className="text-sm font-mono text-purple-600 hover:underline truncate">
-                              {url}
-                            </a>
-                          ) : (
-                            <span className="text-sm font-mono text-slate-700 truncate">{url}</span>
-                          )}
+                          <div
+                            id={`scroll-tech-team-artifact-contract-${i}`}
+                            role="region"
+                            aria-label={`Contract ${i + 1}. Scroll horizontally to view the full value.`}
+                            tabIndex={0}
+                            className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain rounded pb-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          >
+                            {isLink ? (
+                              <a href={href} target="_blank" rel="noreferrer" className="block w-max cursor-pointer whitespace-nowrap text-sm font-mono text-purple-600 hover:underline">
+                                {url}
+                              </a>
+                            ) : (
+                              <span className="block w-max whitespace-nowrap text-sm font-mono text-slate-700">{url}</span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

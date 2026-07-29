@@ -9,6 +9,7 @@ import { formatVND } from '@/lib/utils';
 import CounterOfferPanel from './CounterOfferPanel';
 import CeoNdaClickThrough from '../connection/NdaClickThrough';
 import { Modal } from '@/components/ui/modal';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export default function BidDetail() {
   const { projectId, bidId } = useParams<{ projectId: string; bidId: string }>();
@@ -30,8 +31,10 @@ export default function BidDetail() {
 
   const offer = bid.acceptedOffer ?? bid.currentOffer;
   const canAct = bid.nextActionBy === 'CEO' && bid.negotiationState === 'AWAITING_CEO';
-  // CEO never revises tech terms; they either Accept or Counter the price. Tech revisions are for Experts only.
-  const canRevise = false;
+  const canRevise =
+    bid.nextActionBy === 'CEO' &&
+    bid.technicalReview?.status === 'REVISION_REQUESTED' &&
+    bid.currentOffer?.proposerRole === 'CEO';
   const total = offer?.milestones.reduce((sum, milestone) => sum + (milestone.price_vnd ?? 0), 0) ?? 0;
   const engagementId = bid.engagementId || bid.engagement?.id;
 
@@ -42,16 +45,19 @@ export default function BidDetail() {
       </button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-headline text-2xl font-semibold text-slate-900">Bid from {bid.engagement?.expert?.fullName ?? 'Expert'}</h1>
-          <p className="mt-1 text-sm text-slate-500">Offer v{offer?.version ?? bid.versionNumber} · {String(bid.negotiationState || '').replace(/_/g, ' ').toLowerCase()}</p>
+        <div className="flex items-center gap-3">
+          <UserAvatar name={bid.engagement?.expert?.fullName} id={bid.engagement?.expert?.id} role="EXPERT" size="lg" />
+          <div>
+            <h1 className="font-headline text-2xl font-semibold text-slate-900">Bid from {bid.engagement?.expert?.fullName ?? 'Expert'}</h1>
+            <p className="mt-1 text-sm text-slate-500">Offer v{offer?.version ?? bid.versionNumber} · {String(bid.negotiationState || '').replace(/_/g, ' ').toLowerCase()}</p>
+          </div>
         </div>
         {bid.termsLocked ? <span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"><LockKeyhole size={16} /> Terms locked</span> : null}
       </div>
 
       <Card><CardContent className="p-6"><h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Approach</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">{bid.approachSummary || 'No approach summary provided.'}</p></CardContent></Card>
 
-      {bid.negotiationState === 'AWAITING_TECH_REVIEW' ? (
+      {bid.negotiationState === 'AWAITING_TECH_REVIEW' && bid.technicalReview?.status === 'PENDING' ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Tech Team is reviewing technical scope version {bid.technicalReview?.scopeVersion}. Commercial actions unlock after approval.</div>
       ) : null}
       {bid.technicalReview?.status === 'REVISION_REQUESTED' ? (
@@ -73,12 +79,27 @@ export default function BidDetail() {
         </Card>
       ) : null}
 
-      {showCounter && bid.currentOffer ? <CounterOfferPanel bidId={bid.id} currentOffer={bid.currentOffer} onCancel={() => setShowCounter(false)} onSuccess={() => setShowCounter(false)} /> : null}
+      {showCounter && bid.currentOffer ? (
+        <CounterOfferPanel
+          bidId={bid.id}
+          currentOffer={bid.currentOffer}
+          mode={canRevise ? 'revision' : 'counter'}
+          onCancel={() => setShowCounter(false)}
+          onSuccess={() => setShowCounter(false)}
+        />
+      ) : null}
 
       {(canAct || canRevise) && !showCounter ? (
         <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5">
           {canAct ? <Button id="btn-decline-current-offer" variant="destructive" onClick={() => navigate(`/ceo/projects/${projectId}/bids/${bid.id}/decision?action=decline`)} className="cursor-pointer">Decline</Button> : null}
-          <Button id="btn-counter-current-offer" variant="secondary" onClick={() => setShowCounter(true)} className="cursor-pointer">{canRevise ? 'Revise technical terms' : 'Counter'}</Button>
+          <Button
+            id={canRevise ? 'btn-revise-ceo-offer' : 'btn-counter-current-offer'}
+            variant="secondary"
+            onClick={() => setShowCounter(true)}
+            className="cursor-pointer"
+          >
+            {canRevise ? 'Revise technical terms' : 'Counter'}
+          </Button>
           {canAct ? <Button id="btn-accept-current-offer" variant="primary" onClick={() => navigate(`/ceo/projects/${projectId}/bids/${bid.id}/decision?action=accept`)} className="cursor-pointer">Accept offer</Button> : null}
         </div>
       ) : null}

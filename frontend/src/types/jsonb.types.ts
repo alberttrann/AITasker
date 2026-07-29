@@ -1,6 +1,6 @@
 import type {
   ArchetypeCode, DomainCode, DepthLevel, ProjectTier,
-  SeamCode, SeamCriticality, SignOffAuthority, VerificationTier,
+  SeamCode, SeamCriticality, SignOffAuthority, VerificationTier, InvitationStatus,
 } from './enums';
 
 // e.g. ["CLIENT", "EXPERT"]
@@ -92,13 +92,20 @@ export interface GapMapItem {
 }
 
 export interface MatchResult {
-  expert_id:       string;
-  composite_score: number;
-  strength_label:  string;
-  gap_map:         GapMapItem[];
-  expert_profile?: {
+  expert_id:          string;
+  composite_score?:   number;
+  strength_label:     string;
+  gap_map:            GapMapItem[];
+  invitation_status?: InvitationStatus;
+  contact_info?: {
+    id:       string;
     fullName: string;
-    domains: { code: string; depth: string }[];
+    email:    string;
+    phone:    string;
+  } | null;
+  expert_profile?: {
+    fullName:   string;
+    domains:    { code: string; depth: string }[];
     stack_tags: string[];
   };
 }

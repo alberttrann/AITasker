@@ -173,7 +173,11 @@ export default function ExpertProfilePage() {
           ) : (
             <div className="grid gap-3">
               {seams.map((s: any) => {
-                const isLocked = s.lockedUntil && new Date(s.lockedUntil) > new Date();
+                const now = new Date();
+                const isLocked = s.lockedUntil && new Date(s.lockedUntil) > now;
+                const isExpiredLockout = s.lockedUntil && new Date(s.lockedUntil) <= now;
+                const effectiveAttempts = isExpiredLockout ? 0 : (s.submissionCount || 0);
+
                 return (
                 <div key={s.seamCode || s.code} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3 border-b border-gray-50 last:border-0">
                   <div className="flex items-center gap-3 flex-1">
@@ -194,7 +198,7 @@ export default function ExpertProfilePage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs sm:justify-end">
-                    <span className="text-gray-500 font-medium">Attempts: {s.submissionCount || 0}</span>
+                    <span className="text-gray-500 font-medium">Attempts: {effectiveAttempts} / 5</span>
                     {isLocked && (
                       <span className="text-amber-600 font-medium flex items-center gap-1 bg-amber-50 px-2 py-1 rounded">
                         <Lock className="w-3 h-3" /> Locked until {new Date(s.lockedUntil).toLocaleDateString()}
