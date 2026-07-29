@@ -9,36 +9,45 @@ export default function InboxPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [selectedEngagementId, setSelectedEngagementId] = useState<string | null>(urlEngagementId ?? null);
+  const queryParams = new URLSearchParams(location.search);
+  const urlProjectId = queryParams.get('projectId');
 
-  // Sync selectedEngagementId with URL params when browser navigates
+  const [selectedEngagementId, setSelectedEngagementId] = useState<string | null>(urlEngagementId ?? null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId ?? null);
+
   useEffect(() => {
     if (urlEngagementId) {
       setSelectedEngagementId(urlEngagementId);
+      setSelectedProjectId(null);
+    } else if (urlProjectId) {
+      setSelectedProjectId(urlProjectId);
+      setSelectedEngagementId(null);
     }
-  }, [urlEngagementId]);
+  }, [urlEngagementId, urlProjectId]);
 
-  const activeEngagementId = selectedEngagementId;
-
-  // Determine base path from current URL (/expert/inbox or /ceo/inbox)
   const basePath = location.pathname.startsWith('/ceo') ? '/ceo' : '/expert';
 
   const handleSelect = (id: string) => {
     setSelectedEngagementId(id);
-    // Update URL so useParams gets the right ID, without full remount
+    setSelectedProjectId(null);
     navigate(`${basePath}/inbox/${id}`, { replace: true });
   };
 
   return (
     <div className='w-full max-w-[1440px] px-6 mx-auto py-6 flex h-[calc(100vh-160px)] min-h-[500px] bg-transparent border-0 gap-6 overflow-hidden select-none'>
-      {/* ── Left pane: Conversation list grouped by partner (ChatSidebar) ── */}
-      <ChatSidebar activeEngagementId={activeEngagementId} />
+      {/* Left pane: 1-on-1 Conversations List */}
+      <ChatSidebar activeEngagementId={selectedEngagementId} />
 
-      {/* ── Right pane: Message thread with Dropdown ── */}
+      {/* Right pane: Message thread */}
       <div className='flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm'>
-        {activeEngagementId ? (
+        {selectedEngagementId ? (
           <MessageThread
-            engagementId={activeEngagementId}
+            engagementId={selectedEngagementId}
+            onSelectEngagement={handleSelect}
+          />
+        ) : selectedProjectId ? (
+          <MessageThread
+            projectId={selectedProjectId}
             onSelectEngagement={handleSelect}
           />
         ) : (
@@ -48,7 +57,7 @@ export default function InboxPage() {
             </div>
             <h3 className='text-sm font-bold text-slate-800'>No Chat Selected</h3>
             <p className='text-xs text-slate-400 leading-relaxed mt-1.5 max-w-sm'>
-              Choose a contact from the sidebar to view messages, coordinate milestones, or discuss project details in real-time.
+              Choose a contact from the sidebar, or open a Pre-Bid Q&A from your projects list.
             </p>
           </div>
         )}

@@ -667,21 +667,33 @@ export default function ExpertProjectsPage() {
                 )}
 
                 <div className="space-y-8">
-                  {/* Message / Status banner */}
-                  {selectedProject.invitation?.message && (
-                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h4 className="text-sm font-semibold text-blue-900 mb-1">Message from CEO ({selectedProject.ceoName}):</h4>
-                        <p className="text-sm text-blue-800 italic leading-relaxed">"{selectedProject.invitation.message}"</p>
-                      </div>
+                  {/* Invitation Message & Q&A Banner */}
+                  {(selectedProject.status === 'INVITED' || selectedProject.invitation?.message) && (
+                    <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100 flex flex-col gap-4 mb-6">
+                      {selectedProject.invitation?.message && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-900 mb-1">Message from CEO ({selectedProject.ceoName}):</h4>
+                          <p className="text-sm text-blue-800 italic leading-relaxed">"{selectedProject.invitation.message}"</p>
+                        </div>
+                      )}
+                      
                       {selectedProject.status === 'INVITED' && (
-                        <Button
-                          variant="primary"
-                          onClick={() => navigate(`/expert/bids/${selectedProject.projectId}`)}
-                          className="shrink-0 shadow-xs cursor-pointer whitespace-nowrap bg-blue-600 hover:bg-blue-700"
-                        >
-                          Submit Bid to Chat
-                        </Button>
+                        <div className="flex flex-wrap gap-3 pt-2 border-t border-blue-200/50 mt-1">
+                          <Button
+                            variant="primary"
+                            onClick={() => navigate(`/expert/bids/${selectedProject.projectId}`)}
+                            className="bg-blue-600 hover:bg-blue-700 shadow-sm cursor-pointer"
+                          >
+                            Accept & Submit Bid
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(`/expert/inbox?projectId=${selectedProject.projectId}`)}
+                            className="bg-white text-blue-900 border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer"
+                          >
+                            <MessageSquare className="w-4 h-4 mr-2 text-blue-600" /> Open Pre-Bid Q&A
+                          </Button>
+                        </div>
                       )}
                     </div>
                   )}
