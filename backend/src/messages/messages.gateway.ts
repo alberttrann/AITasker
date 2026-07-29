@@ -313,19 +313,13 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
           type: 'system',
           title: 'Project Invitation',
           body: 'A CEO has invited you to submit a bid for their project.',
-          link: `/expert/invitations`, // now points to the new Invitations page
+          link: `/expert/service/projects`,
         },
       });
 
-      // 4. Create the initial chat message in the DB for the project chat thread
-      const content = dto.content ?? `I'd like to invite you to submit a bid for this project.`;
-      const savedMessage = await this.messagesService.createMessage(
-        { id: user.sub, activeRole: user.activeRole },
-        { project_id: dto.projectId, content },
-      );
-
-      // Broadcast to the project room so the CEO sees it in their chat history
-      this.server.to(dto.projectId).emit('newMessage', savedMessage);
+      // Note: We DO NOT create a chat message here. 
+      // The personal message is safely stored in `invitation.message` via upsertInvitation above.
+      // 1-on-1 Chat only begins AFTER the expert submits a bid (which creates the Engagement).
     } catch (err: any) {
       client.emit('error', { message: err.message || 'Failed to send invitation.' });
     }

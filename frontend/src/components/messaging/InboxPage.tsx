@@ -9,32 +9,22 @@ export default function InboxPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const queryParams = new URLSearchParams(location.search);
-  const urlProjectId = queryParams.get('projectId');
-
   const [selectedEngagementId, setSelectedEngagementId] = useState<string | null>(urlEngagementId ?? null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId ?? null);
 
-  // Sync selectedEngagementId and selectedProjectId with URL params when browser navigates
+  // Sync selectedEngagementId with URL params when browser navigates
   useEffect(() => {
     if (urlEngagementId) {
       setSelectedEngagementId(urlEngagementId);
-      setSelectedProjectId(null);
-    } else if (urlProjectId) {
-      setSelectedProjectId(urlProjectId);
-      setSelectedEngagementId(null);
     }
-  }, [urlEngagementId, urlProjectId]);
+  }, [urlEngagementId]);
 
   const activeEngagementId = selectedEngagementId;
-  const activeProjectId = selectedProjectId;
 
   // Determine base path from current URL (/expert/inbox or /ceo/inbox)
   const basePath = location.pathname.startsWith('/ceo') ? '/ceo' : '/expert';
 
   const handleSelect = (id: string) => {
     setSelectedEngagementId(id);
-    setSelectedProjectId(null);
     // Update URL so useParams gets the right ID, without full remount
     navigate(`${basePath}/inbox/${id}`, { replace: true });
   };
@@ -49,11 +39,6 @@ export default function InboxPage() {
         {activeEngagementId ? (
           <MessageThread
             engagementId={activeEngagementId}
-            onSelectEngagement={handleSelect}
-          />
-        ) : activeProjectId ? (
-          <MessageThread
-            projectId={activeProjectId}
             onSelectEngagement={handleSelect}
           />
         ) : (

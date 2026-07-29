@@ -273,9 +273,11 @@ export default function MarketplaceBrowse() {
                         onClick={() => navigate(`/expert/bids/${proj.id}`)} 
                         variant={isMissingReqs ? "secondary" : "primary"} 
                         size="sm" 
-                        className="gap-2"
+                        disabled={isMissingReqs}
+                        className="gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={isMissingReqs ? "You do not meet the footprint requirements" : ""}
                       >
-                        Submit Bid <ArrowRight className="w-4 h-4" />
+                        {isMissingReqs ? 'Not Eligible' : 'Submit Bid'} <ArrowRight className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
