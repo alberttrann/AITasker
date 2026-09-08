@@ -636,7 +636,7 @@ Detailed architectural and technical specification documents are located in the 
 
 - **Trần Võ Minh Hùng** (`hungminh.2310@gmail.com`) 
 - **Bùi Phạm Chí Nhân** (`buiphamchinhan@gmail.com`) 
-- **Võ Cao Minh** (`vominh7410@gmail.com`) 
+- **Võ Cao Minh** (`vocaominh7406@gmail.com`) 
 - **Chiêm Minh Thức** (`minhthuctim13@gmail.com`) 
 - **Huỳnh Tuấn Khang** (`khang55555@gmail.com`) 
 
